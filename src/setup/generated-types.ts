@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.5.1"
+export const typesBundleVersion = "3.6.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -83,6 +83,7 @@ import { ConversationHistory } from "./features/conversation-history";
 import { Conversation } from "./features/conversation";
 import { DocsReader } from "./features/docs-reader";
 import { FileTools } from "./features/file-tools";
+import { HermesAgent } from "./features/hermes-agent";
 import { McpBridge } from "./features/mcp-bridge";
 import { ModelProviders } from "./features/model-providers";
 import { OpenAICodex } from "./features/openai-codex";
@@ -109,6 +110,8 @@ export type { Message, ContentPart, ConversationTool, ConversationMCPServer, Con
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
+export { HermesAgent } from "./features/hermes-agent";
+export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSession, HermesAgentState, HermesAgentOptions, HermesRunOptions } from "./features/hermes-agent";
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
@@ -132,6 +135,7 @@ export interface GeneratedAGIFeatures {
     conversationHistory: typeof ConversationHistory;
     docsReader: typeof DocsReader;
     fileTools: typeof FileTools;
+    hermesAgent: typeof HermesAgent;
     mcpBridge: typeof McpBridge;
     memory: typeof Memory;
     modelProviders: typeof ModelProviders;
@@ -152,6 +156,7 @@ export declare const generatedAgiFeatureExports: {
     readonly ConversationHistory: typeof ConversationHistory;
     readonly DocsReader: typeof DocsReader;
     readonly FileTools: typeof FileTools;
+    readonly HermesAgent: typeof HermesAgent;
     readonly McpBridge: typeof McpBridge;
     readonly Memory: typeof Memory;
     readonly ModelProviders: typeof ModelProviders;
@@ -4393,6 +4398,573 @@ export declare class FileTools extends Feature {
 }
 export default FileTools;
 //# sourceMappingURL=file-tools.d.ts.map`,
+  "agi/features/hermes-agent.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        hermesAgent: typeof HermesAgent;
+    }
+}
+export interface HermesSessionUpdate {
+    sessionUpdate: 'agent_message_chunk' | 'agent_thought_chunk' | 'tool_call' | 'tool_call_update' | 'plan' | 'usage_update' | 'available_commands_update' | 'current_mode_update' | string;
+    content?: {
+        type: string;
+        text?: string;
+    };
+    [key: string]: any;
+}
+/** Normalized message emitted via session:message for downstream consumers. */
+export interface HermesMessageEvent {
+    type: 'message';
+    role: 'assistant';
+    content: Array<{
+        type: 'text';
+        text: string;
+    }>;
+}
+export interface HermesUsage {
+    inputTokens?: number;
+    outputTokens?: number;
+    thoughtTokens?: number;
+    cachedReadTokens?: number;
+    totalTokens?: number;
+}
+export interface HermesSession {
+    id: string;
+    acpSessionId?: string;
+    status: 'idle' | 'running' | 'completed' | 'error';
+    prompt: string;
+    result?: string;
+    stopReason?: string;
+    error?: string;
+    turns: number;
+    messages: HermesMessageEvent[];
+    toolCalls: any[];
+    usage?: HermesUsage;
+}
+export declare const HermesAgentStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    sessions: z.ZodRecord<z.ZodString, z.ZodAny>;
+    activeSessions: z.ZodArray<z.ZodString>;
+    hermesAvailable: z.ZodBoolean;
+    hermesVersion: z.ZodOptional<z.ZodString>;
+    adapterRunning: z.ZodBoolean;
+    adapterInfo: z.ZodOptional<z.ZodAny>;
+}, z.core.$loose>;
+export declare const HermesAgentOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    hermesPath: z.ZodOptional<z.ZodString>;
+    model: z.ZodOptional<z.ZodString>;
+    cwd: z.ZodOptional<z.ZodString>;
+    permissionMode: z.ZodOptional<z.ZodEnum<{
+        default: "default";
+        acceptEdits: "acceptEdits";
+        dontAsk: "dontAsk";
+    }>>;
+    mcpServers: z.ZodOptional<z.ZodArray<z.ZodAny>>;
+    provider: z.ZodOptional<z.ZodString>;
+    yolo: z.ZodOptional<z.ZodBoolean>;
+    safeMode: z.ZodOptional<z.ZodBoolean>;
+    ignoreRules: z.ZodOptional<z.ZodBoolean>;
+    ignoreUserConfig: z.ZodOptional<z.ZodBoolean>;
+    maxTurns: z.ZodOptional<z.ZodNumber>;
+    acceptHooks: z.ZodOptional<z.ZodBoolean>;
+    adapterBootTimeoutMs: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const HermesAgentEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    'session:start': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        prompt: z.ZodString;
+    }, z.core.$strip>], null>;
+    'session:init': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        acpSessionId: z.ZodString;
+        models: z.ZodOptional<z.ZodAny>;
+        modes: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>], null>;
+    'session:event': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        event: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:delta': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        text: z.ZodString;
+        role: z.ZodString;
+    }, z.core.$strip>], null>;
+    'session:reasoning': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        text: z.ZodString;
+    }, z.core.$strip>], null>;
+    'session:tool-call': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        toolCall: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:plan': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        plan: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:usage': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        usage: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:permission-request': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        request: z.ZodAny;
+        outcome: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:message': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        message: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'session:result': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        result: z.ZodString;
+        stopReason: z.ZodOptional<z.ZodString>;
+        usage: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>], null>;
+    'session:error': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        error: z.ZodAny;
+        exitCode: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>], null>;
+    'session:abort': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+    }, z.core.$strip>], null>;
+    'session:parse-error': z.ZodTuple<[z.ZodObject<{
+        sessionId: z.ZodString;
+        line: z.ZodString;
+    }, z.core.$strip>], null>;
+    'adapter:start': z.ZodTuple<[z.ZodObject<{
+        agentInfo: z.ZodAny;
+    }, z.core.$strip>], null>;
+    'adapter:exit': z.ZodTuple<[z.ZodObject<{
+        exitCode: z.ZodOptional<z.ZodNumber>;
+        error: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type HermesAgentState = z.infer<typeof HermesAgentStateSchema>;
+export type HermesAgentOptions = z.infer<typeof HermesAgentOptionsSchema>;
+export interface HermesRunOptions {
+    /** Model override for this run (applied via session/set_model). */
+    model?: string;
+    /** Working directory for the ACP session. */
+    cwd?: string;
+    /** ACP session mode for this run, mapped to default/accept_edits/dont_ask. */
+    permissionMode?: 'default' | 'acceptEdits' | 'dontAsk';
+    /** Auto-approve all permission requests for this run. */
+    yolo?: boolean;
+    /** Resume a previous hermes session by its ACP/hermes session ID (session/load). */
+    resumeSessionId?: string;
+    /** Continue the most recent ACP session created by this feature instance. */
+    continue?: boolean;
+    /** MCP server configs passed to session/new. */
+    mcpServers?: any[];
+    /** Timeout in ms for the prompt turn. No timeout by default — agent turns can run long. */
+    timeoutMs?: number;
+}
+/**
+ * Hermes Agent CLI wrapper feature. Controls the \`hermes\` agent CLI over the
+ * Agent Client Protocol (ACP): a single persistent \`hermes acp\` adapter process is
+ * lazily spawned on first use and shared across runs, with one ACP session
+ * per \`run()\`/\`start()\` call. Streaming updates (message chunks, thoughts,
+ * tool calls, plans, usage) are re-emitted as typed session events, mirroring
+ * the claudeCode and openaiCodex agent-wrapper features.
+ *
+ * The adapter boot is slow (~15s — it loads MCP servers), which is why the
+ * process is reused. Call \`stopAdapter()\` when you're done in short-lived
+ * scripts, otherwise the adapter keeps the event loop alive.
+ *
+ * The underlying \`hermesAcp\` client is registered lazily when this feature
+ * is enabled — it does not appear in the clients registry otherwise.
+ *
+ * Known limitations: hermes \`--toolsets\` / \`--skills\` preloading has no ACP
+ * or env-var surface, so it is not supported. Options that map to spawn-time
+ * env vars (provider, yolo, safeMode, ignoreRules, ignoreUserConfig,
+ * maxTurns, acceptHooks) require \`restartAdapter()\` to change after the
+ * adapter is running. Hermes reports token usage but no cost.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const hermes = container.feature('hermesAgent')
+ *
+ * hermes.on('session:delta', ({ text }) => process.stdout.write(text))
+ *
+ * const session = await hermes.run('Summarize the README in this folder')
+ * console.log(session.result, session.usage)
+ *
+ * await hermes.stopAdapter()
+ * \`\`\`
+ */
+export declare class HermesAgent extends Feature<HermesAgentState, HermesAgentOptions> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        sessions: z.ZodRecord<z.ZodString, z.ZodAny>;
+        activeSessions: z.ZodArray<z.ZodString>;
+        hermesAvailable: z.ZodBoolean;
+        hermesVersion: z.ZodOptional<z.ZodString>;
+        adapterRunning: z.ZodBoolean;
+        adapterInfo: z.ZodOptional<z.ZodAny>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        hermesPath: z.ZodOptional<z.ZodString>;
+        model: z.ZodOptional<z.ZodString>;
+        cwd: z.ZodOptional<z.ZodString>;
+        permissionMode: z.ZodOptional<z.ZodEnum<{
+            default: "default";
+            acceptEdits: "acceptEdits";
+            dontAsk: "dontAsk";
+        }>>;
+        mcpServers: z.ZodOptional<z.ZodArray<z.ZodAny>>;
+        provider: z.ZodOptional<z.ZodString>;
+        yolo: z.ZodOptional<z.ZodBoolean>;
+        safeMode: z.ZodOptional<z.ZodBoolean>;
+        ignoreRules: z.ZodOptional<z.ZodBoolean>;
+        ignoreUserConfig: z.ZodOptional<z.ZodBoolean>;
+        maxTurns: z.ZodOptional<z.ZodNumber>;
+        acceptHooks: z.ZodOptional<z.ZodBoolean>;
+        adapterBootTimeoutMs: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        'session:start': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            prompt: z.ZodString;
+        }, z.core.$strip>], null>;
+        'session:init': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            acpSessionId: z.ZodString;
+            models: z.ZodOptional<z.ZodAny>;
+            modes: z.ZodOptional<z.ZodAny>;
+        }, z.core.$strip>], null>;
+        'session:event': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            event: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:delta': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            text: z.ZodString;
+            role: z.ZodString;
+        }, z.core.$strip>], null>;
+        'session:reasoning': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            text: z.ZodString;
+        }, z.core.$strip>], null>;
+        'session:tool-call': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            toolCall: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:plan': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            plan: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:usage': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            usage: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:permission-request': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            request: z.ZodAny;
+            outcome: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:message': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            message: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'session:result': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            result: z.ZodString;
+            stopReason: z.ZodOptional<z.ZodString>;
+            usage: z.ZodOptional<z.ZodAny>;
+        }, z.core.$strip>], null>;
+        'session:error': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            error: z.ZodAny;
+            exitCode: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>], null>;
+        'session:abort': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+        }, z.core.$strip>], null>;
+        'session:parse-error': z.ZodTuple<[z.ZodObject<{
+            sessionId: z.ZodString;
+            line: z.ZodString;
+        }, z.core.$strip>], null>;
+        'adapter:start': z.ZodTuple<[z.ZodObject<{
+            agentInfo: z.ZodAny;
+        }, z.core.$strip>], null>;
+        'adapter:exit': z.ZodTuple<[z.ZodObject<{
+            exitCode: z.ZodOptional<z.ZodNumber>;
+            error: z.ZodOptional<z.ZodAny>;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.hermesAgent";
+    static stability: "stable";
+    static category: "agent-wrappers";
+    static envVars: string[];
+    constructor(options: any, context: any);
+    /** Register the hermesAcp client class in the clients registry (idempotent). */
+    static registerAcpClient(): void;
+    get initialState(): HermesAgentState;
+    private _resolvedHermesPath;
+    private acpClient;
+    private adapterStarting;
+    private acpToLocal;
+    private lastAcpSessionId;
+    private exitCleanupRegistered;
+    /** @returns The path to the hermes CLI binary, falling back to 'hermes' on the PATH. */
+    get hermesPath(): string;
+    /**
+     * Parse the detected hermes version string into components.
+     *
+     * @returns {{ major: number; minor: number; patch: number } | undefined} Parsed version, or undefined if unknown
+     */
+    get parsedVersion(): {
+        major: number;
+        minor: number;
+        patch: number;
+    } | undefined;
+    /**
+     * Check if the Hermes CLI is available and capture its version.
+     *
+     * @returns {Promise<boolean>} True if the hermes binary was found and responded to --version
+     *
+     * @example
+     * \`\`\`typescript
+     * const hermes = container.feature('hermesAgent')
+     * if (await hermes.checkAvailability()) {
+     *   console.log(hermes.state.current.hermesVersion) // "Hermes Agent v0.19.0 ..."
+     * }
+     * \`\`\`
+     */
+    checkAvailability(): Promise<boolean>;
+    /**
+     * Build the environment variables for the adapter process from feature options.
+     */
+    private buildAdapterEnv;
+    /**
+     * Lazily spawn (or reuse) the persistent \`hermes acp\` adapter process.
+     * Concurrent callers share a single boot.
+     */
+    private ensureAdapter;
+    /**
+     * Stop the persistent adapter process. Safe to call when not running.
+     * Call this from short-lived scripts — the adapter otherwise keeps the
+     * event loop alive.
+     *
+     * @returns {Promise<void>}
+     *
+     * @example
+     * \`\`\`typescript
+     * const session = await hermes.run('Do the thing')
+     * await hermes.stopAdapter()
+     * \`\`\`
+     */
+    stopAdapter(): Promise<void>;
+    /**
+     * Restart the adapter process. Use after changing spawn-time options
+     * (model, provider, yolo, safeMode, ignoreRules, maxTurns, acceptHooks).
+     *
+     * @returns {Promise<void>}
+     */
+    restartAdapter(): Promise<void>;
+    private registerExitCleanup;
+    private handleAdapterCrash;
+    private lastActiveLocalId;
+    private createSessionId;
+    private updateSession;
+    private handleNotification;
+    /**
+     * Process a session/update payload from the adapter.
+     *
+     * The hermes acp adapter emits these update types:
+     *   agent_message_chunk  — { content: { type: 'text', text } } assistant text delta
+     *   agent_thought_chunk  — model thinking delta
+     *   tool_call            — a tool invocation started
+     *   tool_call_update     — tool invocation progress/result
+     *   plan                 — agent plan entries
+     *   usage_update         — { size, used } context window accounting
+     *   available_commands_update, current_mode_update — session metadata
+     */
+    private handleUpdate;
+    /**
+     * Answer server-initiated ACP requests. Permission requests are resolved
+     * from the session's effective policy (yolo / permissionMode); everything
+     * else is rejected as unsupported (we declare no fs/terminal capabilities).
+     */
+    private handleServerRequest;
+    /**
+     * Pick a permission option based on the effective policy for a run.
+     * yolo → allow_always (or any allow); acceptEdits/dontAsk → allow_once
+     * preferred; default policy → reject_once.
+     */
+    private resolvePermission;
+    /**
+     * Run a prompt in a new Hermes session and wait for completion. Boots the
+     * shared \`hermes acp\` adapter on first use (~15s), creates an ACP session,
+     * streams update events, and resolves with the completed session.
+     *
+     * @param {string} prompt - The natural language instruction for the Hermes agent
+     * @param {HermesRunOptions} [options] - Per-run overrides (model, cwd, permissionMode, resume, ...)
+     * @returns {Promise<HermesSession>} The completed session with result, messages, toolCalls, and usage
+     *
+     * @example
+     * \`\`\`typescript
+     * const session = await hermes.run('List the files in this folder and summarize them')
+     * console.log(session.result)
+     *
+     * // Resume a previous hermes session
+     * const followUp = await hermes.run('Now write that summary to NOTES.md', {
+     *   resumeSessionId: session.acpSessionId,
+     *   permissionMode: 'acceptEdits',
+     * })
+     * \`\`\`
+     */
+    run(prompt: string, options?: HermesRunOptions): Promise<HermesSession>;
+    /**
+     * Run a prompt without waiting for completion. Returns the session ID
+     * immediately so you can subscribe to events. The adapter boot, session
+     * creation, and prompt all happen in the background.
+     *
+     * @param {string} prompt - The natural language instruction for the Hermes agent
+     * @param {HermesRunOptions} [options] - Per-run overrides (model, cwd, permissionMode, resume, ...)
+     * @returns {Promise<string>} The local session ID for getSession()/waitForSession()
+     *
+     * @example
+     * \`\`\`typescript
+     * const sessionId = await hermes.start('Refactor the utils module')
+     *
+     * hermes.on('session:delta', ({ sessionId: sid, text }) => {
+     *   if (sid === sessionId) process.stdout.write(text)
+     * })
+     *
+     * const session = await hermes.waitForSession(sessionId)
+     * \`\`\`
+     */
+    start(prompt: string, options?: HermesRunOptions): Promise<string>;
+    private executeSession;
+    private finalizeResult;
+    private finalizeError;
+    private removeActive;
+    /**
+     * Cancel a running session's turn via ACP session/cancel. The shared
+     * adapter process stays alive (other runs may be using it). If the turn
+     * doesn't settle within 10s of the cancel, the adapter is restarted.
+     *
+     * @param {string} sessionId - The local session ID to abort
+     * @returns {void}
+     */
+    abort(sessionId: string): void;
+    /**
+     * Retrieve the current state of a session by its ID.
+     *
+     * @param {string} sessionId - The session ID to look up
+     * @returns {HermesSession | undefined} The session object, or undefined if not found
+     */
+    getSession(sessionId: string): HermesSession | undefined;
+    /**
+     * Wait for a running session to complete or error. Resolves immediately
+     * if the session is already in a terminal state.
+     *
+     * @param {string} sessionId - The session ID to wait for
+     * @returns {Promise<HermesSession>} The completed or errored session
+     * @throws {Error} If the session ID is not found
+     */
+    waitForSession(sessionId: string): Promise<HermesSession>;
+    /**
+     * Get aggregated token usage across all sessions, or for a specific session.
+     * Hermes reports tokens only — there is no cost accounting.
+     *
+     * @param {string} [sessionId] - Optional session ID to get usage for a single session
+     * @returns {{ totalInputTokens: number; totalOutputTokens: number; totalThoughtTokens: number; totalCachedReadTokens: number; totalTokens: number; totalTurns: number; sessionCount: number; sessions: Array<{ id: string; turns: number; inputTokens: number; outputTokens: number; status: string }> }} Usage statistics
+     *
+     * @example
+     * \`\`\`typescript
+     * const stats = hermes.usage()
+     * console.log(\`Tokens: \${stats.totalInputTokens} in / \${stats.totalOutputTokens} out\`)
+     * \`\`\`
+     */
+    usage(sessionId?: string): {
+        totalInputTokens: number;
+        totalOutputTokens: number;
+        totalThoughtTokens: number;
+        totalCachedReadTokens: number;
+        totalTokens: number;
+        totalTurns: number;
+        sessionCount: number;
+        sessions: {
+            id: string;
+            turns: number;
+            inputTokens: number;
+            outputTokens: number;
+            status: string;
+        }[];
+    };
+    /**
+     * The hermes/ACP session ID of the most recent session, useful for
+     * resuming with \`resumeSessionId\` later (including across processes —
+     * hermes persists sessions in its SQLite store).
+     *
+     * @returns {string | undefined} The hermes session ID
+     */
+    get sessionId(): string | undefined;
+    /**
+     * List recent sessions from the hermes SQLite session store.
+     *
+     * @param {{ source?: string; limit?: number; workspace?: string }} [options] - Filters passed to \`hermes sessions list\`
+     * @returns {Promise<{ raw: string; lines: string[] }>} Raw CLI output plus non-empty lines
+     *
+     * @example
+     * \`\`\`typescript
+     * const { lines } = await hermes.listSessions({ limit: 10 })
+     * lines.forEach((l) => console.log(l))
+     * \`\`\`
+     */
+    listSessions(options?: {
+        source?: string;
+        limit?: number;
+        workspace?: string;
+    }): Promise<{
+        raw: string;
+        lines: string[];
+    }>;
+    /**
+     * Read a session's full history from the hermes SQLite session store as
+     * parsed JSONL records (via \`hermes sessions export --format jsonl\`).
+     *
+     * @param {string} sessionId - The hermes session ID (e.g. session.acpSessionId)
+     * @returns {Promise<any[]>} Parsed JSONL records; malformed lines are skipped
+     *
+     * @example
+     * \`\`\`typescript
+     * const session = await hermes.run('Say hello')
+     * const history = await hermes.getSessionHistory(session.acpSessionId)
+     * \`\`\`
+     */
+    getSessionHistory(sessionId: string): Promise<any[]>;
+    /**
+     * Enable the feature. Lazily registers the \`hermesAcp\` client class in the
+     * clients registry (it is not registered at module load) and delegates to
+     * the base Feature enable() lifecycle. Does NOT spawn the adapter — that
+     * happens on the first run()/start().
+     *
+     * @param {object} [options] - Options to merge into the feature configuration
+     * @returns {Promise<this>} This instance, for chaining
+     */
+    enable(options?: any): Promise<this>;
+}
+export default HermesAgent;
+//# sourceMappingURL=hermes-agent.d.ts.map`,
   "agi/features/mcp-bridge.d.ts": `import { z } from 'zod';
 import { Feature } from '../../feature';
 import type { Helper } from '../../helper';
@@ -7333,6 +7905,180 @@ export declare class GraphClient<T extends ClientState = ClientState, K extends 
 }
 export default GraphClient;
 //# sourceMappingURL=graph.d.ts.map`,
+  "clients/hermes-acp.d.ts": `import { Client } from '../client.js';
+import type { HelperStability, HelperCategory } from '../introspection/index.js';
+import type { ContainerContext } from '../container.js';
+import { z } from 'zod';
+declare module '../client' {
+    interface AvailableClients {
+        hermesAcp: typeof HermesAcpClient;
+    }
+}
+export declare const HermesAcpClientStateSchema: z.ZodObject<{
+    connected: z.ZodDefault<z.ZodBoolean>;
+    agentInfo: z.ZodOptional<z.ZodAny>;
+    capabilities: z.ZodOptional<z.ZodAny>;
+}, z.core.$loose>;
+export declare const HermesAcpClientOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    baseURL: z.ZodOptional<z.ZodString>;
+    json: z.ZodOptional<z.ZodBoolean>;
+    hermesPath: z.ZodOptional<z.ZodString>;
+    bootTimeoutMs: z.ZodOptional<z.ZodNumber>;
+    environment: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    clientName: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const HermesAcpClientEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    failure: z.ZodTuple<[z.ZodAny], null>;
+    notification: z.ZodTuple<[z.ZodObject<{
+        method: z.ZodString;
+        params: z.ZodAny;
+    }, z.core.$strip>], null>;
+    crash: z.ZodTuple<[z.ZodObject<{
+        error: z.ZodAny;
+        exitCode: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>], null>;
+    'parse-error': z.ZodTuple<[z.ZodObject<{
+        line: z.ZodString;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type HermesAcpClientState = z.infer<typeof HermesAcpClientStateSchema>;
+export type HermesAcpClientOptions = z.infer<typeof HermesAcpClientOptionsSchema>;
+/** Result of the ACP initialize handshake. */
+export interface HermesAcpInitializeResult {
+    protocolVersion: number;
+    agentInfo?: {
+        name: string;
+        version: string;
+    };
+    agentCapabilities?: any;
+    authMethods?: any[];
+}
+/**
+ * JSON-RPC 2.0 client for the Hermes Agent Client Protocol (ACP) adapter.
+ * Spawns \`hermes acp\` as a long-lived subprocess and speaks newline-delimited
+ * JSON-RPC over its stdio: outgoing requests/notifications on stdin, incoming
+ * responses, notifications (session/update), and server-initiated requests
+ * (session/request_permission) on stdout.
+ *
+ * This client is NOT registered at module load. The \`hermesAgent\` feature
+ * registers it lazily when the feature is enabled, so it only appears in the
+ * clients registry when Hermes control is actually in use.
+ *
+ * Server-initiated requests (like permission prompts) require a response —
+ * install a handler with \`setRequestHandler()\`. Without one, such requests
+ * are answered with a JSON-RPC "method not found" error.
+ *
+ * @example
+ * \`\`\`typescript
+ * // Registered lazily by the hermesAgent feature:
+ * container.feature('hermesAgent')
+ * const acp = container.client('hermesAcp', { environment: { HERMES_YOLO_MODE: '1' } })
+ * acp.on('notification', ({ method, params }) => console.log(method, params))
+ * await acp.connect()
+ * const session = await acp.request('session/new', { cwd: process.cwd(), mcpServers: [] })
+ * const result = await acp.request('session/prompt', {
+ *   sessionId: session.sessionId,
+ *   prompt: [{ type: 'text', text: 'Say hello' }],
+ * })
+ * await acp.disconnect()
+ * \`\`\`
+ */
+export declare class HermesAcpClient extends Client<HermesAcpClientState, HermesAcpClientOptions> {
+    static shortcut: string;
+    static stability: HelperStability;
+    static category: HelperCategory;
+    static stateSchema: z.ZodObject<{
+        connected: z.ZodDefault<z.ZodBoolean>;
+        agentInfo: z.ZodOptional<z.ZodAny>;
+        capabilities: z.ZodOptional<z.ZodAny>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        baseURL: z.ZodOptional<z.ZodString>;
+        json: z.ZodOptional<z.ZodBoolean>;
+        hermesPath: z.ZodOptional<z.ZodString>;
+        bootTimeoutMs: z.ZodOptional<z.ZodNumber>;
+        environment: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        clientName: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        failure: z.ZodTuple<[z.ZodAny], null>;
+        notification: z.ZodTuple<[z.ZodObject<{
+            method: z.ZodString;
+            params: z.ZodAny;
+        }, z.core.$strip>], null>;
+        crash: z.ZodTuple<[z.ZodObject<{
+            error: z.ZodAny;
+            exitCode: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>], null>;
+        'parse-error': z.ZodTuple<[z.ZodObject<{
+            line: z.ZodString;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    private proc;
+    private nextId;
+    private pending;
+    private buffer;
+    private stderrTail;
+    private requestHandler;
+    private _initializeResult;
+    constructor(options: HermesAcpClientOptions, context: ContainerContext);
+    /** The result of the ACP initialize handshake, once connected. */
+    get initializeResult(): HermesAcpInitializeResult | undefined;
+    /** Whether the adapter process is alive and the handshake completed. */
+    get running(): boolean;
+    /**
+     * Install the handler for server-initiated JSON-RPC requests
+     * (e.g. session/request_permission). The handler's resolved value is sent
+     * back as the JSON-RPC result; a thrown error becomes a JSON-RPC error.
+     *
+     * @param fn - Handler receiving (method, params), returning the response payload
+     */
+    setRequestHandler(fn: (method: string, params: any) => Promise<any>): void;
+    /**
+     * Spawn the \`hermes acp\` adapter and perform the ACP initialize handshake.
+     * Resolves once the adapter reports its capabilities. On timeout the
+     * process is killed and the error includes the adapter's recent stderr.
+     *
+     * @returns This client, connected
+     */
+    connect(): Promise<this>;
+    /**
+     * Send a JSON-RPC request to the adapter and await its response.
+     *
+     * @param method - JSON-RPC method (e.g. 'session/new', 'session/prompt')
+     * @param params - Method parameters
+     * @param opts - Optional timeout in ms (no timeout when omitted — agent turns can run long)
+     * @returns The JSON-RPC result payload
+     */
+    request<T = any>(method: string, params?: any, opts?: {
+        timeoutMs?: number;
+    }): Promise<T>;
+    /**
+     * Send a JSON-RPC notification (no response expected, e.g. session/cancel).
+     *
+     * @param method - JSON-RPC method
+     * @param params - Method parameters
+     */
+    notify(method: string, params?: any): void;
+    /**
+     * Kill the adapter process and reject all in-flight requests.
+     */
+    disconnect(): Promise<void>;
+    private write;
+    private consume;
+    private dispatch;
+    private answerServerRequest;
+    private handleExit;
+    private rejectAllPending;
+}
+export default HermesAcpClient;
+//# sourceMappingURL=hermes-acp.d.ts.map`,
   "clients/openai/index.d.ts": `import { z } from 'zod';
 import { Client } from "luca/client";
 import type { ContainerContext } from "luca/container";
@@ -12405,6 +13151,20 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     }>;
     get fileTree(): string;
     private _semanticSearch;
+    private _indexEnsured;
+    /**
+     * Resolve which embedding provider to use when none was explicitly configured.
+     * Order: LUCA_EMBEDDING_PROVIDER env var → the provider an existing index for
+     * this collection was built with → local if the llama-server stack (binary +
+     * weights) is installed → openai.
+     */
+    private _resolveEmbeddingProvider;
+    /** Whether the given provider can actually generate embeddings right now. */
+    private _embeddingProviderReady;
+    /** The directory where this collection's search index lives. */
+    private _searchIndexDir;
+    /** Infer the provider of an existing index from its \`search.{provider}-{model}.sqlite\` filename. */
+    private _existingIndexProvider;
     /**
      * Lazily initialize the semanticSearch feature, attaching it to the container if needed.
      * The dbPath defaults to \`~/.luca/contentbase/{hash}/search.sqlite\` where hash is derived from the resolved collection path.
@@ -12415,8 +13175,26 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
      */
     private _hasSearchIndex;
     /**
+     * Ensure the search index exists and is up to date, generating embeddings
+     * in-process via the semanticSearch feature. Called automatically by the
+     * search methods — no external \`cbase embed\` step is required.
+     *
+     * Runs at most once per feature instance (subsequent searches skip the
+     * staleness scan). If no embedding provider is available but an index
+     * already exists on disk, the existing (possibly stale) index is used.
+     * With no provider and no index, this throws with setup instructions.
+     */
+    ensureSearchIndex(options?: {
+        embeddingProvider?: string;
+        embeddingModel?: string;
+        onProgress?: (indexed: number, total: number) => void;
+    }): Promise<{
+        indexed: number;
+        total: number;
+    }>;
+    /**
      * BM25 keyword search across indexed documents.
-     * If no search index exists, throws with an actionable message.
+     * Builds the search index automatically if it doesn't exist yet.
      */
     search(query: string, options?: {
         limit?: number;
@@ -12426,6 +13204,7 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     /**
      * Vector similarity search using embeddings.
      * Finds conceptually related documents even without keyword matches.
+     * Builds the search index automatically if it doesn't exist yet.
      */
     vectorSearch(query: string, options?: {
         limit?: number;
@@ -12435,6 +13214,7 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     /**
      * Combined keyword + semantic search with Reciprocal Rank Fusion.
      * Best for general questions about the collection.
+     * Builds the search index automatically if it doesn't exist yet.
      */
     hybridSearch(query: string, options?: {
         limit?: number;

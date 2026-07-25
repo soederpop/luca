@@ -647,6 +647,142 @@ setBuildTimeData('clients.graph', {
   ]
 });
 
+setBuildTimeData('clients.hermesAcp', {
+  "id": "clients.hermesAcp",
+  "description": "JSON-RPC 2.0 client for the Hermes Agent Client Protocol (ACP) adapter. Spawns `hermes acp` as a long-lived subprocess and speaks newline-delimited JSON-RPC over its stdio: outgoing requests/notifications on stdin, incoming responses, notifications (session/update), and server-initiated requests (session/request_permission) on stdout. This client is NOT registered at module load. The `hermesAgent` feature registers it lazily when the feature is enabled, so it only appears in the clients registry when Hermes control is actually in use. Server-initiated requests (like permission prompts) require a response — install a handler with `setRequestHandler()`. Without one, such requests are answered with a JSON-RPC \"method not found\" error.",
+  "shortcut": "clients.hermesAcp",
+  "className": "HermesAcpClient",
+  "methods": {
+    "setRequestHandler": {
+      "description": "Install the handler for server-initiated JSON-RPC requests (e.g. session/request_permission). The handler's resolved value is sent back as the JSON-RPC result; a thrown error becomes a JSON-RPC error.",
+      "parameters": {
+        "fn": {
+          "type": "(method: string, params: any) => Promise<any>",
+          "description": "Handler receiving (method, params), returning the response payload"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Spawn the `hermes acp` adapter and perform the ACP initialize handshake. Resolves once the adapter reports its capabilities. On timeout the process is killed and the error includes the adapter's recent stderr.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "request": {
+      "description": "Send a JSON-RPC request to the adapter and await its response.",
+      "parameters": {
+        "method": {
+          "type": "string",
+          "description": "JSON-RPC method (e.g. 'session/new', 'session/prompt')"
+        },
+        "params": {
+          "type": "any",
+          "description": "Method parameters"
+        },
+        "opts": {
+          "type": "{ timeoutMs?: number }",
+          "description": "Optional timeout in ms (no timeout when omitted — agent turns can run long)"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "returns": "Promise<T>"
+    },
+    "notify": {
+      "description": "Send a JSON-RPC notification (no response expected, e.g. session/cancel).",
+      "parameters": {
+        "method": {
+          "type": "string",
+          "description": "JSON-RPC method"
+        },
+        "params": {
+          "type": "any",
+          "description": "Method parameters"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Kill the adapter process and reject all in-flight requests.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "initializeResult": {
+      "description": "The result of the ACP initialize handshake, once connected.",
+      "returns": "HermesAcpInitializeResult | undefined"
+    },
+    "running": {
+      "description": "Whether the adapter process is alive and the handshake completed.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "parse-error": {
+      "name": "parse-error",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    },
+    "notification": {
+      "name": "notification",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    },
+    "crash": {
+      "name": "crash",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "agent-wrappers",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// Registered lazily by the hermesAgent feature:\ncontainer.feature('hermesAgent')\nconst acp = container.client('hermesAcp', { environment: { HERMES_YOLO_MODE: '1' } })\nacp.on('notification', ({ method, params }) => console.log(method, params))\nawait acp.connect()\nconst session = await acp.request('session/new', { cwd: process.cwd(), mcpServers: [] })\nconst result = await acp.request('session/prompt', {\n sessionId: session.sessionId,\n prompt: [{ type: 'text', text: 'Say hello' }],\n})\nawait acp.disconnect()"
+    }
+  ],
+  "types": {
+    "HermesAcpInitializeResult": {
+      "description": "Result of the ACP initialize handshake.",
+      "properties": {
+        "protocolVersion": {
+          "type": "number",
+          "description": ""
+        },
+        "agentInfo": {
+          "type": "{ name: string; version: string }",
+          "description": "",
+          "optional": true
+        },
+        "agentCapabilities": {
+          "type": "any",
+          "description": "",
+          "optional": true
+        },
+        "authMethods": {
+          "type": "any[]",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('clients.openai', {
   "id": "clients.openai",
   "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
@@ -5509,8 +5645,19 @@ setBuildTimeData('features.contentDb', {
       ],
       "returns": "void"
     },
+    "ensureSearchIndex": {
+      "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
+      "parameters": {
+        "options": {
+          "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ indexed: number; total: number }>"
+    },
     "search": {
-      "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+      "description": "BM25 keyword search across indexed documents. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -5527,7 +5674,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "vectorSearch": {
-      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -5544,7 +5691,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "hybridSearch": {
-      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -12742,6 +12889,517 @@ setBuildTimeData('features.helpers', {
       "code": "// Meta-discovery: load each plugin's commands from its own folder\nfor (const dir of ['./plugins/analytics/commands', './plugins/billing/commands']) {\n await container.helpers.discover('commands', { directory: dir })\n}\nconsole.log(container.commands.available) // all registered command names"
     }
   ]
+});
+
+setBuildTimeData('features.hermesAgent', {
+  "id": "features.hermesAgent",
+  "description": "Hermes Agent CLI wrapper feature. Controls the `hermes` agent CLI over the Agent Client Protocol (ACP): a single persistent `hermes acp` adapter process is lazily spawned on first use and shared across runs, with one ACP session per `run()`/`start()` call. Streaming updates (message chunks, thoughts, tool calls, plans, usage) are re-emitted as typed session events, mirroring the claudeCode and openaiCodex agent-wrapper features. The adapter boot is slow (~15s — it loads MCP servers), which is why the process is reused. Call `stopAdapter()` when you're done in short-lived scripts, otherwise the adapter keeps the event loop alive. The underlying `hermesAcp` client is registered lazily when this feature is enabled — it does not appear in the clients registry otherwise. Known limitations: hermes `--toolsets` / `--skills` preloading has no ACP or env-var surface, so it is not supported. Options that map to spawn-time env vars (provider, yolo, safeMode, ignoreRules, ignoreUserConfig, maxTurns, acceptHooks) require `restartAdapter()` to change after the adapter is running. Hermes reports token usage but no cost.",
+  "shortcut": "features.hermesAgent",
+  "className": "HermesAgent",
+  "methods": {
+    "checkAvailability": {
+      "description": "Check if the Hermes CLI is available and capture its version.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const hermes = container.feature('hermesAgent')\nif (await hermes.checkAvailability()) {\n console.log(hermes.state.current.hermesVersion) // \"Hermes Agent v0.19.0 ...\"\n}"
+        }
+      ]
+    },
+    "stopAdapter": {
+      "description": "Stop the persistent adapter process. Safe to call when not running. Call this from short-lived scripts — the adapter otherwise keeps the event loop alive.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const session = await hermes.run('Do the thing')\nawait hermes.stopAdapter()"
+        }
+      ]
+    },
+    "restartAdapter": {
+      "description": "Restart the adapter process. Use after changing spawn-time options (model, provider, yolo, safeMode, ignoreRules, maxTurns, acceptHooks).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "run": {
+      "description": "Run a prompt in a new Hermes session and wait for completion. Boots the shared `hermes acp` adapter on first use (~15s), creates an ACP session, streams update events, and resolves with the completed session.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "The natural language instruction for the Hermes agent"
+        },
+        "options": {
+          "type": "HermesRunOptions",
+          "description": "Per-run overrides (model, cwd, permissionMode, resume, ...)",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Model override for this run (applied via session/set_model)."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the ACP session."
+            },
+            "permissionMode": {
+              "type": "'default' | 'acceptEdits' | 'dontAsk'",
+              "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask."
+            },
+            "yolo": {
+              "type": "boolean",
+              "description": "Auto-approve all permission requests for this run."
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load)."
+            },
+            "continue": {
+              "type": "boolean",
+              "description": "Continue the most recent ACP session created by this feature instance."
+            },
+            "mcpServers": {
+              "type": "any[]",
+              "description": "MCP server configs passed to session/new."
+            },
+            "timeoutMs": {
+              "type": "number",
+              "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long."
+            }
+          }
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<HermesSession>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const session = await hermes.run('List the files in this folder and summarize them')\nconsole.log(session.result)\n\n// Resume a previous hermes session\nconst followUp = await hermes.run('Now write that summary to NOTES.md', {\n resumeSessionId: session.acpSessionId,\n permissionMode: 'acceptEdits',\n})"
+        }
+      ]
+    },
+    "start": {
+      "description": "Run a prompt without waiting for completion. Returns the session ID immediately so you can subscribe to events. The adapter boot, session creation, and prompt all happen in the background.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "The natural language instruction for the Hermes agent"
+        },
+        "options": {
+          "type": "HermesRunOptions",
+          "description": "Per-run overrides (model, cwd, permissionMode, resume, ...)",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Model override for this run (applied via session/set_model)."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the ACP session."
+            },
+            "permissionMode": {
+              "type": "'default' | 'acceptEdits' | 'dontAsk'",
+              "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask."
+            },
+            "yolo": {
+              "type": "boolean",
+              "description": "Auto-approve all permission requests for this run."
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load)."
+            },
+            "continue": {
+              "type": "boolean",
+              "description": "Continue the most recent ACP session created by this feature instance."
+            },
+            "mcpServers": {
+              "type": "any[]",
+              "description": "MCP server configs passed to session/new."
+            },
+            "timeoutMs": {
+              "type": "number",
+              "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long."
+            }
+          }
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sessionId = await hermes.start('Refactor the utils module')\n\nhermes.on('session:delta', ({ sessionId: sid, text }) => {\n if (sid === sessionId) process.stdout.write(text)\n})\n\nconst session = await hermes.waitForSession(sessionId)"
+        }
+      ]
+    },
+    "abort": {
+      "description": "Cancel a running session's turn via ACP session/cancel. The shared adapter process stays alive (other runs may be using it). If the turn doesn't settle within 10s of the cancel, the adapter is restarted.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The local session ID to abort"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Retrieve the current state of a session by its ID.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The session ID to look up"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "HermesSession | undefined"
+    },
+    "waitForSession": {
+      "description": "Wait for a running session to complete or error. Resolves immediately if the session is already in a terminal state.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The session ID to wait for"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "Promise<HermesSession>"
+    },
+    "usage": {
+      "description": "Get aggregated token usage across all sessions, or for a specific session. Hermes reports tokens only — there is no cost accounting.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "Optional session ID to get usage for a single session"
+        }
+      },
+      "required": [],
+      "returns": "{ totalInputTokens: number; totalOutputTokens: number; totalThoughtTokens: number; totalCachedReadTokens: number; totalTokens: number; totalTurns: number; sessionCount: number; sessions: Array<{ id: string; turns: number; inputTokens: number; outputTokens: number; status: string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stats = hermes.usage()\nconsole.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)"
+        }
+      ]
+    },
+    "listSessions": {
+      "description": "List recent sessions from the hermes SQLite session store.",
+      "parameters": {
+        "options": {
+          "type": "{ source?: string; limit?: number; workspace?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ raw: string; lines: string[] }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { lines } = await hermes.listSessions({ limit: 10 })\nlines.forEach((l) => console.log(l))"
+        }
+      ]
+    },
+    "getSessionHistory": {
+      "description": "Read a session's full history from the hermes SQLite session store as parsed JSONL records (via `hermes sessions export --format jsonl`).",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The hermes session ID (e.g. session.acpSessionId)"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const session = await hermes.run('Say hello')\nconst history = await hermes.getSessionHistory(session.acpSessionId)"
+        }
+      ]
+    },
+    "enable": {
+      "description": "Enable the feature. Lazily registers the `hermesAcp` client class in the clients registry (it is not registered at module load) and delegates to the base Feature enable() lifecycle. Does NOT spawn the adapter — that happens on the first run()/start().",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Options to merge into the feature configuration"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "getters": {
+    "hermesPath": {
+      "description": "",
+      "returns": "string"
+    },
+    "parsedVersion": {
+      "description": "Parse the detected hermes version string into components.",
+      "returns": "{ major: number; minor: number; patch: number } | undefined"
+    },
+    "sessionId": {
+      "description": "The hermes/ACP session ID of the most recent session, useful for resuming with `resumeSessionId` later (including across processes — hermes persists sessions in its SQLite store).",
+      "returns": "string | undefined"
+    }
+  },
+  "events": {
+    "session:parse-error": {
+      "name": "session:parse-error",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "adapter:start": {
+      "name": "adapter:start",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "adapter:exit": {
+      "name": "adapter:exit",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:error": {
+      "name": "session:error",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:event": {
+      "name": "session:event",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:delta": {
+      "name": "session:delta",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:reasoning": {
+      "name": "session:reasoning",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:tool-call": {
+      "name": "session:tool-call",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:plan": {
+      "name": "session:plan",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:usage": {
+      "name": "session:usage",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:permission-request": {
+      "name": "session:permission-request",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:start": {
+      "name": "session:start",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:init": {
+      "name": "session:init",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:abort": {
+      "name": "session:abort",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:message": {
+      "name": "session:message",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    },
+    "session:result": {
+      "name": "session:result",
+      "description": "Event emitted by HermesAgent",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "stable",
+  "category": "agent-wrappers",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const hermes = container.feature('hermesAgent')\n\nhermes.on('session:delta', ({ text }) => process.stdout.write(text))\n\nconst session = await hermes.run('Summarize the README in this folder')\nconsole.log(session.result, session.usage)\n\nawait hermes.stopAdapter()"
+    }
+  ],
+  "types": {
+    "HermesRunOptions": {
+      "description": "",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model override for this run (applied via session/set_model).",
+          "optional": true
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory for the ACP session.",
+          "optional": true
+        },
+        "permissionMode": {
+          "type": "'default' | 'acceptEdits' | 'dontAsk'",
+          "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask.",
+          "optional": true
+        },
+        "yolo": {
+          "type": "boolean",
+          "description": "Auto-approve all permission requests for this run.",
+          "optional": true
+        },
+        "resumeSessionId": {
+          "type": "string",
+          "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load).",
+          "optional": true
+        },
+        "continue": {
+          "type": "boolean",
+          "description": "Continue the most recent ACP session created by this feature instance.",
+          "optional": true
+        },
+        "mcpServers": {
+          "type": "any[]",
+          "description": "MCP server configs passed to session/new.",
+          "optional": true
+        },
+        "timeoutMs": {
+          "type": "number",
+          "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long.",
+          "optional": true
+        }
+      }
+    },
+    "HermesSession": {
+      "description": "--- Session types ---",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "acpSessionId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "status": {
+          "type": "'idle' | 'running' | 'completed' | 'error'",
+          "description": ""
+        },
+        "prompt": {
+          "type": "string",
+          "description": ""
+        },
+        "result": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "stopReason": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "error": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "turns": {
+          "type": "number",
+          "description": ""
+        },
+        "messages": {
+          "type": "HermesMessageEvent[]",
+          "description": ""
+        },
+        "toolCalls": {
+          "type": "any[]",
+          "description": ""
+        },
+        "usage": {
+          "type": "HermesUsage",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "HermesMessageEvent": {
+      "description": "Normalized message emitted via session:message for downstream consumers.",
+      "properties": {
+        "type": {
+          "type": "'message'",
+          "description": ""
+        },
+        "role": {
+          "type": "'assistant'",
+          "description": ""
+        },
+        "content": {
+          "type": "Array<{ type: 'text'; text: string }>",
+          "description": ""
+        }
+      }
+    },
+    "HermesUsage": {
+      "description": "",
+      "properties": {
+        "inputTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "outputTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "thoughtTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "cachedReadTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "totalTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.ink', {
@@ -20192,7 +20850,7 @@ setBuildTimeData('features.semanticSearch', {
 
 setBuildTimeData('features.skillsLibrary', {
   "id": "features.skillsLibrary",
-  "description": "Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). No paths are scanned by default — callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to automatically scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).",
+  "description": "Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). A local `skills/` folder in the project cwd is scanned automatically when it exists. Beyond that, callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to also scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).",
   "shortcut": "features.skillsLibrary",
   "className": "SkillsLibrary",
   "methods": {
@@ -24920,6 +25578,141 @@ export const introspectionData: Record<string, any>[] = [
         "code": "const gql = container.client('graph', { baseURL: 'https://api.example.com' })\nconst data = await gql.query(`{ users { id name } }`)\nawait gql.mutate(`mutation($name: String!) { createUser(name: $name) { id } }`, { name: 'Alice' })"
       }
     ]
+  },
+  {
+    "id": "clients.hermesAcp",
+    "description": "JSON-RPC 2.0 client for the Hermes Agent Client Protocol (ACP) adapter. Spawns `hermes acp` as a long-lived subprocess and speaks newline-delimited JSON-RPC over its stdio: outgoing requests/notifications on stdin, incoming responses, notifications (session/update), and server-initiated requests (session/request_permission) on stdout. This client is NOT registered at module load. The `hermesAgent` feature registers it lazily when the feature is enabled, so it only appears in the clients registry when Hermes control is actually in use. Server-initiated requests (like permission prompts) require a response — install a handler with `setRequestHandler()`. Without one, such requests are answered with a JSON-RPC \"method not found\" error.",
+    "shortcut": "clients.hermesAcp",
+    "className": "HermesAcpClient",
+    "methods": {
+      "setRequestHandler": {
+        "description": "Install the handler for server-initiated JSON-RPC requests (e.g. session/request_permission). The handler's resolved value is sent back as the JSON-RPC result; a thrown error becomes a JSON-RPC error.",
+        "parameters": {
+          "fn": {
+            "type": "(method: string, params: any) => Promise<any>",
+            "description": "Handler receiving (method, params), returning the response payload"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Spawn the `hermes acp` adapter and perform the ACP initialize handshake. Resolves once the adapter reports its capabilities. On timeout the process is killed and the error includes the adapter's recent stderr.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "request": {
+        "description": "Send a JSON-RPC request to the adapter and await its response.",
+        "parameters": {
+          "method": {
+            "type": "string",
+            "description": "JSON-RPC method (e.g. 'session/new', 'session/prompt')"
+          },
+          "params": {
+            "type": "any",
+            "description": "Method parameters"
+          },
+          "opts": {
+            "type": "{ timeoutMs?: number }",
+            "description": "Optional timeout in ms (no timeout when omitted — agent turns can run long)"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "returns": "Promise<T>"
+      },
+      "notify": {
+        "description": "Send a JSON-RPC notification (no response expected, e.g. session/cancel).",
+        "parameters": {
+          "method": {
+            "type": "string",
+            "description": "JSON-RPC method"
+          },
+          "params": {
+            "type": "any",
+            "description": "Method parameters"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Kill the adapter process and reject all in-flight requests.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "initializeResult": {
+        "description": "The result of the ACP initialize handshake, once connected.",
+        "returns": "HermesAcpInitializeResult | undefined"
+      },
+      "running": {
+        "description": "Whether the adapter process is alive and the handshake completed.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "parse-error": {
+        "name": "parse-error",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      },
+      "notification": {
+        "name": "notification",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      },
+      "crash": {
+        "name": "crash",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "agent-wrappers",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// Registered lazily by the hermesAgent feature:\ncontainer.feature('hermesAgent')\nconst acp = container.client('hermesAcp', { environment: { HERMES_YOLO_MODE: '1' } })\nacp.on('notification', ({ method, params }) => console.log(method, params))\nawait acp.connect()\nconst session = await acp.request('session/new', { cwd: process.cwd(), mcpServers: [] })\nconst result = await acp.request('session/prompt', {\n sessionId: session.sessionId,\n prompt: [{ type: 'text', text: 'Say hello' }],\n})\nawait acp.disconnect()"
+      }
+    ],
+    "types": {
+      "HermesAcpInitializeResult": {
+        "description": "Result of the ACP initialize handshake.",
+        "properties": {
+          "protocolVersion": {
+            "type": "number",
+            "description": ""
+          },
+          "agentInfo": {
+            "type": "{ name: string; version: string }",
+            "description": "",
+            "optional": true
+          },
+          "agentCapabilities": {
+            "type": "any",
+            "description": "",
+            "optional": true
+          },
+          "authMethods": {
+            "type": "any[]",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "clients.openai",
@@ -29769,8 +30562,19 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "ensureSearchIndex": {
+        "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
+        "parameters": {
+          "options": {
+            "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ indexed: number; total: number }>"
+      },
       "search": {
-        "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+        "description": "BM25 keyword search across indexed documents. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",
@@ -29787,7 +30591,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "vectorSearch": {
-        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",
@@ -29804,7 +30608,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "hybridSearch": {
-        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",
@@ -36983,6 +37787,516 @@ export const introspectionData: Record<string, any>[] = [
         "code": "// Meta-discovery: load each plugin's commands from its own folder\nfor (const dir of ['./plugins/analytics/commands', './plugins/billing/commands']) {\n await container.helpers.discover('commands', { directory: dir })\n}\nconsole.log(container.commands.available) // all registered command names"
       }
     ]
+  },
+  {
+    "id": "features.hermesAgent",
+    "description": "Hermes Agent CLI wrapper feature. Controls the `hermes` agent CLI over the Agent Client Protocol (ACP): a single persistent `hermes acp` adapter process is lazily spawned on first use and shared across runs, with one ACP session per `run()`/`start()` call. Streaming updates (message chunks, thoughts, tool calls, plans, usage) are re-emitted as typed session events, mirroring the claudeCode and openaiCodex agent-wrapper features. The adapter boot is slow (~15s — it loads MCP servers), which is why the process is reused. Call `stopAdapter()` when you're done in short-lived scripts, otherwise the adapter keeps the event loop alive. The underlying `hermesAcp` client is registered lazily when this feature is enabled — it does not appear in the clients registry otherwise. Known limitations: hermes `--toolsets` / `--skills` preloading has no ACP or env-var surface, so it is not supported. Options that map to spawn-time env vars (provider, yolo, safeMode, ignoreRules, ignoreUserConfig, maxTurns, acceptHooks) require `restartAdapter()` to change after the adapter is running. Hermes reports token usage but no cost.",
+    "shortcut": "features.hermesAgent",
+    "className": "HermesAgent",
+    "methods": {
+      "checkAvailability": {
+        "description": "Check if the Hermes CLI is available and capture its version.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const hermes = container.feature('hermesAgent')\nif (await hermes.checkAvailability()) {\n console.log(hermes.state.current.hermesVersion) // \"Hermes Agent v0.19.0 ...\"\n}"
+          }
+        ]
+      },
+      "stopAdapter": {
+        "description": "Stop the persistent adapter process. Safe to call when not running. Call this from short-lived scripts — the adapter otherwise keeps the event loop alive.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const session = await hermes.run('Do the thing')\nawait hermes.stopAdapter()"
+          }
+        ]
+      },
+      "restartAdapter": {
+        "description": "Restart the adapter process. Use after changing spawn-time options (model, provider, yolo, safeMode, ignoreRules, maxTurns, acceptHooks).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "run": {
+        "description": "Run a prompt in a new Hermes session and wait for completion. Boots the shared `hermes acp` adapter on first use (~15s), creates an ACP session, streams update events, and resolves with the completed session.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The natural language instruction for the Hermes agent"
+          },
+          "options": {
+            "type": "HermesRunOptions",
+            "description": "Per-run overrides (model, cwd, permissionMode, resume, ...)",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Model override for this run (applied via session/set_model)."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the ACP session."
+              },
+              "permissionMode": {
+                "type": "'default' | 'acceptEdits' | 'dontAsk'",
+                "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask."
+              },
+              "yolo": {
+                "type": "boolean",
+                "description": "Auto-approve all permission requests for this run."
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load)."
+              },
+              "continue": {
+                "type": "boolean",
+                "description": "Continue the most recent ACP session created by this feature instance."
+              },
+              "mcpServers": {
+                "type": "any[]",
+                "description": "MCP server configs passed to session/new."
+              },
+              "timeoutMs": {
+                "type": "number",
+                "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long."
+              }
+            }
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<HermesSession>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const session = await hermes.run('List the files in this folder and summarize them')\nconsole.log(session.result)\n\n// Resume a previous hermes session\nconst followUp = await hermes.run('Now write that summary to NOTES.md', {\n resumeSessionId: session.acpSessionId,\n permissionMode: 'acceptEdits',\n})"
+          }
+        ]
+      },
+      "start": {
+        "description": "Run a prompt without waiting for completion. Returns the session ID immediately so you can subscribe to events. The adapter boot, session creation, and prompt all happen in the background.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The natural language instruction for the Hermes agent"
+          },
+          "options": {
+            "type": "HermesRunOptions",
+            "description": "Per-run overrides (model, cwd, permissionMode, resume, ...)",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Model override for this run (applied via session/set_model)."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the ACP session."
+              },
+              "permissionMode": {
+                "type": "'default' | 'acceptEdits' | 'dontAsk'",
+                "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask."
+              },
+              "yolo": {
+                "type": "boolean",
+                "description": "Auto-approve all permission requests for this run."
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load)."
+              },
+              "continue": {
+                "type": "boolean",
+                "description": "Continue the most recent ACP session created by this feature instance."
+              },
+              "mcpServers": {
+                "type": "any[]",
+                "description": "MCP server configs passed to session/new."
+              },
+              "timeoutMs": {
+                "type": "number",
+                "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long."
+              }
+            }
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sessionId = await hermes.start('Refactor the utils module')\n\nhermes.on('session:delta', ({ sessionId: sid, text }) => {\n if (sid === sessionId) process.stdout.write(text)\n})\n\nconst session = await hermes.waitForSession(sessionId)"
+          }
+        ]
+      },
+      "abort": {
+        "description": "Cancel a running session's turn via ACP session/cancel. The shared adapter process stays alive (other runs may be using it). If the turn doesn't settle within 10s of the cancel, the adapter is restarted.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The local session ID to abort"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Retrieve the current state of a session by its ID.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The session ID to look up"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "HermesSession | undefined"
+      },
+      "waitForSession": {
+        "description": "Wait for a running session to complete or error. Resolves immediately if the session is already in a terminal state.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The session ID to wait for"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "Promise<HermesSession>"
+      },
+      "usage": {
+        "description": "Get aggregated token usage across all sessions, or for a specific session. Hermes reports tokens only — there is no cost accounting.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "Optional session ID to get usage for a single session"
+          }
+        },
+        "required": [],
+        "returns": "{ totalInputTokens: number; totalOutputTokens: number; totalThoughtTokens: number; totalCachedReadTokens: number; totalTokens: number; totalTurns: number; sessionCount: number; sessions: Array<{ id: string; turns: number; inputTokens: number; outputTokens: number; status: string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stats = hermes.usage()\nconsole.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)"
+          }
+        ]
+      },
+      "listSessions": {
+        "description": "List recent sessions from the hermes SQLite session store.",
+        "parameters": {
+          "options": {
+            "type": "{ source?: string; limit?: number; workspace?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ raw: string; lines: string[] }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { lines } = await hermes.listSessions({ limit: 10 })\nlines.forEach((l) => console.log(l))"
+          }
+        ]
+      },
+      "getSessionHistory": {
+        "description": "Read a session's full history from the hermes SQLite session store as parsed JSONL records (via `hermes sessions export --format jsonl`).",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The hermes session ID (e.g. session.acpSessionId)"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const session = await hermes.run('Say hello')\nconst history = await hermes.getSessionHistory(session.acpSessionId)"
+          }
+        ]
+      },
+      "enable": {
+        "description": "Enable the feature. Lazily registers the `hermesAcp` client class in the clients registry (it is not registered at module load) and delegates to the base Feature enable() lifecycle. Does NOT spawn the adapter — that happens on the first run()/start().",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Options to merge into the feature configuration"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "getters": {
+      "hermesPath": {
+        "description": "",
+        "returns": "string"
+      },
+      "parsedVersion": {
+        "description": "Parse the detected hermes version string into components.",
+        "returns": "{ major: number; minor: number; patch: number } | undefined"
+      },
+      "sessionId": {
+        "description": "The hermes/ACP session ID of the most recent session, useful for resuming with `resumeSessionId` later (including across processes — hermes persists sessions in its SQLite store).",
+        "returns": "string | undefined"
+      }
+    },
+    "events": {
+      "session:parse-error": {
+        "name": "session:parse-error",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "adapter:start": {
+        "name": "adapter:start",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "adapter:exit": {
+        "name": "adapter:exit",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:error": {
+        "name": "session:error",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:event": {
+        "name": "session:event",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:delta": {
+        "name": "session:delta",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:reasoning": {
+        "name": "session:reasoning",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:tool-call": {
+        "name": "session:tool-call",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:plan": {
+        "name": "session:plan",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:usage": {
+        "name": "session:usage",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:permission-request": {
+        "name": "session:permission-request",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:start": {
+        "name": "session:start",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:init": {
+        "name": "session:init",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:abort": {
+        "name": "session:abort",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:message": {
+        "name": "session:message",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      },
+      "session:result": {
+        "name": "session:result",
+        "description": "Event emitted by HermesAgent",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "stable",
+    "category": "agent-wrappers",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const hermes = container.feature('hermesAgent')\n\nhermes.on('session:delta', ({ text }) => process.stdout.write(text))\n\nconst session = await hermes.run('Summarize the README in this folder')\nconsole.log(session.result, session.usage)\n\nawait hermes.stopAdapter()"
+      }
+    ],
+    "types": {
+      "HermesRunOptions": {
+        "description": "",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Model override for this run (applied via session/set_model).",
+            "optional": true
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory for the ACP session.",
+            "optional": true
+          },
+          "permissionMode": {
+            "type": "'default' | 'acceptEdits' | 'dontAsk'",
+            "description": "ACP session mode for this run, mapped to default/accept_edits/dont_ask.",
+            "optional": true
+          },
+          "yolo": {
+            "type": "boolean",
+            "description": "Auto-approve all permission requests for this run.",
+            "optional": true
+          },
+          "resumeSessionId": {
+            "type": "string",
+            "description": "Resume a previous hermes session by its ACP/hermes session ID (session/load).",
+            "optional": true
+          },
+          "continue": {
+            "type": "boolean",
+            "description": "Continue the most recent ACP session created by this feature instance.",
+            "optional": true
+          },
+          "mcpServers": {
+            "type": "any[]",
+            "description": "MCP server configs passed to session/new.",
+            "optional": true
+          },
+          "timeoutMs": {
+            "type": "number",
+            "description": "Timeout in ms for the prompt turn. No timeout by default — agent turns can run long.",
+            "optional": true
+          }
+        }
+      },
+      "HermesSession": {
+        "description": "--- Session types ---",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "acpSessionId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "status": {
+            "type": "'idle' | 'running' | 'completed' | 'error'",
+            "description": ""
+          },
+          "prompt": {
+            "type": "string",
+            "description": ""
+          },
+          "result": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "stopReason": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "error": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "turns": {
+            "type": "number",
+            "description": ""
+          },
+          "messages": {
+            "type": "HermesMessageEvent[]",
+            "description": ""
+          },
+          "toolCalls": {
+            "type": "any[]",
+            "description": ""
+          },
+          "usage": {
+            "type": "HermesUsage",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "HermesMessageEvent": {
+        "description": "Normalized message emitted via session:message for downstream consumers.",
+        "properties": {
+          "type": {
+            "type": "'message'",
+            "description": ""
+          },
+          "role": {
+            "type": "'assistant'",
+            "description": ""
+          },
+          "content": {
+            "type": "Array<{ type: 'text'; text: string }>",
+            "description": ""
+          }
+        }
+      },
+      "HermesUsage": {
+        "description": "",
+        "properties": {
+          "inputTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "outputTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "thoughtTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "cachedReadTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "totalTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.ink",
@@ -44408,7 +45722,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.skillsLibrary",
-    "description": "Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). No paths are scanned by default — callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to automatically scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).",
+    "description": "Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). A local `skills/` folder in the project cwd is scanned automatically when it exists. Beyond that, callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to also scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).",
     "shortcut": "features.skillsLibrary",
     "className": "SkillsLibrary",
     "methods": {

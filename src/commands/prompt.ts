@@ -31,10 +31,17 @@ function normalizeTarget(raw: string): string {
 	const lower = raw.toLowerCase().replace(/[-_]/g, '')
 	if (/claude/.test(lower)) return 'claude'
 	if (/codex/.test(lower) || /openai/.test(lower)) return 'codex'
+	if (/hermes/.test(lower)) return 'hermes'
 	return raw
 }
 
-const CLI_TARGETS = new Set(['claude', 'codex'])
+const CLI_TARGETS = new Set(['claude', 'codex', 'hermes'])
+
+const CLI_TARGET_FEATURES: Record<string, string> = {
+	claude: 'claudeCode',
+	codex: 'openaiCodex',
+	hermes: 'hermesAgent',
+}
 
 function formatSessionMarkdown(events: any[], includeOutput: boolean): string {
 	const lines: string[] = []
@@ -85,9 +92,9 @@ interface PreparedPrompt {
 	agentOptions: Record<string, any>
 }
 
-async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>, agentOptions: Record<string, any> = {}): Promise<RunStats> {
+async function runClaudeOrCodex(target: 'claude' | 'codex' | 'hermes', promptContent: string, container: any, options: z.infer<typeof argsSchema>, agentOptions: Record<string, any> = {}): Promise<RunStats> {
 	const ui = container.feature('ui')
-	const featureName = target === 'claude' ? 'claudeCode' : 'openaiCodex'
+	const featureName = CLI_TARGET_FEATURES[target]!
 	const feature = container.feature(featureName)
 
 	const available = await feature.checkAvailability()
@@ -162,12 +169,30 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		}
 	}
 
+	if (target === 'hermes') {
+		// Hermes speaks ACP modes (default/acceptEdits/dontAsk); map the claude-flavored flag
+		const mode = options['permission-mode']
+		if (mode === 'bypassPermissions') {
+			runOptions.yolo = true
+		} else if (mode === 'plan') {
+			console.error(ui.colors.yellow('--permission-mode plan is not supported by hermes; using default'))
+		} else if (mode) {
+			runOptions.permissionMode = mode
+		}
+		delete runOptions.streaming // hermes streams by default; no such option
+	}
+
 	// CLI flags override agentOptions from frontmatter
 	if (options.model) runOptions.model = options.model
 
 	const startTime = Date.now()
 	const sessionId = await feature.start(promptContent, runOptions)
 	const session = await feature.waitForSession(sessionId)
+
+	// The persistent hermes acp adapter would otherwise keep the CLI process alive
+	if (target === 'hermes' && typeof feature.stopAdapter === 'function') {
+		await feature.stopAdapter()
+	}
 
 	if (session.status === 'error') {
 		console.error(session.error || 'Session failed')
@@ -308,7 +333,7 @@ async function runParallel(
 	let sessionPromise: Promise<any>
 
 	if (isCli) {
-		const featureName = target === 'claude' ? 'claudeCode' : 'openaiCodex'
+		const featureName = CLI_TARGET_FEATURES[target]!
 		const feature = container.feature(featureName)
 
 		const available = await feature.checkAvailability()
@@ -326,6 +351,13 @@ async function runParallel(
 			} else if (options['auth-token']) {
 				runOptions.authToken = options['auth-token']
 			}
+		}
+
+		if (target === 'hermes') {
+			const mode = options['permission-mode']
+			if (mode === 'bypassPermissions') runOptions.yolo = true
+			else if (mode && mode !== 'plan') runOptions.permissionMode = mode
+			delete runOptions.streaming
 		}
 
 		feature.on('session:message', ({ sessionId, message }: { sessionId: string; message: any }) => {
@@ -391,6 +423,10 @@ async function runParallel(
 				}
 			})
 			allDone = true
+			// The persistent hermes acp adapter would otherwise keep the CLI process alive
+			if (target === 'hermes' && typeof feature.stopAdapter === 'function') {
+				return feature.stopAdapter()
+			}
 		})
 	} else {
 		// Assistant targets
@@ -913,7 +949,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	if (target) target = normalizeTarget(target)
 
 	if (!target || allPaths.length === 0) {
-		console.error('Usage: luca prompt [claude|codex|assistant-name] <path/to/prompt.md> [more paths...]')
+		console.error('Usage: luca prompt [claude|codex|hermes|assistant-name] <path/to/prompt.md> [more paths...]')
 		process.exit(1)
 	}
 
@@ -1015,7 +1051,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	let stats: RunStats
 
 	if (CLI_TARGETS.has(target)) {
-		stats = await runClaudeOrCodex(target as 'claude' | 'codex', p.promptContent, container, options, p.agentOptions)
+		stats = await runClaudeOrCodex(target as 'claude' | 'codex' | 'hermes', p.promptContent, container, options, p.agentOptions)
 	} else {
 		stats = await runAssistant(target, p.promptContent, options, container, p.agentOptions)
 	}
@@ -1029,7 +1065,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 }
 
 export const positionals = [
-	{ name: 'target', description: 'Which agent to use: claude, codex, or an assistant name. Omit it and pass just a file to use the project default coding assistant.', required: false },
+	{ name: 'target', description: 'Which agent to use: claude, codex, hermes, or an assistant name. Omit it and pass just a file to use the project default coding assistant.', required: false },
 	{ name: 'files', description: 'One or more prompt markdown files to send', required: false },
 ]
 
@@ -1039,10 +1075,11 @@ export const examples = [
 	{ command: 'luca prompt claude a.md b.md --parallel', description: 'Run multiple prompts side by side (max 4)' },
 	{ command: 'luca prompt researcher ./question.md --out-file session.md', description: 'Send to a local assistant and save the session' },
 	{ command: 'luca prompt claude ./task.md --dry-run', description: 'Preview the resolved prompt without running' },
+	{ command: 'luca prompt hermes ./task.md', description: 'Delegate the prompt to the Hermes agent (via its ACP adapter)' },
 ]
 
 commands.registerHandler('prompt', {
-	description: 'Send a prompt file to an assistant, Claude Code, or OpenAI Codex',
+	description: 'Send a prompt file to an assistant, Claude Code, OpenAI Codex, or Hermes Agent',
 	argsSchema,
 	positionals,
 	examples,

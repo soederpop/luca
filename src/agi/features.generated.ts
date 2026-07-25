@@ -20,6 +20,7 @@ import { ConversationHistory } from "./features/conversation-history";
 import { Conversation } from "./features/conversation";
 import { DocsReader } from "./features/docs-reader";
 import { FileTools } from "./features/file-tools";
+import { HermesAgent } from "./features/hermes-agent";
 import { McpBridge } from "./features/mcp-bridge";
 import { ModelProviders } from "./features/model-providers";
 import { OpenAICodex } from "./features/openai-codex";
@@ -47,6 +48,8 @@ export type { Message, ContentPart, ConversationTool, ConversationMCPServer, Con
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
+export { HermesAgent } from "./features/hermes-agent";
+export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSession, HermesAgentState, HermesAgentOptions, HermesRunOptions } from "./features/hermes-agent";
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
@@ -71,6 +74,7 @@ export interface GeneratedAGIFeatures {
   conversationHistory: typeof ConversationHistory;
   docsReader: typeof DocsReader;
   fileTools: typeof FileTools;
+  hermesAgent: typeof HermesAgent;
   mcpBridge: typeof McpBridge;
   memory: typeof Memory;
   modelProviders: typeof ModelProviders;
@@ -92,6 +96,7 @@ export const generatedAgiFeatureExports = {
   ConversationHistory,
   DocsReader,
   FileTools,
+  HermesAgent,
   McpBridge,
   Memory,
   ModelProviders,

@@ -647,6 +647,142 @@ setBuildTimeData('clients.graph', {
   ]
 });
 
+setBuildTimeData('clients.hermesAcp', {
+  "id": "clients.hermesAcp",
+  "description": "JSON-RPC 2.0 client for the Hermes Agent Client Protocol (ACP) adapter. Spawns `hermes acp` as a long-lived subprocess and speaks newline-delimited JSON-RPC over its stdio: outgoing requests/notifications on stdin, incoming responses, notifications (session/update), and server-initiated requests (session/request_permission) on stdout. This client is NOT registered at module load. The `hermesAgent` feature registers it lazily when the feature is enabled, so it only appears in the clients registry when Hermes control is actually in use. Server-initiated requests (like permission prompts) require a response — install a handler with `setRequestHandler()`. Without one, such requests are answered with a JSON-RPC \"method not found\" error.",
+  "shortcut": "clients.hermesAcp",
+  "className": "HermesAcpClient",
+  "methods": {
+    "setRequestHandler": {
+      "description": "Install the handler for server-initiated JSON-RPC requests (e.g. session/request_permission). The handler's resolved value is sent back as the JSON-RPC result; a thrown error becomes a JSON-RPC error.",
+      "parameters": {
+        "fn": {
+          "type": "(method: string, params: any) => Promise<any>",
+          "description": "Handler receiving (method, params), returning the response payload"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Spawn the `hermes acp` adapter and perform the ACP initialize handshake. Resolves once the adapter reports its capabilities. On timeout the process is killed and the error includes the adapter's recent stderr.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "request": {
+      "description": "Send a JSON-RPC request to the adapter and await its response.",
+      "parameters": {
+        "method": {
+          "type": "string",
+          "description": "JSON-RPC method (e.g. 'session/new', 'session/prompt')"
+        },
+        "params": {
+          "type": "any",
+          "description": "Method parameters"
+        },
+        "opts": {
+          "type": "{ timeoutMs?: number }",
+          "description": "Optional timeout in ms (no timeout when omitted — agent turns can run long)"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "returns": "Promise<T>"
+    },
+    "notify": {
+      "description": "Send a JSON-RPC notification (no response expected, e.g. session/cancel).",
+      "parameters": {
+        "method": {
+          "type": "string",
+          "description": "JSON-RPC method"
+        },
+        "params": {
+          "type": "any",
+          "description": "Method parameters"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Kill the adapter process and reject all in-flight requests.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "initializeResult": {
+      "description": "The result of the ACP initialize handshake, once connected.",
+      "returns": "HermesAcpInitializeResult | undefined"
+    },
+    "running": {
+      "description": "Whether the adapter process is alive and the handshake completed.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "parse-error": {
+      "name": "parse-error",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    },
+    "notification": {
+      "name": "notification",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    },
+    "crash": {
+      "name": "crash",
+      "description": "Event emitted by HermesAcpClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "agent-wrappers",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// Registered lazily by the hermesAgent feature:\ncontainer.feature('hermesAgent')\nconst acp = container.client('hermesAcp', { environment: { HERMES_YOLO_MODE: '1' } })\nacp.on('notification', ({ method, params }) => console.log(method, params))\nawait acp.connect()\nconst session = await acp.request('session/new', { cwd: process.cwd(), mcpServers: [] })\nconst result = await acp.request('session/prompt', {\n sessionId: session.sessionId,\n prompt: [{ type: 'text', text: 'Say hello' }],\n})\nawait acp.disconnect()"
+    }
+  ],
+  "types": {
+    "HermesAcpInitializeResult": {
+      "description": "Result of the ACP initialize handshake.",
+      "properties": {
+        "protocolVersion": {
+          "type": "number",
+          "description": ""
+        },
+        "agentInfo": {
+          "type": "{ name: string; version: string }",
+          "description": "",
+          "optional": true
+        },
+        "agentCapabilities": {
+          "type": "any",
+          "description": "",
+          "optional": true
+        },
+        "authMethods": {
+          "type": "any[]",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('clients.openai', {
   "id": "clients.openai",
   "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
@@ -2658,8 +2794,19 @@ setBuildTimeData('features.contentDb', {
       ],
       "returns": "void"
     },
+    "ensureSearchIndex": {
+      "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
+      "parameters": {
+        "options": {
+          "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ indexed: number; total: number }>"
+    },
     "search": {
-      "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+      "description": "BM25 keyword search across indexed documents. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -2676,7 +2823,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "vectorSearch": {
-      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -2693,7 +2840,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "hybridSearch": {
-      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection. Builds the search index automatically if it doesn't exist yet.",
       "parameters": {
         "query": {
           "type": "string",
@@ -18230,6 +18377,141 @@ export const introspectionData: Record<string, any>[] = [
     ]
   },
   {
+    "id": "clients.hermesAcp",
+    "description": "JSON-RPC 2.0 client for the Hermes Agent Client Protocol (ACP) adapter. Spawns `hermes acp` as a long-lived subprocess and speaks newline-delimited JSON-RPC over its stdio: outgoing requests/notifications on stdin, incoming responses, notifications (session/update), and server-initiated requests (session/request_permission) on stdout. This client is NOT registered at module load. The `hermesAgent` feature registers it lazily when the feature is enabled, so it only appears in the clients registry when Hermes control is actually in use. Server-initiated requests (like permission prompts) require a response — install a handler with `setRequestHandler()`. Without one, such requests are answered with a JSON-RPC \"method not found\" error.",
+    "shortcut": "clients.hermesAcp",
+    "className": "HermesAcpClient",
+    "methods": {
+      "setRequestHandler": {
+        "description": "Install the handler for server-initiated JSON-RPC requests (e.g. session/request_permission). The handler's resolved value is sent back as the JSON-RPC result; a thrown error becomes a JSON-RPC error.",
+        "parameters": {
+          "fn": {
+            "type": "(method: string, params: any) => Promise<any>",
+            "description": "Handler receiving (method, params), returning the response payload"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Spawn the `hermes acp` adapter and perform the ACP initialize handshake. Resolves once the adapter reports its capabilities. On timeout the process is killed and the error includes the adapter's recent stderr.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "request": {
+        "description": "Send a JSON-RPC request to the adapter and await its response.",
+        "parameters": {
+          "method": {
+            "type": "string",
+            "description": "JSON-RPC method (e.g. 'session/new', 'session/prompt')"
+          },
+          "params": {
+            "type": "any",
+            "description": "Method parameters"
+          },
+          "opts": {
+            "type": "{ timeoutMs?: number }",
+            "description": "Optional timeout in ms (no timeout when omitted — agent turns can run long)"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "returns": "Promise<T>"
+      },
+      "notify": {
+        "description": "Send a JSON-RPC notification (no response expected, e.g. session/cancel).",
+        "parameters": {
+          "method": {
+            "type": "string",
+            "description": "JSON-RPC method"
+          },
+          "params": {
+            "type": "any",
+            "description": "Method parameters"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Kill the adapter process and reject all in-flight requests.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "initializeResult": {
+        "description": "The result of the ACP initialize handshake, once connected.",
+        "returns": "HermesAcpInitializeResult | undefined"
+      },
+      "running": {
+        "description": "Whether the adapter process is alive and the handshake completed.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "parse-error": {
+        "name": "parse-error",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      },
+      "notification": {
+        "name": "notification",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      },
+      "crash": {
+        "name": "crash",
+        "description": "Event emitted by HermesAcpClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "agent-wrappers",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// Registered lazily by the hermesAgent feature:\ncontainer.feature('hermesAgent')\nconst acp = container.client('hermesAcp', { environment: { HERMES_YOLO_MODE: '1' } })\nacp.on('notification', ({ method, params }) => console.log(method, params))\nawait acp.connect()\nconst session = await acp.request('session/new', { cwd: process.cwd(), mcpServers: [] })\nconst result = await acp.request('session/prompt', {\n sessionId: session.sessionId,\n prompt: [{ type: 'text', text: 'Say hello' }],\n})\nawait acp.disconnect()"
+      }
+    ],
+    "types": {
+      "HermesAcpInitializeResult": {
+        "description": "Result of the ACP initialize handshake.",
+        "properties": {
+          "protocolVersion": {
+            "type": "number",
+            "description": ""
+          },
+          "agentInfo": {
+            "type": "{ name: string; version: string }",
+            "description": "",
+            "optional": true
+          },
+          "agentCapabilities": {
+            "type": "any",
+            "description": "",
+            "optional": true
+          },
+          "authMethods": {
+            "type": "any[]",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "clients.openai",
     "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
     "shortcut": "clients.openai",
@@ -20232,8 +20514,19 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "ensureSearchIndex": {
+        "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
+        "parameters": {
+          "options": {
+            "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ indexed: number; total: number }>"
+      },
       "search": {
-        "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+        "description": "BM25 keyword search across indexed documents. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",
@@ -20250,7 +20543,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "vectorSearch": {
-        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",
@@ -20267,7 +20560,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "hybridSearch": {
-        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection. Builds the search index automatically if it doesn't exist yet.",
         "parameters": {
           "query": {
             "type": "string",

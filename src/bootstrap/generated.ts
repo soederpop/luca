@@ -455,7 +455,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 | **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
 | **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
 | **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
-| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
+| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`hermesAgent\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
 | **Google Workspace** | \`googleAuth\`, \`googleCalendar\`, \`googleDocs\`, \`googleDrive\`, \`googleMail\`, \`googleSheets\` | OAuth and Google service wrappers |
@@ -11480,6 +11480,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`googleSheets\` | feature | google-workspace | stable | Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. |
 | \`grep\` | feature | filesystem | core | The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. |
 | \`helpers\` | feature | system | core | The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. |
+| \`hermesAgent\` | feature | agent-wrappers | stable | Hermes Agent CLI wrapper feature. |
 | \`ink\` | feature | ui-output | stable | Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. |
 | \`introspectionScanner\` | feature | system | core | Scans TypeScript files for Helper classes and generates introspection data using AST analysis |
 | \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
