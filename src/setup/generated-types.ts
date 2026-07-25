@@ -1262,6 +1262,7 @@ export declare const AssistantsManagerStateSchema: z.ZodObject<{
     instances: z.ZodRecord<z.ZodString, z.ZodAny>;
     factories: z.ZodRecord<z.ZodString, z.ZodAny>;
     extraFolders: z.ZodArray<z.ZodString>;
+    optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
 }, z.core.$loose>;
 export declare const AssistantsManagerOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -1300,6 +1301,7 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
         instances: z.ZodRecord<z.ZodString, z.ZodAny>;
         factories: z.ZodRecord<z.ZodString, z.ZodAny>;
         extraFolders: z.ZodArray<z.ZodString>;
+        optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -1361,6 +1363,31 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * \`\`\`
      */
     addDiscoveryFolder(folderPath: string): Promise<this>;
+    /**
+     * Stores workspace-level option overrides applied to every assistant this
+     * manager creates. The map is keyed by assistant short name, with a reserved
+     * \`defaults\` key merged into every assistant. Overrides sit between an
+     * assistant's own CORE.md frontmatter (weaker) and explicit \`create()\`
+     * options (stronger).
+     *
+     * @param {Record<string, any>} map - e.g. \`{ defaults: { model: 'x' }, chiefOfStaff: { temperature: 0.5 } }\`
+     * @returns {this} This instance, for chaining
+     *
+     * @example
+     * \`\`\`typescript
+     * manager.setOptionOverrides({ defaults: { providerOptions: { cwd } }, chiefOfStaff: { model: 'qwen3-coder' } })
+     * \`\`\`
+     */
+    setOptionOverrides(map: Record<string, any>): this;
+    /**
+     * Resolves the effective option overrides for an assistant name by deep-merging
+     * the \`defaults\` entry with the per-assistant entry. Accepts either the short
+     * name or the \`assistants/\`-prefixed full name. Returns \`{}\` when none are set.
+     *
+     * @param {string} name - The assistant name
+     * @returns {Record<string, any>} Merged overrides for this assistant
+     */
+    overridesFor(name: string): Record<string, any>;
     /**
      * Discovers assistants by listing subdirectories in ~/.luca/assistants/,
      * cwd/assistants/, and any folders added via \`addDiscoveryFolder()\`.
@@ -29091,7 +29118,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.5.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

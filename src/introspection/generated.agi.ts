@@ -2703,6 +2703,38 @@ setBuildTimeData('features.assistantsManager', {
         }
       ]
     },
+    "setOptionOverrides": {
+      "description": "Stores workspace-level option overrides applied to every assistant this manager creates. The map is keyed by assistant short name, with a reserved `defaults` key merged into every assistant. Overrides sit between an assistant's own CORE.md frontmatter (weaker) and explicit `create()` options (stronger).",
+      "parameters": {
+        "map": {
+          "type": "Record<string, any>",
+          "description": "e.g. `{ defaults: { model: 'x' }, chiefOfStaff: { temperature: 0.5 } }`"
+        }
+      },
+      "required": [
+        "map"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "manager.setOptionOverrides({ defaults: { providerOptions: { cwd } }, chiefOfStaff: { model: 'qwen3-coder' } })"
+        }
+      ]
+    },
+    "overridesFor": {
+      "description": "Resolves the effective option overrides for an assistant name by deep-merging the `defaults` entry with the per-assistant entry. Accepts either the short name or the `assistants/`-prefixed full name. Returns `{}` when none are set.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The assistant name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Record<string, any>"
+    },
     "discover": {
       "description": "Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.",
       "parameters": {},
@@ -27626,6 +27658,38 @@ export const introspectionData: Record<string, any>[] = [
             "code": "await manager.addDiscoveryFolder('/path/to/more/assistants')\nconsole.log(manager.available) // includes assistants from the new folder"
           }
         ]
+      },
+      "setOptionOverrides": {
+        "description": "Stores workspace-level option overrides applied to every assistant this manager creates. The map is keyed by assistant short name, with a reserved `defaults` key merged into every assistant. Overrides sit between an assistant's own CORE.md frontmatter (weaker) and explicit `create()` options (stronger).",
+        "parameters": {
+          "map": {
+            "type": "Record<string, any>",
+            "description": "e.g. `{ defaults: { model: 'x' }, chiefOfStaff: { temperature: 0.5 } }`"
+          }
+        },
+        "required": [
+          "map"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "manager.setOptionOverrides({ defaults: { providerOptions: { cwd } }, chiefOfStaff: { model: 'qwen3-coder' } })"
+          }
+        ]
+      },
+      "overridesFor": {
+        "description": "Resolves the effective option overrides for an assistant name by deep-merging the `defaults` entry with the per-assistant entry. Accepts either the short name or the `assistants/`-prefixed full name. Returns `{}` when none are set.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The assistant name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Record<string, any>"
       },
       "discover": {
         "description": "Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.",

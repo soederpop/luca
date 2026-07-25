@@ -54,6 +54,7 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	instances: z.record(z.string(), z.any()).describe('Active assistant instances keyed by name'),
 	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
 	extraFolders: z.array(z.string()).describe('Additional folders to scan during discovery'),
+	optionOverrides: z.record(z.string(), z.any()).describe('Workspace-level option overrides keyed by assistant name, plus a reserved `defaults` key applied to all'),
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({})
@@ -101,6 +102,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			instances: {},
 			factories: {},
 			extraFolders: [],
+			optionOverrides: {},
 		}
 	}
 
@@ -166,6 +168,40 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			this.state.set('extraFolders', [...current, folderPath])
 		}
 		return this.discover()
+	}
+
+	/**
+	 * Stores workspace-level option overrides applied to every assistant this
+	 * manager creates. The map is keyed by assistant short name, with a reserved
+	 * `defaults` key merged into every assistant. Overrides sit between an
+	 * assistant's own CORE.md frontmatter (weaker) and explicit `create()`
+	 * options (stronger).
+	 *
+	 * @param {Record<string, any>} map - e.g. `{ defaults: { model: 'x' }, chiefOfStaff: { temperature: 0.5 } }`
+	 * @returns {this} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.setOptionOverrides({ defaults: { providerOptions: { cwd } }, chiefOfStaff: { model: 'qwen3-coder' } })
+	 * ```
+	 */
+	setOptionOverrides(map: Record<string, any>): this {
+		this.state.set('optionOverrides', map && typeof map === 'object' ? map : {})
+		return this
+	}
+
+	/**
+	 * Resolves the effective option overrides for an assistant name by deep-merging
+	 * the `defaults` entry with the per-assistant entry. Accepts either the short
+	 * name or the `assistants/`-prefixed full name. Returns `{}` when none are set.
+	 *
+	 * @param {string} name - The assistant name
+	 * @returns {Record<string, any>} Merged overrides for this assistant
+	 */
+	overridesFor(name: string): Record<string, any> {
+		const map = (this.state.get('optionOverrides') || {}) as Record<string, any>
+		const shortName = name.replace(/^assistants\//, '')
+		return deepMergeOptions(map.defaults || {}, map[shortName] || {})
 	}
 
 	/**
@@ -367,10 +403,13 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * ```
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {
+		// Workspace overrides sit below explicit call-site options, which win.
+		const merged = deepMergeOptions(this.overridesFor(name), options)
+
 		// Check registered factories first
 		const factory = this.factories[name]
 		if (factory) {
-			const instance = factory(options)
+			const instance = factory(merged)
 			this._bindAssistant(instance)
 			const updated = { ...this.instances, [name]: instance }
 			this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
@@ -386,10 +425,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			)
 		}
 
-		const instance = this.container.feature('assistant', {
-			folder: entry.folder,
-			...options,
-		})
+		const instance = this.container.feature('assistant', deepMergeOptions({ folder: entry.folder }, merged))
 
 		this._bindAssistant(instance)
 		const updated = { ...this.instances, [name]: instance }
@@ -550,4 +586,32 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 }
 
+/**
+ * Deep-merges option objects left to right. Plain objects merge recursively;
+ * arrays and every other value type are replaced wholesale (a later
+ * `allowTools: [...]` fully replaces an earlier one rather than merging by index).
+ */
+function deepMergeOptions(...sources: Record<string, any>[]): Record<string, any> {
+	// Realm-safe plain-object check: options may come from VM contexts (eval,
+	// assistant hooks) whose object literals have a different Object constructor.
+	const isPlainObject = (v: any) => {
+		if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
+		const proto = Object.getPrototypeOf(v)
+		return proto === null || proto.constructor === undefined || proto.constructor.name === 'Object'
+	}
+
+	const result: Record<string, any> = {}
+	for (const source of sources) {
+		if (!isPlainObject(source)) continue
+		for (const [key, value] of Object.entries(source)) {
+			if (value === undefined) continue
+			result[key] = isPlainObject(value) && isPlainObject(result[key])
+				? deepMergeOptions(result[key], value)
+				: value
+		}
+	}
+	return result
+}
+
 export default AssistantsManager
+
