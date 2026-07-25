@@ -94,6 +94,8 @@ type PhraseManifestEntry = {
 export interface TtsProvider {
 	/** Human-readable name for logging and state display. */
 	readonly name: string
+	/** Audio format returned by `synthesize`. Defaults to 'mp3'. Determines the temp-file extension passed to the player. */
+	readonly format?: 'wav' | 'mp3'
 	/**
 	 * Optional one-time setup (e.g. health-check the server).
 	 * Called lazily before the first `synthesize` call if present.
@@ -241,7 +243,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		this._ttsConnected = false
 		this.state.set('provider', provider.name)
 		this.state.set('ttsAvailable', true)
-		this.emit('providerChanged', { provider: provider.name } as any)
+		this.emit('providerChanged', { provider: provider.name })
 		return this
 	}
 
@@ -548,6 +550,8 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 					missing.push('VoiceBox.sh not reachable')
 				}
 			}
+		} else if (provider !== 'elevenlabs') {
+			missing.push(`unknown provider '${provider}'`)
 		} else {
 			if (!this.options.voiceId) {
 				missing.push('voiceId not configured')
@@ -1029,6 +1033,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 			const vbOpts = this.options.voicebox!
 			return {
 				name: 'voicebox',
+				format: 'wav',
 				synthesize: async (text: string) => {
 					const cleaned = stripTags(text)
 					if (!cleaned) return Buffer.alloc(0)
@@ -1043,13 +1048,19 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 			}
 		}
 
-		// Default: elevenlabs
+		if (name !== 'elevenlabs') {
+			throw new Error(
+				`[voice-mode] unknown provider '${name}' — use 'elevenlabs', 'voicebox', or inject a custom TtsProvider via the tts option / useTtsProvider()`,
+			)
+		}
+
 		const el = this.container.client('elevenlabs') as any
 		if (!el.state.get('connected')) {
 			await el.connect()
 		}
 		return {
 			name: 'elevenlabs',
+			format: 'mp3',
 			// Note: conversationModePrefix is applied in _synthesize, not here
 			synthesize: async (text: string) => {
 				return el.synthesize(text, {
@@ -1072,8 +1083,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 
 			if (audio.length === 0) return null
 
-			// Decide file extension based on provider name
-			const ext = provider.name === 'voicebox' ? 'wav' : 'mp3'
+			const ext = provider.format ?? 'mp3'
 			const outputPath = `/tmp/voice-mode-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`
 
 			await this.container.fs.writeFileAsync(outputPath, audio)

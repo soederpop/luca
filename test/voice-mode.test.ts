@@ -198,6 +198,19 @@ describe('voice-mode feature', () => {
 		expect(received).toBe('[calm narrator] hello there')
 	})
 
+	it('rejects unknown builtin provider names instead of silently defaulting', async () => {
+		const voiceMode = new VoiceMode({ provider: 'elevenlab' } as any, {
+			container: { emit: () => {} },
+		} as any)
+
+		const caps = await voiceMode.checkCapabilities()
+		expect(caps.available).toBe(false)
+		expect(caps.missing).toContain("unknown provider 'elevenlab'")
+
+		const result = await (voiceMode as any)._synthesize('hello')
+		expect(result).toBeNull()
+	})
+
 	it('lazily connects an injected tts provider and retries after failure', async () => {
 		let connectCalls = 0
 		let failNext = true
