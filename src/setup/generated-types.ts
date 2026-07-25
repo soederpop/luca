@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.0"
+export const typesBundleVersion = "3.6.2"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -9678,6 +9678,7 @@ export declare const argsSchema: z.ZodObject<{
         rpc: "rpc";
     }>>;
     model: z.ZodOptional<z.ZodString>;
+    provider: z.ZodOptional<z.ZodString>;
     resume: z.ZodOptional<z.ZodString>;
     list: z.ZodOptional<z.ZodBoolean>;
     historyMode: z.ZodOptional<z.ZodEnum<{
