@@ -74,4 +74,31 @@ describe('Assistant', () => {
 			expect(Object.keys(convTools)).toContain('ls')
 		})
 	})
+
+	describe('provider override vs frontmatter model', () => {
+		function makeAssistant(options: Record<string, any>, meta: Record<string, any>) {
+			const assistant = container.feature('assistant', { name: 'override-test', cached: false, ...options })
+			assistant.state.set('meta', meta)
+			return assistant
+		}
+
+		beforeEach(() => {
+			container.feature('modelProviders').registerLocal('test-local', 'http://localhost:9999/v1', 'local-default-model')
+		})
+
+		it('drops the frontmatter model when the caller overrides the provider', () => {
+			const assistant = makeAssistant({ provider: 'test-local' }, { model: 'gpt-5.2' })
+			expect(assistant.conversation.model).toBe('local-default-model')
+		})
+
+		it('keeps the frontmatter model when no provider override is given', () => {
+			const assistant = makeAssistant({}, { model: 'gpt-5.2', provider: 'test-local' })
+			expect(assistant.conversation.model).toBe('gpt-5.2')
+		})
+
+		it('an explicit caller model wins even with a provider override', () => {
+			const assistant = makeAssistant({ provider: 'test-local', model: 'caller-model' }, { model: 'gpt-5.2' })
+			expect(assistant.conversation.model).toBe('caller-model')
+		})
+	})
 })

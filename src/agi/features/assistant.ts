@@ -397,6 +397,13 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			// OpenAI model default when that default IS the OpenAI path — any other
 			// default must keep its own model.
 			const defaultsToOpenAI = !provider && this.resolveDefaultProviderId() === 'openai'
+			// A frontmatter `model` is a default tied to the frontmatter's own
+			// provider. When the caller overrides the provider (CLI flag, workspace
+			// overrides), that model would be sent to a backend that doesn't have
+			// it — drop it so the new provider's default model wins. An explicit
+			// caller `model` still takes precedence.
+			const providerOverridden = this.options.provider != null && this.options.provider !== this.meta.provider
+			const model = this.options.model || (providerOverridden ? undefined : this.meta.model)
 			conv = this.container.feature('conversation', {
 				// A conversation is per-assistant mutable state — never share a cached
 				// instance between assistants whose initial options happen to match,
@@ -404,7 +411,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				cached: false,
 				// Only default the model for the OpenAI path; when a provider is
 				// configured (or defaulted), leave it unset so the provider's default model wins.
-				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4-mini' : undefined),
+				model: model || (defaultsToOpenAI ? 'gpt-5.4-mini' : undefined),
 				tools: this.tools,
 				api: 'chat',
 				// When a provider is configured, thread it through. The `assistant`
