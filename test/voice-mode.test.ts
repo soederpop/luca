@@ -165,4 +165,81 @@ describe('voice-mode feature', () => {
 		expect(result).toEqual({ available: true, missing: [] })
 		expect(voiceMode.state.get('ttsAvailable')).toBe(true)
 	})
+
+	it('applies conversationModePrefix exactly once for the builtin elevenlabs provider', async () => {
+		let received: string | null = null
+		const voiceMode = new VoiceMode(
+			{
+				provider: 'elevenlabs',
+				voiceId: 'voice-123',
+				conversationModePrefix: 'calm narrator',
+			} as any,
+			{
+				container: {
+					emit: () => {},
+					client: (name: string) => {
+						expect(name).toBe('elevenlabs')
+						return {
+							state: { get: () => true },
+							synthesize: async (text: string) => {
+								received = text
+								return Buffer.from('audio')
+							},
+						}
+					},
+					fs: { writeFileAsync: async () => {} },
+				},
+			} as any,
+		)
+
+		const result = await (voiceMode as any)._synthesize('hello there')
+
+		expect(result).not.toBeNull()
+		expect(received).toBe('[calm narrator] hello there')
+	})
+
+	it('lazily connects an injected tts provider and retries after failure', async () => {
+		let connectCalls = 0
+		let failNext = true
+		const synthesized: string[] = []
+
+		const voiceMode = new VoiceMode({ provider: 'elevenlabs' } as any, {
+			container: {
+				emit: () => {},
+				fs: { writeFileAsync: async () => {} },
+			},
+		} as any)
+
+		voiceMode.useTtsProvider({
+			name: 'custom',
+			connect: async () => {
+				connectCalls++
+				if (failNext) {
+					failNext = false
+					throw new Error('not reachable')
+				}
+			},
+			synthesize: async (text: string) => {
+				synthesized.push(text)
+				return Buffer.from('audio')
+			},
+		})
+
+		expect(connectCalls).toBe(0)
+		expect(voiceMode.state.get('provider')).toBe('custom')
+
+		const first = await (voiceMode as any)._synthesize('one')
+		expect(first).toBeNull()
+		expect(connectCalls).toBe(1)
+		expect(synthesized).toEqual([])
+
+		const second = await (voiceMode as any)._synthesize('two')
+		expect(second).not.toBeNull()
+		expect(connectCalls).toBe(2)
+		expect(synthesized).toEqual(['two'])
+
+		await (voiceMode as any)._synthesize('three')
+		expect(connectCalls).toBe(2)
+		expect(synthesized).toEqual(['two', 'three'])
+	})
 })

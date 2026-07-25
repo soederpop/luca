@@ -24,7 +24,9 @@ import type { Assistant } from './assistant.js'
 // ── Schemas ──────────────────────────────────────────────────────────
 
 const VoiceModeOptionsSchema = FeatureOptionsSchema.extend({
-	provider: z.enum(['elevenlabs', 'voicebox']).default('elevenlabs'),
+	/** Direct TTS provider instance. When set, `provider` is ignored. */
+	tts: z.custom<TtsProvider>().optional(),
+	provider: z.string().default('elevenlabs'),
 	voiceId: z.string().optional(),
 	modelId: z.string().default('eleven_v3'),
 	voiceSettings: z.any().optional(),
@@ -71,8 +73,44 @@ type PhraseManifestEntry = {
 	file: string
 }
 
+/**
+ * Interface any TTS provider must implement for VoiceMode to use it.
+ *
+ * VoiceMode does NOT care how audio is generated — HTTP REST, local subprocess,
+ * cloud API — it only calls `synthesize()` and plays the returned audio bytes.
+ *
+ * @example
+ * ```typescript
+ * const myProvider: TtsProvider = {
+ *   name: 'kokoro-rest',
+ *   synthesize: async (text) => {
+ *     const res = await fetch('http://gpu-host:8002/v1/audio/speech', { ... })
+ *     return Buffer.from(await res.arrayBuffer())
+ *   },
+ * }
+ * voiceMode.useTtsProvider(myProvider)
+ * ```
+ */
+export interface TtsProvider {
+	/** Human-readable name for logging and state display. */
+	readonly name: string
+	/**
+	 * Optional one-time setup (e.g. health-check the server).
+	 * Called lazily before the first `synthesize` call if present.
+	 */
+	connect?(): Promise<void>
+	/**
+	 * Synthesize text to audio.
+	 *
+	 * @param text - The text to speak (already stripped of markdown / tags as appropriate).
+	 * @param options - Optional voice ID, speed, or other provider-specific parameters.
+	 * @returns Audio bytes (WAV, MP3, or whatever `afplay` can play on macOS).
+	 */
+	synthesize(text: string, options?: { voice?: string; speed?: number }): Promise<Buffer>
+}
+
 type VoiceConfig = {
-	provider?: 'elevenlabs' | 'voicebox'
+	provider?: string
 	voiceId?: string
 	modelId?: string
 	voiceSettings?: any
@@ -146,6 +184,10 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 	private _assistant: Assistant | null = null
 	private _chunkListeners: Array<() => void> = []
 
+	/** Resolved TTS provider — may be injected via options.tts or useTtsProvider(). */
+	private _ttsProvider: TtsProvider | null = null
+	private _ttsConnected = false
+
 	// ── Phrase manifest ──
 	private _phraseManifest: PhraseManifestEntry[] = []
 	private _phrasesByTag: Map<string, PhraseManifestEntry[]> = new Map()
@@ -171,6 +213,61 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 	/** The assistant this voiceMode is attached to. */
 	get assistant(): Assistant | null {
 		return this._assistant
+	}
+
+	// ── Public API: TTS Provider ─────────────────────────────────────
+
+	/**
+	 * Inject a TTS provider at runtime, overriding any configured provider.
+	 *
+	 * Can be called before or after `assistant.use()` — the provider is resolved
+	 * lazily on first synthesis. Use this to swap providers mid-session too.
+	 *
+	 * @returns `this` for chaining.
+	 *
+	 * @example
+	 * ```typescript
+	 * voiceMode.useTtsProvider({
+	 *   name: 'kokoro-rest',
+	 *   synthesize: async (text) => {
+	 *     const speech = container.client('speech', { baseURL: 'http://gpu-host:8002' })
+	 *     return speech.synthesize(text, { voice: 'af_heart' })
+	 *   },
+	 * })
+	 * ```
+	 */
+	useTtsProvider(provider: TtsProvider): this {
+		this._ttsProvider = provider
+		this._ttsConnected = false
+		this.state.set('provider', provider.name)
+		this.state.set('ttsAvailable', true)
+		this.emit('providerChanged', { provider: provider.name } as any)
+		return this
+	}
+
+	/**
+	 * Resolve the active TTS provider.
+	 *
+	 * Priority: 1) manually injected via `useTtsProvider()`,
+	 *           2) passed as `options.tts` at construction,
+	 *           3) built-in resolution from `options.provider` string.
+	 *
+	 * The resolved provider is cached for the lifetime of the feature
+	 * (or until `useTtsProvider()` is called again). `connect()` is called
+	 * lazily before the first synthesis; if it throws, the connection is
+	 * retried on the next call.
+	 */
+	protected async _getTtsProvider(): Promise<TtsProvider> {
+		if (!this._ttsProvider) {
+			this._ttsProvider = this.options.tts ?? (await this._resolveBuiltinProvider())
+			this.state.set('provider', this._ttsProvider.name)
+		}
+		if (!this._ttsConnected) {
+			await this._ttsProvider.connect?.()
+			this._ttsConnected = true
+			this.state.set('ttsAvailable', true)
+		}
+		return this._ttsProvider
 	}
 
 	// ── Public API: Voice Mode Toggle ────────────────────────────────
@@ -415,9 +512,29 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 
 	/**
 	 * Check whether TTS is available for the current provider config.
+	 *
+	 * If a custom provider was injected via `tts` option or `useTtsProvider()`,
+	 * we attempt its `connect()` method. If it has none, we assume it's available.
 	 */
 	async checkCapabilities(): Promise<{ available: boolean; missing: string[] }> {
 		const missing: string[] = []
+
+		// Custom provider takes priority
+		if (this._ttsProvider || this.options.tts) {
+			const provider = this._ttsProvider ?? this.options.tts!
+			if (provider.connect) {
+				try {
+					await provider.connect()
+					if (provider === this._ttsProvider) this._ttsConnected = true
+				} catch {
+					missing.push(`${provider.name} not reachable`)
+				}
+			}
+			const available = missing.length === 0
+			this.state.set('ttsAvailable', available)
+			return { available, missing }
+		}
+
 		const provider = this.options.provider
 
 		if (provider === 'voicebox') {
@@ -460,6 +577,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		assistant.ext.disableVoiceMode = () => this.disableVoiceMode()
 		assistant.ext.mute = () => this.mute()
 		assistant.ext.unmute = () => this.unmute()
+		assistant.ext.useTtsProvider = (p: TtsProvider) => this.useTtsProvider(p)
 		assistant.ext.speak = (text: string) => this.speak(text)
 		assistant.ext.waitForSpeechDone = () => this.waitForSpeechDone()
 		assistant.ext.playPhrase = (tag: string) => this.playPhrase(tag)
@@ -543,6 +661,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		delete this._assistant.ext.disableVoiceMode
 		delete this._assistant.ext.mute
 		delete this._assistant.ext.unmute
+		delete this._assistant.ext.useTtsProvider
 		delete this._assistant.ext.speak
 		delete this._assistant.ext.waitForSpeechDone
 		delete this._assistant.ext.playPhrase
@@ -891,74 +1010,83 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 
 	// ── TTS synthesis ────────────────────────────────────────────────
 
-	private async _synthesize(text: string): Promise<SynthResult | null> {
-		const provider = this.options.provider
+	/**
+	 * Resolve a built-in TTS provider from the `options.provider` string.
+	 *
+	 * This is the backward-compatible path — if someone passes
+	 * `provider: 'elevenlabs'` or `provider: 'voicebox'` without an
+	 * explicit `tts` instance, we resolve the corresponding Luca client
+	 * and wrap it in a TtsProvider.
+	 */
+	private async _resolveBuiltinProvider(): Promise<TtsProvider> {
+		const name = this.options.provider || 'elevenlabs'
 
-		if (provider === 'voicebox') {
-			return this._synthesizeVoicebox(text)
-		}
-		return this._synthesizeElevenlabs(text)
-	}
-
-	private async _synthesizeElevenlabs(text: string): Promise<SynthResult | null> {
-		try {
-			const el = this.container.client('elevenlabs') as any
-			if (!el.state.get('connected')) {
-				await el.connect()
-			}
-
-			const prefixed = this.options.conversationModePrefix
-				? this._applyPrefix(this.options.conversationModePrefix, text)
-				: text
-
-			const outputPath = `/tmp/voice-mode-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.mp3`
-
-			const audio = await el.synthesize(prefixed, {
-				voiceId: this.options.voiceId!,
-				...(this.options.modelId ? { modelId: this.options.modelId } : {}),
-				...(this.options.voiceSettings ? { voiceSettings: this.options.voiceSettings } : {}),
-			})
-
-			await this.container.fs.writeFileAsync(outputPath, audio)
-
-			if (this.options.debug) {
-				console.log(`[voice-mode] synth: "${text.slice(0, 60)}${text.length > 60 ? '...' : ''}"`)
-			}
-
-			return { path: outputPath, text }
-		} catch (err: any) {
-			console.error(`[voice-mode] elevenlabs synthesis failed:`, err.message)
-			this.emit('error', { phase: 'synthesis', error: err.message })
-			return null
-		}
-	}
-
-	private async _synthesizeVoicebox(text: string): Promise<SynthResult | null> {
-		try {
+		if (name === 'voicebox') {
 			const vb = this.container.client('voicebox') as any
 			if (!vb.state.get('connected')) {
 				await vb.connect()
 			}
-
-			const cleaned = stripTags(text)
-			if (!cleaned) return null
-
-			const outputPath = `/tmp/voice-mode-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.wav`
 			const vbOpts = this.options.voicebox!
+			return {
+				name: 'voicebox',
+				synthesize: async (text: string) => {
+					const cleaned = stripTags(text)
+					if (!cleaned) return Buffer.alloc(0)
+					return vb.synthesize(cleaned, {
+						profileId: vbOpts.profileId,
+						engine: vbOpts.engine,
+						modelSize: vbOpts.modelSize,
+						language: vbOpts.language,
+						instruct: vbOpts.instruct || undefined,
+					})
+				},
+			}
+		}
 
-			const audio = await vb.synthesize(cleaned, {
-				profileId: vbOpts.profileId,
-				engine: vbOpts.engine,
-				modelSize: vbOpts.modelSize,
-				language: vbOpts.language,
-				instruct: vbOpts.instruct || undefined,
-			})
+		// Default: elevenlabs
+		const el = this.container.client('elevenlabs') as any
+		if (!el.state.get('connected')) {
+			await el.connect()
+		}
+		return {
+			name: 'elevenlabs',
+			// Note: conversationModePrefix is applied in _synthesize, not here
+			synthesize: async (text: string) => {
+				return el.synthesize(text, {
+					voiceId: this.options.voiceId!,
+					...(this.options.modelId ? { modelId: this.options.modelId } : {}),
+					...(this.options.voiceSettings ? { voiceSettings: this.options.voiceSettings } : {}),
+				})
+			},
+		}
+	}
+
+	private async _synthesize(text: string): Promise<SynthResult | null> {
+		try {
+			const provider = await this._getTtsProvider()
+			const prefixed = this.options.conversationModePrefix
+				? this._applyPrefix(this.options.conversationModePrefix, text)
+				: text
+
+			const audio = await provider.synthesize(prefixed)
+
+			if (audio.length === 0) return null
+
+			// Decide file extension based on provider name
+			const ext = provider.name === 'voicebox' ? 'wav' : 'mp3'
+			const outputPath = `/tmp/voice-mode-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`
 
 			await this.container.fs.writeFileAsync(outputPath, audio)
-			return { path: outputPath, text: cleaned }
+
+			if (this.options.debug) {
+				console.log(`[voice-mode] ${provider.name} synth: "${text.slice(0, 60)}${text.length > 60 ? '...' : ''}"`)
+			}
+
+			return { path: outputPath, text }
 		} catch (err: any) {
-			console.error(`[voice-mode] voicebox synthesis failed:`, err.message)
-			this.emit('error', { phase: 'synthesis', error: err.message })
+			const providerName = this._ttsProvider?.name ?? this.options.provider
+			console.error(`[voice-mode] ${providerName} synthesis failed:`, err.message)
+			this.emit('error', { phase: 'synthesis', error: err.message, provider: providerName })
 			return null
 		}
 	}
