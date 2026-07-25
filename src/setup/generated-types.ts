@@ -10750,7 +10750,11 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
      *
      * If you pass the same arguments, it will return the same instance as last time you created that.
      *
-     * If you need the ability to create fresh instances, it is up to you how you define your options to support that.
+     * If you need the ability to create fresh instances, pass \`cached: false\` in the
+     * options — the call will always construct a new instance and never store it in
+     * (or read it from) the helper cache. Use this for inherently stateful helpers
+     * (e.g. a \`conversation\`) where sharing an instance because the *initial* options
+     * matched is never what you want.
      *
      * @param id - The id of the feature to create.
      * @param options - The options to pass to the feature constructor.

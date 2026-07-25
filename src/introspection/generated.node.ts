@@ -17301,7 +17301,7 @@ setContainerBuildTimeData('Container', {
       ]
     },
     "feature": {
-      "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+      "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, pass `cached: false` in the options — the call will always construct a new instance and never store it in (or read it from) the helper cache. Use this for inherently stateful helpers (e.g. a `conversation`) where sharing an instance because the *initial* options matched is never what you want.",
       "parameters": {
         "id": {
           "type": "T",
@@ -34971,7 +34971,7 @@ export const containerIntrospectionData: Record<string, any>[] = [
         ]
       },
       "feature": {
-        "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+        "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, pass `cached: false` in the options — the call will always construct a new instance and never store it in (or read it from) the helper cache. Use this for inherently stateful helpers (e.g. a `conversation`) where sharing an instance because the *initial* options matched is never what you want.",
         "parameters": {
           "id": {
             "type": "T",
