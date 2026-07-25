@@ -57,10 +57,11 @@ export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
  * Each skill folder can be opened as a DocsReader for AI-assisted Q&A.
  * Exposes tools for assistant integration via assistant.use(skillsLibrary).
  *
- * No paths are scanned by default — callers must explicitly provide locations
- * via the `locations` option or `addLocation()`. Set `useAgentsFolders: true`
- * to automatically scan conventional agent skill folders (.claude/skills and
- * .agents/skills in both $HOME and cwd).
+ * A local `skills/` folder in the project cwd is scanned automatically when it
+ * exists. Beyond that, callers must explicitly provide locations via the
+ * `locations` option or `addLocation()`. Set `useAgentsFolders: true` to also
+ * scan conventional agent skill folders (.claude/skills and .agents/skills in
+ * both $HOME and cwd).
  *
  * @extends Feature
  * @example
@@ -294,6 +295,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const config = this.readConfig()
 		const configLocations = config.locations.map(l => this.expandHome(l))
 		const instanceLocations = (this.options.locations || []).map(l => this.expandHome(l))
+		const localSkillsFolder = (this.container as any).paths.resolve((this.container as any).cwd, 'skills')
 		const agentsFolders: string[] = []
 		if (this.options.useAgentsFolders) {
 			const { paths, os, cwd } = this.container as any
@@ -314,6 +316,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const allLocations = uniq([
 			...configLocations,
 			...instanceLocations,
+			localSkillsFolder,
 			...agentsFolders,
 			...preStartLocations,
 		]).filter(Boolean).filter(l => (this.container as any).fs.exists(l))
