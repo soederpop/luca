@@ -105,10 +105,20 @@ export interface TtsProvider {
 	 * Synthesize text to audio.
 	 *
 	 * @param text - The text to speak (already stripped of markdown / tags as appropriate).
-	 * @param options - Optional voice ID, speed, or other provider-specific parameters.
+	 * @param options - Optional voice ID, speed, abort signal, or other provider-specific parameters.
+	 *   Providers should forward `signal` to their HTTP request so callers (e.g. a barge-in-aware
+	 *   realtime pipeline) can cancel in-flight synthesis instead of discarding the result.
 	 * @returns Audio bytes (WAV, MP3, or whatever `afplay` can play on macOS).
 	 */
-	synthesize(text: string, options?: { voice?: string; speed?: number }): Promise<Buffer>
+	synthesize(text: string, options?: TtsSynthesizeOptions): Promise<Buffer>
+}
+
+/** Options accepted by {@link TtsProvider.synthesize}. */
+export interface TtsSynthesizeOptions {
+	voice?: string
+	speed?: number
+	/** Abort in-flight synthesis (forwarded to the provider's HTTP request). */
+	signal?: AbortSignal
 }
 
 type VoiceConfig = {
