@@ -107,7 +107,7 @@ export class Selector<
 	 */
 	resolveCacheKey(args: any, _context: ContainerContext): string {
 		const name = (this.constructor as typeof Selector).shortcut || 'selector'
-		const gitSha = (this.container as any).git?.currentCommitSha ?? 'unknown'
+		const gitSha = (this.container as any).git?.sha ?? 'unknown'
 		return (this.container as any).utils.hashObject({ selectorName: name, args, gitSha })
 	}
 
