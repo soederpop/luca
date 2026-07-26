@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.2"
+export const typesBundleVersion = "3.6.3"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -123,7 +123,7 @@ export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, Open
 export { SkillsLibrary } from "./features/skills-library";
 export type { SkillInfo, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
-export type { VoiceModeOptions, VoiceModeState, VoiceConfig } from "./features/voice-mode";
+export type { VoiceModeOptions, VoiceModeState, TtsProvider, VoiceConfig } from "./features/voice-mode";
 export interface GeneratedAGIFeatures {
     assistant: typeof Assistant;
     assistantsManager: typeof AssistantsManager;
@@ -6376,10 +6376,8 @@ declare const VoiceModeOptionsSchema: z.ZodObject<{
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
-    provider: z.ZodDefault<z.ZodEnum<{
-        elevenlabs: "elevenlabs";
-        voicebox: "voicebox";
-    }>>;
+    tts: z.ZodOptional<z.ZodCustom<TtsProvider, TtsProvider>>;
+    provider: z.ZodDefault<z.ZodString>;
     voiceId: z.ZodOptional<z.ZodString>;
     modelId: z.ZodDefault<z.ZodString>;
     voiceSettings: z.ZodOptional<z.ZodAny>;
@@ -6413,8 +6411,48 @@ declare const VoiceModeStateSchema: z.ZodObject<{
 }, z.core.$loose>;
 export type VoiceModeOptions = z.infer<typeof VoiceModeOptionsSchema>;
 export type VoiceModeState = z.infer<typeof VoiceModeStateSchema>;
+/**
+ * Interface any TTS provider must implement for VoiceMode to use it.
+ *
+ * VoiceMode does NOT care how audio is generated — HTTP REST, local subprocess,
+ * cloud API — it only calls \`synthesize()\` and plays the returned audio bytes.
+ *
+ * @example
+ * \`\`\`typescript
+ * const myProvider: TtsProvider = {
+ *   name: 'kokoro-rest',
+ *   synthesize: async (text) => {
+ *     const res = await fetch('http://gpu-host:8002/v1/audio/speech', { ... })
+ *     return Buffer.from(await res.arrayBuffer())
+ *   },
+ * }
+ * voiceMode.useTtsProvider(myProvider)
+ * \`\`\`
+ */
+export interface TtsProvider {
+    /** Human-readable name for logging and state display. */
+    readonly name: string;
+    /** Audio format returned by \`synthesize\`. Defaults to 'mp3'. Determines the temp-file extension passed to the player. */
+    readonly format?: 'wav' | 'mp3';
+    /**
+     * Optional one-time setup (e.g. health-check the server).
+     * Called lazily before the first \`synthesize\` call if present.
+     */
+    connect?(): Promise<void>;
+    /**
+     * Synthesize text to audio.
+     *
+     * @param text - The text to speak (already stripped of markdown / tags as appropriate).
+     * @param options - Optional voice ID, speed, or other provider-specific parameters.
+     * @returns Audio bytes (WAV, MP3, or whatever \`afplay\` can play on macOS).
+     */
+    synthesize(text: string, options?: {
+        voice?: string;
+        speed?: number;
+    }): Promise<Buffer>;
+}
 type VoiceConfig = {
-    provider?: 'elevenlabs' | 'voicebox';
+    provider?: string;
     voiceId?: string;
     modelId?: string;
     voiceSettings?: any;
@@ -6438,10 +6476,8 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
         _cacheKey: z.ZodOptional<z.ZodString>;
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
-        provider: z.ZodDefault<z.ZodEnum<{
-            elevenlabs: "elevenlabs";
-            voicebox: "voicebox";
-        }>>;
+        tts: z.ZodOptional<z.ZodCustom<TtsProvider, TtsProvider>>;
+        provider: z.ZodDefault<z.ZodString>;
         voiceId: z.ZodOptional<z.ZodString>;
         modelId: z.ZodDefault<z.ZodString>;
         voiceSettings: z.ZodOptional<z.ZodAny>;
@@ -6481,12 +6517,48 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
     private _hasStartedPlaying;
     private _assistant;
     private _chunkListeners;
+    /** Resolved TTS provider — may be injected via options.tts or useTtsProvider(). */
+    private _ttsProvider;
+    private _ttsConnected;
     private _phraseManifest;
     private _phrasesByTag;
     private _lastPhraseByTag;
     get initialState(): VoiceModeState;
     /** The assistant this voiceMode is attached to. */
     get assistant(): Assistant | null;
+    /**
+     * Inject a TTS provider at runtime, overriding any configured provider.
+     *
+     * Can be called before or after \`assistant.use()\` — the provider is resolved
+     * lazily on first synthesis. Use this to swap providers mid-session too.
+     *
+     * @returns \`this\` for chaining.
+     *
+     * @example
+     * \`\`\`typescript
+     * voiceMode.useTtsProvider({
+     *   name: 'kokoro-rest',
+     *   synthesize: async (text) => {
+     *     const speech = container.client('speech', { baseURL: 'http://gpu-host:8002' })
+     *     return speech.synthesize(text, { voice: 'af_heart' })
+     *   },
+     * })
+     * \`\`\`
+     */
+    useTtsProvider(provider: TtsProvider): this;
+    /**
+     * Resolve the active TTS provider.
+     *
+     * Priority: 1) manually injected via \`useTtsProvider()\`,
+     *           2) passed as \`options.tts\` at construction,
+     *           3) built-in resolution from \`options.provider\` string.
+     *
+     * The resolved provider is cached for the lifetime of the feature
+     * (or until \`useTtsProvider()\` is called again). \`connect()\` is called
+     * lazily before the first synthesis; if it throws, the connection is
+     * retried on the next call.
+     */
+    protected _getTtsProvider(): Promise<TtsProvider>;
     get isEnabled(): boolean;
     /**
      * Toggle voice mode on or off.
@@ -6531,6 +6603,9 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
     static optionsFromConfig(config: VoiceConfig, overrides?: Partial<VoiceModeOptions>): Partial<VoiceModeOptions>;
     /**
      * Check whether TTS is available for the current provider config.
+     *
+     * If a custom provider was injected via \`tts\` option or \`useTtsProvider()\`,
+     * we attempt its \`connect()\` method. If it has none, we assume it's available.
      */
     checkCapabilities(): Promise<{
         available: boolean;
@@ -6556,9 +6631,16 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
     private _resetPipeline;
     private _finish;
     private _applyPrefix;
+    /**
+     * Resolve a built-in TTS provider from the \`options.provider\` string.
+     *
+     * This is the backward-compatible path — if someone passes
+     * \`provider: 'elevenlabs'\` or \`provider: 'voicebox'\` without an
+     * explicit \`tts\` instance, we resolve the corresponding Luca client
+     * and wrap it in a TtsProvider.
+     */
+    private _resolveBuiltinProvider;
     private _synthesize;
-    private _synthesizeElevenlabs;
-    private _synthesizeVoicebox;
     private _play;
     private _summarizer;
     summarizeForSpeech(text: string): Promise<string>;

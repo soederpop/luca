@@ -23319,6 +23319,41 @@ setBuildTimeData('features.voiceMode', {
   "shortcut": "features.voiceMode",
   "className": "VoiceMode",
   "methods": {
+    "useTtsProvider": {
+      "description": "Inject a TTS provider at runtime, overriding any configured provider. Can be called before or after `assistant.use()` — the provider is resolved lazily on first synthesis. Use this to swap providers mid-session too.",
+      "parameters": {
+        "provider": {
+          "type": "TtsProvider",
+          "description": "Parameter provider",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Human-readable name for logging and state display."
+            },
+            "format": {
+              "type": "'wav' | 'mp3'",
+              "description": "Audio format returned by `synthesize`. Defaults to 'mp3'. Determines the temp-file extension passed to the player."
+            }
+          }
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "voiceMode.useTtsProvider({\n name: 'kokoro-rest',\n synthesize: async (text) => {\n   const speech = container.client('speech', { baseURL: 'http://gpu-host:8002' })\n   return speech.synthesize(text, { voice: 'af_heart' })\n },\n})"
+        }
+      ]
+    },
+    "_getTtsProvider": {
+      "description": "Resolve the active TTS provider. Priority: 1) manually injected via `useTtsProvider()`, 2) passed as `options.tts` at construction, 3) built-in resolution from `options.provider` string. The resolved provider is cached for the lifetime of the feature (or until `useTtsProvider()` is called again). `connect()` is called lazily before the first synthesis; if it throws, the connection is retried on the next call.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<TtsProvider>"
+    },
     "toggleVoiceMode": {
       "description": "Toggle voice mode on or off. When enabled: speech-first prompt guidance, TTS pipeline active, low maxTokens. When disabled: normal markdown assistant, no TTS, normal maxTokens.",
       "parameters": {
@@ -23426,7 +23461,7 @@ setBuildTimeData('features.voiceMode', {
       "returns": "void"
     },
     "checkCapabilities": {
-      "description": "Check whether TTS is available for the current provider config.",
+      "description": "Check whether TTS is available for the current provider config. If a custom provider was injected via `tts` option or `useTtsProvider()`, we attempt its `connect()` method. If it has none, we assume it's available.",
       "parameters": {},
       "required": [],
       "returns": "Promise<{ available: boolean; missing: string[] }>"
@@ -23479,6 +23514,11 @@ setBuildTimeData('features.voiceMode', {
     }
   },
   "events": {
+    "providerChanged": {
+      "name": "providerChanged",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
     "muted": {
       "name": "muted",
       "description": "Event emitted by VoiceMode",
@@ -23544,7 +23584,23 @@ setBuildTimeData('features.voiceMode', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
-  "category": "ai-assistants"
+  "category": "ai-assistants",
+  "types": {
+    "TtsProvider": {
+      "description": "Interface any TTS provider must implement for VoiceMode to use it. VoiceMode does NOT care how audio is generated — HTTP REST, local subprocess, cloud API — it only calls `synthesize()` and plays the returned audio bytes.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for logging and state display."
+        },
+        "format": {
+          "type": "'wav' | 'mp3'",
+          "description": "Audio format returned by `synthesize`. Defaults to 'mp3'. Determines the temp-file extension passed to the player.",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.yaml', {
@@ -48211,6 +48267,41 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.voiceMode",
     "className": "VoiceMode",
     "methods": {
+      "useTtsProvider": {
+        "description": "Inject a TTS provider at runtime, overriding any configured provider. Can be called before or after `assistant.use()` — the provider is resolved lazily on first synthesis. Use this to swap providers mid-session too.",
+        "parameters": {
+          "provider": {
+            "type": "TtsProvider",
+            "description": "Parameter provider",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Human-readable name for logging and state display."
+              },
+              "format": {
+                "type": "'wav' | 'mp3'",
+                "description": "Audio format returned by `synthesize`. Defaults to 'mp3'. Determines the temp-file extension passed to the player."
+              }
+            }
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "voiceMode.useTtsProvider({\n name: 'kokoro-rest',\n synthesize: async (text) => {\n   const speech = container.client('speech', { baseURL: 'http://gpu-host:8002' })\n   return speech.synthesize(text, { voice: 'af_heart' })\n },\n})"
+          }
+        ]
+      },
+      "_getTtsProvider": {
+        "description": "Resolve the active TTS provider. Priority: 1) manually injected via `useTtsProvider()`, 2) passed as `options.tts` at construction, 3) built-in resolution from `options.provider` string. The resolved provider is cached for the lifetime of the feature (or until `useTtsProvider()` is called again). `connect()` is called lazily before the first synthesis; if it throws, the connection is retried on the next call.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<TtsProvider>"
+      },
       "toggleVoiceMode": {
         "description": "Toggle voice mode on or off. When enabled: speech-first prompt guidance, TTS pipeline active, low maxTokens. When disabled: normal markdown assistant, no TTS, normal maxTokens.",
         "parameters": {
@@ -48318,7 +48409,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "checkCapabilities": {
-        "description": "Check whether TTS is available for the current provider config.",
+        "description": "Check whether TTS is available for the current provider config. If a custom provider was injected via `tts` option or `useTtsProvider()`, we attempt its `connect()` method. If it has none, we assume it's available.",
         "parameters": {},
         "required": [],
         "returns": "Promise<{ available: boolean; missing: string[] }>"
@@ -48371,6 +48462,11 @@ export const introspectionData: Record<string, any>[] = [
       }
     },
     "events": {
+      "providerChanged": {
+        "name": "providerChanged",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
       "muted": {
         "name": "muted",
         "description": "Event emitted by VoiceMode",
@@ -48436,7 +48532,23 @@ export const introspectionData: Record<string, any>[] = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
-    "category": "ai-assistants"
+    "category": "ai-assistants",
+    "types": {
+      "TtsProvider": {
+        "description": "Interface any TTS provider must implement for VoiceMode to use it. VoiceMode does NOT care how audio is generated — HTTP REST, local subprocess, cloud API — it only calls `synthesize()` and plays the returned audio bytes.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for logging and state display."
+          },
+          "format": {
+            "type": "'wav' | 'mp3'",
+            "description": "Audio format returned by `synthesize`. Defaults to 'mp3'. Determines the temp-file extension passed to the player.",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.yaml",

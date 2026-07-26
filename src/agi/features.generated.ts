@@ -61,7 +61,7 @@ export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, Open
 export { SkillsLibrary } from "./features/skills-library";
 export type { SkillInfo, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
-export type { VoiceModeOptions, VoiceModeState, VoiceConfig } from "./features/voice-mode";
+export type { VoiceModeOptions, VoiceModeState, TtsProvider, VoiceConfig } from "./features/voice-mode";
 
 export interface GeneratedAGIFeatures {
   assistant: typeof Assistant;
