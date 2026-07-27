@@ -14700,6 +14700,18 @@ setBuildTimeData('features.memory', {
       "required": [],
       "returns": "Promise<MemoryRecord[]>"
     },
+    "reembedAll": {
+      "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<number>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mem = container.feature('memory', { embeddingProvider: 'local' })\nawait mem.reembedAll()"
+        }
+      ]
+    },
     "exportToJson": {
       "description": "Export all memories in this namespace to a JSON-serializable object.",
       "parameters": {},
@@ -39678,6 +39690,18 @@ export const introspectionData: Record<string, any>[] = [
         },
         "required": [],
         "returns": "Promise<MemoryRecord[]>"
+      },
+      "reembedAll": {
+        "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<number>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mem = container.feature('memory', { embeddingProvider: 'local' })\nawait mem.reembedAll()"
+          }
+        ]
       },
       "exportToJson": {
         "description": "Export all memories in this namespace to a JSON-serializable object.",

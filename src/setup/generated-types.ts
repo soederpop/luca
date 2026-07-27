@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.3"
+export const typesBundleVersion = "3.6.4"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -497,6 +497,21 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         epoch?: number;
         limit?: number;
     }): Promise<MemoryRecord[]>;
+    /**
+     * Re-embed every memory in this namespace with the currently configured
+     * embedding model. Use this after changing embeddingModel or
+     * embeddingProvider — search compares vectors directly, so a database holding
+     * two different dimensionalities cannot be searched.
+     *
+     * @returns {Promise<number>} Number of memories re-embedded
+     *
+     * @example
+     * \`\`\`typescript
+     * const mem = container.feature('memory', { embeddingProvider: 'local' })
+     * await mem.reembedAll()
+     * \`\`\`
+     */
+    reembedAll(): Promise<number>;
     /**
      * Export all memories in this namespace to a JSON-serializable object.
      */
