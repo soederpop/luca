@@ -607,6 +607,39 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return this.getAll('events', { limit: options.limit ?? 10, filterMetadata })
   }
 
+  /**
+   * Re-embed every memory in this namespace with the currently configured
+   * embedding model. Use this after changing embeddingModel or
+   * embeddingProvider — search compares vectors directly, so a database holding
+   * two different dimensionalities cannot be searched.
+   *
+   * @returns {Promise<number>} Number of memories re-embedded
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory', { embeddingProvider: 'local' })
+   * await mem.reembedAll()
+   * ```
+   */
+  async reembedAll(): Promise<number> {
+    await this.ensureDb()
+
+    const rows = await this.db.query(
+      'SELECT id, document FROM memories WHERE namespace = ?',
+      [this.options.namespace]
+    ) as { id: number; document: string }[]
+
+    for (const row of rows) {
+      const embedding = await this.embed(row.document)
+      await this.db.execute(
+        'UPDATE memories SET embedding = ? WHERE id = ? AND namespace = ?',
+        [this.float64ToBlob(embedding), row.id, this.options.namespace]
+      )
+    }
+
+    return rows.length
+  }
+
   // --- Import / Export ---
 
   /**
@@ -683,6 +716,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
   /** @internal Cosine distance between two vectors (0 = identical, 2 = opposite) */
   private cosineDistance(a: number[], b: number[]): number {
+    // Without this guard a shorter query vector silently scores against a
+    // prefix of the stored one and returns a plausible-looking but meaningless
+    // distance. That happens whenever the embedding model changes underneath an
+    // existing database (e.g. openai/3072 rows searched with local/768 queries).
+    if (a.length !== b.length) {
+      throw new Error(
+        `Embedding dimension mismatch: query is ${a.length}-dim but a stored memory is ${b.length}-dim. ` +
+        `The embedding model changed since these memories were written — re-index them with reembedAll(), ` +
+        `or switch back to the model that produced ${b.length}-dim vectors.`
+      )
+    }
+
     let dot = 0, magA = 0, magB = 0
     for (let i = 0; i < a.length; i++) {
       dot += a[i]! * b[i]!

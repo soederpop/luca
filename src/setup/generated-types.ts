@@ -123,7 +123,7 @@ export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, Open
 export { SkillsLibrary } from "./features/skills-library";
 export type { SkillInfo, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
-export type { VoiceModeOptions, VoiceModeState, TtsProvider, VoiceConfig } from "./features/voice-mode";
+export type { VoiceModeOptions, VoiceModeState, TtsProvider, TtsSynthesizeOptions, VoiceConfig } from "./features/voice-mode";
 export interface GeneratedAGIFeatures {
     assistant: typeof Assistant;
     assistantsManager: typeof AssistantsManager;
@@ -6443,13 +6443,19 @@ export interface TtsProvider {
      * Synthesize text to audio.
      *
      * @param text - The text to speak (already stripped of markdown / tags as appropriate).
-     * @param options - Optional voice ID, speed, or other provider-specific parameters.
+     * @param options - Optional voice ID, speed, abort signal, or other provider-specific parameters.
+     *   Providers should forward \`signal\` to their HTTP request so callers (e.g. a barge-in-aware
+     *   realtime pipeline) can cancel in-flight synthesis instead of discarding the result.
      * @returns Audio bytes (WAV, MP3, or whatever \`afplay\` can play on macOS).
      */
-    synthesize(text: string, options?: {
-        voice?: string;
-        speed?: number;
-    }): Promise<Buffer>;
+    synthesize(text: string, options?: TtsSynthesizeOptions): Promise<Buffer>;
+}
+/** Options accepted by {@link TtsProvider.synthesize}. */
+export interface TtsSynthesizeOptions {
+    voice?: string;
+    speed?: number;
+    /** Abort in-flight synthesis (forwarded to the provider's HTTP request). */
+    signal?: AbortSignal;
 }
 type VoiceConfig = {
     provider?: string;
@@ -29205,7 +29211,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.3";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
