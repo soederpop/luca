@@ -125,6 +125,13 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'CORE.md'), bootstrapTemplates['assistant-core'] || '', 'assistants/default/CORE.md')
 	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'tools.ts'), bootstrapTemplates['assistant-tools'] || '', 'assistants/default/tools.ts')
 
+	// Workspace-level assistant config: options.yml (overrides) + hooks.ts
+	// (lifecycle). Both ship as no-op templates so users have something to
+	// uncomment when they want to customize.
+	const assistantsRoot = mkPath('assistants')
+	await writeFile(fs, ui, container.paths.resolve(assistantsRoot, 'options.yml'), bootstrapTemplates['assistants-options'] || '', 'assistants/options.yml')
+	await writeFile(fs, ui, container.paths.resolve(assistantsRoot, 'hooks.ts'), bootstrapTemplates['assistants-hooks'] || '', 'assistants/hooks.ts')
+
 	// ── 8. luca.cli.ts ─────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('luca.cli.ts'), bootstrapTemplates['luca-cli'] || '', 'luca.cli.ts')
 

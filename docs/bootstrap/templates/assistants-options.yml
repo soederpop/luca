@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────────────
+# assistants/options.yml — workspace overrides for the assistantsManager.
+#
+# Everything here is a no-op by default — uncomment what you want to tweak.
+# Keys are assistant short names (the folder name under assistants/). The
+# reserved `defaults` key is merged into EVERY assistant created by the
+# manager, then the per-assistant entry is deep-merged on top.
+#
+# Precedence, weakest → strongest:
+#   1. CORE.md frontmatter (per-assistant, in source control)
+#   2. `defaults:` here (workspace-wide)
+#   3. `<assistantName>:` here (workspace override)
+#   4. Explicit options passed to `manager.create(name, options)`
+#   5. `beforeAssistantCreated()` in assistants/hooks.ts (last word)
+#
+# See every available option: `luca describe assistant` (look at the
+# options schema). Common ones: model, temperature, maxTokens, provider,
+# providerOptions, historyMode, allowTools, forbidTools, injectTimestamps.
+# ─────────────────────────────────────────────────────────────────────────
+
+# defaults:
+#   # Applied to every assistant unless overridden per-assistant below.
+#   # historyMode: daily          # lifecycle | daily | persistent | session
+#   # injectTimestamps: true      # prepend timestamps to user messages
+#   # temperature: 0.7
+#   # providerOptions:
+#   #   cwd: .                    # forwarded to the model provider transport
+
+# default:
+#   # Overrides for the assistant in assistants/default/. Only the keys you
+#   # set are changed — everything else falls through to CORE.md + defaults.
+#   #
+#   # model: gpt-5.4-mini         # or any id your provider serves
+#   # provider: claude-code       # 'codex' | 'claude-code' | omit for openai
+#   # temperature: 0.3
+#   # maxTokens: 4096
+#   # contextWindow: 128000       # your model's real limit; drives compaction
+#   # allowTools:                 # strict allowlist (supports * globs)
+#   #   - fs.*
+#   #   - grep.*
+#   # forbidTools:                # denylist, applied after allowTools
+#   #   - proc.exec
