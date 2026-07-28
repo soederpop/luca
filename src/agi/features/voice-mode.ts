@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Feature } from '../feature.js'
 import { FeatureOptionsSchema, FeatureStateSchema } from '../../schemas/base.js'
 import type { Assistant } from './assistant.js'
+import { SpeechTurn, type SpeechTurnOptions } from './speech-turn.js'
 
 /**
  * VoiceMode is a feature that an assistant can `use()`.
@@ -345,6 +346,31 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 	}
 
 	// ── Public API: Speech ───────────────────────────────────────────
+
+	/**
+	 * Create a headless, cancellable speech turn with a provider-neutral
+	 * transport and pluggable audio sink.
+	 *
+	 * This is the realtime/server path. It never creates files or invokes a
+	 * local player; the caller owns the transport and destination.
+	 *
+	 * @param options - Speech transport, audio sink, segmentation, and abort options.
+	 * @returns A new isolated speech turn.
+	 *
+	 * @example
+	 * ```typescript
+	 * const turn = voiceMode.createSpeechTurn({ transport, sink })
+	 * turn.consume('Hello from a streamed response. ')
+	 * await turn.finish()
+	 * ```
+	 */
+	createSpeechTurn(options: SpeechTurnOptions): SpeechTurn {
+		return new SpeechTurn({
+			minChunkLength: this.options.minChunkLength,
+			maxChunkLength: this.options.maxChunkLength,
+			...options,
+		})
+	}
 
 	/**
 	 * Speak arbitrary text through the TTS pipeline (outside of a conversation turn).
@@ -1178,4 +1204,12 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 type SynthResult = { path: string; text: string }
 
 export type { VoiceConfig }
+export type {
+	AudioSink,
+	SpeechAudioChunk,
+	SpeechSynthesisOptions,
+	SpeechSynthesisResult,
+	SpeechSynthesisTransport,
+	SpeechTurnOptions,
+} from './speech-turn.js'
 export default VoiceMode

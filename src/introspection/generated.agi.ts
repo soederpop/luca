@@ -23418,6 +23418,25 @@ setBuildTimeData('features.voiceMode', {
       "required": [],
       "returns": "void"
     },
+    "createSpeechTurn": {
+      "description": "Create a headless, cancellable speech turn with a provider-neutral transport and pluggable audio sink. This is the realtime/server path. It never creates files or invokes a local player; the caller owns the transport and destination.",
+      "parameters": {
+        "options": {
+          "type": "SpeechTurnOptions",
+          "description": "Speech transport, audio sink, segmentation, and abort options."
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "SpeechTurn",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const turn = voiceMode.createSpeechTurn({ transport, sink })\nturn.consume('Hello from a streamed response. ')\nawait turn.finish()"
+        }
+      ]
+    },
     "speak": {
       "description": "Speak arbitrary text through the TTS pipeline (outside of a conversation turn).",
       "parameters": {
@@ -48392,6 +48411,25 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      },
+      "createSpeechTurn": {
+        "description": "Create a headless, cancellable speech turn with a provider-neutral transport and pluggable audio sink. This is the realtime/server path. It never creates files or invokes a local player; the caller owns the transport and destination.",
+        "parameters": {
+          "options": {
+            "type": "SpeechTurnOptions",
+            "description": "Speech transport, audio sink, segmentation, and abort options."
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "SpeechTurn",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const turn = voiceMode.createSpeechTurn({ transport, sink })\nturn.consume('Hello from a streamed response. ')\nawait turn.finish()"
+          }
+        ]
       },
       "speak": {
         "description": "Speak arbitrary text through the TTS pipeline (outside of a conversation turn).",

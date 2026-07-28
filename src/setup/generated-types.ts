@@ -6420,9 +6420,92 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
 }
 export default SkillsLibrary;
 //# sourceMappingURL=skills-library.d.ts.map`,
+  "agi/features/speech-turn.d.ts": `/**
+ * One normalized chunk of synthesized speech.
+ *
+ * Speech transports are responsible for decoding provider-specific containers
+ * (WAV, MP3, etc.) before yielding chunks. Sinks therefore only ever handle
+ * mono, signed little-endian PCM16.
+ */
+export interface SpeechAudioChunk {
+    pcm: Uint8Array;
+    sampleRate: number;
+    channels: 1;
+    encoding: 'pcm16le';
+}
+export interface SpeechSynthesisOptions {
+    signal: AbortSignal;
+}
+export type SpeechSynthesisResult = SpeechAudioChunk | readonly SpeechAudioChunk[] | AsyncIterable<SpeechAudioChunk>;
+/** Provider-neutral, cancellable text-to-speech transport. */
+export interface SpeechSynthesisTransport {
+    readonly name: string;
+    synthesize(text: string, options: SpeechSynthesisOptions): Promise<SpeechSynthesisResult>;
+}
+/** Destination for normalized audio produced by a speech turn. */
+export interface AudioSink {
+    write(chunk: SpeechAudioChunk, options: {
+        signal: AbortSignal;
+    }): void | Promise<void>;
+    finish?(): void | Promise<void>;
+    interrupt?(): void | Promise<void>;
+}
+export interface SpeechTurnOptions {
+    transport: SpeechSynthesisTransport;
+    sink: AudioSink;
+    minChunkLength?: number;
+    maxChunkLength?: number;
+    signal?: AbortSignal;
+}
+/**
+ * Headless, turn-scoped speech synthesis.
+ *
+ * Streaming text is segmented into speakable clauses, synthesized in order,
+ * and written to a pluggable sink. \`interrupt()\` aborts in-flight provider work
+ * and guarantees that late provider output is never forwarded to the sink.
+ */
+export declare class SpeechTurn {
+    private readonly transport;
+    private readonly sink;
+    private readonly minChunkLength;
+    private readonly maxChunkLength;
+    private readonly abortController;
+    private buffer;
+    private queue;
+    private drainPromise;
+    private finishing;
+    private interrupted;
+    private sinkFinished;
+    private failure;
+    constructor(options: SpeechTurnOptions);
+    get signal(): AbortSignal;
+    get isInterrupted(): boolean;
+    /**
+     * Consume the next streamed text delta.
+     *
+     * @param textDelta - Assistant text exactly as it arrived from the model.
+     */
+    consume(textDelta: string): void;
+    /**
+     * Flush the final partial clause and wait for synthesis and sink completion.
+     */
+    finish(): Promise<void>;
+    /**
+     * Abort synthesis, discard queued text, and flush the sink.
+     */
+    interrupt(): void;
+    private splitBuffer;
+    private enqueue;
+    private startDrain;
+    private drain;
+}
+/** Remove visual formatting while preserving word boundaries for speech. */
+export declare function cleanSpeechText(text: string): string;
+//# sourceMappingURL=speech-turn.d.ts.map`,
   "agi/features/voice-mode.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import type { Assistant } from './assistant.js';
+import { SpeechTurn, type SpeechTurnOptions } from './speech-turn.js';
 /**
  * VoiceMode is a feature that an assistant can \`use()\`.
  *
@@ -6648,6 +6731,24 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
     get isMuted(): boolean;
     get isSpeaking(): boolean;
     /**
+     * Create a headless, cancellable speech turn with a provider-neutral
+     * transport and pluggable audio sink.
+     *
+     * This is the realtime/server path. It never creates files or invokes a
+     * local player; the caller owns the transport and destination.
+     *
+     * @param options - Speech transport, audio sink, segmentation, and abort options.
+     * @returns A new isolated speech turn.
+     *
+     * @example
+     * \`\`\`typescript
+     * const turn = voiceMode.createSpeechTurn({ transport, sink })
+     * turn.consume('Hello from a streamed response. ')
+     * await turn.finish()
+     * \`\`\`
+     */
+    createSpeechTurn(options: SpeechTurnOptions): SpeechTurn;
+    /**
      * Speak arbitrary text through the TTS pipeline (outside of a conversation turn).
      */
     speak(text: string): Promise<void>;
@@ -6721,10 +6822,12 @@ export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions>
     summarizeForSpeech(text: string): Promise<string>;
 }
 export type { VoiceConfig };
+export type { AudioSink, SpeechAudioChunk, SpeechSynthesisOptions, SpeechSynthesisResult, SpeechSynthesisTransport, SpeechTurnOptions, } from './speech-turn.js';
 export default VoiceMode;
 //# sourceMappingURL=voice-mode.d.ts.map`,
   "agi/index.d.ts": `import type { AGIContainer } from './container.server';
 export * from './container.server';
+export * from './features/speech-turn';
 declare const _default: AGIContainer;
 export default _default;
 //# sourceMappingURL=index.d.ts.map`,
