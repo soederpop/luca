@@ -71,33 +71,51 @@ printf "${dim}"
 "${INSTALL_DIR}/luca" --version 2>/dev/null || true
 printf "${reset}"
 
-# PATH setup
+# PATH setup — append to the shell rc file unless already on PATH
+add_to_path() {
+  rc_file="$1"
+  line="$2"
+  reload="$3"
+
+  if [ -f "$rc_file" ] && grep -qF "$line" "$rc_file"; then
+    info "PATH already configured in ${rc_file}"
+    return
+  fi
+
+  mkdir -p "$(dirname "$rc_file")"
+  {
+    printf "\n# Added by the Luca installer\n"
+    printf "%s\n" "$line"
+  } >> "$rc_file"
+
+  ok "Added ${INSTALL_DIR} to your PATH in ${rc_file}"
+  printf "\n"
+  printf "  Restart your shell, or run: ${bold}%s${reset}\n" "$reload"
+}
+
 case ":$PATH:" in
   *":${INSTALL_DIR}:"*)
     ;;
   *)
     printf "\n"
-    info "Add ${INSTALL_DIR} to your PATH:"
-    printf "\n"
     SHELL_NAME="$(basename "${SHELL:-}")"
     case "$SHELL_NAME" in
       zsh)
-        printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.zshrc${reset}\n"
-        printf "    ${bold}source ~/.zshrc${reset}\n"
+        add_to_path "$HOME/.zshrc" "export PATH=\"${INSTALL_DIR}:\$PATH\"" "source ~/.zshrc"
         ;;
       bash)
         if [ "$OS" = "darwin" ]; then
-          printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.bash_profile${reset}\n"
-          printf "    ${bold}source ~/.bash_profile${reset}\n"
+          add_to_path "$HOME/.bash_profile" "export PATH=\"${INSTALL_DIR}:\$PATH\"" "source ~/.bash_profile"
         else
-          printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.bashrc${reset}\n"
-          printf "    ${bold}source ~/.bashrc${reset}\n"
+          add_to_path "$HOME/.bashrc" "export PATH=\"${INSTALL_DIR}:\$PATH\"" "source ~/.bashrc"
         fi
         ;;
       fish)
-        printf "    ${bold}fish_add_path ${INSTALL_DIR}${reset}\n"
+        add_to_path "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" "fish_add_path ${INSTALL_DIR}" "exec fish"
         ;;
       *)
+        info "Add ${INSTALL_DIR} to your PATH:"
+        printf "\n"
         printf "    ${bold}export PATH=\"${INSTALL_DIR}:\$PATH\"${reset}\n"
         printf "    ${dim}(add this to your shell's startup file)${reset}\n"
         ;;
