@@ -44,7 +44,48 @@ export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
 	assistantRegistered: z.tuple([
 		z.string().describe('The assistant id'),
 	]).describe('Emitted when an assistant factory is registered at runtime'),
+	workspaceOptionsLoaded: z.tuple([
+		z.string().describe('Absolute path to the options.yml file that was loaded'),
+	]).describe('Emitted when assistants/options.yml is parsed into option overrides'),
+	workspaceHooksLoaded: z.tuple([
+		z.string().describe('Absolute path to the hooks.ts file that was loaded'),
+	]).describe('Emitted when assistants/hooks.ts is imported'),
+	unusedOverrides: z.tuple([
+		z.array(z.string()).describe('Override keys that do not match any known assistant name'),
+	]).describe('Emitted after discovery when workspace options reference unknown assistants'),
 })
+
+/**
+ * Optional lifecycle hooks module loaded from `assistants/hooks.ts` at the
+ * workspace level. All exports are optional; hooks that throw are logged and
+ * swallowed so a bad hook cannot break assistant creation. Distinct from
+ * per-assistant hooks (which live in `assistants/<name>/hooks.ts` and use
+ * event-name exports).
+ */
+export interface AssistantsManagerHooksModule {
+	/**
+	 * Called with the fully merged options (defaults + workspace overrides +
+	 * call-site) right before an assistant is instantiated. Return a new options
+	 * object to replace them, or return void to leave them unchanged. Since
+	 * hooks.ts is workspace-owned code, its return value overrides even call-site
+	 * options — you get the last word.
+	 */
+	beforeAssistantCreated?: (
+		name: string,
+		options: Record<string, any>,
+		manager: AssistantsManager,
+	) => Record<string, any> | void | undefined
+	/**
+	 * Called after an assistant is instantiated and wired to the manager.
+	 * Use this to attach interceptors, subscribe to events, or otherwise
+	 * observe the created assistant. Return value is ignored.
+	 */
+	onAssistantCreated?: (
+		assistant: Assistant,
+		name: string,
+		manager: AssistantsManager,
+	) => void
+}
 
 export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	discovered: z.boolean().describe('Whether discovery has been run'),
@@ -55,6 +96,8 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
 	extraFolders: z.array(z.string()).describe('Additional folders to scan during discovery'),
 	optionOverrides: z.record(z.string(), z.any()).describe('Workspace-level option overrides keyed by assistant name, plus a reserved `defaults` key applied to all'),
+	workspaceOptionsPath: z.string().nullable().describe('Absolute path to the loaded assistants/options.yml, or null if none'),
+	workspaceHooksPath: z.string().nullable().describe('Absolute path to the loaded assistants/hooks.ts, or null if none'),
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({})
@@ -103,8 +146,13 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			factories: {},
 			extraFolders: [],
 			optionOverrides: {},
+			workspaceOptionsPath: null,
+			workspaceHooksPath: null,
 		}
 	}
+
+	/** Workspace-level hooks module loaded from `assistants/hooks.ts`, if present. */
+	private _workspaceHooks: AssistantsManagerHooksModule | undefined
 
 
 	/** Discovered assistant entries keyed by name. */
@@ -276,8 +324,86 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			assistantCount: Object.keys(discovered).length,
 		})
 
+		this._loadWorkspaceOptions()
+		this._loadWorkspaceHooks()
+		this._reportUnusedOverrides()
+
 		this.emit('discovered')
 		return this
+	}
+
+	/**
+	 * Parse `assistants/options.yml` (if present) and install its contents as
+	 * workspace option overrides. Keyed by assistant short name with a reserved
+	 * `defaults` key. Silent on missing/empty files; parse errors are logged
+	 * and swallowed so a malformed YAML file can't break discovery.
+	 */
+	private _loadWorkspaceOptions(): void {
+		const { fs, paths } = this.container
+		const optionsPath = paths.resolve('assistants/options.yml')
+
+		if (!fs.exists(optionsPath)) {
+			this.state.set('workspaceOptionsPath', null)
+			return
+		}
+
+		try {
+			const yaml = this.container.feature('yaml')
+			const raw = fs.readFileSync(optionsPath, 'utf8') as string
+			const parsed = yaml.parse(raw)
+			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				this.setOptionOverrides(parsed as Record<string, any>)
+			}
+			this.state.set('workspaceOptionsPath', optionsPath)
+			this.emit('workspaceOptionsLoaded', optionsPath)
+		} catch (err: any) {
+			console.error(`[assistantsManager] Failed to parse ${optionsPath}: ${err?.message || err}`)
+			this.state.set('workspaceOptionsPath', null)
+		}
+	}
+
+	/**
+	 * Import `assistants/hooks.ts` (if present) using the vm feature and cache
+	 * its exports. Errors are logged and swallowed; a broken hooks file leaves
+	 * `_workspaceHooks` unset rather than aborting discovery.
+	 */
+	private _loadWorkspaceHooks(): void {
+		const { fs, paths } = this.container
+		const hooksPath = paths.resolve('assistants/hooks.ts')
+
+		if (!fs.exists(hooksPath)) {
+			this._workspaceHooks = undefined
+			this.state.set('workspaceHooksPath', null)
+			return
+		}
+
+		try {
+			const vm = this.container.feature('vm')
+			const moduleExports = vm.loadModule(hooksPath, {
+				container: this.container,
+				manager: this,
+				console: console,
+			}) as AssistantsManagerHooksModule
+			this._workspaceHooks = moduleExports
+			this.state.set('workspaceHooksPath', hooksPath)
+			this.emit('workspaceHooksLoaded', hooksPath)
+		} catch (err: any) {
+			console.error(`[assistantsManager] Failed to load ${hooksPath}: ${err?.message || err}`)
+			this._workspaceHooks = undefined
+			this.state.set('workspaceHooksPath', null)
+		}
+	}
+
+	/**
+	 * Emit `unusedOverrides` for any option-override keys that don't map to a
+	 * known assistant. Silent when everything lines up. `defaults` is reserved
+	 * and never reported.
+	 */
+	private _reportUnusedOverrides(): void {
+		const map = (this.state.get('optionOverrides') || {}) as Record<string, any>
+		const known = new Set(this.available)
+		const unused = Object.keys(map).filter((k) => k !== 'defaults' && !known.has(k))
+		if (unused.length > 0) this.emit('unusedOverrides', unused)
 	}
 
 	/**
@@ -404,34 +530,52 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {
 		// Workspace overrides sit below explicit call-site options, which win.
-		const merged = deepMergeOptions(this.overridesFor(name), options)
+		let merged = deepMergeOptions(this.overridesFor(name), options)
+
+		// Workspace hooks.ts gets the last word on options — it's workspace-owned
+		// code and can do dynamic things static YAML cannot.
+		const before = this._workspaceHooks?.beforeAssistantCreated
+		if (before) {
+			try {
+				const returned = before(name, merged, this)
+				if (returned && typeof returned === 'object' && !Array.isArray(returned)) {
+					merged = returned as Record<string, any>
+				}
+			} catch (err: any) {
+				console.error(`[assistantsManager] beforeAssistantCreated threw for "${name}": ${err?.message || err}`)
+			}
+		}
+
+		let instance: Assistant
 
 		// Check registered factories first
 		const factory = this.factories[name]
 		if (factory) {
-			const instance = factory(merged)
-			this._bindAssistant(instance)
-			const updated = { ...this.instances, [name]: instance }
-			this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
-			this.emit('assistantCreated', name, instance)
-			return instance
+			instance = factory(merged)
+		} else {
+			const entry = this.get(name)
+			if (!entry) {
+				throw new Error(
+					`Assistant "${name}" not found. Available assistants: ${this.available.join(', ') || '(none — run discover() first)'}`
+				)
+			}
+			instance = this.container.feature('assistant', deepMergeOptions({ folder: entry.folder }, merged))
 		}
-
-		const entry = this.get(name)
-
-		if (!entry) {
-			throw new Error(
-				`Assistant "${name}" not found. Available assistants: ${this.available.join(', ') || '(none — run discover() first)'}`
-			)
-		}
-
-		const instance = this.container.feature('assistant', deepMergeOptions({ folder: entry.folder }, merged))
 
 		this._bindAssistant(instance)
 		const updated = { ...this.instances, [name]: instance }
 		this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
-		this.emit('assistantCreated', name, instance)
 
+		const after = this._workspaceHooks?.onAssistantCreated
+		if (after) {
+			try {
+				after(instance, name, this)
+			} catch (err: any) {
+				console.error(`[assistantsManager] onAssistantCreated threw for "${name}": ${err?.message || err}`)
+			}
+		}
+
+		this.emit('assistantCreated', name, instance)
 		return instance
 	}
 

@@ -33,7 +33,7 @@ export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } fro
 export { Assistant } from "./features/assistant";
 export type { AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
-export type { AssistantEntry, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
+export type { AssistantEntry, AssistantsManagerHooksModule, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
 export { BrowserUse } from "./features/browser-use";
 export type { BrowserUseState, BrowserUseOptions } from "./features/browser-use";
 export { ClaudeCode } from "./features/claude-code";
