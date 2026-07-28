@@ -207,14 +207,24 @@ describe('ModelProviders', () => {
     const events = []
     for await (const event of resolved.transport.stream({
       model: resolved.model,
-      messages: [{ role: 'user', content: 'hi' }],
+      messages: [
+        { role: 'system', content: 'You are helpful.' },
+        { role: 'user', content: 'hi' },
+      ],
+      instructions: 'Answer in one sentence.',
       tools: [{ function: { name: 'lookup', parameters: { type: 'object' } } }],
     }, resolved)) {
       events.push(event)
     }
 
     expect(calls[0].model).toBe('local-model')
-    expect(calls[0].messages).toEqual([{ role: 'user', content: 'hi' }])
+    expect(calls[0].messages).toEqual([
+      { role: 'system', content: 'You are helpful.' },
+      {
+        role: 'user',
+        content: 'hi\n\nInstructions for this request only:\nAnswer in one sentence.',
+      },
+    ])
     expect(calls[0].tools[0].function.name).toBe('lookup')
     expect(events.at(-1)).toEqual({
       type: 'response',
@@ -319,13 +329,14 @@ describe('ModelProviders', () => {
     for await (const event of resolved.transport.stream({
       model: 'gpt-5',
       messages: [{ role: 'user', content: 'hi' }],
+      instructions: 'Use one spoken sentence.',
       tools: [{ function: { name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {} } } }],
       stream: true,
     }, resolved)) {
       events.push(event)
     }
 
-    expect(calls[0].instructions).toBe('Be terse.')
+    expect(calls[0].instructions).toBe('Be terse.\n\nUse one spoken sentence.')
     expect(calls[0].input).toEqual([{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }])
     expect(calls[0].tools).toEqual([
       { type: 'function', name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {}, additionalProperties: false }, strict: true },

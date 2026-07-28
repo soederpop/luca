@@ -105,6 +105,8 @@ export interface ModelTool {
 export interface ModelRequest {
   model?: string
   messages: ModelMessage[]
+  /** Additional instructions for this request only; callers need not persist them as a message. */
+  instructions?: string
   tools?: ModelTool[]
   temperature?: number
   maxTokens?: number
@@ -356,6 +358,42 @@ function responsesInstructionsFrom(messages: ModelMessage[]): string | undefined
   return undefined
 }
 
+function combineInstructions(...values: Array<string | undefined>): string | undefined {
+  const combined = values.map(value => value?.trim()).filter(Boolean).join('\n\n')
+  return combined || undefined
+}
+
+function withRequestInstructions(messages: ModelMessage[], instructions?: string): ModelMessage[] {
+  const trimmed = instructions?.trim()
+  if (!trimmed) return messages
+
+  const userIndex = messages.findLastIndex(message => message.role === 'user')
+  if (userIndex >= 0) {
+    return messages.map((message, index) => {
+      if (index !== userIndex) return message
+      const suffix = `\n\nInstructions for this request only:\n${trimmed}`
+      if (typeof message.content === 'string') {
+        return { ...message, content: `${message.content}${suffix}` }
+      }
+      if (Array.isArray(message.content)) {
+        return {
+          ...message,
+          content: [...message.content, { type: 'text', text: suffix.trimStart() }],
+        }
+      }
+      return message
+    })
+  }
+
+  const insertionIndex = messages.findIndex(message => message.role !== 'system' && message.role !== 'developer')
+  const index = insertionIndex < 0 ? messages.length : insertionIndex
+  return [
+    ...messages.slice(0, index),
+    { role: 'system', content: trimmed },
+    ...messages.slice(index),
+  ]
+}
+
 class NotImplementedTransport implements ModelTransport {
   constructor(public apiMode: ModelProviderApiMode) {}
   async *stream(): AsyncIterable<ModelStreamEvent> {
@@ -388,7 +426,7 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
 
     return {
       model,
-      messages: request.messages,
+      messages: withRequestInstructions(request.messages, request.instructions),
       tools: request.tools?.length ? request.tools : undefined,
       ...(request.tools?.length ? { tool_choice: 'auto' } : {}),
       temperature: request.temperature,
@@ -554,7 +592,10 @@ export class OpenAIResponsesTransport implements ModelTransport {
     const client = this.resolveClient(providerOptions, provider)
 
     const tools = this.buildTools(request, providerOptions)
-    const instructions = providerOptions.instructions ?? responsesInstructionsFrom(request.messages)
+    const instructions = combineInstructions(
+      providerOptions.instructions ?? responsesInstructionsFrom(request.messages),
+      request.instructions,
+    )
     const input: OpenAI.Responses.ResponseInput = providerOptions.input ?? messagesToResponsesInput(request.messages)
     const previousResponseId = providerOptions.previousResponseId ?? providerOptions.previousProviderData?.responseId
 
@@ -631,12 +672,16 @@ export class OpenAICodexTransport implements ModelTransport {
     const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
     const previousThreadId = providerOptions.previousProviderData?.codexThreadId
     const systemText = this.systemInstructions(request.messages)
+    const developerInstructions = combineInstructions(
+      previousThreadId ? undefined : systemText,
+      request.instructions,
+    )
     const prompt = previousThreadId
       ? this.lastUserMessage(request.messages)
       : this.promptFromMessages(request.messages)
     const config = {
       ...(providerOptions.config ?? {}),
-      ...(systemText && !previousThreadId ? { developer_instructions: systemText } : {}),
+      ...(developerInstructions ? { developer_instructions: developerInstructions } : {}),
     }
     const result = await codex.run(prompt, {
       ...providerOptions,
@@ -718,6 +763,10 @@ export class ClaudeSessionTransport implements ModelTransport {
     const prompt = this.promptFromMessages(request.messages)
     const previousSessionId = providerOptions.previousProviderData?.claudeSessionId
     const systemText = this.systemInstructions(request.messages)
+    const appendSystemPrompt = combineInstructions(
+      previousSessionId ? undefined : systemText,
+      request.instructions,
+    )
     const mcpServers = this.resolveMcpServers(providerOptions)
 
     // provider.defaultModel is the 'claude-code' placeholder — don't pass that
@@ -730,7 +779,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       ...(model ? { model } : {}),
       // The system prompt only needs to go over on the first turn; resuming a
       // session carries it (and the history) server-side.
-      ...(systemText && !previousSessionId ? { appendSystemPrompt: systemText } : {}),
+      ...(appendSystemPrompt ? { appendSystemPrompt } : {}),
       ...(Object.keys(mcpServers).length ? { mcpServers } : {}),
       ...(previousSessionId ? { resumeSessionId: previousSessionId } : {}),
       ...(providerOptions.permissionMode ? { permissionMode: providerOptions.permissionMode } : {}),

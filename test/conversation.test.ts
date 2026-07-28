@@ -163,6 +163,32 @@ describe('Conversation', () => {
 			expect(conv.state.get('tokenUsage')).toMatchObject({ prompt: 5, completion: 2, total: 7 })
 		})
 
+		it('passes per-call instructions without persisting them in history', async () => {
+			const { providers, conv } = makeContainerAndConversation({ api: 'chat' })
+			const requests: any[] = []
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any) {
+					requests.push(request)
+					yield { type: 'response', response: { content: 'ok', toolCalls: [] } } as const
+				},
+			})
+
+			await conv.ask('Speak to me', {
+				instructions: 'Answer aloud in one short sentence.',
+				maxTokens: 64,
+			})
+			await conv.ask('Now type normally')
+
+			expect(requests[0].instructions).toBe('Answer aloud in one short sentence.')
+			expect(requests[0].maxTokens).toBe(64)
+			expect(requests[1].instructions).toBeUndefined()
+			expect(conv.messages.some(message => (
+				(message.role === 'system' || message.role === 'developer')
+				&& message.content === 'Answer aloud in one short sentence.'
+			))).toBe(false)
+		})
+
 		it('routes a configured OpenAI-compatible provider through its own baseURL and default model', async () => {
 			// Regression: a `provider:` pointing at a local OpenAI-compatible box
 			// (registerLocal) must use that box's baseURL and default model — not

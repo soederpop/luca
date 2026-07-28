@@ -6099,6 +6099,10 @@ setBuildTimeData('features.conversation', {
               "type": "number",
               "description": ""
             },
+            "instructions": {
+              "type": "string",
+              "description": "Additional instructions for this call only. They are sent to the model without being appended to the persisted conversation history."
+            },
             "schema": {
               "type": "z.ZodType",
               "description": "When provided, enables OpenAI Structured Outputs. The model is constrained to return JSON matching this Zod schema. The return value of ask() will be the parsed object instead of a raw string."
@@ -6325,6 +6329,11 @@ setBuildTimeData('features.conversation', {
         "maxTokens": {
           "type": "number",
           "description": "",
+          "optional": true
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Additional instructions for this call only. They are sent to the model without being appended to the persisted conversation history.",
           "optional": true
         },
         "schema": {
@@ -31149,6 +31158,10 @@ export const introspectionData: Record<string, any>[] = [
                 "type": "number",
                 "description": ""
               },
+              "instructions": {
+                "type": "string",
+                "description": "Additional instructions for this call only. They are sent to the model without being appended to the persisted conversation history."
+              },
               "schema": {
                 "type": "z.ZodType",
                 "description": "When provided, enables OpenAI Structured Outputs. The model is constrained to return JSON matching this Zod schema. The return value of ask() will be the parsed object instead of a raw string."
@@ -31375,6 +31388,11 @@ export const introspectionData: Record<string, any>[] = [
           "maxTokens": {
             "type": "number",
             "description": "",
+            "optional": true
+          },
+          "instructions": {
+            "type": "string",
+            "description": "Additional instructions for this call only. They are sent to the model without being appended to the persisted conversation history.",
             "optional": true
           },
           "schema": {

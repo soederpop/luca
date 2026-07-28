@@ -3802,6 +3802,11 @@ export type ConversationState = z.infer<typeof ConversationStateSchema>;
 export type AskOptions = {
     maxTokens?: number;
     /**
+     * Additional instructions for this call only. They are sent to the model
+     * without being appended to the persisted conversation history.
+     */
+    instructions?: string;
+    /**
      * When provided, enables OpenAI Structured Outputs. The model is constrained
      * to return JSON matching this Zod schema. The return value of ask() will be
      * the parsed object instead of a raw string.
@@ -3969,6 +3974,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null;
     /** The active structured output schema for the current ask() call, if any. */
     private _activeSchema;
+    /** Additional model instructions for the current ask() call only. */
+    private _activeInstructions;
     /** AbortController for the current ask() call, if any. */
     private _abortController;
     /** Registered stubs: matched against user input to short-circuit the API with a canned response. */
@@ -5377,6 +5384,8 @@ export interface ModelTool {
 export interface ModelRequest {
     model?: string;
     messages: ModelMessage[];
+    /** Additional instructions for this request only; callers need not persist them as a message. */
+    instructions?: string;
     tools?: ModelTool[];
     temperature?: number;
     maxTokens?: number;

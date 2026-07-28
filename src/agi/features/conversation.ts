@@ -194,6 +194,11 @@ export type ConversationState = z.infer<typeof ConversationStateSchema>
 export type AskOptions = {
 	maxTokens?: number
 	/**
+	 * Additional instructions for this call only. They are sent to the model
+	 * without being appended to the persisted conversation history.
+	 */
+	instructions?: string
+	/**
 	 * When provided, enables OpenAI Structured Outputs. The model is constrained
 	 * to return JSON matching this Zod schema. The return value of ask() will be
 	 * the parsed object instead of a raw string.
@@ -278,6 +283,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** The active structured output schema for the current ask() call, if any. */
 	private _activeSchema: z.ZodType | null = null
+
+	/** Additional model instructions for the current ask() call only. */
+	private _activeInstructions: string | null = null
 
 	/** AbortController for the current ask() call, if any. */
 	private _abortController: AbortController | null = null
@@ -825,6 +833,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
 		this.state.set('callMaxTokens', options?.maxTokens ?? null)
 		this._activeSchema = options?.schema ?? null
+		this._activeInstructions = options?.instructions?.trim() || null
 		this._abortController = new AbortController()
 
 		// Auto-compact before adding the new message
@@ -926,6 +935,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		} finally {
 			this.state.set('callMaxTokens', null)
 			this._activeSchema = null
+			this._activeInstructions = null
 			this._abortController = null
 		}
 	}
@@ -1056,6 +1066,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					messages: this.messages as any,
 					tools: tools.length ? tools : undefined,
 					maxTokens: this.maxTokens,
+					instructions: this._activeInstructions ?? undefined,
 					temperature: this.state.get('temperature') ?? undefined,
 					signal: this._abortController?.signal,
 					providerOptions: provider.providerOptions,
@@ -1319,6 +1330,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				messages: [],
 				tools: tools.length ? tools : undefined,
 				maxTokens: this.maxTokens,
+				instructions: this._activeInstructions ?? undefined,
 				temperature: this.state.get('temperature') ?? undefined,
 				topP: this.state.get('topP') ?? undefined,
 				topK: this.state.get('topK') ?? undefined,
@@ -1488,6 +1500,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				messages: this.sanitizeMessages(this.getMessagesWithinBudget()) as any,
 				tools: tools.length ? tools : undefined,
 				maxTokens: this.maxTokens,
+				instructions: this._activeInstructions ?? undefined,
 				temperature: this.state.get('temperature') ?? undefined,
 				topP: this.state.get('topP') ?? undefined,
 				topK: this.state.get('topK') ?? undefined,
