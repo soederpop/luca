@@ -2934,6 +2934,21 @@ setBuildTimeData('features.assistantsManager', {
       "description": "Event emitted by AssistantsManager",
       "arguments": {}
     },
+    "workspaceOptionsLoaded": {
+      "name": "workspaceOptionsLoaded",
+      "description": "Event emitted by AssistantsManager",
+      "arguments": {}
+    },
+    "workspaceHooksLoaded": {
+      "name": "workspaceHooksLoaded",
+      "description": "Event emitted by AssistantsManager",
+      "arguments": {}
+    },
+    "unusedOverrides": {
+      "name": "unusedOverrides",
+      "description": "Event emitted by AssistantsManager",
+      "arguments": {}
+    },
     "assistantRegistered": {
       "name": "assistantRegistered",
       "description": "Event emitted by AssistantsManager",
@@ -27955,6 +27970,21 @@ export const introspectionData: Record<string, any>[] = [
     "events": {
       "discovered": {
         "name": "discovered",
+        "description": "Event emitted by AssistantsManager",
+        "arguments": {}
+      },
+      "workspaceOptionsLoaded": {
+        "name": "workspaceOptionsLoaded",
+        "description": "Event emitted by AssistantsManager",
+        "arguments": {}
+      },
+      "workspaceHooksLoaded": {
+        "name": "workspaceHooksLoaded",
+        "description": "Event emitted by AssistantsManager",
+        "arguments": {}
+      },
+      "unusedOverrides": {
+        "name": "unusedOverrides",
         "description": "Event emitted by AssistantsManager",
         "arguments": {}
       },

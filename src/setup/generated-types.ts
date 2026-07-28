@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.4"
+export const typesBundleVersion = "3.6.5"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -95,7 +95,7 @@ export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } fro
 export { Assistant } from "./features/assistant";
 export type { AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
-export type { AssistantEntry, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
+export type { AssistantEntry, AssistantsManagerHooksModule, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
 export { BrowserUse } from "./features/browser-use";
 export type { BrowserUseState, BrowserUseOptions } from "./features/browser-use";
 export { ClaudeCode } from "./features/claude-code";
@@ -1267,7 +1267,33 @@ export declare const AssistantsManagerEventsSchema: z.ZodObject<{
     discovered: z.ZodTuple<[], null>;
     assistantCreated: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     assistantRegistered: z.ZodTuple<[z.ZodString], null>;
+    workspaceOptionsLoaded: z.ZodTuple<[z.ZodString], null>;
+    workspaceHooksLoaded: z.ZodTuple<[z.ZodString], null>;
+    unusedOverrides: z.ZodTuple<[z.ZodArray<z.ZodString>], null>;
 }, z.core.$strip>;
+/**
+ * Optional lifecycle hooks module loaded from \`assistants/hooks.ts\` at the
+ * workspace level. All exports are optional; hooks that throw are logged and
+ * swallowed so a bad hook cannot break assistant creation. Distinct from
+ * per-assistant hooks (which live in \`assistants/<name>/hooks.ts\` and use
+ * event-name exports).
+ */
+export interface AssistantsManagerHooksModule {
+    /**
+     * Called with the fully merged options (defaults + workspace overrides +
+     * call-site) right before an assistant is instantiated. Return a new options
+     * object to replace them, or return void to leave them unchanged. Since
+     * hooks.ts is workspace-owned code, its return value overrides even call-site
+     * options — you get the last word.
+     */
+    beforeAssistantCreated?: (name: string, options: Record<string, any>, manager: AssistantsManager) => Record<string, any> | void | undefined;
+    /**
+     * Called after an assistant is instantiated and wired to the manager.
+     * Use this to attach interceptors, subscribe to events, or otherwise
+     * observe the created assistant. Return value is ignored.
+     */
+    onAssistantCreated?: (assistant: Assistant, name: string, manager: AssistantsManager) => void;
+}
 export declare const AssistantsManagerStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     discovered: z.ZodBoolean;
@@ -1278,6 +1304,8 @@ export declare const AssistantsManagerStateSchema: z.ZodObject<{
     factories: z.ZodRecord<z.ZodString, z.ZodAny>;
     extraFolders: z.ZodArray<z.ZodString>;
     optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
+    workspaceOptionsPath: z.ZodNullable<z.ZodString>;
+    workspaceHooksPath: z.ZodNullable<z.ZodString>;
 }, z.core.$loose>;
 export declare const AssistantsManagerOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -1317,6 +1345,8 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
         factories: z.ZodRecord<z.ZodString, z.ZodAny>;
         extraFolders: z.ZodArray<z.ZodString>;
         optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
+        workspaceOptionsPath: z.ZodNullable<z.ZodString>;
+        workspaceHooksPath: z.ZodNullable<z.ZodString>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -1330,12 +1360,17 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
         discovered: z.ZodTuple<[], null>;
         assistantCreated: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         assistantRegistered: z.ZodTuple<[z.ZodString], null>;
+        workspaceOptionsLoaded: z.ZodTuple<[z.ZodString], null>;
+        workspaceHooksLoaded: z.ZodTuple<[z.ZodString], null>;
+        unusedOverrides: z.ZodTuple<[z.ZodArray<z.ZodString>], null>;
     }, z.core.$strip>;
     static shortcut: "features.assistantsManager";
     static stability: "core";
     static category: "ai-assistants";
     /** @returns Default state with discovery not yet run and zero counts. */
     get initialState(): AssistantsManagerState;
+    /** Workspace-level hooks module loaded from \`assistants/hooks.ts\`, if present. */
+    private _workspaceHooks;
     /** Discovered assistant entries keyed by name. */
     get entries(): Record<string, AssistantEntry>;
     /** Active assistant instances keyed by name. */
@@ -1412,6 +1447,25 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * @returns {Promise<this>} This instance, for chaining
      */
     discover(): Promise<this>;
+    /**
+     * Parse \`assistants/options.yml\` (if present) and install its contents as
+     * workspace option overrides. Keyed by assistant short name with a reserved
+     * \`defaults\` key. Silent on missing/empty files; parse errors are logged
+     * and swallowed so a malformed YAML file can't break discovery.
+     */
+    private _loadWorkspaceOptions;
+    /**
+     * Import \`assistants/hooks.ts\` (if present) using the vm feature and cache
+     * its exports. Errors are logged and swallowed; a broken hooks file leaves
+     * \`_workspaceHooks\` unset rather than aborting discovery.
+     */
+    private _loadWorkspaceHooks;
+    /**
+     * Emit \`unusedOverrides\` for any option-override keys that don't map to a
+     * known assistant. Silent when everything lines up. \`defaults\` is reserved
+     * and never reported.
+     */
+    private _reportUnusedOverrides;
     /**
      * Downloads the core assistants that ship with luca from GitHub
      * into ~/.luca/assistants.
@@ -29226,7 +29280,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.3";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.4";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
