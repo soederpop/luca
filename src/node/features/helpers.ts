@@ -14,6 +14,7 @@ import { ExpressServer } from '../../servers/express.js'
 import { WebsocketServer } from '../../servers/socket.js'
 import { Command, commands } from '../../command.js'
 import { graftModule, isNativeHelperClass } from '../../graft.js'
+import * as introspectionModule from '../../introspection/index.js'
 import { endpoints } from '../../endpoint.js'
 import { Selector, selectors } from '../../selector.js'
 import type { Registry } from '../../registry.js'
@@ -247,6 +248,13 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       ClientEventsSchema: (Client as any).eventsSchema,
       default: Client,
     }
+    // Generated introspection files (`features/introspection.generated.ts`)
+    // import setBuildTimeData from here. It must be the binary's own module so
+    // the build-time data lands in the same __INTROSPECTION__ map that
+    // interceptRegistration and `luca describe` read.
+    vm.defineModule('luca/introspection', { ...introspectionModule, default: introspectionModule })
+    vm.defineModule('@soederpop/luca/introspection', { ...introspectionModule, default: introspectionModule })
+
     vm.defineModule('luca/client', clientModule)
     vm.defineModule('luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
     vm.defineModule('luca/clients/rest', { RestClient, default: RestClient })
@@ -717,7 +725,11 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const introspectionFile = resolve(dir, 'introspection.generated.ts')
     try {
       if (existsSync(introspectionFile)) {
-        await import(introspectionFile)
+        // loadModuleExports, not a raw import(): in the compiled binary project
+        // TS files only load through the VM, and the generated file's
+        // `luca/introspection` import must resolve to the binary's own module
+        // so it writes into the live __INTROSPECTION__ map.
+        await this.loadModuleExports(introspectionFile)
       }
     } catch {}
 
