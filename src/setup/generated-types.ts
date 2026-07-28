@@ -16358,9 +16358,9 @@ import type { OAuth2Client } from 'google-auth-library';
 export declare const GoogleAuthStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     authMode: z.ZodDefault<z.ZodEnum<{
+        none: "none";
         oauth2: "oauth2";
         "service-account": "service-account";
-        none: "none";
     }>>;
     isAuthenticated: z.ZodDefault<z.ZodBoolean>;
     email: z.ZodOptional<z.ZodString>;
@@ -16458,9 +16458,9 @@ export declare class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptio
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         authMode: z.ZodDefault<z.ZodEnum<{
+            none: "none";
             oauth2: "oauth2";
             "service-account": "service-account";
-            none: "none";
         }>>;
         isAuthenticated: z.ZodDefault<z.ZodBoolean>;
         email: z.ZodOptional<z.ZodString>;
@@ -29280,7 +29280,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.5";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.6";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

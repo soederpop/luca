@@ -157,7 +157,7 @@
     "ts-node": "11.0.0-beta.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.12.1",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "@noble/ciphers": "^2.2.0",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
@@ -166,7 +166,7 @@
     "@supabase/supabase-js": "2.95.3",
     "@types/marked": "6.0.0",
     "@types/marked-terminal": "6.1.1",
-    "axios": "1.13.6",
+    "axios": "1.18.0",
     "cacache": "17.1.4",
     "chalk": "5.4.1",
     "child-process-promise": "2.2.1",
@@ -181,7 +181,7 @@
     "excalidraw-to-svg": "3.1.0",
     "express": "4.21.2",
     "figlet": "1.11.0",
-    "glob": "11.0.2",
+    "glob": "11.1.0",
     "googleapis": "171.4.0",
     "grammy": "1.40.0",
     "inflect": "0.5.0",
@@ -191,8 +191,8 @@
     "isomorphic-vm": "0.0.1",
     "isomorphic-ws": "5.0.0",
     "js-tiktoken": "1.0.21",
-    "js-yaml": "4.1.0",
-    "lodash-es": "4.17.21",
+    "js-yaml": "4.3.0",
+    "lodash-es": "4.18.0",
     "marked": "15.0.12",
     "marked-terminal": "7.3.0",
     "mdast-util-to-markdown": "1.5.0",
@@ -220,11 +220,10 @@
     "unist-util-visit": "4.1.2",
     "wink-eng-lite-web-model": "1.8.1",
     "wink-nlp": "2.4.0",
-    "ws": "8.18.2",
+    "ws": "8.21.0",
     "zod": "4.3.6"
   },
-  "optionalDependencies": {
-  },
+  "optionalDependencies": {},
   "luca": {
     "aliases": [
       "luca",
