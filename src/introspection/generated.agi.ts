@@ -2252,6 +2252,29 @@ setBuildTimeData('features.assistant', {
       ],
       "returns": "this"
     },
+    "setting": {
+      "description": "Read one value out of {@link config} by dot path, with an optional fallback. Use this in tools.ts/hooks.ts so a missing config block doesn't throw on nested access.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Dot path into the merged config (e.g. 'gws.profile')"
+        },
+        "fallback": {
+          "type": "T",
+          "description": "Returned when the path is absent or undefined"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "T",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const profile = me.setting('gwsProfile', 'default')\nconst budget = me.setting('limits.maxDownloads', 25)"
+        }
+      ]
+    },
     "loadSystemPrompt": {
       "description": "Load the system prompt from CORE.md, applying any prepend/append options. YAML frontmatter (between --- fences) is stripped from the prompt and stored in `_meta`.",
       "parameters": {},
@@ -2524,6 +2547,20 @@ setBuildTimeData('features.assistant', {
     "effectiveOptions": {
       "description": "Merged options where CORE.md frontmatter provides defaults and constructor options take precedence. Prefer this over `this.options` anywhere model parameters or runtime config is consumed.",
       "returns": "AssistantOptions & Record<string, any>"
+    },
+    "config": {
+      "description": "Assistant-specific settings the framework never interprets — the supported home for arbitrary configuration. Every other option is schema-validated, so unknown top-level keys are silently stripped; keys nested under `config` survive untouched. Three layers deep-merge, weakest first: a `config:` block in the assistant's own CORE.md frontmatter, then the workspace's `assistants/options.yml` (`defaults.config` then `<name>.config`), then `config` passed to `create()`. The options.yml layer is what lets a project configure assistants it does not own — ones contributed by a plugin, or discovered from `~/.luca/assistants`.",
+      "returns": "Record<string, any>",
+      "examples": [
+        {
+          "language": "yaml",
+          "code": "# <workspace>/assistants/options.yml — configures a plugin's assistant\ngoogleWorkspace:\n config:\n   gwsProfile: northchief"
+        },
+        {
+          "language": "ts",
+          "code": "// assistants/googleWorkspace/tools.ts\nexport const use = [container.feature('gws', { profile: me.config.gwsProfile })]"
+        }
+      ]
     },
     "paths": {
       "description": "Provides a helper for creating paths off of the assistant's base folder",
@@ -27320,6 +27357,29 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "this"
       },
+      "setting": {
+        "description": "Read one value out of {@link config} by dot path, with an optional fallback. Use this in tools.ts/hooks.ts so a missing config block doesn't throw on nested access.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Dot path into the merged config (e.g. 'gws.profile')"
+          },
+          "fallback": {
+            "type": "T",
+            "description": "Returned when the path is absent or undefined"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "T",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const profile = me.setting('gwsProfile', 'default')\nconst budget = me.setting('limits.maxDownloads', 25)"
+          }
+        ]
+      },
       "loadSystemPrompt": {
         "description": "Load the system prompt from CORE.md, applying any prepend/append options. YAML frontmatter (between --- fences) is stripped from the prompt and stored in `_meta`.",
         "parameters": {},
@@ -27592,6 +27652,20 @@ export const introspectionData: Record<string, any>[] = [
       "effectiveOptions": {
         "description": "Merged options where CORE.md frontmatter provides defaults and constructor options take precedence. Prefer this over `this.options` anywhere model parameters or runtime config is consumed.",
         "returns": "AssistantOptions & Record<string, any>"
+      },
+      "config": {
+        "description": "Assistant-specific settings the framework never interprets — the supported home for arbitrary configuration. Every other option is schema-validated, so unknown top-level keys are silently stripped; keys nested under `config` survive untouched. Three layers deep-merge, weakest first: a `config:` block in the assistant's own CORE.md frontmatter, then the workspace's `assistants/options.yml` (`defaults.config` then `<name>.config`), then `config` passed to `create()`. The options.yml layer is what lets a project configure assistants it does not own — ones contributed by a plugin, or discovered from `~/.luca/assistants`.",
+        "returns": "Record<string, any>",
+        "examples": [
+          {
+            "language": "yaml",
+            "code": "# <workspace>/assistants/options.yml — configures a plugin's assistant\ngoogleWorkspace:\n config:\n   gwsProfile: northchief"
+          },
+          {
+            "language": "ts",
+            "code": "// assistants/googleWorkspace/tools.ts\nexport const use = [container.feature('gws', { profile: me.config.gwsProfile })]"
+          }
+        ]
       },
       "paths": {
         "description": "Provides a helper for creating paths off of the assistant's base folder",

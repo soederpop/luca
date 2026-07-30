@@ -16,6 +16,14 @@
 # See every available option: `luca describe assistant` (look at the
 # options schema). Common ones: model, temperature, maxTokens, provider,
 # providerOptions, historyMode, allowTools, forbidTools, injectTimestamps.
+#
+# Top-level keys must be REAL assistant options — unknown ones are stripped
+# by the options schema, and the manager warns at startup when it sees one.
+# For your own settings, nest them under `config:` (see below).
+#
+# This file can target assistants this project does not own — ones a plugin
+# contributed, or ones discovered from ~/.luca/assistants. That makes it the
+# place to localize a shared assistant to this project.
 # ─────────────────────────────────────────────────────────────────────────
 
 # defaults:
@@ -40,3 +48,13 @@
 #   #   - grep.*
 #   # forbidTools:                # denylist, applied after allowTools
 #   #   - proc.exec
+#   #
+#   # config: free-form settings the framework never interprets. Anything you
+#   # put here reaches the assistant's own code — tools.ts and hooks.ts read it
+#   # as `assistant.config.<key>` or `assistant.setting('a.b', fallback)`, and
+#   # can branch on it (e.g. only export a tool when a flag is on). Layers
+#   # deep-merge: CORE.md `config:` < defaults.config < <name>.config < create().
+#   # config:
+#   #   apiBaseUrl: https://staging.example.com
+#   #   limits:
+#   #     maxDownloads: 25

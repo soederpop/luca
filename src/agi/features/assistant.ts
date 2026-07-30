@@ -7,6 +7,7 @@ import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js'
+import { deepMergeOptions } from '../lib/merge-options.js'
 import type { Entity } from '../../entity.js'
 import { State } from '../../state.js'
 
@@ -125,6 +126,14 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** Options passed through to the underlying OpenAI client (e.g. baseURL, apiKey). */
 	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client, passed through to the conversation'),
+
+	/**
+	 * Free-form, assistant-specific settings that the framework never interprets.
+	 * This is the supported place for arbitrary keys: every other option is
+	 * validated and unknown top-level keys are stripped. tools.ts and hooks.ts
+	 * read them back via `assistant.config` / `assistant.setting(path)`.
+	 */
+	config: z.record(z.string(), z.any()).optional().describe('Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -809,6 +818,60 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	get effectiveOptions(): AssistantOptions & Record<string, any> {
 		return { ...this.meta, ...this.options }
+	}
+
+	/**
+	 * Assistant-specific settings the framework never interprets — the supported
+	 * home for arbitrary configuration. Every other option is schema-validated,
+	 * so unknown top-level keys are silently stripped; keys nested under `config`
+	 * survive untouched.
+	 *
+	 * Three layers deep-merge, weakest first: a `config:` block in the
+	 * assistant's own CORE.md frontmatter, then the workspace's
+	 * `assistants/options.yml` (`defaults.config` then `<name>.config`), then
+	 * `config` passed to `create()`. The options.yml layer is what lets a project
+	 * configure assistants it does not own — ones contributed by a plugin, or
+	 * discovered from `~/.luca/assistants`.
+	 *
+	 * @example
+	 * ```yaml
+	 * # <workspace>/assistants/options.yml — configures a plugin's assistant
+	 * googleWorkspace:
+	 *   config:
+	 *     gwsProfile: northchief
+	 * ```
+	 *
+	 * @example
+	 * ```typescript
+	 * // assistants/googleWorkspace/tools.ts
+	 * export const use = [container.feature('gws', { profile: me.config.gwsProfile })]
+	 * ```
+	 */
+	get config(): Record<string, any> {
+		return deepMergeOptions(
+			(this.meta.config as Record<string, any>) || {},
+			(this.options.config as Record<string, any>) || {},
+		)
+	}
+
+	/**
+	 * Read one value out of {@link config} by dot path, with an optional fallback.
+	 * Use this in tools.ts/hooks.ts so a missing config block doesn't throw on
+	 * nested access.
+	 *
+	 * @param {string} path - Dot path into the merged config (e.g. 'gws.profile')
+	 * @param {any} fallback - Returned when the path is absent or undefined
+	 * @returns {any} The configured value, or the fallback
+	 *
+	 * @example
+	 * ```typescript
+	 * const profile = me.setting('gwsProfile', 'default')
+	 * const budget = me.setting('limits.maxDownloads', 25)
+	 * ```
+	 */
+	setting<T = any>(path: string, fallback?: T): T {
+		const found = this.container.utils.lodash.get(this.config, path)
+		return (found === undefined ? fallback : found) as T
 	}
 
 	/**

@@ -2,10 +2,11 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
-import type { Assistant } from './assistant.js'
+import { AssistantOptionsSchema, type Assistant } from './assistant.js'
 import type { ConversationHistory, ConversationMeta, ConversationRecord } from './conversation-history.js'
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js'
 import hashObject from '../../hash-object.js'
+import { deepMergeOptions } from '../lib/merge-options.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -404,6 +405,29 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const known = new Set(this.available)
 		const unused = Object.keys(map).filter((k) => k !== 'defaults' && !known.has(k))
 		if (unused.length > 0) this.emit('unusedOverrides', unused)
+		this._warnAboutStrippedOverrideKeys(map)
+	}
+
+	/**
+	 * Warn about option keys that AssistantOptionsSchema will silently strip.
+	 * Without this, a workspace writes `googleWorkspace: { gwsProfile: x }` into
+	 * options.yml, sees no error, and the value never reaches the assistant —
+	 * the fix is to nest it under `config:`, which is what the warning says.
+	 */
+	private _warnAboutStrippedOverrideKeys(map: Record<string, any>): void {
+		const shape = (AssistantOptionsSchema as any).shape || {}
+		const declared = new Set(Object.keys(shape))
+
+		for (const [section, overrides] of Object.entries(map)) {
+			if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) continue
+			const stripped = Object.keys(overrides).filter((k) => !declared.has(k))
+			if (!stripped.length) continue
+			console.warn(
+				`[assistantsManager] assistants/options.yml → ${section}: unknown option${stripped.length > 1 ? 's' : ''} ` +
+				`${stripped.map((k) => `"${k}"`).join(', ')} will be ignored. ` +
+				`Nest assistant-specific settings under "config:" to reach them via assistant.config / assistant.setting().`
+			)
+		}
 	}
 
 	/**
@@ -728,33 +752,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 		return `## Assistants\n\n${lines.join('\n')}`
 	}
-}
-
-/**
- * Deep-merges option objects left to right. Plain objects merge recursively;
- * arrays and every other value type are replaced wholesale (a later
- * `allowTools: [...]` fully replaces an earlier one rather than merging by index).
- */
-function deepMergeOptions(...sources: Record<string, any>[]): Record<string, any> {
-	// Realm-safe plain-object check: options may come from VM contexts (eval,
-	// assistant hooks) whose object literals have a different Object constructor.
-	const isPlainObject = (v: any) => {
-		if (v === null || typeof v !== 'object' || Array.isArray(v)) return false
-		const proto = Object.getPrototypeOf(v)
-		return proto === null || proto.constructor === undefined || proto.constructor.name === 'Object'
-	}
-
-	const result: Record<string, any> = {}
-	for (const source of sources) {
-		if (!isPlainObject(source)) continue
-		for (const [key, value] of Object.entries(source)) {
-			if (value === undefined) continue
-			result[key] = isPlainObject(value) && isPlainObject(result[key])
-				? deepMergeOptions(result[key], value)
-				: value
-		}
-	}
-	return result
 }
 
 export default AssistantsManager

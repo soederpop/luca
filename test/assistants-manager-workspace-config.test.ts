@@ -151,4 +151,88 @@ describe('AssistantsManager workspace config (options.yml + hooks.ts)', () => {
 		expect(manager.state.get('workspaceHooksPath')).toBe(null)
 		expect(manager.overridesFor('anything')).toEqual({})
 	})
+
+	describe('config: injecting assistant-specific settings from options.yml', () => {
+		/**
+		 * The point of `config`: a workspace configuring an assistant it doesn't
+		 * own — one contributed by a plugin or discovered from ~/.luca/assistants.
+		 */
+		function writeAssistant(name: string, frontmatter: string[] = []) {
+			container.fs.mkdirSync(`${tmpDir}/assistants/${name}`, { recursive: true })
+			const core = frontmatter.length
+				? ['---', ...frontmatter, '---', '', `You are ${name}.`].join('\n')
+				: `You are ${name}.`
+			container.fs.writeFileSync(`${tmpDir}/assistants/${name}/CORE.md`, core)
+		}
+
+		it('deep-merges defaults.config, <name>.config, and create() config', async () => {
+			writeAssistant('gws', ['config:', '  gwsProfile: chief', '  limits:', '    maxDownloads: 10'])
+			container.fs.writeFileSync(
+				`${tmpDir}/assistants/options.yml`,
+				[
+					'defaults:',
+					'  config:',
+					'    workspaceName: north',
+					'gws:',
+					'  config:',
+					'    gwsProfile: northchief',
+				].join('\n'),
+			)
+
+			await manager.discover()
+
+			// frontmatter < defaults < <name>
+			const fromYml = manager.create('gws')
+			expect(fromYml.config).toEqual({
+				gwsProfile: 'northchief',
+				limits: { maxDownloads: 10 },
+				workspaceName: 'north',
+			})
+
+			// create() wins over every file layer, and nested keys survive
+			const pinned = manager.create('gws', { config: { gwsProfile: 'callsite' } })
+			expect(pinned.config.gwsProfile).toBe('callsite')
+			expect(pinned.config.limits).toEqual({ maxDownloads: 10 })
+			expect(pinned.config.workspaceName).toBe('north')
+		})
+
+		it('setting() reads dot paths with a fallback', async () => {
+			writeAssistant('gws', ['config:', '  limits:', '    maxDownloads: 5'])
+			await manager.discover()
+
+			const gws = manager.create('gws')
+			expect(gws.setting('limits.maxDownloads')).toBe(5)
+			expect(gws.setting('limits.missing', 42)).toBe(42)
+			expect(gws.setting('nothing.here')).toBeUndefined()
+		})
+
+		it('config is empty (not undefined) when nothing declares it', async () => {
+			writeAssistant('plain')
+			await manager.discover()
+			expect(manager.create('plain').config).toEqual({})
+		})
+
+		it('warns when an override key would be stripped by the options schema', async () => {
+			writeAssistant('gws')
+			container.fs.writeFileSync(
+				`${tmpDir}/assistants/options.yml`,
+				'gws:\n  gwsProfile: northchief\n  model: qwen3-coder\n',
+			)
+
+			const warnings: string[] = []
+			const originalWarn = console.warn
+			console.warn = (...args: any[]) => { warnings.push(args.join(' ')) }
+			try {
+				await manager.discover()
+			} finally {
+				console.warn = originalWarn
+			}
+
+			const warning = warnings.find((w) => w.includes('gwsProfile'))
+			expect(warning).toBeTruthy()
+			expect(warning).toContain('config:')
+			// `model` is a declared option — it must not be reported
+			expect(warning).not.toContain('model')
+		})
+	})
 })
