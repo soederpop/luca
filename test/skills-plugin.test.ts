@@ -131,6 +131,11 @@ describe('skills plugin generation', () => {
     expect(args[at + 1]).toBe('/some/other/plugin')
     expect(args[at + 2]).toContain('.luca/skills-plugins')
     generated.push(args[at + 2]!)
+
+    // Registration is the plugin's job. Skill folders are not a file-access setting
+    // and must not silently widen the session's allowed directories.
+    expect(args).not.toContain('--add-dir')
+    expect(args).not.toContain(alphaSkills)
   })
 
   it('passes the generated plugin to interactive controller sessions', () => {
@@ -143,6 +148,9 @@ describe('skills plugin generation', () => {
     expect(at).toBeGreaterThan(-1)
     expect(worker.args[at + 1]).toContain('.luca/skills-plugins')
     generated.push(worker.args[at + 1]!)
+
+    expect(worker.args).not.toContain('--add-dir')
+    expect(worker.args).not.toContain(alphaSkills)
   })
 })
 

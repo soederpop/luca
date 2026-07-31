@@ -4225,7 +4225,7 @@ setBuildTimeData('features.claudeCode', {
             },
             "skillsFolders": {
               "type": "string[]",
-              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
             },
             "skills": {
               "type": "string[]",
@@ -4396,7 +4396,7 @@ setBuildTimeData('features.claudeCode', {
             },
             "skillsFolders": {
               "type": "string[]",
-              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
             },
             "skills": {
               "type": "string[]",
@@ -4569,7 +4569,7 @@ setBuildTimeData('features.claudeCode', {
             },
             "skillsFolders": {
               "type": "string[]",
-              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
             },
             "skills": {
               "type": "string[]",
@@ -5019,7 +5019,7 @@ setBuildTimeData('features.claudeCode', {
         },
         "skillsFolders": {
           "type": "string[]",
-          "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir.",
+          "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin.",
           "optional": true
         },
         "skills": {
@@ -29771,7 +29771,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "skillsFolders": {
                 "type": "string[]",
-                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+                "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
               },
               "skills": {
                 "type": "string[]",
@@ -29942,7 +29942,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "skillsFolders": {
                 "type": "string[]",
-                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+                "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
               },
               "skills": {
                 "type": "string[]",
@@ -30115,7 +30115,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "skillsFolders": {
                 "type": "string[]",
-                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+                "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin."
               },
               "skills": {
                 "type": "string[]",
@@ -30565,7 +30565,7 @@ export const introspectionData: Record<string, any>[] = [
           },
           "skillsFolders": {
             "type": "string[]",
-            "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir.",
+            "description": "Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin.",
             "optional": true
           },
           "skills": {

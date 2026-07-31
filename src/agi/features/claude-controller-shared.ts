@@ -34,7 +34,7 @@ export interface ClaudeControllerPersona {
   mcpServers?: Record<string, any>
   strictMcpConfig?: boolean
   addDirs?: string[]
-  /** Folders containing skill subfolders. Registered via a generated plugin and added as allowed dirs. */
+  /** Folders containing skill subfolders. Every subfolder with a SKILL.md is registered via a generated plugin. */
   skillsFolders?: string[]
   /** Skill names resolved from the skillsLibrary and registered via a generated plugin. */
   skills?: string[]

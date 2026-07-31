@@ -59,7 +59,7 @@ describe('ClaudeController', () => {
         },
       }),
       '--strict-mcp-config',
-      '--add-dir', '/repo/shared', '/skills/luca',
+      '--add-dir', '/repo/shared',
       '--tools', 'Read', 'Grep',
       '--allowed-tools', 'Bash(git *)',
       '--permission-mode', 'acceptEdits',
@@ -86,7 +86,7 @@ describe('ClaudeController', () => {
 
     expect(worker.args).toEqual([
       '--system-prompt', 'Spawn system prompt',
-      '--add-dir', '/repo', '/skills/docs',
+      '--add-dir', '/repo',
       '--permission-mode', 'plan',
       '--model', 'opus',
     ])

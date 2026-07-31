@@ -180,7 +180,7 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   strictMcpConfig: z.boolean().optional().describe('Require strict MCP config validation'),
   /** Path to a custom settings file. */
   settingsFile: z.string().optional().describe('Path to a custom settings file'),
-  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Every subfolder with a SKILL.md is registered via a generated plugin, and the folder is also passed as --add-dir. */
+  /** Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. */
   skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to register in sessions'),
   /** Skill names to resolve from the skillsLibrary and register in sessions via a generated plugin. */
   skills: z.array(z.string()).optional().describe('Skill names to resolve from the skillsLibrary and register in sessions'),
@@ -237,7 +237,7 @@ export interface RunOptions {
   continue?: boolean
   /** Additional directories to allow tool access to. */
   addDirs?: string[]
-  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir. */
+  /** Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. */
   skillsFolders?: string[]
   /** Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. */
   skills?: string[]
@@ -602,19 +602,13 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (options.continue) args.push('--continue')
     if (options.dangerouslySkipPermissions) args.push('--dangerously-skip-permissions')
 
-    // Merge addDirs and skillsFolders (both feature-level and per-session) into --add-dir
-    const addDirs: string[] = [
-      ...(options.addDirs ?? []),
-      ...(options.skillsFolders ?? []),
-      ...(this.options.skillsFolders ?? []),
-    ]
+    const addDirs: string[] = [...(options.addDirs ?? [])]
     if (addDirs.length) {
       args.push('--add-dir', ...addDirs)
     }
 
-    // Skills only become invocable when they're registered by a plugin — --add-dir
-    // alone just grants read access. Compose the requested skills into a generated
-    // plugin and hand Claude that.
+    // Skills are registered by a plugin, never by --add-dir, which only grants read
+    // access. Compose the requested skills into a generated plugin and hand Claude that.
     const pluginDirs = [
       ...(options.pluginDirs ?? []),
       ...(this.options.pluginDirs ?? []),

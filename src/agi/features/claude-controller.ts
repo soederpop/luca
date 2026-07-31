@@ -153,8 +153,6 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
     const addDirs = [
       ...(persona.addDirs ?? []),
       ...(options.addDirs ?? []),
-      ...(persona.skillsFolders ?? []),
-      ...(options.skillsFolders ?? []),
     ]
     const tools = options.tools ?? persona.tools
     const allowedTools = options.allowedTools ?? persona.allowedTools
