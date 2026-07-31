@@ -21279,6 +21279,12 @@ setBuildTimeData('features.skillsLibrary', {
   "shortcut": "features.skillsLibrary",
   "className": "SkillsLibrary",
   "methods": {
+    "warnAboutUnmatchedFilters": {
+      "description": "Report `only` patterns that match no discovered skill. A filter is a claim about what should be available, so a pattern matching nothing is almost always a typo or a location that failed to scan. Silently narrowing to nothing is the failure mode that hides both.",
+      "parameters": {},
+      "required": [],
+      "returns": "string[]"
+    },
     "setupToolsConsumer": {
       "description": "",
       "parameters": {
@@ -46776,6 +46782,12 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.skillsLibrary",
     "className": "SkillsLibrary",
     "methods": {
+      "warnAboutUnmatchedFilters": {
+        "description": "Report `only` patterns that match no discovered skill. A filter is a claim about what should be available, so a pattern matching nothing is almost always a typo or a location that failed to scan. Silently narrowing to nothing is the failure mode that hides both.",
+        "parameters": {},
+        "required": [],
+        "returns": "string[]"
+      },
       "setupToolsConsumer": {
         "description": "",
         "parameters": {

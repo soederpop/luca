@@ -216,3 +216,73 @@ describe('assistant skills preload', () => {
     expect(assistant.effectiveOptions.model).toBe('fm-model')
   })
 })
+
+describe('skillsLibrary assistant wiring', () => {
+  const c = new AGIContainer()
+  const fs = c.feature('fs')
+  const { paths, os } = c
+  const root = paths.resolve(os.tmpdir, `luca-skills-wiring-${c.utils.uuid()}`)
+  // start() unions in whatever ~/.luca/skills.json tracks, so point at an empty config
+  // to keep these assertions about the fixtures rather than the developer's machine.
+  const configPath = paths.resolve(root, 'skills.json')
+
+  // Over the ten-skill threshold the fork-based relevance check is skipped, which keeps
+  // the preload assertions off the network.
+  const bigRoot = paths.resolve(root, 'big')
+
+  function writeSkillAt(location: string, name: string) {
+    fs.mkdirp(paths.resolve(location, name))
+    fs.writeFile(paths.resolve(location, name, 'SKILL.md'), `---\nname: ${name}\ndescription: the ${name} skill\n---\n\nbody\n`)
+  }
+
+  beforeAll(() => {
+    for (const name of ['alpha', 'beta', 'gamma']) writeSkillAt(root, name)
+    writeSkillAt(bigRoot, 'alpha')
+    for (let i = 0; i < 12; i++) writeSkillAt(bigRoot, `filler-${i}`)
+    process.env.LUCA_SKILLS_NO_WARN = '1'
+  })
+
+  afterAll(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+    delete process.env.LUCA_SKILLS_NO_WARN
+  })
+
+  it('scans before describing skills, so the prompt is not built from an empty library', async () => {
+    const lib = c.feature('skillsLibrary', { _cacheKey: 'wiring-a', locations: [root], configPath })
+    const assistant = c.feature('assistant', { name: 'wired' })
+
+    expect(lib.isStarted).toBe(false)
+    assistant.use(lib)
+    // Deferred into pendingPlugins; start() is what awaits it.
+    await assistant.start()
+
+    const ext = assistant.systemPromptExtensions?.skillsLibrary ?? ''
+    expect(lib.isStarted).toBe(true)
+    expect(ext).toContain('- **alpha**: the alpha skill')
+    expect(ext).toContain('- **gamma**: the gamma skill')
+  })
+
+  it('reports only-patterns that match nothing', async () => {
+    const lib = c.feature('skillsLibrary', { _cacheKey: 'wiring-b', locations: [root], configPath, only: ['alpha', 'nope-*'] })
+    await lib.start()
+
+    expect(lib.warnAboutUnmatchedFilters()).toEqual(['nope-*'])
+    expect(Object.keys(lib.filteredSkills)).toEqual(['alpha'])
+  })
+
+  it('drops preload names that are not available rather than sending the model after them', async () => {
+    const lib = c.feature('skillsLibrary', { _cacheKey: 'wiring-c', locations: [bigRoot], configPath })
+    await lib.start()
+
+    const assistant = c.feature('assistant', { name: 'preloader', skills: ['alpha', 'does-not-exist'] })
+    assistant.use(lib)
+    await assistant.start()
+
+    // The interceptor is one-shot, so run it exactly once and read the mutated ctx.
+    const ctx: any = { question: 'hello' }
+    await assistant.interceptors.beforeAsk.run(ctx, async () => {})
+
+    expect(ctx.question).toContain('alpha')
+    expect(ctx.question).not.toContain('does-not-exist')
+  })
+})

@@ -138,21 +138,77 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 	}
 	
+	/** Emit a warning unless LUCA_SKILLS_NO_WARN silences it. */
+	private warn(message: string) {
+		if (process.env.LUCA_SKILLS_NO_WARN) return
+		this.container.feature('ui').print.yellow(`SkillsLibrary: ${message}`)
+	}
+
+	/**
+	 * Report `only` patterns that match no discovered skill.
+	 *
+	 * A filter is a claim about what should be available, so a pattern matching nothing
+	 * is almost always a typo or a location that failed to scan. Silently narrowing to
+	 * nothing is the failure mode that hides both.
+	 *
+	 * @returns The patterns that matched nothing
+	 */
+	warnAboutUnmatchedFilters(): string[] {
+		const only = this.options.only
+		if (!only?.length) return []
+
+		const names = Object.keys(this.skills)
+		const unmatched = only.filter(pattern => !names.some(name => this.matchPattern(pattern, name)))
+
+		if (unmatched.length) {
+			this.warn(`\`only\` ${unmatched.length === 1 ? 'pattern matches' : 'patterns match'} no known skill: ${unmatched.join(', ')}. ${
+				names.length ? `Discovered skills: ${names.slice(0, 20).join(', ')}${names.length > 20 ? `, …(${names.length} total)` : ''}` : 'No skills were discovered at all — check `locations`.'
+			}`)
+		}
+
+		return unmatched
+	}
+
 	override setupToolsConsumer(assistant: Feature) {
 		if (!(assistant instanceof Assistant)) {
 			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
 		}
 
 		const a : Assistant = assistant as Assistant
+
+		// The library has to be scanned before any of this can be decided — an unstarted
+		// library reports zero skills, which silently picks the small-set branch, injects
+		// an empty table, and hides the no-filter warning. use() with an async function
+		// defers us into pendingPlugins, which assistant.start() awaits before the system
+		// prompt is finalized.
+		if (!this.isStarted) {
+			a.use(async () => {
+				await this.start()
+				this.attachSkillsToAssistant(a)
+			})
+			return assistant
+		}
+
+		return this.attachSkillsToAssistant(a)
+	}
+
+	/**
+	 * Wire a started library into an assistant: describe the available skills in the
+	 * system prompt, and arrange for any preload list to be injected on the opening ask.
+	 *
+	 * @param a - The assistant to attach to
+	 */
+	private attachSkillsToAssistant(a: Assistant) {
+		const assistant = a
 		const { container } = a
 		const skillsLibrary = this
 		const skillCount = Object.keys(this.filteredSkills).length
 		const isSmallSet = skillCount <= 10
 
+		this.warnAboutUnmatchedFilters()
+
 		if (!isSmallSet && !this.options.only) {
-			if (!process.env.LUCA_SKILLS_NO_WARN) {
-				container.feature('ui').print.yellow(`SkillsLibrary: ${skillCount} skills loaded with no \`only\` filter. Use container.feature('skillsLibrary', { only: ['pattern*'] }) to limit, or set LUCA_SKILLS_NO_WARN=1 to silence.`)
-			}
+			this.warn(`${skillCount} skills loaded with no \`only\` filter. Use container.feature('skillsLibrary', { only: ['pattern*'] }) to limit, or set LUCA_SKILLS_NO_WARN=1 to silence.`)
 		}
 
 		if (isSmallSet) {
@@ -197,9 +253,24 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		// honours `skills:` in an assistant's own frontmatter and `create(name, { skills })`
 		// alike, with the caller's list winning.
 		const configured = a.effectiveOptions.skills
-		const preloadSkills : string[] = configured
+		const requested : string[] = configured
 			? (Array.isArray(configured) ? configured : [configured])
 			: []
+
+		// Preload only interpolates names into the question — unlike resolveSkillFolders
+		// it can't fail loudly on its own, so a typo would send the model off to loadSkill
+		// something that does not exist. Drop unknown names and say so.
+		const preloadSkills = requested.filter(name => this.find(name))
+		const unknown = requested.filter(name => !this.find(name))
+		if (unknown.length) {
+			const names = Object.keys(this.filteredSkills)
+			// `name` defaults to "assistant"; the folder is what actually identifies which
+			// one of a workspace's assistants is misconfigured.
+			const label = a.options.folder ? this.container.paths.basename(a.options.folder) : a.name
+			this.warn(`assistant "${label}" asks to preload ${unknown.length === 1 ? 'a skill that is' : 'skills that are'} not available: ${unknown.join(', ')}. ${
+				names.length ? `Available: ${names.slice(0, 20).join(', ')}${names.length > 20 ? `, …(${names.length} total)` : ''}` : 'No skills are available — check `locations` and `only`.'
+			}`)
+		}
 
 		// The fork-based auto-detection is only affordable for small skill sets, but an
 		// explicit preload list must be honoured either way — a large library is exactly
