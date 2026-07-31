@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.7"
+export const typesBundleVersion = "3.6.8"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -642,6 +642,7 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     forbidTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
     toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
     clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+    config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$strip>;
 export type AssistantState = z.infer<typeof AssistantStateSchema>;
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>;
@@ -752,6 +753,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         forbidTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
         toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
         clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+        config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -998,6 +1000,50 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      */
     get effectiveOptions(): AssistantOptions & Record<string, any>;
     /**
+     * Assistant-specific settings the framework never interprets — the supported
+     * home for arbitrary configuration. Every other option is schema-validated,
+     * so unknown top-level keys are silently stripped; keys nested under \`config\`
+     * survive untouched.
+     *
+     * Three layers deep-merge, weakest first: a \`config:\` block in the
+     * assistant's own CORE.md frontmatter, then the workspace's
+     * \`assistants/options.yml\` (\`defaults.config\` then \`<name>.config\`), then
+     * \`config\` passed to \`create()\`. The options.yml layer is what lets a project
+     * configure assistants it does not own — ones contributed by a plugin, or
+     * discovered from \`~/.luca/assistants\`.
+     *
+     * @example
+     * \`\`\`yaml
+     * # <workspace>/assistants/options.yml — configures a plugin's assistant
+     * googleWorkspace:
+     *   config:
+     *     gwsProfile: northchief
+     * \`\`\`
+     *
+     * @example
+     * \`\`\`typescript
+     * // assistants/googleWorkspace/tools.ts
+     * export const use = [container.feature('gws', { profile: me.config.gwsProfile })]
+     * \`\`\`
+     */
+    get config(): Record<string, any>;
+    /**
+     * Read one value out of {@link config} by dot path, with an optional fallback.
+     * Use this in tools.ts/hooks.ts so a missing config block doesn't throw on
+     * nested access.
+     *
+     * @param {string} path - Dot path into the merged config (e.g. 'gws.profile')
+     * @param {any} fallback - Returned when the path is absent or undefined
+     * @returns {any} The configured value, or the fallback
+     *
+     * @example
+     * \`\`\`typescript
+     * const profile = me.setting('gwsProfile', 'default')
+     * const budget = me.setting('limits.maxDownloads', 25)
+     * \`\`\`
+     */
+    setting<T = any>(path: string, fallback?: T): T;
+    /**
      * Load the system prompt from CORE.md, applying any prepend/append options.
      * YAML frontmatter (between --- fences) is stripped from the prompt and
      * stored in \`_meta\`.
@@ -1232,7 +1278,7 @@ export default Assistant;
 //# sourceMappingURL=assistant.d.ts.map`,
   "agi/features/assistants-manager.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
-import type { Assistant } from './assistant.js';
+import { type Assistant } from './assistant.js';
 import type { ConversationMeta, ConversationRecord } from './conversation-history.js';
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js';
 declare module 'luca/feature' {
@@ -1466,6 +1512,13 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * and never reported.
      */
     private _reportUnusedOverrides;
+    /**
+     * Warn about option keys that AssistantOptionsSchema will silently strip.
+     * Without this, a workspace writes \`googleWorkspace: { gwsProfile: x }\` into
+     * options.yml, sees no error, and the value never reaches the assistant —
+     * the fix is to nest it under \`config:\`, which is what the warning says.
+     */
+    private _warnAboutStrippedOverrideKeys;
     /**
      * Downloads the core assistants that ship with luca from GitHub
      * into ~/.luca/assistants.
@@ -6886,6 +6939,31 @@ export interface InterceptorPoints {
 }
 export type InterceptorPoint = keyof InterceptorPoints;
 //# sourceMappingURL=interceptor-chain.d.ts.map`,
+  "agi/lib/merge-options.d.ts": `/**
+ * Deep-merges option objects left to right, the way assistant option layers
+ * stack: CORE.md frontmatter < assistants/options.yml \`defaults\` <
+ * assistants/options.yml \`<name>\` < explicit \`create()\` options.
+ *
+ * Plain objects merge recursively; arrays and every other value type are
+ * replaced wholesale (a later \`allowTools: [...]\` fully replaces an earlier one
+ * rather than merging by index). \`undefined\` values are skipped so an absent
+ * layer can't blank out a configured one.
+ *
+ * Exported so plugins and workspace hooks can compose the same layers before
+ * handing options to \`assistantsManager.create()\`.
+ *
+ * @param sources - Option objects, weakest first
+ * @returns A new merged object; inputs are never mutated
+ *
+ * @example
+ * \`\`\`typescript
+ * deepMergeOptions({ config: { a: 1, b: 2 } }, { config: { b: 3 } })
+ * // => { config: { a: 1, b: 3 } }
+ * \`\`\`
+ */
+export declare function deepMergeOptions(...sources: Record<string, any>[]): Record<string, any>;
+export default deepMergeOptions;
+//# sourceMappingURL=merge-options.d.ts.map`,
   "agi/lib/token-counter.d.ts": `import type { Tiktoken } from 'js-tiktoken';
 export interface CostBreakdown {
     inputCost: number;

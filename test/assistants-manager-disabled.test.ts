@@ -85,7 +85,7 @@ describe('AssistantsManager disabling', () => {
 		expect(manager.isDisabled('assistants/googleWorkspace')).toBe(true)
 	})
 
-	it('disable()/enable() round-trips and emits assistantDisabled', async () => {
+	it('disableAssistant()/enableAssistant() round-trips and emits assistantDisabled', async () => {
 		writeAssistant('googleWorkspace')
 		await manager.discover()
 
@@ -96,27 +96,27 @@ describe('AssistantsManager disabling', () => {
 
 		expect(manager.available).toEqual(['googleWorkspace'])
 
-		manager.disable('googleWorkspace')
+		manager.disableAssistant('googleWorkspace')
 		expect(manager.available).toEqual([])
 		expect(manager.isDisabled('googleWorkspace')).toBe(true)
 
 		// Idempotent — no duplicate event, no duplicate state entry
-		manager.disable('googleWorkspace')
+		manager.disableAssistant('googleWorkspace')
 		expect(manager.state.get('disabled')).toEqual(['googleWorkspace'])
 
-		manager.enable('googleWorkspace')
+		manager.enableAssistant('googleWorkspace')
 		expect(manager.available).toEqual(['googleWorkspace'])
 		expect(manager.isDisabled('googleWorkspace')).toBe(false)
 
 		expect(events).toEqual([['googleWorkspace', true], ['googleWorkspace', false]])
 	})
 
-	it('enable() does not override an options.yml disable', async () => {
+	it('enableAssistant() does not override an options.yml disable', async () => {
 		writeAssistant('googleWorkspace')
 		writeOptions(['googleWorkspace:', '  disabled: true'])
 
 		await manager.discover()
-		manager.enable('googleWorkspace')
+		manager.enableAssistant('googleWorkspace')
 
 		// options.yml is the workspace owner's declaration — it wins
 		expect(manager.isDisabled('googleWorkspace')).toBe(true)
@@ -129,7 +129,7 @@ describe('AssistantsManager disabling', () => {
 		)
 
 		expect(manager.available).toEqual(['ghostBot'])
-		manager.disable('ghostBot')
+		manager.disableAssistant('ghostBot')
 
 		expect(manager.available).toEqual([])
 		expect(manager.list()).toEqual([])

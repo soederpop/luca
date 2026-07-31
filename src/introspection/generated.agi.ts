@@ -2773,7 +2773,7 @@ setBuildTimeData('features.assistantsManager', {
       "returns": "Record<string, any>"
     },
     "isDisabled": {
-      "description": "Whether an assistant is disabled in this workspace. Disabled assistants are hidden from `available`, `list()`, the `luca chat` picker, and an assistant's `availableSubagents` — but `get()` and `create()` still work, so naming one explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not an access lock. Three sources, any of which disables: a runtime `disable()` call, a per-assistant `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in a top-level `disabled:` list in that same file.",
+      "description": "Whether an assistant is disabled in this workspace. Disabled assistants are hidden from `available`, `list()`, the `luca chat` picker, and an assistant's `availableSubagents` — but `get()` and `create()` still work, so naming one explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not an access lock. Three sources, any of which disables: a runtime `disableAssistant()` call, a per-assistant `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in a top-level `disabled:` list in that same file.",
       "parameters": {
         "name": {
           "type": "string",
@@ -2787,12 +2787,12 @@ setBuildTimeData('features.assistantsManager', {
       "examples": [
         {
           "language": "ts",
-          "code": "const manager = container.feature('assistantsManager')\nmanager.disable('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // true"
+          "code": "const manager = container.feature('assistantsManager')\nmanager.disableAssistant('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // true"
         }
       ]
     },
-    "disable": {
-      "description": "Hides an assistant from every listing surface. Use this from a plugin or `luca.cli.ts` when the assistant's dependencies aren't present in the host workspace — e.g. a googleWorkspace assistant in a project without gws.",
+    "disableAssistant": {
+      "description": "Hides an assistant from every listing surface. Use this from a plugin or `luca.cli.ts` when the assistant's dependencies aren't present in the host workspace — e.g. a googleWorkspace assistant in a project without gws. Named `disableAssistant` rather than `disable` because `Feature.enable()` is the base-class lifecycle method — this pair is about assistants, not about this feature's own enabled state.",
       "parameters": {
         "name": {
           "type": "string",
@@ -2806,12 +2806,12 @@ setBuildTimeData('features.assistantsManager', {
       "examples": [
         {
           "language": "ts",
-          "code": "const manager = container.feature('assistantsManager')\nif (!container.features.available.includes('gws')) manager.disable('googleWorkspace')"
+          "code": "const manager = container.feature('assistantsManager')\nif (!container.features.available.includes('gws')) manager.disableAssistant('googleWorkspace')"
         }
       ]
     },
-    "enable": {
-      "description": "Undoes a runtime `disable()`. Note this only clears the runtime flag — an assistant disabled by `assistants/options.yml` stays hidden, since that file is the workspace owner's declaration.",
+    "enableAssistant": {
+      "description": "Undoes a runtime `disableAssistant()`. Note this only clears the runtime flag — an assistant disabled by `assistants/options.yml` stays hidden, since that file is the workspace owner's declaration.",
       "parameters": {
         "name": {
           "type": "string",
@@ -2825,7 +2825,7 @@ setBuildTimeData('features.assistantsManager', {
       "examples": [
         {
           "language": "ts",
-          "code": "const manager = container.feature('assistantsManager')\nmanager.disable('googleWorkspace').enable('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // false"
+          "code": "const manager = container.feature('assistantsManager')\nmanager.disableAssistant('googleWorkspace').enableAssistant('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // false"
         }
       ]
     },
@@ -3014,7 +3014,7 @@ setBuildTimeData('features.assistantsManager', {
       "returns": "Record<string, (options: Record<string, any>) => Assistant>"
     },
     "disabledAssistants": {
-      "description": "The effective set of disabled assistant names — runtime `disable()` calls plus everything `assistants/options.yml` turns off. Only reports names the manager actually knows about.",
+      "description": "The effective set of disabled assistant names — runtime `disableAssistant()` calls plus everything `assistants/options.yml` turns off. Only reports names the manager actually knows about.",
       "returns": "string[]"
     },
     "availableAssistants": {
@@ -27943,7 +27943,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Record<string, any>"
       },
       "isDisabled": {
-        "description": "Whether an assistant is disabled in this workspace. Disabled assistants are hidden from `available`, `list()`, the `luca chat` picker, and an assistant's `availableSubagents` — but `get()` and `create()` still work, so naming one explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not an access lock. Three sources, any of which disables: a runtime `disable()` call, a per-assistant `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in a top-level `disabled:` list in that same file.",
+        "description": "Whether an assistant is disabled in this workspace. Disabled assistants are hidden from `available`, `list()`, the `luca chat` picker, and an assistant's `availableSubagents` — but `get()` and `create()` still work, so naming one explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not an access lock. Three sources, any of which disables: a runtime `disableAssistant()` call, a per-assistant `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in a top-level `disabled:` list in that same file.",
         "parameters": {
           "name": {
             "type": "string",
@@ -27957,12 +27957,12 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const manager = container.feature('assistantsManager')\nmanager.disable('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // true"
+            "code": "const manager = container.feature('assistantsManager')\nmanager.disableAssistant('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // true"
           }
         ]
       },
-      "disable": {
-        "description": "Hides an assistant from every listing surface. Use this from a plugin or `luca.cli.ts` when the assistant's dependencies aren't present in the host workspace — e.g. a googleWorkspace assistant in a project without gws.",
+      "disableAssistant": {
+        "description": "Hides an assistant from every listing surface. Use this from a plugin or `luca.cli.ts` when the assistant's dependencies aren't present in the host workspace — e.g. a googleWorkspace assistant in a project without gws. Named `disableAssistant` rather than `disable` because `Feature.enable()` is the base-class lifecycle method — this pair is about assistants, not about this feature's own enabled state.",
         "parameters": {
           "name": {
             "type": "string",
@@ -27976,12 +27976,12 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const manager = container.feature('assistantsManager')\nif (!container.features.available.includes('gws')) manager.disable('googleWorkspace')"
+            "code": "const manager = container.feature('assistantsManager')\nif (!container.features.available.includes('gws')) manager.disableAssistant('googleWorkspace')"
           }
         ]
       },
-      "enable": {
-        "description": "Undoes a runtime `disable()`. Note this only clears the runtime flag — an assistant disabled by `assistants/options.yml` stays hidden, since that file is the workspace owner's declaration.",
+      "enableAssistant": {
+        "description": "Undoes a runtime `disableAssistant()`. Note this only clears the runtime flag — an assistant disabled by `assistants/options.yml` stays hidden, since that file is the workspace owner's declaration.",
         "parameters": {
           "name": {
             "type": "string",
@@ -27995,7 +27995,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const manager = container.feature('assistantsManager')\nmanager.disable('googleWorkspace').enable('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // false"
+            "code": "const manager = container.feature('assistantsManager')\nmanager.disableAssistant('googleWorkspace').enableAssistant('googleWorkspace')\nconsole.log(manager.isDisabled('googleWorkspace')) // false"
           }
         ]
       },
@@ -28184,7 +28184,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Record<string, (options: Record<string, any>) => Assistant>"
       },
       "disabledAssistants": {
-        "description": "The effective set of disabled assistant names — runtime `disable()` calls plus everything `assistants/options.yml` turns off. Only reports names the manager actually knows about.",
+        "description": "The effective set of disabled assistant names — runtime `disableAssistant()` calls plus everything `assistants/options.yml` turns off. Only reports names the manager actually knows about.",
         "returns": "string[]"
       },
       "availableAssistants": {

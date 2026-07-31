@@ -43,7 +43,8 @@
 #   disabled: true
 #
 # To decide at runtime instead (e.g. a plugin checking whether a feature is
-# registered), call `manager.disable(name)` from luca.cli.ts or luca.plugin.ts.
+# registered), call `manager.disableAssistant(name)` from luca.cli.ts or
+# luca.plugin.ts (`enableAssistant(name)` undoes it).
 
 # defaults:
 #   # Applied to every assistant unless overridden per-assistant below.

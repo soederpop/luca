@@ -57,7 +57,7 @@ export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
 	assistantDisabled: z.tuple([
 		z.string().describe('The assistant name'),
 		z.boolean().describe('True when the assistant was disabled, false when re-enabled'),
-	]).describe('Emitted when an assistant is disabled or re-enabled via disable()/enable()'),
+	]).describe('Emitted when an assistant is hidden or restored via disableAssistant()/enableAssistant()'),
 })
 
 /**
@@ -108,7 +108,7 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
 	extraFolders: z.array(z.string()).describe('Additional folders to scan during discovery'),
 	optionOverrides: z.record(z.string(), z.any()).describe('Workspace-level option overrides keyed by assistant name, plus a reserved `defaults` key applied to all'),
-	disabled: z.array(z.string()).describe('Assistant names disabled at runtime via disable(), hidden from available/list()'),
+	disabled: z.array(z.string()).describe('Assistant names disabled at runtime via disableAssistant(), hidden from available/list()'),
 	workspaceOptionsPath: z.string().nullable().describe('Absolute path to the loaded assistants/options.yml, or null if none'),
 	workspaceHooksPath: z.string().nullable().describe('Absolute path to the loaded assistants/hooks.ts, or null if none'),
 })
@@ -279,9 +279,9 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not
 	 * an access lock.
 	 *
-	 * Three sources, any of which disables: a runtime `disable()` call, a per-assistant
-	 * `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in
-	 * a top-level `disabled:` list in that same file.
+	 * Three sources, any of which disables: a runtime `disableAssistant()` call, a
+	 * per-assistant `disabled: true` in `assistants/options.yml`, or the assistant's name
+	 * appearing in a top-level `disabled:` list in that same file.
 	 *
 	 * @param {string} name - The assistant name, with or without an `assistants/` prefix
 	 * @returns {boolean} True when the assistant should be hidden
@@ -289,7 +289,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @example
 	 * ```typescript
 	 * const manager = container.feature('assistantsManager')
-	 * manager.disable('googleWorkspace')
+	 * manager.disableAssistant('googleWorkspace')
 	 * console.log(manager.isDisabled('googleWorkspace')) // true
 	 * ```
 	 */
@@ -312,16 +312,20 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * `luca.cli.ts` when the assistant's dependencies aren't present in the host
 	 * workspace — e.g. a googleWorkspace assistant in a project without gws.
 	 *
+	 * Named `disableAssistant` rather than `disable` because `Feature.enable()` is
+	 * the base-class lifecycle method — this pair is about assistants, not about
+	 * this feature's own enabled state.
+	 *
 	 * @param {string} name - The assistant name
 	 * @returns {this} This instance, for chaining
 	 *
 	 * @example
 	 * ```typescript
 	 * const manager = container.feature('assistantsManager')
-	 * if (!container.features.available.includes('gws')) manager.disable('googleWorkspace')
+	 * if (!container.features.available.includes('gws')) manager.disableAssistant('googleWorkspace')
 	 * ```
 	 */
-	disable(name: string): this {
+	disableAssistant(name: string): this {
 		const shortName = this._shortName(name)
 		const current = (this.state.get('disabled') || []) as string[]
 		if (!current.includes(shortName)) {
@@ -332,8 +336,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * Undoes a runtime `disable()`. Note this only clears the runtime flag — an
-	 * assistant disabled by `assistants/options.yml` stays hidden, since that file
+	 * Undoes a runtime `disableAssistant()`. Note this only clears the runtime flag —
+	 * an assistant disabled by `assistants/options.yml` stays hidden, since that file
 	 * is the workspace owner's declaration.
 	 *
 	 * @param {string} name - The assistant name
@@ -342,11 +346,11 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @example
 	 * ```typescript
 	 * const manager = container.feature('assistantsManager')
-	 * manager.disable('googleWorkspace').enable('googleWorkspace')
+	 * manager.disableAssistant('googleWorkspace').enableAssistant('googleWorkspace')
 	 * console.log(manager.isDisabled('googleWorkspace')) // false
 	 * ```
 	 */
-	enable(name: string): this {
+	enableAssistant(name: string): this {
 		const shortName = this._shortName(name)
 		const current = (this.state.get('disabled') || []) as string[]
 		if (current.includes(shortName)) {
@@ -357,7 +361,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * The effective set of disabled assistant names — runtime `disable()` calls plus
+	 * The effective set of disabled assistant names — runtime `disableAssistant()` calls plus
 	 * everything `assistants/options.yml` turns off. Only reports names the manager
 	 * actually knows about.
 	 *

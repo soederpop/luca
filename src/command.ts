@@ -120,9 +120,14 @@ const kebabCase = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowe
  * and string-typed flags keep numeric-looking values as strings.
  *
  * `--help` and `--verbose` are always treated as booleans unless the schema
- * declares them otherwise. Kebab-case aliases are included for camelCase fields.
+ * declares them otherwise. camelCase fields get a kebab-case `alias` so both
+ * spellings resolve to the same value.
  */
-export function minimistOptionsFor(schema?: z.ZodType): { boolean: string[]; string: string[] } {
+export function minimistOptionsFor(schema?: z.ZodType): {
+	boolean: string[]
+	string: string[]
+	alias: Record<string, string[]>
+} {
 	const boolean = new Set<string>(['help', 'verbose'])
 	const string = new Set<string>()
 	const shape = schemaShape(schema)
@@ -140,15 +145,19 @@ export function minimistOptionsFor(schema?: z.ZodType): { boolean: string[]; str
 		}
 	}
 
-	// Users type kebab-case flags for camelCase schema fields — alias both spellings
+	// Users type kebab-case flags for camelCase schema fields. Declare these as
+	// minimist aliases rather than as separate flags: a second boolean flag would
+	// get its own `false` default, which then clobbers the camelCase value the
+	// user actually set once both spellings are folded back together.
+	const alias: Record<string, string[]> = {}
 	for (const set of [boolean, string]) {
-		for (const key of [...set]) {
+		for (const key of set) {
 			const kebab = kebabCase(key)
-			if (kebab !== key) set.add(kebab)
+			if (kebab !== key) alias[key] = [kebab]
 		}
 	}
 
-	return { boolean: [...boolean], string: [...string] }
+	return { boolean: [...boolean], string: [...string], alias }
 }
 
 /**
