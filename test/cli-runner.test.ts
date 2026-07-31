@@ -94,4 +94,25 @@ describe('applySchemaAwareArgv', () => {
     expect(argv.dryRun).toBe(true)
     expect(argv._).toEqual(['deploy', 'prod'])
   })
+
+  it('keeps a camelCase boolean flag true when spelled camelCase', () => {
+    // Regression: the kebab spelling used to be declared as a second boolean
+    // flag, so minimist emitted `skip-upload: false` alongside `skipUpload:
+    // true`, and folding kebab keys back to camelCase overwrote the real value.
+    const CommandClass = {
+      argsSchema: CommandOptionsSchema.extend({
+        skipUpload: z.boolean().default(false),
+        buildNumber: z.number().optional(),
+      }),
+    }
+    const argv: Record<string, any> = { _: ['testflight'] }
+    const container = { argv }
+
+    withArgv(['testflight', '--skipUpload', '--buildNumber', '3'], () => {
+      applySchemaAwareArgv(container, CommandClass)
+    })
+
+    expect(argv.skipUpload).toBe(true)
+    expect(argv.buildNumber).toBe(3)
+  })
 })

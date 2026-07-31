@@ -250,7 +250,8 @@ describe('minimistOptionsFor', () => {
 		const opts = minimistOptionsFor(schema)
 		expect(opts.boolean).toContain('json')
 		expect(opts.boolean).toContain('dryRun')
-		expect(opts.boolean).toContain('dry-run') // kebab alias
+		expect(opts.alias.dryRun).toEqual(['dry-run']) // kebab alias, not a second flag
+		expect(opts.boolean).not.toContain('dry-run')
 		expect(opts.string).toContain('port')
 		expect(opts.boolean).not.toContain('count')
 		expect(opts.string).not.toContain('count')
