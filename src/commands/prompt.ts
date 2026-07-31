@@ -227,12 +227,12 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 
 	const createOptions: Record<string, any> = { ...agentOptions }
 	// Assistants reach skills through assistant.use(skillsLibrary), not a generated
-	// Claude Code plugin, so frontmatter skills become a preload list on meta.
-	if (Array.isArray(createOptions.skills)) {
-		createOptions.meta = { ...createOptions.meta, skills: createOptions.skills }
-		delete createOptions.skills
+	// Claude Code plugin. `skills` is a real assistant option, so it passes straight
+	// through as a preload list; there is no assistant equivalent of skillsFolders.
+	if (createOptions.skillsFolders) {
+		console.error(ui.colors.yellow(`Warning: skillsFolders is only supported by the claude target; ignoring it for assistant "${name}"`))
+		delete createOptions.skillsFolders
 	}
-	delete createOptions.skillsFolders
 	// CLI flags override agentOptions from frontmatter
 	if (options.model) createOptions.model = options.model
 

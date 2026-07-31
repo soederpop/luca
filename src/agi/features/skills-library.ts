@@ -193,14 +193,13 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			].join('\n'))
 		}
 
-		const preloadSkills : string[] = []
-		if (a.meta.skills) {
-			if (Array.isArray(a.meta.skills)) {
-				preloadSkills.push(...a.meta.skills)
-			} else {
-				preloadSkills.push(a.meta.skills)
-			}
-		}
+		// effectiveOptions merges CORE.md frontmatter under create() options, so this
+		// honours `skills:` in an assistant's own frontmatter and `create(name, { skills })`
+		// alike, with the caller's list winning.
+		const configured = a.effectiveOptions.skills
+		const preloadSkills : string[] = configured
+			? (Array.isArray(configured) ? configured : [configured])
+			: []
 
 		// The fork-based auto-detection is only affordable for small skill sets, but an
 		// explicit preload list must be honoured either way — a large library is exactly
@@ -221,9 +220,13 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 						ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${allSkillsToLoad.join(', ')}`
 					}
 
-					a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
-
+					// Retire on the first ask that actually lands, not the first attempted.
+					// Removing before next() means a provider timeout or 429 on the opening
+					// question loses the reminder for the whole conversation — precisely the
+					// turn it exists for.
 					await next()
+
+					a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
 			}
 
 			assistant.intercept('beforeAsk', beforeAskCheckIfWeNeedSkills as any)

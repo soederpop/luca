@@ -124,6 +124,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Convenience alias for allowTools — an explicit list of tool names (exact matches only). */
 	toolNames: z.array(z.string()).optional().describe('Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.'),
 
+	/** Skills to preload when the assistant uses the skillsLibrary. Also settable as `skills:` in CORE.md frontmatter. */
+	skills: z.array(z.string()).optional().describe('Skill names to preload when the assistant uses the skillsLibrary'),
+
 	/** Options passed through to the underlying OpenAI client (e.g. baseURL, apiKey). */
 	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client, passed through to the conversation'),
 
@@ -817,7 +820,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * anywhere model parameters or runtime config is consumed.
 	 */
 	get effectiveOptions(): AssistantOptions & Record<string, any> {
-		return { ...this.meta, ...this.options }
+		// Zod keeps explicitly-undefined optional keys, so a caller spreading a partial
+		// options bag — `{ ...opts }` where `opts.model` was never set — would otherwise
+		// clobber the frontmatter default with undefined. An option that was not given a
+		// value is an option that was not given, so drop those before layering.
+		const given = Object.fromEntries(
+			Object.entries(this.options as Record<string, any>).filter(([, value]) => value !== undefined),
+		) as AssistantOptions & Record<string, any>
+		return { ...this.meta, ...given }
 	}
 
 	/**

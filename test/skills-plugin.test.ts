@@ -187,3 +187,32 @@ describe('fs.ensureSymlink', () => {
     expect(fs.readFile(real).toString()).toBe('do not clobber me')
   })
 })
+
+describe('assistant skills preload', () => {
+  const c = new AGIContainer()
+
+  it('exposes skills on effectiveOptions from create() options', () => {
+    const assistant = c.feature('assistant', { name: 'skills-probe', skills: ['luca-framework'] })
+    expect(assistant.effectiveOptions.skills).toEqual(['luca-framework'])
+  })
+
+  it('reads skills from CORE.md frontmatter, with create() options winning', () => {
+    const fromFrontmatter = c.feature('assistant', { name: 'fm-probe' })
+    fromFrontmatter.state.set('meta', { skills: ['from-frontmatter'] })
+    expect(fromFrontmatter.effectiveOptions.skills).toEqual(['from-frontmatter'])
+
+    const overridden = c.feature('assistant', { name: 'override-probe', skills: ['from-caller'] })
+    overridden.state.set('meta', { skills: ['from-frontmatter'] })
+    expect(overridden.effectiveOptions.skills).toEqual(['from-caller'])
+  })
+
+  it('does not let an unset option clobber a frontmatter value', () => {
+    // Zod keeps explicitly-undefined optional keys, so spreading a partial options
+    // bag used to wipe the frontmatter default it was supposed to defer to.
+    const assistant = c.feature('assistant', { name: 'undef-probe', skills: undefined, model: undefined })
+    assistant.state.set('meta', { skills: ['from-frontmatter'], model: 'fm-model' })
+
+    expect(assistant.effectiveOptions.skills).toEqual(['from-frontmatter'])
+    expect(assistant.effectiveOptions.model).toBe('fm-model')
+  })
+})
