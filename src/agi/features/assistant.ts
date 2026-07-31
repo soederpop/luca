@@ -630,21 +630,66 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				this.state.set('pendingPlugins', [...pending, result as Promise<void>])
 			}
 		} else if (fnOrHelper && typeof (fnOrHelper as any).toTools === 'function') {
-			this._registerTools((fnOrHelper as any).toTools())
-			if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
-				(fnOrHelper as any).setupToolsConsumer(this)
+			const source = this.describeToolsProvider(fnOrHelper)
+			try {
+				this._registerTools((fnOrHelper as any).toTools(), source)
+				if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
+					(fnOrHelper as any).setupToolsConsumer(this)
+				}
+			} catch (err: any) {
+				this.reportToolsProviderFailure(source, err)
 			}
 		} else if (fnOrHelper && 'schemas' in fnOrHelper && 'handlers' in fnOrHelper) {
-			this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> })
-			if (typeof (fnOrHelper as any).setup === 'function') {
-				(fnOrHelper as any).setup(this)
+			const source = this.describeToolsProvider(fnOrHelper)
+			try {
+				this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }, source)
+				if (typeof (fnOrHelper as any).setup === 'function') {
+					(fnOrHelper as any).setup(this)
+				}
+			} catch (err: any) {
+				this.reportToolsProviderFailure(source, err)
 			}
 		}
 		return this
 	}
 
+	/**
+	 * Best-effort label for something passed to `use()`, so failures can name
+	 * the helper at fault instead of surfacing anonymously.
+	 */
+	private describeToolsProvider(entry: any): string {
+		const candidates = [entry?.shortcut, entry?.name, entry?.constructor?.name]
+		const label = candidates.find((value) => typeof value === 'string' && value.length)
+		return label || 'an anonymous tools provider'
+	}
+
+	/**
+	 * Log a tools-registration failure without taking the assistant down. A
+	 * single bad entry in `export const use = [...]` should cost that helper's
+	 * tools, not the whole session.
+	 */
+	private reportToolsProviderFailure(source: string, err: any) {
+		console.error(`Assistant "${this.name}" could not register tools from ${source}: ${err?.message || err}`)
+	}
+
 	/** Register tools from a `{ schemas, handlers }` object. */
-	private _registerTools({ schemas, handlers }: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }) {
+	private _registerTools(provided: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }, source = 'a tools provider') {
+		const expected = '{ schemas: Record<string, ZodType>, handlers: Record<string, Function> }'
+		const isPlainObject = (value: any) => !!value && typeof value === 'object' && !Array.isArray(value)
+
+		if (!isPlainObject(provided)) {
+			const got = provided === null ? 'null' : Array.isArray(provided) ? 'an array' : typeof provided
+			throw new Error(`${source} produced ${got} instead of ${expected}`)
+		}
+
+		const { schemas, handlers } = provided as any
+		if (!isPlainObject(schemas) || !isPlainObject(handlers)) {
+			const keys = Object.keys(provided)
+			throw new Error(
+				`${source} produced { ${keys.join(', ') || 'no keys'} } — expected ${expected}`,
+			)
+		}
+
 		for (const name of Object.keys(schemas)) {
 			if (typeof handlers[name] === 'function') {
 				this.addTool(name, handlers[name] as any, schemas[name])
@@ -966,8 +1011,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			})
 		} catch (err: any) {
 			console.error(`Failed to load tools from ${this.toolsModulePath}`)
-			console.error(`There may be a syntax error in this file. Please check it.`)
-			console.error(err.message || err)
+			const message = err?.message || String(err)
+			// Only blame syntax when it actually is a parse failure — unregistered
+			// features and other runtime errors need their own message, not a
+			// misleading "check your syntax" nudge.
+			const isSyntaxError = err instanceof SyntaxError
+				|| err?.name === 'SyntaxError'
+				|| /syntaxerror|unexpected (token|identifier|end of)|parse error/i.test(message)
+			if (isSyntaxError) {
+				console.error(`There may be a syntax error in this file. Please check it.`)
+			}
+			console.error(message)
 			return this.mergeOptionTools(tools)
 		}
 
