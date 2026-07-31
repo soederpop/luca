@@ -1718,7 +1718,34 @@ export const use = [
 # See every available option: \`luca describe assistant\` (look at the
 # options schema). Common ones: model, temperature, maxTokens, provider,
 # providerOptions, historyMode, allowTools, forbidTools, injectTimestamps.
+#
+# Top-level keys must be REAL assistant options — unknown ones are stripped
+# by the options schema, and the manager warns at startup when it sees one.
+# For your own settings, nest them under \`config:\` (see below).
+#
+# This file can target assistants this project does not own — ones a plugin
+# contributed, or ones discovered from ~/.luca/assistants. That makes it the
+# place to localize a shared assistant to this project — or to turn one off
+# entirely when its dependencies aren't installed here (see \`disabled\` below).
 # ─────────────────────────────────────────────────────────────────────────
+
+# \`disabled\` hides an assistant from \`luca chat\`'s picker, \`manager.available\`,
+# \`manager.list()\`, \`luca mcp\`, and other assistants' subagent list. It stays
+# runnable by name (\`luca chat googleWorkspace\` still works) — this is curation,
+# not a lock. Use it for plugin-contributed assistants this project can't serve,
+# e.g. a googleWorkspace assistant in a project without the gws feature.
+#
+# List form — turn off several at once:
+# disabled:
+#   - googleWorkspace
+#   - telnyxOps
+#
+# Or per-assistant, alongside that assistant's other overrides:
+# googleWorkspace:
+#   disabled: true
+#
+# To decide at runtime instead (e.g. a plugin checking whether a feature is
+# registered), call \`manager.disable(name)\` from luca.cli.ts or luca.plugin.ts.
 
 # defaults:
 #   # Applied to every assistant unless overridden per-assistant below.
@@ -1742,6 +1769,16 @@ export const use = [
 #   #   - grep.*
 #   # forbidTools:                # denylist, applied after allowTools
 #   #   - proc.exec
+#   #
+#   # config: free-form settings the framework never interprets. Anything you
+#   # put here reaches the assistant's own code — tools.ts and hooks.ts read it
+#   # as \`assistant.config.<key>\` or \`assistant.setting('a.b', fallback)\`, and
+#   # can branch on it (e.g. only export a tool when a flag is on). Layers
+#   # deep-merge: CORE.md \`config:\` < defaults.config < <name>.config < create().
+#   # config:
+#   #   apiBaseUrl: https://staging.example.com
+#   #   limits:
+#   #     maxDownloads: 25
 `,
   "assistant-core": `---
 description: Default project assistant — knows the luca framework and can run commands on your behalf

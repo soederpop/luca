@@ -54,7 +54,18 @@ export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
 	unusedOverrides: z.tuple([
 		z.array(z.string()).describe('Override keys that do not match any known assistant name'),
 	]).describe('Emitted after discovery when workspace options reference unknown assistants'),
+	assistantDisabled: z.tuple([
+		z.string().describe('The assistant name'),
+		z.boolean().describe('True when the assistant was disabled, false when re-enabled'),
+	]).describe('Emitted when an assistant is disabled or re-enabled via disable()/enable()'),
 })
+
+/**
+ * Option-override keys that the manager itself consumes rather than passing
+ * through to the assistant. They are exempt from the "unknown option will be
+ * stripped" warning and never reach `container.feature('assistant', ...)`.
+ */
+const RESERVED_OVERRIDE_KEYS = new Set(['disabled'])
 
 /**
  * Optional lifecycle hooks module loaded from `assistants/hooks.ts` at the
@@ -97,6 +108,7 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
 	extraFolders: z.array(z.string()).describe('Additional folders to scan during discovery'),
 	optionOverrides: z.record(z.string(), z.any()).describe('Workspace-level option overrides keyed by assistant name, plus a reserved `defaults` key applied to all'),
+	disabled: z.array(z.string()).describe('Assistant names disabled at runtime via disable(), hidden from available/list()'),
 	workspaceOptionsPath: z.string().nullable().describe('Absolute path to the loaded assistants/options.yml, or null if none'),
 	workspaceHooksPath: z.string().nullable().describe('Absolute path to the loaded assistants/hooks.ts, or null if none'),
 })
@@ -147,6 +159,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			factories: {},
 			extraFolders: [],
 			optionOverrides: {},
+			disabled: [],
 			workspaceOptionsPath: null,
 			workspaceHooksPath: null,
 		}
@@ -249,8 +262,109 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	overridesFor(name: string): Record<string, any> {
 		const map = (this.state.get('optionOverrides') || {}) as Record<string, any>
-		const shortName = name.replace(/^assistants\//, '')
-		return deepMergeOptions(map.defaults || {}, map[shortName] || {})
+		const shortName = this._shortName(name)
+		const merged = deepMergeOptions(map.defaults || {}, map[shortName] || {})
+		return this.container.utils.lodash.omit(merged, [...RESERVED_OVERRIDE_KEYS])
+	}
+
+	/** Strips the optional `assistants/` prefix so all lookups use the short name. */
+	private _shortName(name: string): string {
+		return name.replace(/^assistants\//, '')
+	}
+
+	/**
+	 * Whether an assistant is disabled in this workspace. Disabled assistants are
+	 * hidden from `available`, `list()`, the `luca chat` picker, and an assistant's
+	 * `availableSubagents` — but `get()` and `create()` still work, so naming one
+	 * explicitly (`luca chat googleWorkspace`) runs it. Disabling is curation, not
+	 * an access lock.
+	 *
+	 * Three sources, any of which disables: a runtime `disable()` call, a per-assistant
+	 * `disabled: true` in `assistants/options.yml`, or the assistant's name appearing in
+	 * a top-level `disabled:` list in that same file.
+	 *
+	 * @param {string} name - The assistant name, with or without an `assistants/` prefix
+	 * @returns {boolean} True when the assistant should be hidden
+	 *
+	 * @example
+	 * ```typescript
+	 * const manager = container.feature('assistantsManager')
+	 * manager.disable('googleWorkspace')
+	 * console.log(manager.isDisabled('googleWorkspace')) // true
+	 * ```
+	 */
+	isDisabled(name: string): boolean {
+		const shortName = this._shortName(name)
+
+		const runtime = (this.state.get('disabled') || []) as string[]
+		if (runtime.includes(shortName)) return true
+
+		const map = (this.state.get('optionOverrides') || {}) as Record<string, any>
+
+		const perAssistant = map[shortName]
+		if (perAssistant && typeof perAssistant === 'object' && perAssistant.disabled === true) return true
+
+		return Array.isArray(map.disabled) && map.disabled.includes(shortName)
+	}
+
+	/**
+	 * Hides an assistant from every listing surface. Use this from a plugin or
+	 * `luca.cli.ts` when the assistant's dependencies aren't present in the host
+	 * workspace — e.g. a googleWorkspace assistant in a project without gws.
+	 *
+	 * @param {string} name - The assistant name
+	 * @returns {this} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * const manager = container.feature('assistantsManager')
+	 * if (!container.features.available.includes('gws')) manager.disable('googleWorkspace')
+	 * ```
+	 */
+	disable(name: string): this {
+		const shortName = this._shortName(name)
+		const current = (this.state.get('disabled') || []) as string[]
+		if (!current.includes(shortName)) {
+			this.state.set('disabled', [...current, shortName])
+			this.emit('assistantDisabled', shortName, true)
+		}
+		return this
+	}
+
+	/**
+	 * Undoes a runtime `disable()`. Note this only clears the runtime flag — an
+	 * assistant disabled by `assistants/options.yml` stays hidden, since that file
+	 * is the workspace owner's declaration.
+	 *
+	 * @param {string} name - The assistant name
+	 * @returns {this} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * const manager = container.feature('assistantsManager')
+	 * manager.disable('googleWorkspace').enable('googleWorkspace')
+	 * console.log(manager.isDisabled('googleWorkspace')) // false
+	 * ```
+	 */
+	enable(name: string): this {
+		const shortName = this._shortName(name)
+		const current = (this.state.get('disabled') || []) as string[]
+		if (current.includes(shortName)) {
+			this.state.set('disabled', current.filter((n) => n !== shortName))
+			this.emit('assistantDisabled', shortName, false)
+		}
+		return this
+	}
+
+	/**
+	 * The effective set of disabled assistant names — runtime `disable()` calls plus
+	 * everything `assistants/options.yml` turns off. Only reports names the manager
+	 * actually knows about.
+	 *
+	 * @returns {string[]} Disabled assistant names
+	 */
+	get disabledAssistants(): string[] {
+		return this._allNames().filter((name) => this.isDisabled(name))
 	}
 
 	/**
@@ -402,8 +516,12 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	private _reportUnusedOverrides(): void {
 		const map = (this.state.get('optionOverrides') || {}) as Record<string, any>
-		const known = new Set(this.available)
-		const unused = Object.keys(map).filter((k) => k !== 'defaults' && !known.has(k))
+		// Unfiltered — an assistant this file disables must not then be reported
+		// as an override that matches nothing.
+		const known = new Set(this._allNames())
+		const unused = Object.keys(map).filter(
+			(k) => k !== 'defaults' && !RESERVED_OVERRIDE_KEYS.has(k) && !known.has(k),
+		)
 		if (unused.length > 0) this.emit('unusedOverrides', unused)
 		this._warnAboutStrippedOverrideKeys(map)
 	}
@@ -419,8 +537,9 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const declared = new Set(Object.keys(shape))
 
 		for (const [section, overrides] of Object.entries(map)) {
+			if (RESERVED_OVERRIDE_KEYS.has(section)) continue
 			if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) continue
-			const stripped = Object.keys(overrides).filter((k) => !declared.has(k))
+			const stripped = Object.keys(overrides).filter((k) => !declared.has(k) && !RESERVED_OVERRIDE_KEYS.has(k))
 			if (!stripped.length) continue
 			console.warn(
 				`[assistantsManager] assistants/options.yml → ${section}: unknown option${stripped.length > 1 ? 's' : ''} ` +
@@ -456,7 +575,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * Alias for `available`.
+	 * Alias for `available`. Excludes disabled assistants.
 	 *
 	 * @returns {string[]} Names of all available assistants
 	 */
@@ -466,28 +585,37 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 	/**
 	 * Names of all available assistants — the union of discovered entries
-	 * and runtime-registered factories, deduplicated.
+	 * and runtime-registered factories, deduplicated, with disabled assistants
+	 * removed. Use `entries` / `factories` for the unfiltered source.
 	 *
 	 * @returns {string[]} Assistant names
 	 */
 	get available() {
+		return this._allNames().filter((name) => !this.isDisabled(name))
+	}
+
+	/**
+	 * Every known assistant name, disabled ones included — the raw union of
+	 * discovered entries and registered factories.
+	 */
+	private _allNames(): string[] {
 		const entryKeys = Object.keys(this.entries)
 		const factoryKeys = Object.keys(this.factories)
 		return [...new Set([...entryKeys, ...factoryKeys])]
 	}
 
 	/**
-	 * Returns all discovered assistant entries as an array.
+	 * Returns all discovered assistant entries as an array, excluding disabled ones.
 	 *
 	 * @returns {AssistantEntry[]} All discovered entries
 	 */
 	list(): AssistantEntry[] {
-		const discovered = Object.values(this.entries)
-		const discoveredNames = new Set(discovered.map((e) => e.name))
+		const discovered = Object.values(this.entries).filter((e) => !this.isDisabled(e.name))
+		const discoveredNames = new Set(Object.keys(this.entries))
 
 		// Include registered factories that weren't discovered on disk
 		const registeredOnly = Object.keys(this.factories)
-			.filter((name) => !discoveredNames.has(name))
+			.filter((name) => !discoveredNames.has(name) && !this.isDisabled(name))
 			.map((name): AssistantEntry => ({
 				name,
 				folder: '',
