@@ -154,6 +154,14 @@ async function runClaudeOrCodex(target: 'claude' | 'codex' | 'hermes', promptCon
 
 	const runOptions: Record<string, any> = { streaming: true, ...agentOptions }
 
+	// Only claude has a skill mechanism to register them with; silently dropping them
+	// would look like the skills were loaded and ignored by the model.
+	if (target !== 'claude' && (runOptions.skills?.length || runOptions.skillsFolders?.length)) {
+		console.error(ui.colors.yellow(`Warning: skills in frontmatter are only supported by the claude target; ignoring them for ${target}`))
+		delete runOptions.skills
+		delete runOptions.skillsFolders
+	}
+
 	if (options['in-folder']) {
 		runOptions.cwd = container.paths.resolve(options['in-folder'])
 	}
@@ -218,6 +226,13 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	}
 
 	const createOptions: Record<string, any> = { ...agentOptions }
+	// Assistants reach skills through assistant.use(skillsLibrary), not a generated
+	// Claude Code plugin, so frontmatter skills become a preload list on meta.
+	if (Array.isArray(createOptions.skills)) {
+		createOptions.meta = { ...createOptions.meta, skills: createOptions.skills }
+		delete createOptions.skills
+	}
+	delete createOptions.skillsFolders
 	// CLI flags override agentOptions from frontmatter
 	if (options.model) createOptions.model = options.model
 
@@ -661,6 +676,30 @@ interface InputDef {
 	choices?: string[]
 }
 
+/**
+ * Build the agent options a prompt file's frontmatter asks for.
+ *
+ * `agentOptions` is the general escape hatch, but `skills` and `skillsFolders` are
+ * promoted to the top level: naming the skills a prompt needs is a normal thing to
+ * express, not an agent-tuning detail. An explicit `agentOptions` entry wins over
+ * the promoted one.
+ *
+ * @param meta - Parsed YAML frontmatter
+ * @returns Options to merge into the agent run
+ */
+export function resolveAgentOptions(meta: Record<string, any>): Record<string, any> {
+	const agentOptions: Record<string, any> =
+		meta?.agentOptions && typeof meta.agentOptions === 'object' ? { ...meta.agentOptions } : {}
+
+	for (const key of ['skills', 'skillsFolders'] as const) {
+		if (Array.isArray(meta?.[key]) && agentOptions[key] === undefined) {
+			agentOptions[key] = meta[key]
+		}
+	}
+
+	return agentOptions
+}
+
 function parseInputDefs(meta: Record<string, any>): Record<string, InputDef> | null {
 	if (!meta?.inputs || typeof meta.inputs !== 'object') return null
 	const defs: Record<string, InputDef> = {}
@@ -861,9 +900,7 @@ async function preparePrompt(
 				hasInputDefs = true
 				resolvedInputs = await resolveInputs(inputDefs, options, container)
 			}
-			if (meta.agentOptions && typeof meta.agentOptions === 'object') {
-				agentOptions = { ...meta.agentOptions }
-			}
+			agentOptions = resolveAgentOptions(meta)
 		}
 	}
 

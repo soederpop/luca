@@ -202,11 +202,15 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			}
 		}
 
-		// Only use the fork-based auto-detection for small skill sets
-		if (isSmallSet) {
+		// The fork-based auto-detection is only affordable for small skill sets, but an
+		// explicit preload list must be honoured either way — a large library is exactly
+		// when naming the skills up front matters most.
+		if (isSmallSet || preloadSkills.length) {
 			async function beforeAskCheckIfWeNeedSkills(ctx: any, next: any) {
 					const { question } = ctx
-					const skills = await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
+					const skills = isSmallSet
+						? await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
+						: []
 
 					const allSkillsToLoad : string[] = container.utils.lodash.uniq([
 						...skills,

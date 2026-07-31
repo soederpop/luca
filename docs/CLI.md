@@ -233,6 +233,30 @@ The prompt file is read as plain text and sent in full. Output streams to stdout
 | `--model` | string | | Override the LLM model (assistant mode only) |
 | `--folder` | string | `assistants` | Directory containing assistant definitions |
 
+**Giving a prompt its own skills**
+
+A prompt file can name the skills it needs in frontmatter. With the `claude` target
+they are composed into a generated Claude Code plugin under `~/.luca/skills-plugins/`
+and registered for that run only — the project's own `.claude/skills` folder is never
+read from or written to, and the skills disappear again when the run ends.
+
+```markdown
+---
+skills:
+  - luca-framework
+  - contentbase
+---
+
+Audit the container features in this repo and list the ones missing JSDoc.
+```
+
+Names are resolved through the `skillsLibrary`, so they can live anywhere the library
+tracks. Use `skillsFolders:` instead to pull in every skill under a folder. Both also
+work nested under `agentOptions:`, which wins if you set both. Assistant targets turn
+`skills:` into a preload list instead, since assistants reach skills through
+`assistant.use(skillsLibrary)` rather than a plugin; `codex` and `hermes` have no skill
+mechanism and warn that they are ignoring it.
+
 **Examples:**
 
 ```
