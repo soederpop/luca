@@ -27,6 +27,28 @@ export interface SkillInfo {
 	meta: Record<string, unknown>
 }
 
+/** Which skills to compose into a generated Claude Code plugin. */
+export interface SkillsPluginSpec {
+	/** Skill names to resolve out of the library (requires the library to be started). */
+	skills?: string[]
+	/** Folders containing skill subfolders; every subfolder with a SKILL.md is included. */
+	folders?: string[]
+	/** Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to "luca-skills". */
+	pluginName?: string
+}
+
+/** Outcome of linking one skill into a target folder. */
+export interface SkillInstallResult {
+	/** Skill name, which is also the folder name inside the target. */
+	name: string
+	/** Absolute path to the source skill folder. */
+	path: string
+	/** Absolute path to the link inside the target folder. */
+	linkPath: string
+	/** False when something was already at `linkPath` and was left untouched. */
+	installed: boolean
+}
+
 export const SkillsLibraryStateSchema = FeatureStateSchema.extend({
 	loaded: z.boolean().describe('Whether skill locations have been scanned'),
 	locations: z.array(z.string()).describe('Tracked skill location folder paths'),
@@ -485,6 +507,133 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 				fs.copy(skill.path, dest)
 			}
 		}
+
+		return dir
+	}
+
+	/**
+	 * Resolve skill folders out of a set of skill names and/or location folders.
+	 *
+	 * Names are looked up in the library (so it must be started). Folders are scanned
+	 * directly for subfolders containing a SKILL.md, which needs no library state — a
+	 * folder can be turned into a plugin before `start()` has ever run.
+	 *
+	 * @param spec - Skill names and/or folders containing skill subfolders
+	 * @returns Skill folders keyed by skill name, sorted by name
+	 */
+	resolveSkillFolders(spec: SkillsPluginSpec): Array<{ name: string; path: string }> {
+		const { fs, paths } = this.container
+		const resolved = new Map<string, string>()
+
+		for (const folder of spec.folders ?? []) {
+			const locationPath = this.expandHome(folder)
+			if (!fs.exists(locationPath)) continue
+
+			for (const entry of fs.readdirSync(locationPath)) {
+				const skillDir = paths.resolve(locationPath, entry)
+				if (!fs.exists(paths.resolve(skillDir, 'SKILL.md'))) continue
+				resolved.set(entry, skillDir)
+			}
+		}
+
+		for (const name of spec.skills ?? []) {
+			const skill = this.find(name)
+			if (!skill) {
+				const known = Object.keys(this.skills)
+				const hint = known.length
+					? ` Known skills: ${known.slice(0, 20).join(', ')}${known.length > 20 ? `, …(${known.length} total)` : ''}`
+					: ' The library has no skills — did you call await skillsLibrary.start()?'
+				throw new Error(`Skill "${name}" not found in the library.${hint}`)
+			}
+			resolved.set(skill.name, skill.path)
+		}
+
+		return [...resolved.entries()]
+			.map(([name, path]) => ({ name, path }))
+			.sort((a, b) => a.name.localeCompare(b.name))
+	}
+
+	/**
+	 * Symlink resolved skill folders into a target folder, leaving anything already
+	 * present alone. This is the building block behind {@link ensurePluginWithSkills},
+	 * and is useful on its own for laying skills into a `.claude/skills` folder, a
+	 * scratch directory, or any other place a tool expects to find them.
+	 *
+	 * @param skills - Skill names, or a spec mixing names and folders to scan
+	 * @param folder - Target folder; created if missing
+	 * @returns One entry per resolved skill, with `installed` false when it was already there
+	 *
+	 * @example
+	 * ```typescript
+	 * const lib = await container.feature('skillsLibrary').start()
+	 * lib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')
+	 * // => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]
+	 * ```
+	 */
+	installToFolder(skills: string[] | SkillsPluginSpec, folder: string): SkillInstallResult[] {
+		const { fs, paths } = this.container
+		const spec = Array.isArray(skills) ? { skills } : skills
+		const target = this.expandHome(folder)
+
+		fs.mkdirp(target)
+
+		return this.resolveSkillFolders(spec).map(({ name, path }) => {
+			const linkPath = paths.resolve(target, name)
+			// Never disturb a skill that is already there — it may be hand-authored.
+			if (fs.exists(linkPath) || fs.isSymlink(linkPath)) {
+				return { name, path, linkPath, installed: false }
+			}
+			fs.symlink(path, linkPath)
+			return { name, path, linkPath, installed: true }
+		})
+	}
+
+	/**
+	 * Build a Claude Code plugin directory that exposes the given skills, and return
+	 * its path for passing to `claude --plugin-dir`.
+	 *
+	 * Unlike {@link ensureFolderCreatedWithSkillsByName} — which only makes skill files
+	 * *readable* via `--add-dir` — a plugin actually registers the skills, so Claude
+	 * lists them and can invoke them as `<pluginName>:<skill>`.
+	 *
+	 * The plugin lives at `~/.luca/skills-plugins/<hash>`, where the hash covers each
+	 * skill's **absolute path**, not just its name: two projects can each have a
+	 * `contentbase` skill with different content, and they must not collide on one
+	 * cached plugin. Skill folders are symlinked rather than copied, so edits to the
+	 * source skill show up immediately and never go stale.
+	 *
+	 * @param spec - Skill names to resolve from the library and/or folders to scan
+	 * @returns Absolute path to the plugin directory, or undefined when nothing resolved
+	 *
+	 * @example
+	 * ```typescript
+	 * const lib = await container.feature('skillsLibrary').start()
+	 * const dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })
+	 * // => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)
+	 * ```
+	 */
+	ensurePluginWithSkills(spec: SkillsPluginSpec): string | undefined {
+		const { fs, paths, os } = this.container
+		const entries = this.resolveSkillFolders(spec)
+		if (!entries.length) return undefined
+
+		const pluginName = spec.pluginName ?? 'luca-skills'
+		const hash = this.container.utils.hashObject({
+			pluginName,
+			skills: entries.map(e => [e.name, e.path]),
+		})
+		const dir = paths.resolve(os.homedir, '.luca', 'skills-plugins', hash)
+
+		fs.mkdirp(paths.resolve(dir, 'skills'))
+		fs.mkdirp(paths.resolve(dir, '.claude-plugin'))
+		fs.writeJson(paths.resolve(dir, '.claude-plugin', 'plugin.json'), {
+			name: pluginName,
+			version: '1.0.0',
+			description: `Skills provided by the Luca skills library (${entries.map(e => e.name).join(', ')})`,
+		}, 2)
+
+		// Resolves to the same entries the hash was built from.
+		this.installToFolder(spec, paths.resolve(dir, 'skills'))
 
 		return dir
 	}

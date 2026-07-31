@@ -59,7 +59,7 @@ export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, Codex
 export { OpenAPI } from "./features/openapi";
 export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";
-export type { SkillInfo, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
+export type { SkillInfo, SkillsPluginSpec, SkillInstallResult, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
 export type { VoiceModeOptions, VoiceModeState, TtsProvider, TtsSynthesizeOptions, VoiceConfig } from "./features/voice-mode";
 

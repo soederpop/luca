@@ -5436,6 +5436,54 @@ setBuildTimeData('features.fs', {
       ],
       "returns": "string"
     },
+    "symlink": {
+      "description": "Creates a symbolic link at `linkPath` pointing at `target`. Parent directories of the link are created as needed. Throws if `linkPath` already exists — use {@link ensureSymlink} for the idempotent version.",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "The path the link should point at"
+        },
+        "linkPath": {
+          "type": "string",
+          "description": "Where to create the link"
+        }
+      },
+      "required": [
+        "target",
+        "linkPath"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')\nfs.isSymlink('plugin/skills/react-ink') // => true"
+        }
+      ]
+    },
+    "ensureSymlink": {
+      "description": "Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent: a link already pointing at `target` is left alone, a link pointing somewhere else (or a dangling one) is repointed. Returns false when `linkPath` exists as a real file or directory, since replacing real content is never implied by \"ensure\".",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "The path the link should point at"
+        },
+        "linkPath": {
+          "type": "string",
+          "description": "Where the link should live"
+        }
+      },
+      "required": [
+        "target",
+        "linkPath"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)\nfs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)"
+        }
+      ]
+    },
     "stat": {
       "description": "Synchronously returns the stat object for a file or directory.",
       "parameters": {
@@ -23149,6 +23197,54 @@ export const introspectionData: Record<string, any>[] = [
           "path"
         ],
         "returns": "string"
+      },
+      "symlink": {
+        "description": "Creates a symbolic link at `linkPath` pointing at `target`. Parent directories of the link are created as needed. Throws if `linkPath` already exists — use {@link ensureSymlink} for the idempotent version.",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "The path the link should point at"
+          },
+          "linkPath": {
+            "type": "string",
+            "description": "Where to create the link"
+          }
+        },
+        "required": [
+          "target",
+          "linkPath"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')\nfs.isSymlink('plugin/skills/react-ink') // => true"
+          }
+        ]
+      },
+      "ensureSymlink": {
+        "description": "Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent: a link already pointing at `target` is left alone, a link pointing somewhere else (or a dangling one) is repointed. Returns false when `linkPath` exists as a real file or directory, since replacing real content is never implied by \"ensure\".",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "The path the link should point at"
+          },
+          "linkPath": {
+            "type": "string",
+            "description": "Where the link should live"
+          }
+        },
+        "required": [
+          "target",
+          "linkPath"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)\nfs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)"
+          }
+        ]
       },
       "stat": {
         "description": "Synchronously returns the stat object for a file or directory.",

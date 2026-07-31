@@ -122,6 +122,27 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
     return resolved
   }
 
+  /**
+   * Compose a persona's and a session's skills into a generated Claude Code plugin.
+   *
+   * `create()` is synchronous, so skills named by string are resolved against whatever
+   * the skillsLibrary has already scanned. Call `await container.feature('skillsLibrary').start()`
+   * before creating workers that name skills — `start()` on this controller does it for you.
+   * Folders need no library state and always work.
+   */
+  private ensureSkillsPlugin(persona: ClaudeControllerPersona, options: ClaudeControllerStartOptions): string | undefined {
+    const { uniq } = this.container.utils.lodash
+    const skills = uniq([...(persona.skills ?? []), ...(options.skills ?? [])])
+    const folders = uniq([...(persona.skillsFolders ?? []), ...(options.skillsFolders ?? [])])
+    if (!skills.length && !folders.length) return undefined
+
+    return this.container.feature('skillsLibrary').ensurePluginWithSkills({
+      skills,
+      folders,
+      pluginName: options.skillsPluginName ?? persona.skillsPluginName,
+    })
+  }
+
   private compileArgs(persona: ClaudeControllerPersona, options: ClaudeControllerStartOptions): string[] {
     const args: string[] = []
     const systemPrompt = options.systemPrompt ?? persona.systemPrompt
@@ -147,6 +168,10 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
     if (mcpConfigArgs.length) args.push('--mcp-config', ...mcpConfigArgs)
     if (strictMcpConfig) args.push('--strict-mcp-config')
     if (addDirs.length) args.push('--add-dir', ...addDirs)
+    const pluginDirs = [...(persona.pluginDirs ?? []), ...(options.pluginDirs ?? [])]
+    const skillsPluginDir = this.ensureSkillsPlugin(persona, options)
+    if (skillsPluginDir) pluginDirs.push(skillsPluginDir)
+    if (pluginDirs.length) args.push('--plugin-dir', ...pluginDirs)
     if (tools?.length) args.push('--tools', ...tools)
     if (allowedTools?.length) args.push('--allowed-tools', ...allowedTools)
     if (permissionMode) args.push('--permission-mode', permissionMode)
@@ -189,6 +214,11 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
 
   /** Start one interactive Claude session and track its worker. */
   async start(options: ClaudeControllerStartOptions = {}): Promise<ClaudeControllerSnapshot> {
+    // Resolving skills by name needs the library's scanned locations, and create() is sync.
+    const persona = this.resolvePersona(options.persona)
+    if (persona.skills?.length || options.skills?.length) {
+      await this.container.feature('skillsLibrary').start()
+    }
     const worker = this.create(options)
     const snapshot = await worker.start()
     this.emit('controller:start', { id: worker.id, tmuxSession: worker.tmuxSession })

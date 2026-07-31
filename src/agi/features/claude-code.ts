@@ -180,8 +180,14 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   strictMcpConfig: z.boolean().optional().describe('Require strict MCP config validation'),
   /** Path to a custom settings file. */
   settingsFile: z.string().optional().describe('Path to a custom settings file'),
-  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Passed as --add-dir. */
-  skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to load into sessions'),
+  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Every subfolder with a SKILL.md is registered via a generated plugin, and the folder is also passed as --add-dir. */
+  skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to register in sessions'),
+  /** Skill names to resolve from the skillsLibrary and register in sessions via a generated plugin. */
+  skills: z.array(z.string()).optional().describe('Skill names to resolve from the skillsLibrary and register in sessions'),
+  /** Plugin directories to load, passed as --plugin-dir. */
+  pluginDirs: z.array(z.string()).optional().describe('Plugin directories to load, passed as --plugin-dir'),
+  /** Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. Defaults to "luca-skills". */
+  skillsPluginName: z.string().optional().describe('Name of the generated skills plugin. Defaults to "luca-skills"'),
   /** Launch Claude Code with a Chrome browser tool. */
   chrome: z.boolean().optional().describe('Launch Claude Code with a Chrome browser tool'),
   /** Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL env var. */
@@ -231,8 +237,14 @@ export interface RunOptions {
   continue?: boolean
   /** Additional directories to allow tool access to. */
   addDirs?: string[]
-  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. */
+  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir. */
   skillsFolders?: string[]
+  /** Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. */
+  skills?: string[]
+  /** Plugin directories to load, passed as --plugin-dir. */
+  pluginDirs?: string[]
+  /** Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. */
+  skillsPluginName?: string
   /** MCP config file paths. */
   mcpConfig?: string[]
   /** MCP servers to inject, keyed by server name. */
@@ -502,6 +514,39 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }
 
   /**
+   * Compose the session's `skills` and `skillsFolders` into a generated Claude Code
+   * plugin, so the skills are actually registered rather than merely readable.
+   *
+   * Feature-level and per-session values are merged, then handed to
+   * `skillsLibrary.ensurePluginWithSkills()`. The library is started on demand, since
+   * resolving skills by name needs its scanned locations.
+   *
+   * @param {RunOptions} options - Per-session options, merged over the feature defaults
+   * @returns {Promise<string | undefined>} Plugin directory to pass as --plugin-dir, or undefined when no skills were requested
+   *
+   * @example
+   * ```typescript
+   * const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })
+   * // => ~/.luca/skills-plugins/<hash>
+   * ```
+   */
+  async ensureSkillsPlugin(options: RunOptions = {}): Promise<string | undefined> {
+    const { uniq } = this.container.utils.lodash
+    const skills = uniq([...(options.skills ?? []), ...(this.options.skills ?? [])])
+    const folders = uniq([...(options.skillsFolders ?? []), ...(this.options.skillsFolders ?? [])])
+    if (!skills.length && !folders.length) return undefined
+
+    const library = this.container.feature('skillsLibrary')
+    if (skills.length) await library.start()
+
+    return library.ensurePluginWithSkills({
+      skills,
+      folders,
+      pluginName: options.skillsPluginName ?? this.options.skillsPluginName,
+    })
+  }
+
+  /**
    * Build the argument array for a claude CLI invocation.
    *
    * @param {string} prompt - The prompt text
@@ -566,6 +611,17 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (addDirs.length) {
       args.push('--add-dir', ...addDirs)
     }
+
+    // Skills only become invocable when they're registered by a plugin — --add-dir
+    // alone just grants read access. Compose the requested skills into a generated
+    // plugin and hand Claude that.
+    const pluginDirs = [
+      ...(options.pluginDirs ?? []),
+      ...(this.options.pluginDirs ?? []),
+    ]
+    const skillsPluginDir = await this.ensureSkillsPlugin(options)
+    if (skillsPluginDir) pluginDirs.push(skillsPluginDir)
+    if (pluginDirs.length) args.push('--plugin-dir', ...pluginDirs)
 
     // --- New v2.1 flags ---
     const effort = options.effort ?? this.options.effort

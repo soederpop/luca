@@ -4172,6 +4172,173 @@ setBuildTimeData('features.claudeCode', {
         }
       ]
     },
+    "ensureSkillsPlugin": {
+      "description": "Compose the session's `skills` and `skillsFolders` into a generated Claude Code plugin, so the skills are actually registered rather than merely readable. Feature-level and per-session values are merged, then handed to `skillsLibrary.ensurePluginWithSkills()`. The library is started on demand, since resolving skills by name needs its scanned locations.",
+      "parameters": {
+        "options": {
+          "type": "RunOptions",
+          "description": "Per-session options, merged over the feature defaults",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Override model for this session."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Override working directory."
+            },
+            "systemPrompt": {
+              "type": "string",
+              "description": "System prompt for this session."
+            },
+            "appendSystemPrompt": {
+              "type": "string",
+              "description": "Append system prompt for this session."
+            },
+            "permissionMode": {
+              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
+              "description": "Permission mode override."
+            },
+            "allowedTools": {
+              "type": "string[]",
+              "description": "Allowed tools override."
+            },
+            "disallowedTools": {
+              "type": "string[]",
+              "description": "Disallowed tools override."
+            },
+            "streaming": {
+              "type": "boolean",
+              "description": "Whether to stream partial messages."
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous session by ID."
+            },
+            "continue": {
+              "type": "boolean",
+              "description": "Continue the most recent conversation."
+            },
+            "addDirs": {
+              "type": "string[]",
+              "description": "Additional directories to allow tool access to."
+            },
+            "skillsFolders": {
+              "type": "string[]",
+              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+            },
+            "skills": {
+              "type": "string[]",
+              "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+            },
+            "pluginDirs": {
+              "type": "string[]",
+              "description": "Plugin directories to load, passed as --plugin-dir."
+            },
+            "skillsPluginName": {
+              "type": "string",
+              "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
+            },
+            "mcpConfig": {
+              "type": "string[]",
+              "description": "MCP config file paths."
+            },
+            "mcpServers": {
+              "type": "Record<string, ClaudeCodeMcpServerConfig>",
+              "description": "MCP servers to inject, keyed by server name."
+            },
+            "dangerouslySkipPermissions": {
+              "type": "boolean",
+              "description": "Skip all permission checks (only for sandboxed environments)."
+            },
+            "extraArgs": {
+              "type": "string[]",
+              "description": "Additional arbitrary CLI flags."
+            },
+            "fileLogPath": {
+              "type": "string",
+              "description": "Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath."
+            },
+            "fileLogLevel": {
+              "type": "FileLogLevel",
+              "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+            },
+            "effort": {
+              "type": "'low' | 'medium' | 'high'",
+              "description": "Effort level for Claude reasoning."
+            },
+            "maxBudgetUsd": {
+              "type": "number",
+              "description": "Maximum cost budget in USD."
+            },
+            "fallbackModel": {
+              "type": "string",
+              "description": "Fallback model when the primary is unavailable."
+            },
+            "jsonSchema": {
+              "type": "string | object",
+              "description": "JSON schema for structured output validation."
+            },
+            "agent": {
+              "type": "string",
+              "description": "Agent to use for this session."
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "Resume or fork a specific Claude session by ID."
+            },
+            "noSessionPersistence": {
+              "type": "boolean",
+              "description": "Disable session persistence for this run."
+            },
+            "forkSession": {
+              "type": "boolean",
+              "description": "Fork from an existing session instead of resuming."
+            },
+            "tools": {
+              "type": "string[]",
+              "description": "Tools to make available."
+            },
+            "strictMcpConfig": {
+              "type": "boolean",
+              "description": "Require strict MCP config validation."
+            },
+            "debug": {
+              "type": "string | boolean",
+              "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+            },
+            "debugFile": {
+              "type": "string",
+              "description": "Path to write debug output to a file."
+            },
+            "settingsFile": {
+              "type": "string",
+              "description": "Path to a custom settings file."
+            },
+            "chrome": {
+              "type": "boolean",
+              "description": "Launch Claude Code with a Chrome browser tool."
+            },
+            "baseURL": {
+              "type": "string",
+              "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+            },
+            "authToken": {
+              "type": "string",
+              "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<string | undefined>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })\n// => ~/.luca/skills-plugins/<hash>"
+        }
+      ]
+    },
     "run": {
       "description": "Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON events, and resolves when the session completes.",
       "parameters": {
@@ -4229,7 +4396,19 @@ setBuildTimeData('features.claudeCode', {
             },
             "skillsFolders": {
               "type": "string[]",
-              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+            },
+            "skills": {
+              "type": "string[]",
+              "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+            },
+            "pluginDirs": {
+              "type": "string[]",
+              "description": "Plugin directories to load, passed as --plugin-dir."
+            },
+            "skillsPluginName": {
+              "type": "string",
+              "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
             },
             "mcpConfig": {
               "type": "string[]",
@@ -4390,7 +4569,19 @@ setBuildTimeData('features.claudeCode', {
             },
             "skillsFolders": {
               "type": "string[]",
-              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+            },
+            "skills": {
+              "type": "string[]",
+              "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+            },
+            "pluginDirs": {
+              "type": "string[]",
+              "description": "Plugin directories to load, passed as --plugin-dir."
+            },
+            "skillsPluginName": {
+              "type": "string",
+              "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
             },
             "mcpConfig": {
               "type": "string[]",
@@ -4828,7 +5019,22 @@ setBuildTimeData('features.claudeCode', {
         },
         "skillsFolders": {
           "type": "string[]",
-          "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir.",
+          "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir.",
+          "optional": true
+        },
+        "skills": {
+          "type": "string[]",
+          "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin.",
+          "optional": true
+        },
+        "pluginDirs": {
+          "type": "string[]",
+          "description": "Plugin directories to load, passed as --plugin-dir.",
+          "optional": true
+        },
+        "skillsPluginName": {
+          "type": "string",
+          "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace.",
           "optional": true
         },
         "mcpConfig": {
@@ -9715,6 +9921,54 @@ setBuildTimeData('features.fs', {
         "path"
       ],
       "returns": "string"
+    },
+    "symlink": {
+      "description": "Creates a symbolic link at `linkPath` pointing at `target`. Parent directories of the link are created as needed. Throws if `linkPath` already exists — use {@link ensureSymlink} for the idempotent version.",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "The path the link should point at"
+        },
+        "linkPath": {
+          "type": "string",
+          "description": "Where to create the link"
+        }
+      },
+      "required": [
+        "target",
+        "linkPath"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')\nfs.isSymlink('plugin/skills/react-ink') // => true"
+        }
+      ]
+    },
+    "ensureSymlink": {
+      "description": "Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent: a link already pointing at `target` is left alone, a link pointing somewhere else (or a dangling one) is repointed. Returns false when `linkPath` exists as a real file or directory, since replacing real content is never implied by \"ensure\".",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "The path the link should point at"
+        },
+        "linkPath": {
+          "type": "string",
+          "description": "Where the link should live"
+        }
+      },
+      "required": [
+        "target",
+        "linkPath"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)\nfs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)"
+        }
+      ]
     },
     "stat": {
       "description": "Synchronously returns the stat object for a file or directory.",
@@ -21144,6 +21398,90 @@ setBuildTimeData('features.skillsLibrary', {
       ],
       "returns": "string"
     },
+    "resolveSkillFolders": {
+      "description": "Resolve skill folders out of a set of skill names and/or location folders. Names are looked up in the library (so it must be started). Folders are scanned directly for subfolders containing a SKILL.md, which needs no library state — a folder can be turned into a plugin before `start()` has ever run.",
+      "parameters": {
+        "spec": {
+          "type": "SkillsPluginSpec",
+          "description": "Skill names and/or folders containing skill subfolders",
+          "properties": {
+            "skills": {
+              "type": "string[]",
+              "description": "Skill names to resolve out of the library (requires the library to be started)."
+            },
+            "folders": {
+              "type": "string[]",
+              "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included."
+            },
+            "pluginName": {
+              "type": "string",
+              "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\"."
+            }
+          }
+        }
+      },
+      "required": [
+        "spec"
+      ],
+      "returns": "Array<{ name: string; path: string }>"
+    },
+    "installToFolder": {
+      "description": "Symlink resolved skill folders into a target folder, leaving anything already present alone. This is the building block behind {@link ensurePluginWithSkills}, and is useful on its own for laying skills into a `.claude/skills` folder, a scratch directory, or any other place a tool expects to find them.",
+      "parameters": {
+        "skills": {
+          "type": "string[] | SkillsPluginSpec",
+          "description": "Skill names, or a spec mixing names and folders to scan"
+        },
+        "folder": {
+          "type": "string",
+          "description": "Target folder; created if missing"
+        }
+      },
+      "required": [
+        "skills",
+        "folder"
+      ],
+      "returns": "SkillInstallResult[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const lib = await container.feature('skillsLibrary').start()\nlib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')\n// => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]"
+        }
+      ]
+    },
+    "ensurePluginWithSkills": {
+      "description": "Build a Claude Code plugin directory that exposes the given skills, and return its path for passing to `claude --plugin-dir`. Unlike {@link ensureFolderCreatedWithSkillsByName} — which only makes skill files *readable* via `--add-dir` — a plugin actually registers the skills, so Claude lists them and can invoke them as `<pluginName>:<skill>`. The plugin lives at `~/.luca/skills-plugins/<hash>`, where the hash covers each skill's **absolute path**, not just its name: two projects can each have a `contentbase` skill with different content, and they must not collide on one cached plugin. Skill folders are symlinked rather than copied, so edits to the source skill show up immediately and never go stale.",
+      "parameters": {
+        "spec": {
+          "type": "SkillsPluginSpec",
+          "description": "Skill names to resolve from the library and/or folders to scan",
+          "properties": {
+            "skills": {
+              "type": "string[]",
+              "description": "Skill names to resolve out of the library (requires the library to be started)."
+            },
+            "folders": {
+              "type": "string[]",
+              "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included."
+            },
+            "pluginName": {
+              "type": "string",
+              "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\"."
+            }
+          }
+        }
+      },
+      "required": [
+        "spec"
+      ],
+      "returns": "string | undefined",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const lib = await container.feature('skillsLibrary').start()\nconst dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })\n// => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)"
+        }
+      ]
+    },
     "searchAvailableSkills": {
       "description": "Search available skills, optionally filtered by a query string. Respects the `only` filter.",
       "parameters": {
@@ -21286,6 +21624,47 @@ setBuildTimeData('features.skillsLibrary', {
         "meta": {
           "type": "Record<string, unknown>",
           "description": "All frontmatter metadata"
+        }
+      }
+    },
+    "SkillsPluginSpec": {
+      "description": "Which skills to compose into a generated Claude Code plugin.",
+      "properties": {
+        "skills": {
+          "type": "string[]",
+          "description": "Skill names to resolve out of the library (requires the library to be started).",
+          "optional": true
+        },
+        "folders": {
+          "type": "string[]",
+          "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included.",
+          "optional": true
+        },
+        "pluginName": {
+          "type": "string",
+          "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\".",
+          "optional": true
+        }
+      }
+    },
+    "SkillInstallResult": {
+      "description": "Outcome of linking one skill into a target folder.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Skill name, which is also the folder name inside the target."
+        },
+        "path": {
+          "type": "string",
+          "description": "Absolute path to the source skill folder."
+        },
+        "linkPath": {
+          "type": "string",
+          "description": "Absolute path to the link inside the target folder."
+        },
+        "installed": {
+          "type": "boolean",
+          "description": "False when something was already at `linkPath` and was left untouched."
         }
       }
     }
@@ -29339,6 +29718,173 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "ensureSkillsPlugin": {
+        "description": "Compose the session's `skills` and `skillsFolders` into a generated Claude Code plugin, so the skills are actually registered rather than merely readable. Feature-level and per-session values are merged, then handed to `skillsLibrary.ensurePluginWithSkills()`. The library is started on demand, since resolving skills by name needs its scanned locations.",
+        "parameters": {
+          "options": {
+            "type": "RunOptions",
+            "description": "Per-session options, merged over the feature defaults",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Override model for this session."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Override working directory."
+              },
+              "systemPrompt": {
+                "type": "string",
+                "description": "System prompt for this session."
+              },
+              "appendSystemPrompt": {
+                "type": "string",
+                "description": "Append system prompt for this session."
+              },
+              "permissionMode": {
+                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
+                "description": "Permission mode override."
+              },
+              "allowedTools": {
+                "type": "string[]",
+                "description": "Allowed tools override."
+              },
+              "disallowedTools": {
+                "type": "string[]",
+                "description": "Disallowed tools override."
+              },
+              "streaming": {
+                "type": "boolean",
+                "description": "Whether to stream partial messages."
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous session by ID."
+              },
+              "continue": {
+                "type": "boolean",
+                "description": "Continue the most recent conversation."
+              },
+              "addDirs": {
+                "type": "string[]",
+                "description": "Additional directories to allow tool access to."
+              },
+              "skillsFolders": {
+                "type": "string[]",
+                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              },
+              "skills": {
+                "type": "string[]",
+                "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+              },
+              "pluginDirs": {
+                "type": "string[]",
+                "description": "Plugin directories to load, passed as --plugin-dir."
+              },
+              "skillsPluginName": {
+                "type": "string",
+                "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
+              },
+              "mcpConfig": {
+                "type": "string[]",
+                "description": "MCP config file paths."
+              },
+              "mcpServers": {
+                "type": "Record<string, ClaudeCodeMcpServerConfig>",
+                "description": "MCP servers to inject, keyed by server name."
+              },
+              "dangerouslySkipPermissions": {
+                "type": "boolean",
+                "description": "Skip all permission checks (only for sandboxed environments)."
+              },
+              "extraArgs": {
+                "type": "string[]",
+                "description": "Additional arbitrary CLI flags."
+              },
+              "fileLogPath": {
+                "type": "string",
+                "description": "Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath."
+              },
+              "fileLogLevel": {
+                "type": "FileLogLevel",
+                "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+              },
+              "effort": {
+                "type": "'low' | 'medium' | 'high'",
+                "description": "Effort level for Claude reasoning."
+              },
+              "maxBudgetUsd": {
+                "type": "number",
+                "description": "Maximum cost budget in USD."
+              },
+              "fallbackModel": {
+                "type": "string",
+                "description": "Fallback model when the primary is unavailable."
+              },
+              "jsonSchema": {
+                "type": "string | object",
+                "description": "JSON schema for structured output validation."
+              },
+              "agent": {
+                "type": "string",
+                "description": "Agent to use for this session."
+              },
+              "sessionId": {
+                "type": "string",
+                "description": "Resume or fork a specific Claude session by ID."
+              },
+              "noSessionPersistence": {
+                "type": "boolean",
+                "description": "Disable session persistence for this run."
+              },
+              "forkSession": {
+                "type": "boolean",
+                "description": "Fork from an existing session instead of resuming."
+              },
+              "tools": {
+                "type": "string[]",
+                "description": "Tools to make available."
+              },
+              "strictMcpConfig": {
+                "type": "boolean",
+                "description": "Require strict MCP config validation."
+              },
+              "debug": {
+                "type": "string | boolean",
+                "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+              },
+              "debugFile": {
+                "type": "string",
+                "description": "Path to write debug output to a file."
+              },
+              "settingsFile": {
+                "type": "string",
+                "description": "Path to a custom settings file."
+              },
+              "chrome": {
+                "type": "boolean",
+                "description": "Launch Claude Code with a Chrome browser tool."
+              },
+              "baseURL": {
+                "type": "string",
+                "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+              },
+              "authToken": {
+                "type": "string",
+                "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<string | undefined>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })\n// => ~/.luca/skills-plugins/<hash>"
+          }
+        ]
+      },
       "run": {
         "description": "Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON events, and resolves when the session completes.",
         "parameters": {
@@ -29396,7 +29942,19 @@ export const introspectionData: Record<string, any>[] = [
               },
               "skillsFolders": {
                 "type": "string[]",
-                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              },
+              "skills": {
+                "type": "string[]",
+                "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+              },
+              "pluginDirs": {
+                "type": "string[]",
+                "description": "Plugin directories to load, passed as --plugin-dir."
+              },
+              "skillsPluginName": {
+                "type": "string",
+                "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
               },
               "mcpConfig": {
                 "type": "string[]",
@@ -29557,7 +30115,19 @@ export const introspectionData: Record<string, any>[] = [
               },
               "skillsFolders": {
                 "type": "string[]",
-                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir."
+              },
+              "skills": {
+                "type": "string[]",
+                "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin."
+              },
+              "pluginDirs": {
+                "type": "string[]",
+                "description": "Plugin directories to load, passed as --plugin-dir."
+              },
+              "skillsPluginName": {
+                "type": "string",
+                "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace."
               },
               "mcpConfig": {
                 "type": "string[]",
@@ -29995,7 +30565,22 @@ export const introspectionData: Record<string, any>[] = [
           },
           "skillsFolders": {
             "type": "string[]",
-            "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir.",
+            "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Registered via a generated plugin, and merged with addDirs as --add-dir.",
+            "optional": true
+          },
+          "skills": {
+            "type": "string[]",
+            "description": "Skill names to resolve from the skillsLibrary and register in this session via a generated plugin.",
+            "optional": true
+          },
+          "pluginDirs": {
+            "type": "string[]",
+            "description": "Plugin directories to load, passed as --plugin-dir.",
+            "optional": true
+          },
+          "skillsPluginName": {
+            "type": "string",
+            "description": "Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace.",
             "optional": true
           },
           "mcpConfig": {
@@ -34868,6 +35453,54 @@ export const introspectionData: Record<string, any>[] = [
           "path"
         ],
         "returns": "string"
+      },
+      "symlink": {
+        "description": "Creates a symbolic link at `linkPath` pointing at `target`. Parent directories of the link are created as needed. Throws if `linkPath` already exists — use {@link ensureSymlink} for the idempotent version.",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "The path the link should point at"
+          },
+          "linkPath": {
+            "type": "string",
+            "description": "Where to create the link"
+          }
+        },
+        "required": [
+          "target",
+          "linkPath"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')\nfs.isSymlink('plugin/skills/react-ink') // => true"
+          }
+        ]
+      },
+      "ensureSymlink": {
+        "description": "Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent: a link already pointing at `target` is left alone, a link pointing somewhere else (or a dangling one) is repointed. Returns false when `linkPath` exists as a real file or directory, since replacing real content is never implied by \"ensure\".",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "The path the link should point at"
+          },
+          "linkPath": {
+            "type": "string",
+            "description": "Where the link should live"
+          }
+        },
+        "required": [
+          "target",
+          "linkPath"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)\nfs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)"
+          }
+        ]
       },
       "stat": {
         "description": "Synchronously returns the stat object for a file or directory.",
@@ -46262,6 +46895,90 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "string"
       },
+      "resolveSkillFolders": {
+        "description": "Resolve skill folders out of a set of skill names and/or location folders. Names are looked up in the library (so it must be started). Folders are scanned directly for subfolders containing a SKILL.md, which needs no library state — a folder can be turned into a plugin before `start()` has ever run.",
+        "parameters": {
+          "spec": {
+            "type": "SkillsPluginSpec",
+            "description": "Skill names and/or folders containing skill subfolders",
+            "properties": {
+              "skills": {
+                "type": "string[]",
+                "description": "Skill names to resolve out of the library (requires the library to be started)."
+              },
+              "folders": {
+                "type": "string[]",
+                "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included."
+              },
+              "pluginName": {
+                "type": "string",
+                "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\"."
+              }
+            }
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "returns": "Array<{ name: string; path: string }>"
+      },
+      "installToFolder": {
+        "description": "Symlink resolved skill folders into a target folder, leaving anything already present alone. This is the building block behind {@link ensurePluginWithSkills}, and is useful on its own for laying skills into a `.claude/skills` folder, a scratch directory, or any other place a tool expects to find them.",
+        "parameters": {
+          "skills": {
+            "type": "string[] | SkillsPluginSpec",
+            "description": "Skill names, or a spec mixing names and folders to scan"
+          },
+          "folder": {
+            "type": "string",
+            "description": "Target folder; created if missing"
+          }
+        },
+        "required": [
+          "skills",
+          "folder"
+        ],
+        "returns": "SkillInstallResult[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const lib = await container.feature('skillsLibrary').start()\nlib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')\n// => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]"
+          }
+        ]
+      },
+      "ensurePluginWithSkills": {
+        "description": "Build a Claude Code plugin directory that exposes the given skills, and return its path for passing to `claude --plugin-dir`. Unlike {@link ensureFolderCreatedWithSkillsByName} — which only makes skill files *readable* via `--add-dir` — a plugin actually registers the skills, so Claude lists them and can invoke them as `<pluginName>:<skill>`. The plugin lives at `~/.luca/skills-plugins/<hash>`, where the hash covers each skill's **absolute path**, not just its name: two projects can each have a `contentbase` skill with different content, and they must not collide on one cached plugin. Skill folders are symlinked rather than copied, so edits to the source skill show up immediately and never go stale.",
+        "parameters": {
+          "spec": {
+            "type": "SkillsPluginSpec",
+            "description": "Skill names to resolve from the library and/or folders to scan",
+            "properties": {
+              "skills": {
+                "type": "string[]",
+                "description": "Skill names to resolve out of the library (requires the library to be started)."
+              },
+              "folders": {
+                "type": "string[]",
+                "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included."
+              },
+              "pluginName": {
+                "type": "string",
+                "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\"."
+              }
+            }
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "returns": "string | undefined",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const lib = await container.feature('skillsLibrary').start()\nconst dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })\n// => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)"
+          }
+        ]
+      },
       "searchAvailableSkills": {
         "description": "Search available skills, optionally filtered by a query string. Respects the `only` filter.",
         "parameters": {
@@ -46404,6 +47121,47 @@ export const introspectionData: Record<string, any>[] = [
           "meta": {
             "type": "Record<string, unknown>",
             "description": "All frontmatter metadata"
+          }
+        }
+      },
+      "SkillsPluginSpec": {
+        "description": "Which skills to compose into a generated Claude Code plugin.",
+        "properties": {
+          "skills": {
+            "type": "string[]",
+            "description": "Skill names to resolve out of the library (requires the library to be started).",
+            "optional": true
+          },
+          "folders": {
+            "type": "string[]",
+            "description": "Folders containing skill subfolders; every subfolder with a SKILL.md is included.",
+            "optional": true
+          },
+          "pluginName": {
+            "type": "string",
+            "description": "Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to \"luca-skills\".",
+            "optional": true
+          }
+        }
+      },
+      "SkillInstallResult": {
+        "description": "Outcome of linking one skill into a target folder.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Skill name, which is also the folder name inside the target."
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute path to the source skill folder."
+          },
+          "linkPath": {
+            "type": "string",
+            "description": "Absolute path to the link inside the target folder."
+          },
+          "installed": {
+            "type": "boolean",
+            "description": "False when something was already at `linkPath` and was left untouched."
           }
         }
       }

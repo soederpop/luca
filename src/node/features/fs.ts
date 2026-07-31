@@ -11,6 +11,8 @@ import {
   renameSync,
   lstatSync,
   realpathSync,
+  symlinkSync,
+  unlinkSync as nodeUnlinkSync,
 
   rmSync as nodeRmSync,
   type Stats,
@@ -622,6 +624,63 @@ export class FS extends Feature {
   realpath(path: string): string {
     const filePath = this.container.paths.resolve(path);
     return realpathSync(filePath)
+  }
+
+  /**
+   * Creates a symbolic link at `linkPath` pointing at `target`. Parent directories
+   * of the link are created as needed. Throws if `linkPath` already exists — use
+   * {@link ensureSymlink} for the idempotent version.
+   *
+   * @param {string} target - The path the link should point at
+   * @param {string} linkPath - Where to create the link
+   *
+   * @example
+   * ```typescript
+   * fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')
+   * fs.isSymlink('plugin/skills/react-ink') // => true
+   * ```
+   */
+  symlink(target: string, linkPath: string): void {
+    const resolvedTarget = this.container.paths.resolve(target)
+    const resolvedLink = this.container.paths.resolve(linkPath)
+    mkdirSync(dirname(resolvedLink), { recursive: true })
+    symlinkSync(resolvedTarget, resolvedLink, this.isDirectory(resolvedTarget) ? 'dir' : 'file')
+  }
+
+  /**
+   * Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent:
+   * a link already pointing at `target` is left alone, a link pointing somewhere else
+   * (or a dangling one) is repointed. Returns false when `linkPath` exists as a real
+   * file or directory, since replacing real content is never implied by "ensure".
+   *
+   * @param {string} target - The path the link should point at
+   * @param {string} linkPath - Where the link should live
+   * @returns {boolean} True if the link exists and points at target when this returns
+   *
+   * @example
+   * ```typescript
+   * fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)
+   * fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)
+   * ```
+   */
+  ensureSymlink(target: string, linkPath: string): boolean {
+    const resolvedTarget = this.container.paths.resolve(target)
+    const resolvedLink = this.container.paths.resolve(linkPath)
+
+    if (this.isSymlink(resolvedLink)) {
+      // A correct link is a no-op; a stale or dangling one gets repointed.
+      let current: string | undefined
+      try { current = realpathSync(resolvedLink) } catch { current = undefined }
+      let wanted = resolvedTarget
+      try { wanted = realpathSync(resolvedTarget) } catch { /* target may not exist yet */ }
+      if (current && current === wanted) return true
+      nodeUnlinkSync(resolvedLink)
+    } else if (this.exists(resolvedLink)) {
+      return false
+    }
+
+    this.symlink(resolvedTarget, resolvedLink)
+    return true
   }
 
   /**

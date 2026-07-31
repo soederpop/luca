@@ -34,7 +34,14 @@ export interface ClaudeControllerPersona {
   mcpServers?: Record<string, any>
   strictMcpConfig?: boolean
   addDirs?: string[]
+  /** Folders containing skill subfolders. Registered via a generated plugin and added as allowed dirs. */
   skillsFolders?: string[]
+  /** Skill names resolved from the skillsLibrary and registered via a generated plugin. */
+  skills?: string[]
+  /** Plugin directories passed straight through as --plugin-dir. */
+  pluginDirs?: string[]
+  /** Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. */
+  skillsPluginName?: string
   tools?: string[]
   allowedTools?: string[]
   permissionMode?: 'default' | 'acceptEdits' | 'auto' | 'bypassPermissions' | 'plan' | 'dontAsk'
