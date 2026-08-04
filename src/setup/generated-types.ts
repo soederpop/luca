@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.8"
+export const typesBundleVersion = "3.6.9"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -121,7 +121,7 @@ export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, Codex
 export { OpenAPI } from "./features/openapi";
 export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";
-export type { SkillInfo, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
+export type { SkillInfo, SkillsPluginSpec, SkillInstallResult, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
 export type { VoiceModeOptions, VoiceModeState, TtsProvider, TtsSynthesizeOptions, VoiceConfig } from "./features/voice-mode";
 export interface GeneratedAGIFeatures {
@@ -641,6 +641,7 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     allowTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
     forbidTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
     toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
     clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$strip>;
@@ -752,6 +753,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         allowTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
         forbidTools: z.ZodOptional<z.ZodArray<z.ZodString>>;
         toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
         clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     }, z.core.$strip>;
@@ -943,6 +945,17 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         schemas: Record<string, z.ZodType>;
         handlers: Record<string, Function>;
     }): this;
+    /**
+     * Best-effort label for something passed to \`use()\`, so failures can name
+     * the helper at fault instead of surfacing anonymously.
+     */
+    private describeToolsProvider;
+    /**
+     * Log a tools-registration failure without taking the assistant down. A
+     * single bad entry in \`export const use = [...]\` should cost that helper's
+     * tools, not the whole session.
+     */
+    private reportToolsProviderFailure;
     /** Register tools from a \`{ schemas, handlers }\` object. */
     private _registerTools;
     /**
@@ -1316,6 +1329,7 @@ export declare const AssistantsManagerEventsSchema: z.ZodObject<{
     workspaceOptionsLoaded: z.ZodTuple<[z.ZodString], null>;
     workspaceHooksLoaded: z.ZodTuple<[z.ZodString], null>;
     unusedOverrides: z.ZodTuple<[z.ZodArray<z.ZodString>], null>;
+    assistantDisabled: z.ZodTuple<[z.ZodString, z.ZodBoolean], null>;
 }, z.core.$strip>;
 /**
  * Optional lifecycle hooks module loaded from \`assistants/hooks.ts\` at the
@@ -1350,6 +1364,7 @@ export declare const AssistantsManagerStateSchema: z.ZodObject<{
     factories: z.ZodRecord<z.ZodString, z.ZodAny>;
     extraFolders: z.ZodArray<z.ZodString>;
     optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
+    disabled: z.ZodArray<z.ZodString>;
     workspaceOptionsPath: z.ZodNullable<z.ZodString>;
     workspaceHooksPath: z.ZodNullable<z.ZodString>;
 }, z.core.$loose>;
@@ -1391,6 +1406,7 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
         factories: z.ZodRecord<z.ZodString, z.ZodAny>;
         extraFolders: z.ZodArray<z.ZodString>;
         optionOverrides: z.ZodRecord<z.ZodString, z.ZodAny>;
+        disabled: z.ZodArray<z.ZodString>;
         workspaceOptionsPath: z.ZodNullable<z.ZodString>;
         workspaceHooksPath: z.ZodNullable<z.ZodString>;
     }, z.core.$loose>;
@@ -1409,6 +1425,7 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
         workspaceOptionsLoaded: z.ZodTuple<[z.ZodString], null>;
         workspaceHooksLoaded: z.ZodTuple<[z.ZodString], null>;
         unusedOverrides: z.ZodTuple<[z.ZodArray<z.ZodString>], null>;
+        assistantDisabled: z.ZodTuple<[z.ZodString, z.ZodBoolean], null>;
     }, z.core.$strip>;
     static shortcut: "features.assistantsManager";
     static stability: "core";
@@ -1484,6 +1501,73 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * @returns {Record<string, any>} Merged overrides for this assistant
      */
     overridesFor(name: string): Record<string, any>;
+    /** Strips the optional \`assistants/\` prefix so all lookups use the short name. */
+    private _shortName;
+    /**
+     * Whether an assistant is disabled in this workspace. Disabled assistants are
+     * hidden from \`available\`, \`list()\`, the \`luca chat\` picker, and an assistant's
+     * \`availableSubagents\` — but \`get()\` and \`create()\` still work, so naming one
+     * explicitly (\`luca chat googleWorkspace\`) runs it. Disabling is curation, not
+     * an access lock.
+     *
+     * Three sources, any of which disables: a runtime \`disableAssistant()\` call, a
+     * per-assistant \`disabled: true\` in \`assistants/options.yml\`, or the assistant's name
+     * appearing in a top-level \`disabled:\` list in that same file.
+     *
+     * @param {string} name - The assistant name, with or without an \`assistants/\` prefix
+     * @returns {boolean} True when the assistant should be hidden
+     *
+     * @example
+     * \`\`\`typescript
+     * const manager = container.feature('assistantsManager')
+     * manager.disableAssistant('googleWorkspace')
+     * console.log(manager.isDisabled('googleWorkspace')) // true
+     * \`\`\`
+     */
+    isDisabled(name: string): boolean;
+    /**
+     * Hides an assistant from every listing surface. Use this from a plugin or
+     * \`luca.cli.ts\` when the assistant's dependencies aren't present in the host
+     * workspace — e.g. a googleWorkspace assistant in a project without gws.
+     *
+     * Named \`disableAssistant\` rather than \`disable\` because \`Feature.enable()\` is
+     * the base-class lifecycle method — this pair is about assistants, not about
+     * this feature's own enabled state.
+     *
+     * @param {string} name - The assistant name
+     * @returns {this} This instance, for chaining
+     *
+     * @example
+     * \`\`\`typescript
+     * const manager = container.feature('assistantsManager')
+     * if (!container.features.available.includes('gws')) manager.disableAssistant('googleWorkspace')
+     * \`\`\`
+     */
+    disableAssistant(name: string): this;
+    /**
+     * Undoes a runtime \`disableAssistant()\`. Note this only clears the runtime flag —
+     * an assistant disabled by \`assistants/options.yml\` stays hidden, since that file
+     * is the workspace owner's declaration.
+     *
+     * @param {string} name - The assistant name
+     * @returns {this} This instance, for chaining
+     *
+     * @example
+     * \`\`\`typescript
+     * const manager = container.feature('assistantsManager')
+     * manager.disableAssistant('googleWorkspace').enableAssistant('googleWorkspace')
+     * console.log(manager.isDisabled('googleWorkspace')) // false
+     * \`\`\`
+     */
+    enableAssistant(name: string): this;
+    /**
+     * The effective set of disabled assistant names — runtime \`disableAssistant()\` calls plus
+     * everything \`assistants/options.yml\` turns off. Only reports names the manager
+     * actually knows about.
+     *
+     * @returns {string[]} Disabled assistant names
+     */
+    get disabledAssistants(): string[];
     /**
      * Discovers assistants by listing subdirectories in ~/.luca/assistants/,
      * cwd/assistants/, and any folders added via \`addDiscoveryFolder()\`.
@@ -1535,20 +1619,26 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      */
     downloadLucaCoreAssistants(): Promise<any>;
     /**
-     * Alias for \`available\`.
+     * Alias for \`available\`. Excludes disabled assistants.
      *
      * @returns {string[]} Names of all available assistants
      */
     get availableAssistants(): string[];
     /**
      * Names of all available assistants — the union of discovered entries
-     * and runtime-registered factories, deduplicated.
+     * and runtime-registered factories, deduplicated, with disabled assistants
+     * removed. Use \`entries\` / \`factories\` for the unfiltered source.
      *
      * @returns {string[]} Assistant names
      */
     get available(): string[];
     /**
-     * Returns all discovered assistant entries as an array.
+     * Every known assistant name, disabled ones included — the raw union of
+     * discovered entries and registered factories.
+     */
+    private _allNames;
+    /**
+     * Returns all discovered assistant entries as an array, excluding disabled ones.
      *
      * @returns {AssistantEntry[]} All discovered entries
      */
@@ -2352,6 +2442,9 @@ export declare const ClaudeCodeOptionsSchema: z.ZodObject<{
     strictMcpConfig: z.ZodOptional<z.ZodBoolean>;
     settingsFile: z.ZodOptional<z.ZodString>;
     skillsFolders: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    pluginDirs: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    skillsPluginName: z.ZodOptional<z.ZodString>;
     chrome: z.ZodOptional<z.ZodBoolean>;
     baseURL: z.ZodOptional<z.ZodString>;
     authToken: z.ZodOptional<z.ZodString>;
@@ -2434,8 +2527,14 @@ export interface RunOptions {
     continue?: boolean;
     /** Additional directories to allow tool access to. */
     addDirs?: string[];
-    /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. */
+    /** Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. */
     skillsFolders?: string[];
+    /** Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. */
+    skills?: string[];
+    /** Plugin directories to load, passed as --plugin-dir. */
+    pluginDirs?: string[];
+    /** Name of the generated skills plugin, which becomes the \`<pluginName>:<skill>\` namespace. */
+    skillsPluginName?: string;
     /** MCP config file paths. */
     mcpConfig?: string[];
     /** MCP servers to inject, keyed by server name. */
@@ -2555,6 +2654,9 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
         strictMcpConfig: z.ZodOptional<z.ZodBoolean>;
         settingsFile: z.ZodOptional<z.ZodString>;
         skillsFolders: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        pluginDirs: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        skillsPluginName: z.ZodOptional<z.ZodString>;
         chrome: z.ZodOptional<z.ZodBoolean>;
         baseURL: z.ZodOptional<z.ZodString>;
         authToken: z.ZodOptional<z.ZodString>;
@@ -2701,6 +2803,24 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
      * \`\`\`
      */
     writeMcpConfig(servers: Record<string, ClaudeCodeMcpServerConfig>): Promise<string>;
+    /**
+     * Compose the session's \`skills\` and \`skillsFolders\` into a generated Claude Code
+     * plugin, so the skills are actually registered rather than merely readable.
+     *
+     * Feature-level and per-session values are merged, then handed to
+     * \`skillsLibrary.ensurePluginWithSkills()\`. The library is started on demand, since
+     * resolving skills by name needs its scanned locations.
+     *
+     * @param {RunOptions} options - Per-session options, merged over the feature defaults
+     * @returns {Promise<string | undefined>} Plugin directory to pass as --plugin-dir, or undefined when no skills were requested
+     *
+     * @example
+     * \`\`\`typescript
+     * const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })
+     * // => ~/.luca/skills-plugins/<hash>
+     * \`\`\`
+     */
+    ensureSkillsPlugin(options?: RunOptions): Promise<string | undefined>;
     /**
      * Build the argument array for a claude CLI invocation.
      *
@@ -3059,7 +3179,14 @@ export interface ClaudeControllerPersona {
     mcpServers?: Record<string, any>;
     strictMcpConfig?: boolean;
     addDirs?: string[];
+    /** Folders containing skill subfolders. Every subfolder with a SKILL.md is registered via a generated plugin. */
     skillsFolders?: string[];
+    /** Skill names resolved from the skillsLibrary and registered via a generated plugin. */
+    skills?: string[];
+    /** Plugin directories passed straight through as --plugin-dir. */
+    pluginDirs?: string[];
+    /** Name of the generated skills plugin, which becomes the \`<pluginName>:<skill>\` namespace. */
+    skillsPluginName?: string;
     tools?: string[];
     allowedTools?: string[];
     permissionMode?: 'default' | 'acceptEdits' | 'auto' | 'bypassPermissions' | 'plan' | 'dontAsk';
@@ -3199,6 +3326,15 @@ export declare class ClaudeController extends Feature<ClaudeControllerState, Cla
         persona: ClaudeControllerPersona;
     }>;
     private resolvePersona;
+    /**
+     * Compose a persona's and a session's skills into a generated Claude Code plugin.
+     *
+     * \`create()\` is synchronous, so skills named by string are resolved against whatever
+     * the skillsLibrary has already scanned. Call \`await container.feature('skillsLibrary').start()\`
+     * before creating workers that name skills — \`start()\` on this controller does it for you.
+     * Folders need no library state and always work.
+     */
+    private ensureSkillsPlugin;
     private compileArgs;
     private sessionOptions;
     private remember;
@@ -6291,6 +6427,26 @@ export interface SkillInfo {
     /** All frontmatter metadata */
     meta: Record<string, unknown>;
 }
+/** Which skills to compose into a generated Claude Code plugin. */
+export interface SkillsPluginSpec {
+    /** Skill names to resolve out of the library (requires the library to be started). */
+    skills?: string[];
+    /** Folders containing skill subfolders; every subfolder with a SKILL.md is included. */
+    folders?: string[];
+    /** Plugin name, which becomes the \`<pluginName>:<skill>\` namespace. Defaults to "luca-skills". */
+    pluginName?: string;
+}
+/** Outcome of linking one skill into a target folder. */
+export interface SkillInstallResult {
+    /** Skill name, which is also the folder name inside the target. */
+    name: string;
+    /** Absolute path to the source skill folder. */
+    path: string;
+    /** Absolute path to the link inside the target folder. */
+    linkPath: string;
+    /** False when something was already at \`linkPath\` and was left untouched. */
+    installed: boolean;
+}
 export declare const SkillsLibraryStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     loaded: z.ZodBoolean;
@@ -6377,7 +6533,26 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
     }>;
     /** @returns Default state. */
     get initialState(): SkillsLibraryState;
+    /** Emit a warning unless LUCA_SKILLS_NO_WARN silences it. */
+    private warn;
+    /**
+     * Report \`only\` patterns that match no discovered skill.
+     *
+     * A filter is a claim about what should be available, so a pattern matching nothing
+     * is almost always a typo or a location that failed to scan. Silently narrowing to
+     * nothing is the failure mode that hides both.
+     *
+     * @returns The patterns that matched nothing
+     */
+    warnAboutUnmatchedFilters(): string[];
     setupToolsConsumer(assistant: Feature): Assistant;
+    /**
+     * Wire a started library into an assistant: describe the available skills in the
+     * system prompt, and arrange for any preload list to be injected on the opening ask.
+     *
+     * @param a - The assistant to attach to
+     */
+    private attachSkillsToAssistant;
     /** Discovered skills keyed by name (unfiltered). */
     get skills(): Record<string, SkillInfo>;
     /** Skills filtered by the \`only\` option when set. */
@@ -6451,6 +6626,63 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
      * @returns Absolute path to the created directory
      */
     ensureFolderCreatedWithSkillsByName(skillNames: string[]): string;
+    /**
+     * Resolve skill folders out of a set of skill names and/or location folders.
+     *
+     * Names are looked up in the library (so it must be started). Folders are scanned
+     * directly for subfolders containing a SKILL.md, which needs no library state — a
+     * folder can be turned into a plugin before \`start()\` has ever run.
+     *
+     * @param spec - Skill names and/or folders containing skill subfolders
+     * @returns Skill folders keyed by skill name, sorted by name
+     */
+    resolveSkillFolders(spec: SkillsPluginSpec): Array<{
+        name: string;
+        path: string;
+    }>;
+    /**
+     * Symlink resolved skill folders into a target folder, leaving anything already
+     * present alone. This is the building block behind {@link ensurePluginWithSkills},
+     * and is useful on its own for laying skills into a \`.claude/skills\` folder, a
+     * scratch directory, or any other place a tool expects to find them.
+     *
+     * @param skills - Skill names, or a spec mixing names and folders to scan
+     * @param folder - Target folder; created if missing
+     * @returns One entry per resolved skill, with \`installed\` false when it was already there
+     *
+     * @example
+     * \`\`\`typescript
+     * const lib = await container.feature('skillsLibrary').start()
+     * lib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')
+     * // => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]
+     * \`\`\`
+     */
+    installToFolder(skills: string[] | SkillsPluginSpec, folder: string): SkillInstallResult[];
+    /**
+     * Build a Claude Code plugin directory that exposes the given skills, and return
+     * its path for passing to \`claude --plugin-dir\`.
+     *
+     * Unlike {@link ensureFolderCreatedWithSkillsByName} — which only makes skill files
+     * *readable* via \`--add-dir\` — a plugin actually registers the skills, so Claude
+     * lists them and can invoke them as \`<pluginName>:<skill>\`.
+     *
+     * The plugin lives at \`~/.luca/skills-plugins/<hash>\`, where the hash covers each
+     * skill's **absolute path**, not just its name: two projects can each have a
+     * \`contentbase\` skill with different content, and they must not collide on one
+     * cached plugin. Skill folders are symlinked rather than copied, so edits to the
+     * source skill show up immediately and never go stale.
+     *
+     * @param spec - Skill names to resolve from the library and/or folders to scan
+     * @returns Absolute path to the plugin directory, or undefined when nothing resolved
+     *
+     * @example
+     * \`\`\`typescript
+     * const lib = await container.feature('skillsLibrary').start()
+     * const dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })
+     * // => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)
+     * \`\`\`
+     */
+    ensurePluginWithSkills(spec: SkillsPluginSpec): string | undefined;
     /** Search available skills, optionally filtered by a query string. Respects the \`only\` filter. */
     searchAvailableSkills({ query }?: {
         query?: string;
@@ -9720,11 +9952,13 @@ export type CommandArgs<S extends z.ZodType> = z.infer<S> & {
  * and string-typed flags keep numeric-looking values as strings.
  *
  * \`--help\` and \`--verbose\` are always treated as booleans unless the schema
- * declares them otherwise. Kebab-case aliases are included for camelCase fields.
+ * declares them otherwise. camelCase fields get a kebab-case \`alias\` so both
+ * spellings resolve to the same value.
  */
 export declare function minimistOptionsFor(schema?: z.ZodType): {
     boolean: string[];
     string: string[];
+    alias: Record<string, string[]>;
 };
 /**
  * Type helper for module-augmentation of AvailableCommands when using the
@@ -10327,6 +10561,18 @@ export declare const argsSchema: z.ZodObject<{
     'base-url': z.ZodOptional<z.ZodString>;
     'auth-token': z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
+/**
+ * Build the agent options a prompt file's frontmatter asks for.
+ *
+ * \`agentOptions\` is the general escape hatch, but \`skills\` and \`skillsFolders\` are
+ * promoted to the top level: naming the skills a prompt needs is a normal thing to
+ * express, not an agent-tuning detail. An explicit \`agentOptions\` entry wins over
+ * the promoted one.
+ *
+ * @param meta - Parsed YAML frontmatter
+ * @returns Options to merge into the agent run
+ */
+export declare function resolveAgentOptions(meta: Record<string, any>): Record<string, any>;
 export default function prompt(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
     name: string;
@@ -15756,6 +16002,38 @@ export declare class FS extends Feature {
      * @returns {string} The real path after resolving all symlinks
      */
     realpath(path: string): string;
+    /**
+     * Creates a symbolic link at \`linkPath\` pointing at \`target\`. Parent directories
+     * of the link are created as needed. Throws if \`linkPath\` already exists — use
+     * {@link ensureSymlink} for the idempotent version.
+     *
+     * @param {string} target - The path the link should point at
+     * @param {string} linkPath - Where to create the link
+     *
+     * @example
+     * \`\`\`typescript
+     * fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')
+     * fs.isSymlink('plugin/skills/react-ink') // => true
+     * \`\`\`
+     */
+    symlink(target: string, linkPath: string): void;
+    /**
+     * Creates a symbolic link, replacing any existing link at \`linkPath\`. Idempotent:
+     * a link already pointing at \`target\` is left alone, a link pointing somewhere else
+     * (or a dangling one) is repointed. Returns false when \`linkPath\` exists as a real
+     * file or directory, since replacing real content is never implied by "ensure".
+     *
+     * @param {string} target - The path the link should point at
+     * @param {string} linkPath - Where the link should live
+     * @returns {boolean} True if the link exists and points at target when this returns
+     *
+     * @example
+     * \`\`\`typescript
+     * fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)
+     * fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)
+     * \`\`\`
+     */
+    ensureSymlink(target: string, linkPath: string): boolean;
     /**
      * Synchronously returns the stat object for a file or directory.
      *
@@ -29470,7 +29748,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.7";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.8";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

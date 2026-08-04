@@ -55,7 +55,7 @@ export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./featur
 export { ModelProviders } from "./features/model-providers";
 export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
-export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
+export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
 export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";

@@ -76,6 +76,39 @@ export interface CodexSession {
   usage?: { input_tokens?: number; output_tokens?: number }
 }
 
+/**
+ * Metadata for a persisted Codex session on disk, mined from the rollout JSONL
+ * files under ~/.codex/sessions/YYYY/MM/DD/ and the session_index.jsonl index.
+ */
+export interface CodexHistorySession {
+  /** The Codex CLI session/thread ID (uuid). */
+  sessionId: string
+  /** Absolute path to the rollout JSONL transcript file. */
+  filePath: string
+  /** Working directory the session ran in. */
+  cwd?: string
+  /** ISO timestamp the session started at. */
+  startedAt?: string
+  /** Human-readable thread name from session_index.jsonl, when present. */
+  threadName?: string
+  /** Last-updated timestamp from session_index.jsonl, when present. */
+  updatedAt?: string
+  /** What launched the session (e.g. 'codex_exec', 'codex_cli'). */
+  originator?: string
+  /** Session source (e.g. 'exec', 'cli'). */
+  source?: string
+  /** Codex CLI version that wrote the transcript. */
+  cliVersion?: string
+}
+
+/** A single user prompt entry from ~/.codex/history.jsonl. */
+export interface CodexPromptHistoryEntry {
+  sessionId: string
+  /** Unix timestamp (seconds). */
+  ts: number
+  text: string
+}
+
 // --- Feature state and options ---
 
 export const OpenAICodexStateSchema = FeatureStateSchema.extend({
@@ -661,6 +694,365 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
       this.on('session:result', handler)
       this.on('session:error', handler)
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Session history mining (~/.codex on disk)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The Codex home directory. Honors the CODEX_HOME environment variable,
+   * falling back to ~/.codex.
+   *
+   * @returns {string} Absolute path to the Codex home directory
+   */
+  get codexHome(): string {
+    return process.env.CODEX_HOME ?? `${this.container.feature('os').homedir}/.codex`
+  }
+
+  /**
+   * Read the lightweight session index at ~/.codex/session_index.jsonl, which maps
+   * session IDs to human-readable thread names. Incomplete by design — Codex only
+   * indexes named/interactive threads, not every rollout file.
+   */
+  private async readSessionIndex(): Promise<Map<string, { threadName?: string; updatedAt?: string }>> {
+    const fs = this.container.feature('fs')
+    const index = new Map<string, { threadName?: string; updatedAt?: string }>()
+    try {
+      const raw = await fs.readFileAsync(`${this.codexHome}/session_index.jsonl`, 'utf-8') as string
+      for (const line of raw.split('\n')) {
+        if (!line.trim()) continue
+        try {
+          const entry = JSON.parse(line)
+          if (entry.id) index.set(entry.id, { threadName: entry.thread_name, updatedAt: entry.updated_at })
+        } catch { /* skip malformed lines */ }
+      }
+    } catch { /* no index file */ }
+    return index
+  }
+
+  /**
+   * List Codex sessions persisted on disk by mining the rollout transcripts under
+   * ~/.codex/sessions/. Unlike Claude Code, Codex buckets transcripts by date rather
+   * than by project directory, so only the first line (the session_meta record) of
+   * each file is read to recover the cwd — full transcripts are never loaded.
+   *
+   * Thread names are merged in from ~/.codex/session_index.jsonl when available.
+   * Results are sorted newest-first.
+   *
+   * @param {object} [options] - Filtering options
+   * @param {string} [options.cwd] - Only return sessions that ran in this working directory
+   * @param {number} [options.limit] - Maximum number of sessions to return
+   * @returns {Promise<CodexHistorySession[]>} Session metadata, newest first
+   *
+   * @example
+   * ```typescript
+   * const codex = container.feature('openaiCodex')
+   * const sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })
+   * for (const s of sessions) {
+   *   console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)
+   * }
+   * ```
+   */
+  async listHistorySessions(options: { cwd?: string; limit?: number } = {}): Promise<CodexHistorySession[]> {
+    const fs = this.container.feature('fs')
+    const sessionsDir = `${this.codexHome}/sessions`
+
+    let files: string[]
+    try {
+      const walked = await fs.walkAsync(sessionsDir, { directories: false, include: ['**/*.jsonl'] })
+      files = walked.files
+    } catch {
+      return []
+    }
+
+    const index = await this.readSessionIndex()
+
+    const results = await Promise.all(files.map(async (filePath: string): Promise<CodexHistorySession | null> => {
+      try {
+        const firstLine = await fs.readFirstLineAsync(filePath)
+        const record = JSON.parse(firstLine)
+        if (record.type !== 'session_meta') return null
+        const meta = record.payload ?? {}
+        // Newer CLI versions write session_id; older ones write id
+        const sessionId = meta.session_id ?? meta.id
+        if (!sessionId) return null
+        const indexed = index.get(sessionId)
+        return {
+          sessionId,
+          filePath,
+          cwd: meta.cwd,
+          startedAt: meta.timestamp ?? record.timestamp,
+          threadName: indexed?.threadName,
+          updatedAt: indexed?.updatedAt,
+          originator: meta.originator,
+          source: meta.source,
+          cliVersion: meta.cli_version,
+        }
+      } catch {
+        return null
+      }
+    }))
+
+    let sessions = results.filter(Boolean) as CodexHistorySession[]
+
+    if (options.cwd) {
+      const target = this.container.paths.resolve(options.cwd)
+      sessions = sessions.filter(s => s.cwd && this.container.paths.resolve(s.cwd) === target)
+    }
+
+    sessions.sort((a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? ''))
+
+    if (options.limit != null) sessions = sessions.slice(0, options.limit)
+
+    return sessions
+  }
+
+  /**
+   * Locate the rollout JSONL file for a Codex session ID. Rollout filenames end
+   * with the session uuid, so this walks ~/.codex/sessions/ matching on suffix.
+   */
+  private async findSessionFile(sessionId: string): Promise<string | null> {
+    const fs = this.container.feature('fs')
+    try {
+      const walked = await fs.walkAsync(`${this.codexHome}/sessions`, {
+        directories: false,
+        include: [`**/*${sessionId}.jsonl`],
+      })
+      return walked.files[0] ?? null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Read the full conversation history for a persisted Codex session from its
+   * rollout JSONL file. Accepts either a Codex session/thread ID (from
+   * listHistorySessions or a session's threadId) or this feature's local session
+   * ID, which is resolved to its threadId automatically.
+   *
+   * Returns the raw parsed records: session_meta, response_item (messages, tool
+   * calls, reasoning), event_msg, and turn_context entries. Malformed lines are
+   * skipped so format drift between CLI versions degrades gracefully.
+   *
+   * @param {string} sessionId - Codex session/thread ID or local session ID
+   * @returns {Promise<any[]>} Array of parsed JSONL records (empty if not found)
+   *
+   * @example
+   * ```typescript
+   * const [latest] = await codex.listHistorySessions({ limit: 1 })
+   * const records = await codex.getConversationHistory(latest.sessionId)
+   * const messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')
+   * ```
+   */
+  async getConversationHistory(sessionId: string): Promise<any[]> {
+    const fs = this.container.feature('fs')
+    // Resolve a local session ID to its Codex thread ID
+    const local = this.state.current.sessions[sessionId]
+    const codexId = local?.threadId ?? sessionId
+
+    const filePath = await this.findSessionFile(codexId)
+    if (!filePath) return []
+
+    try {
+      const raw = await fs.readFileAsync(filePath, 'utf-8') as string
+      const records: any[] = []
+      for (const line of raw.split('\n')) {
+        if (!line.trim()) continue
+        try {
+          records.push(JSON.parse(line))
+        } catch { /* skip malformed lines */ }
+      }
+      return records
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Search the user's prompt history across all Codex sessions. Reads
+   * ~/.codex/history.jsonl, which logs every user prompt with its session ID
+   * and timestamp — handy for "which session did I ask about X in?".
+   *
+   * @param {string} query - Case-insensitive substring to match against prompt text
+   * @param {object} [options] - Search options
+   * @param {number} [options.limit=50] - Maximum number of matches to return
+   * @returns {Promise<CodexPromptHistoryEntry[]>} Matching prompts, newest first
+   *
+   * @example
+   * ```typescript
+   * const hits = await codex.searchUserPrompts('websocket')
+   * for (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)
+   * ```
+   */
+  async searchUserPrompts(query: string, options: { limit?: number } = {}): Promise<CodexPromptHistoryEntry[]> {
+    const fs = this.container.feature('fs')
+    const limit = options.limit ?? 50
+    const needle = query.toLowerCase()
+
+    let raw: string
+    try {
+      raw = await fs.readFileAsync(`${this.codexHome}/history.jsonl`, 'utf-8') as string
+    } catch {
+      return []
+    }
+
+    const matches: CodexPromptHistoryEntry[] = []
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue
+      try {
+        const entry = JSON.parse(line)
+        if (typeof entry.text === 'string' && entry.text.toLowerCase().includes(needle)) {
+          matches.push({ sessionId: entry.session_id, ts: entry.ts, text: entry.text })
+        }
+      } catch { /* skip malformed lines */ }
+    }
+
+    matches.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0))
+    return matches.slice(0, limit)
+  }
+
+  /**
+   * Export a persisted Codex session's history as a readable markdown document.
+   * Mirrors claudeCode.sessionHistoryToMarkdown().
+   *
+   * The source can be:
+   * - A path to a rollout JSONL file
+   * - A Codex session/thread ID (located via ~/.codex/sessions/)
+   * - A local session ID from this feature's state (resolved via its threadId)
+   * - Omitted, in which case the most recent session on disk is used
+   *
+   * @param {string} [source] - Path to a rollout JSONL file, a session ID, or omit for the most recent session
+   * @returns {Promise<string>} Markdown-formatted session history
+   * @throws {Error} If no session can be located for the given source
+   *
+   * @example
+   * ```typescript
+   * // Most recent session on this machine
+   * const md = await codex.sessionHistoryToMarkdown()
+   *
+   * // A specific session
+   * const [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })
+   * const doc = await codex.sessionHistoryToMarkdown(latest.sessionId)
+   * ```
+   */
+  async sessionHistoryToMarkdown(source?: string): Promise<string> {
+    let filePath: string | null = null
+
+    if (source && (source.includes('/') || source.endsWith('.jsonl'))) {
+      filePath = source
+    } else if (source) {
+      const local = this.state.current.sessions[source]
+      filePath = await this.findSessionFile(local?.threadId ?? source)
+      if (!filePath) throw new Error(`No rollout file found for session ${source}`)
+    } else {
+      const [latest] = await this.listHistorySessions({ limit: 1 })
+      if (!latest) throw new Error('No Codex sessions found on disk. Pass a rollout JSONL file path or run a session first.')
+      filePath = latest.filePath
+    }
+
+    return this.rolloutToMarkdown(filePath)
+  }
+
+  /**
+   * Parse a rollout JSONL file and render its records as markdown. Lenient by
+   * design: unknown record and payload types are skipped, since the rollout
+   * format drifts between Codex CLI versions.
+   */
+  private async rolloutToMarkdown(filePath: string): Promise<string> {
+    const fs = this.container.feature('fs')
+    const raw = await fs.readFileAsync(filePath, 'utf-8') as string
+
+    const records: any[] = []
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue
+      try {
+        records.push(JSON.parse(line))
+      } catch { /* skip malformed lines */ }
+    }
+
+    const lines: string[] = []
+    const meta = records.find(r => r.type === 'session_meta')?.payload
+
+    lines.push('# Codex Session History')
+    lines.push(`**Source:** \`${filePath}\``)
+    if (meta) {
+      const sessionId = meta.session_id ?? meta.id
+      if (sessionId) lines.push(`**Session ID:** \`${sessionId}\``)
+      if (meta.cwd) lines.push(`**Working Directory:** \`${meta.cwd}\``)
+      if (meta.cli_version) lines.push(`**CLI Version:** ${meta.cli_version}`)
+      if (meta.timestamp) lines.push(`**Started:** ${meta.timestamp}`)
+      if (meta.originator) lines.push(`**Originator:** ${meta.originator}`)
+    }
+    lines.push('')
+    lines.push('## Conversation')
+    lines.push('')
+
+    const truncate = (text: string, max: number) =>
+      text.length > max ? text.slice(0, max) + '\n... (truncated)' : text
+
+    for (const record of records) {
+      if (record.type !== 'response_item') continue
+      const payload = record.payload
+      if (!payload?.type) continue
+
+      switch (payload.type) {
+        case 'message': {
+          // Developer/system messages are injected harness context, not conversation
+          if (payload.role !== 'user' && payload.role !== 'assistant') break
+          const texts = (payload.content ?? [])
+            .filter((block: any) => typeof block?.text === 'string')
+            .map((block: any) => block.text)
+          if (!texts.length) break
+          lines.push(payload.role === 'user' ? '### User' : '### Assistant')
+          lines.push('')
+          for (const text of texts) {
+            lines.push(payload.role === 'user' ? truncate(text, 4000) : text)
+            lines.push('')
+          }
+          break
+        }
+
+        case 'reasoning': {
+          const summaries = (payload.summary ?? [])
+            .filter((block: any) => typeof block?.text === 'string')
+            .map((block: any) => block.text)
+          for (const text of summaries) {
+            lines.push(`*${text}*`)
+            lines.push('')
+          }
+          break
+        }
+
+        case 'function_call':
+        case 'custom_tool_call': {
+          const input = payload.arguments ?? payload.input ?? ''
+          lines.push(`**Tool Use:** \`${payload.name ?? 'unknown'}\``)
+          lines.push('```')
+          lines.push(truncate(typeof input === 'string' ? input : JSON.stringify(input, null, 2), 2000))
+          lines.push('```')
+          lines.push('')
+          break
+        }
+
+        case 'function_call_output':
+        case 'custom_tool_call_output': {
+          const output = payload.output ?? ''
+          const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2)
+          lines.push('<details>')
+          lines.push('<summary>Tool Result</summary>')
+          lines.push('')
+          lines.push('```')
+          lines.push(truncate(text, 2000))
+          lines.push('```')
+          lines.push('</details>')
+          lines.push('')
+          break
+        }
+      }
+    }
+
+    return lines.join('\n')
   }
 
   /**

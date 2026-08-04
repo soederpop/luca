@@ -9279,6 +9279,29 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "readFirstLineAsync": {
+      "description": "Asynchronously reads just the first line of a file without loading the whole file into memory. Reads in chunks until a newline is found or `maxBytes` is reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL logs where only the header line is needed).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path relative to the container's working directory"
+        },
+        "maxBytes": {
+          "type": "number",
+          "description": "Maximum number of bytes to scan for a newline before giving up and returning what was read"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.writeFileAsync('log.jsonl', '{\"type\":\"meta\"}\\n{\"type\":\"event\"}\\n')\nconst header = await fs.readFirstLineAsync('log.jsonl')\n// header => '{\"type\":\"meta\"}'"
+        }
+      ]
+    },
     "readJson": {
       "description": "Synchronously reads and parses a JSON file.",
       "parameters": {
@@ -16474,6 +16497,98 @@ setBuildTimeData('features.openaiCodex', {
       ],
       "returns": "Promise<CodexSession>"
     },
+    "listHistorySessions": {
+      "description": "List Codex sessions persisted on disk by mining the rollout transcripts under ~/.codex/sessions/. Unlike Claude Code, Codex buckets transcripts by date rather than by project directory, so only the first line (the session_meta record) of each file is read to recover the cwd — full transcripts are never loaded. Thread names are merged in from ~/.codex/session_index.jsonl when available. Results are sorted newest-first.",
+      "parameters": {
+        "options": {
+          "type": "{ cwd?: string; limit?: number }",
+          "description": "Filtering options",
+          "properties": {
+            "cwd": {
+              "type": "any",
+              "description": "Only return sessions that ran in this working directory"
+            },
+            "limit": {
+              "type": "any",
+              "description": "Maximum number of sessions to return"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<CodexHistorySession[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const codex = container.feature('openaiCodex')\nconst sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })\nfor (const s of sessions) {\n console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)\n}"
+        }
+      ]
+    },
+    "getConversationHistory": {
+      "description": "Read the full conversation history for a persisted Codex session from its rollout JSONL file. Accepts either a Codex session/thread ID (from listHistorySessions or a session's threadId) or this feature's local session ID, which is resolved to its threadId automatically. Returns the raw parsed records: session_meta, response_item (messages, tool calls, reasoning), event_msg, and turn_context entries. Malformed lines are skipped so format drift between CLI versions degrades gracefully.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "Codex session/thread ID or local session ID"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const [latest] = await codex.listHistorySessions({ limit: 1 })\nconst records = await codex.getConversationHistory(latest.sessionId)\nconst messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')"
+        }
+      ]
+    },
+    "searchUserPrompts": {
+      "description": "Search the user's prompt history across all Codex sessions. Reads ~/.codex/history.jsonl, which logs every user prompt with its session ID and timestamp — handy for \"which session did I ask about X in?\".",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Case-insensitive substring to match against prompt text"
+        },
+        "options": {
+          "type": "{ limit?: number }",
+          "description": "Search options",
+          "properties": {
+            "limit": {
+              "type": "any",
+              "description": "Maximum number of matches to return"
+            }
+          }
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<CodexPromptHistoryEntry[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const hits = await codex.searchUserPrompts('websocket')\nfor (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)"
+        }
+      ]
+    },
+    "sessionHistoryToMarkdown": {
+      "description": "Export a persisted Codex session's history as a readable markdown document. Mirrors claudeCode.sessionHistoryToMarkdown(). The source can be: - A path to a rollout JSONL file - A Codex session/thread ID (located via ~/.codex/sessions/) - A local session ID from this feature's state (resolved via its threadId) - Omitted, in which case the most recent session on disk is used",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Path to a rollout JSONL file, a session ID, or omit for the most recent session"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Most recent session on this machine\nconst md = await codex.sessionHistoryToMarkdown()\n\n// A specific session\nconst [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })\nconst doc = await codex.sessionHistoryToMarkdown(latest.sessionId)"
+        }
+      ]
+    },
     "enable": {
       "description": "Enable the feature. Delegates to the base Feature enable() lifecycle.",
       "parameters": {
@@ -16489,6 +16604,10 @@ setBuildTimeData('features.openaiCodex', {
   "getters": {
     "codexPath": {
       "description": "",
+      "returns": "string"
+    },
+    "codexHome": {
+      "description": "The Codex home directory. Honors the CODEX_HOME environment variable, falling back to ~/.codex.",
       "returns": "string"
     }
   },
@@ -16784,6 +16903,71 @@ setBuildTimeData('features.openaiCodex', {
           "type": "'in_progress' | 'completed' | string",
           "description": "",
           "optional": true
+        }
+      }
+    },
+    "CodexHistorySession": {
+      "description": "Metadata for a persisted Codex session on disk, mined from the rollout JSONL files under ~/.codex/sessions/YYYY/MM/DD/ and the session_index.jsonl index.",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "The Codex CLI session/thread ID (uuid)."
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Absolute path to the rollout JSONL transcript file."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory the session ran in.",
+          "optional": true
+        },
+        "startedAt": {
+          "type": "string",
+          "description": "ISO timestamp the session started at.",
+          "optional": true
+        },
+        "threadName": {
+          "type": "string",
+          "description": "Human-readable thread name from session_index.jsonl, when present.",
+          "optional": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last-updated timestamp from session_index.jsonl, when present.",
+          "optional": true
+        },
+        "originator": {
+          "type": "string",
+          "description": "What launched the session (e.g. 'codex_exec', 'codex_cli').",
+          "optional": true
+        },
+        "source": {
+          "type": "string",
+          "description": "Session source (e.g. 'exec', 'cli').",
+          "optional": true
+        },
+        "cliVersion": {
+          "type": "string",
+          "description": "Codex CLI version that wrote the transcript.",
+          "optional": true
+        }
+      }
+    },
+    "CodexPromptHistoryEntry": {
+      "description": "A single user prompt entry from ~/.codex/history.jsonl.",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": ""
+        },
+        "ts": {
+          "type": "number",
+          "description": "Unix timestamp (seconds)."
+        },
+        "text": {
+          "type": "string",
+          "description": ""
         }
       }
     }
@@ -34817,6 +35001,29 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "readFirstLineAsync": {
+        "description": "Asynchronously reads just the first line of a file without loading the whole file into memory. Reads in chunks until a newline is found or `maxBytes` is reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL logs where only the header line is needed).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path relative to the container's working directory"
+          },
+          "maxBytes": {
+            "type": "number",
+            "description": "Maximum number of bytes to scan for a newline before giving up and returning what was read"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.writeFileAsync('log.jsonl', '{\"type\":\"meta\"}\\n{\"type\":\"event\"}\\n')\nconst header = await fs.readFirstLineAsync('log.jsonl')\n// header => '{\"type\":\"meta\"}'"
+          }
+        ]
+      },
       "readJson": {
         "description": "Synchronously reads and parses a JSON file.",
         "parameters": {
@@ -41992,6 +42199,98 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "Promise<CodexSession>"
       },
+      "listHistorySessions": {
+        "description": "List Codex sessions persisted on disk by mining the rollout transcripts under ~/.codex/sessions/. Unlike Claude Code, Codex buckets transcripts by date rather than by project directory, so only the first line (the session_meta record) of each file is read to recover the cwd — full transcripts are never loaded. Thread names are merged in from ~/.codex/session_index.jsonl when available. Results are sorted newest-first.",
+        "parameters": {
+          "options": {
+            "type": "{ cwd?: string; limit?: number }",
+            "description": "Filtering options",
+            "properties": {
+              "cwd": {
+                "type": "any",
+                "description": "Only return sessions that ran in this working directory"
+              },
+              "limit": {
+                "type": "any",
+                "description": "Maximum number of sessions to return"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<CodexHistorySession[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const codex = container.feature('openaiCodex')\nconst sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })\nfor (const s of sessions) {\n console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)\n}"
+          }
+        ]
+      },
+      "getConversationHistory": {
+        "description": "Read the full conversation history for a persisted Codex session from its rollout JSONL file. Accepts either a Codex session/thread ID (from listHistorySessions or a session's threadId) or this feature's local session ID, which is resolved to its threadId automatically. Returns the raw parsed records: session_meta, response_item (messages, tool calls, reasoning), event_msg, and turn_context entries. Malformed lines are skipped so format drift between CLI versions degrades gracefully.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "Codex session/thread ID or local session ID"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const [latest] = await codex.listHistorySessions({ limit: 1 })\nconst records = await codex.getConversationHistory(latest.sessionId)\nconst messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')"
+          }
+        ]
+      },
+      "searchUserPrompts": {
+        "description": "Search the user's prompt history across all Codex sessions. Reads ~/.codex/history.jsonl, which logs every user prompt with its session ID and timestamp — handy for \"which session did I ask about X in?\".",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Case-insensitive substring to match against prompt text"
+          },
+          "options": {
+            "type": "{ limit?: number }",
+            "description": "Search options",
+            "properties": {
+              "limit": {
+                "type": "any",
+                "description": "Maximum number of matches to return"
+              }
+            }
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<CodexPromptHistoryEntry[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const hits = await codex.searchUserPrompts('websocket')\nfor (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)"
+          }
+        ]
+      },
+      "sessionHistoryToMarkdown": {
+        "description": "Export a persisted Codex session's history as a readable markdown document. Mirrors claudeCode.sessionHistoryToMarkdown(). The source can be: - A path to a rollout JSONL file - A Codex session/thread ID (located via ~/.codex/sessions/) - A local session ID from this feature's state (resolved via its threadId) - Omitted, in which case the most recent session on disk is used",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "Path to a rollout JSONL file, a session ID, or omit for the most recent session"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Most recent session on this machine\nconst md = await codex.sessionHistoryToMarkdown()\n\n// A specific session\nconst [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })\nconst doc = await codex.sessionHistoryToMarkdown(latest.sessionId)"
+          }
+        ]
+      },
       "enable": {
         "description": "Enable the feature. Delegates to the base Feature enable() lifecycle.",
         "parameters": {
@@ -42007,6 +42306,10 @@ export const introspectionData: Record<string, any>[] = [
     "getters": {
       "codexPath": {
         "description": "",
+        "returns": "string"
+      },
+      "codexHome": {
+        "description": "The Codex home directory. Honors the CODEX_HOME environment variable, falling back to ~/.codex.",
         "returns": "string"
       }
     },
@@ -42302,6 +42605,71 @@ export const introspectionData: Record<string, any>[] = [
             "type": "'in_progress' | 'completed' | string",
             "description": "",
             "optional": true
+          }
+        }
+      },
+      "CodexHistorySession": {
+        "description": "Metadata for a persisted Codex session on disk, mined from the rollout JSONL files under ~/.codex/sessions/YYYY/MM/DD/ and the session_index.jsonl index.",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "The Codex CLI session/thread ID (uuid)."
+          },
+          "filePath": {
+            "type": "string",
+            "description": "Absolute path to the rollout JSONL transcript file."
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory the session ran in.",
+            "optional": true
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "ISO timestamp the session started at.",
+            "optional": true
+          },
+          "threadName": {
+            "type": "string",
+            "description": "Human-readable thread name from session_index.jsonl, when present.",
+            "optional": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last-updated timestamp from session_index.jsonl, when present.",
+            "optional": true
+          },
+          "originator": {
+            "type": "string",
+            "description": "What launched the session (e.g. 'codex_exec', 'codex_cli').",
+            "optional": true
+          },
+          "source": {
+            "type": "string",
+            "description": "Session source (e.g. 'exec', 'cli').",
+            "optional": true
+          },
+          "cliVersion": {
+            "type": "string",
+            "description": "Codex CLI version that wrote the transcript.",
+            "optional": true
+          }
+        }
+      },
+      "CodexPromptHistoryEntry": {
+        "description": "A single user prompt entry from ~/.codex/history.jsonl.",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": ""
+          },
+          "ts": {
+            "type": "number",
+            "description": "Unix timestamp (seconds)."
+          },
+          "text": {
+            "type": "string",
+            "description": ""
           }
         }
       }

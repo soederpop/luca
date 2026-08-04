@@ -18,7 +18,7 @@ import {
   type Stats,
 } from "fs";
 import { join, resolve, dirname, relative } from "path";
-import { readFile, stat, lstat, realpath, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm } from "fs/promises";
+import { readFile, stat, lstat, realpath, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm, open } from "fs/promises";
 import { native as rimraf } from 'rimraf'
 import micromatch from 'micromatch'
 
@@ -136,6 +136,50 @@ export class FS extends Feature {
       return await readFile(filePath)
     }
     return await readFile(filePath, encoding ?? 'utf-8')
+  }
+
+  /**
+   * Asynchronously reads just the first line of a file without loading the whole
+   * file into memory. Reads in chunks until a newline is found or `maxBytes` is
+   * reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL
+   * logs where only the header line is needed).
+   *
+   * @param {string} path - The file path relative to the container's working directory
+   * @param {number} [maxBytes=262144] - Maximum number of bytes to scan for a newline before giving up and returning what was read
+   * @returns {Promise<string>} The first line of the file (without the trailing newline)
+   * @throws {Error} Throws an error if the file doesn't exist or cannot be read
+   *
+   * @example
+   * ```typescript
+   * await fs.writeFileAsync('log.jsonl', '{"type":"meta"}\n{"type":"event"}\n')
+   * const header = await fs.readFirstLineAsync('log.jsonl')
+   * // header => '{"type":"meta"}'
+   * ```
+   */
+  async readFirstLineAsync(path: string, maxBytes: number = 262144): Promise<string> {
+    const filePath = this.container.paths.resolve(path)
+    const handle = await open(filePath, 'r')
+    try {
+      const chunkSize = 16384
+      const chunks: Buffer[] = []
+      let position = 0
+      while (position < maxBytes) {
+        const buffer = Buffer.alloc(Math.min(chunkSize, maxBytes - position))
+        const { bytesRead } = await handle.read(buffer, 0, buffer.length, position)
+        if (bytesRead === 0) break
+        const chunk = buffer.subarray(0, bytesRead)
+        const newlineIndex = chunk.indexOf(0x0a)
+        if (newlineIndex !== -1) {
+          chunks.push(chunk.subarray(0, newlineIndex))
+          break
+        }
+        chunks.push(chunk)
+        position += bytesRead
+      }
+      return Buffer.concat(chunks).toString('utf-8').replace(/\r$/, '')
+    } finally {
+      await handle.close()
+    }
   }
 
   /**

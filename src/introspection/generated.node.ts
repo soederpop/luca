@@ -4793,6 +4793,29 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "readFirstLineAsync": {
+      "description": "Asynchronously reads just the first line of a file without loading the whole file into memory. Reads in chunks until a newline is found or `maxBytes` is reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL logs where only the header line is needed).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path relative to the container's working directory"
+        },
+        "maxBytes": {
+          "type": "number",
+          "description": "Maximum number of bytes to scan for a newline before giving up and returning what was read"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.writeFileAsync('log.jsonl', '{\"type\":\"meta\"}\\n{\"type\":\"event\"}\\n')\nconst header = await fs.readFirstLineAsync('log.jsonl')\n// header => '{\"type\":\"meta\"}'"
+        }
+      ]
+    },
     "readJson": {
       "description": "Synchronously reads and parses a JSON file.",
       "parameters": {
@@ -22552,6 +22575,29 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const content = await fs.readFileAsync('README.md')\nconst buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer"
+          }
+        ]
+      },
+      "readFirstLineAsync": {
+        "description": "Asynchronously reads just the first line of a file without loading the whole file into memory. Reads in chunks until a newline is found or `maxBytes` is reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL logs where only the header line is needed).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path relative to the container's working directory"
+          },
+          "maxBytes": {
+            "type": "number",
+            "description": "Maximum number of bytes to scan for a newline before giving up and returning what was read"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.writeFileAsync('log.jsonl', '{\"type\":\"meta\"}\\n{\"type\":\"event\"}\\n')\nconst header = await fs.readFirstLineAsync('log.jsonl')\n// header => '{\"type\":\"meta\"}'"
           }
         ]
       },

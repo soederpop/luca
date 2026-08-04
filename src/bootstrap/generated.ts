@@ -2975,7 +2975,9 @@ Array-like context fields are combined:
 
 - \`mcpConfig\`: persona entries first, then session entries
 - \`addDirs\`: persona entries first, then session entries
-- \`skillsFolders\`: appended to the \`--add-dir\` list after regular dirs
+- \`skillsFolders\`: persona folders and session folders are both composed into the generated skills plugin
+- \`skills\`: persona names and session names are combined into one generated skills plugin
+- \`pluginDirs\`: persona entries first, then session entries, then the generated skills plugin
 - \`args\`: raw extra Claude CLI args appended last
 
 \`\`\`ts
@@ -3012,6 +3014,10 @@ Prefer container.paths and container.feature('fs') over direct path/fs imports.
   skillsFolders: [
     '/Users/jonathansoeder/@agentic-loop/.claude/skills',
   ],
+  // Or name individual skills out of the skillsLibrary instead of taking whole folders.
+  // A library of 78 skills is far too many to hand Claude at once; name the handful
+  // this persona actually needs.
+  skills: ['luca-framework', 'contentbase'],
   mcpConfig: [
     './.claude/mcp.shared.json',
   ],
@@ -3060,7 +3066,10 @@ await architect.ask('Design a small API for persisted persona profiles.')
 | \`mcpServers\` | \`Record<string, any>\` | \`--mcp-config '{"mcpServers": ...}'\` | Inline MCP servers are merged with session servers and passed as an MCP config JSON argument. |
 | \`strictMcpConfig\` | \`boolean\` | \`--strict-mcp-config\` | Requires Claude Code to validate MCP config strictly. |
 | \`addDirs\` | \`string[]\` | \`--add-dir <dirs...>\` | Additional directories Claude may access. Persona and session arrays are combined. |
-| \`skillsFolders\` | \`string[]\` | included in \`--add-dir <dirs...>\` | Directories that contain Claude skills. They are added as allowed dirs for interactive Claude sessions. |
+| \`skillsFolders\` | \`string[]\` | \`--plugin-dir <dir>\` | Directories that contain skill subfolders. Every subfolder with a \`SKILL.md\` is registered through a generated plugin. Add the folder to \`addDirs\` too if Claude also needs write access to it. |
+| \`skills\` | \`string[]\` | \`--plugin-dir <dir>\` | Skill names resolved from the \`skillsLibrary\` and registered through a generated plugin. |
+| \`pluginDirs\` | \`string[]\` | \`--plugin-dir <dirs...>\` | Plugin directories passed straight through. Persona and session arrays are combined. |
+| \`skillsPluginName\` | \`string\` | (plugin manifest) | Namespace for generated skills, i.e. \`<skillsPluginName>:<skill>\`. Defaults to \`luca-skills\`. |
 | \`tools\` | \`string[]\` | \`--tools <tools...>\` | Tool names made available to Claude Code. Session option overrides persona value. |
 | \`allowedTools\` | \`string[]\` | \`--allowed-tools <tools...>\` | Permission allow-list entries. Session option overrides persona value. |
 | \`permissionMode\` | string enum | \`--permission-mode <mode>\` | One of \`default\`, \`acceptEdits\`, \`auto\`, \`bypassPermissions\`, \`plan\`, \`dontAsk\`. |
@@ -3130,7 +3139,7 @@ Personas compile into CLI args before a worker starts. Changing a persona after 
 
 ### Claude cannot see files
 
-Make sure \`cwd\`, \`addDirs\`, and \`skillsFolders\` include the directories Claude needs. For multi-repo work, set the worker \`cwd\` to the main repo and put sibling repos in \`addDirs\`.
+Make sure \`cwd\` and \`addDirs\` include the directories Claude needs. For multi-repo work, set the worker \`cwd\` to the main repo and put sibling repos in \`addDirs\`. Note that \`skillsFolders\` is not a file-access setting — it registers skills through a generated plugin, and Claude reads a registered skill's own files without the folder being an allowed dir.
 
 ### MCP server does not load
 
