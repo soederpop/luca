@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.6.9"
+export const typesBundleVersion = "3.7.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -117,7 +117,7 @@ export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./featur
 export { ModelProviders } from "./features/model-providers";
 export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
-export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
+export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
 export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";
@@ -5881,6 +5881,37 @@ export interface CodexSession {
         output_tokens?: number;
     };
 }
+/**
+ * Metadata for a persisted Codex session on disk, mined from the rollout JSONL
+ * files under ~/.codex/sessions/YYYY/MM/DD/ and the session_index.jsonl index.
+ */
+export interface CodexHistorySession {
+    /** The Codex CLI session/thread ID (uuid). */
+    sessionId: string;
+    /** Absolute path to the rollout JSONL transcript file. */
+    filePath: string;
+    /** Working directory the session ran in. */
+    cwd?: string;
+    /** ISO timestamp the session started at. */
+    startedAt?: string;
+    /** Human-readable thread name from session_index.jsonl, when present. */
+    threadName?: string;
+    /** Last-updated timestamp from session_index.jsonl, when present. */
+    updatedAt?: string;
+    /** What launched the session (e.g. 'codex_exec', 'codex_cli'). */
+    originator?: string;
+    /** Session source (e.g. 'exec', 'cli'). */
+    source?: string;
+    /** Codex CLI version that wrote the transcript. */
+    cliVersion?: string;
+}
+/** A single user prompt entry from ~/.codex/history.jsonl. */
+export interface CodexPromptHistoryEntry {
+    sessionId: string;
+    /** Unix timestamp (seconds). */
+    ts: number;
+    text: string;
+}
 export declare const OpenAICodexStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     sessions: z.ZodRecord<z.ZodString, z.ZodAny>;
@@ -6192,6 +6223,122 @@ export declare class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOp
      * @throws {Error} If the session ID is not found
      */
     waitForSession(sessionId: string): Promise<CodexSession>;
+    /**
+     * The Codex home directory. Honors the CODEX_HOME environment variable,
+     * falling back to ~/.codex.
+     *
+     * @returns {string} Absolute path to the Codex home directory
+     */
+    get codexHome(): string;
+    /**
+     * Read the lightweight session index at ~/.codex/session_index.jsonl, which maps
+     * session IDs to human-readable thread names. Incomplete by design — Codex only
+     * indexes named/interactive threads, not every rollout file.
+     */
+    private readSessionIndex;
+    /**
+     * List Codex sessions persisted on disk by mining the rollout transcripts under
+     * ~/.codex/sessions/. Unlike Claude Code, Codex buckets transcripts by date rather
+     * than by project directory, so only the first line (the session_meta record) of
+     * each file is read to recover the cwd — full transcripts are never loaded.
+     *
+     * Thread names are merged in from ~/.codex/session_index.jsonl when available.
+     * Results are sorted newest-first.
+     *
+     * @param {object} [options] - Filtering options
+     * @param {string} [options.cwd] - Only return sessions that ran in this working directory
+     * @param {number} [options.limit] - Maximum number of sessions to return
+     * @returns {Promise<CodexHistorySession[]>} Session metadata, newest first
+     *
+     * @example
+     * \`\`\`typescript
+     * const codex = container.feature('openaiCodex')
+     * const sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })
+     * for (const s of sessions) {
+     *   console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)
+     * }
+     * \`\`\`
+     */
+    listHistorySessions(options?: {
+        cwd?: string;
+        limit?: number;
+    }): Promise<CodexHistorySession[]>;
+    /**
+     * Locate the rollout JSONL file for a Codex session ID. Rollout filenames end
+     * with the session uuid, so this walks ~/.codex/sessions/ matching on suffix.
+     */
+    private findSessionFile;
+    /**
+     * Read the full conversation history for a persisted Codex session from its
+     * rollout JSONL file. Accepts either a Codex session/thread ID (from
+     * listHistorySessions or a session's threadId) or this feature's local session
+     * ID, which is resolved to its threadId automatically.
+     *
+     * Returns the raw parsed records: session_meta, response_item (messages, tool
+     * calls, reasoning), event_msg, and turn_context entries. Malformed lines are
+     * skipped so format drift between CLI versions degrades gracefully.
+     *
+     * @param {string} sessionId - Codex session/thread ID or local session ID
+     * @returns {Promise<any[]>} Array of parsed JSONL records (empty if not found)
+     *
+     * @example
+     * \`\`\`typescript
+     * const [latest] = await codex.listHistorySessions({ limit: 1 })
+     * const records = await codex.getConversationHistory(latest.sessionId)
+     * const messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')
+     * \`\`\`
+     */
+    getConversationHistory(sessionId: string): Promise<any[]>;
+    /**
+     * Search the user's prompt history across all Codex sessions. Reads
+     * ~/.codex/history.jsonl, which logs every user prompt with its session ID
+     * and timestamp — handy for "which session did I ask about X in?".
+     *
+     * @param {string} query - Case-insensitive substring to match against prompt text
+     * @param {object} [options] - Search options
+     * @param {number} [options.limit=50] - Maximum number of matches to return
+     * @returns {Promise<CodexPromptHistoryEntry[]>} Matching prompts, newest first
+     *
+     * @example
+     * \`\`\`typescript
+     * const hits = await codex.searchUserPrompts('websocket')
+     * for (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)
+     * \`\`\`
+     */
+    searchUserPrompts(query: string, options?: {
+        limit?: number;
+    }): Promise<CodexPromptHistoryEntry[]>;
+    /**
+     * Export a persisted Codex session's history as a readable markdown document.
+     * Mirrors claudeCode.sessionHistoryToMarkdown().
+     *
+     * The source can be:
+     * - A path to a rollout JSONL file
+     * - A Codex session/thread ID (located via ~/.codex/sessions/)
+     * - A local session ID from this feature's state (resolved via its threadId)
+     * - Omitted, in which case the most recent session on disk is used
+     *
+     * @param {string} [source] - Path to a rollout JSONL file, a session ID, or omit for the most recent session
+     * @returns {Promise<string>} Markdown-formatted session history
+     * @throws {Error} If no session can be located for the given source
+     *
+     * @example
+     * \`\`\`typescript
+     * // Most recent session on this machine
+     * const md = await codex.sessionHistoryToMarkdown()
+     *
+     * // A specific session
+     * const [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })
+     * const doc = await codex.sessionHistoryToMarkdown(latest.sessionId)
+     * \`\`\`
+     */
+    sessionHistoryToMarkdown(source?: string): Promise<string>;
+    /**
+     * Parse a rollout JSONL file and render its records as markdown. Lenient by
+     * design: unknown record and payload types are skipped, since the rollout
+     * format drifts between Codex CLI versions.
+     */
+    private rolloutToMarkdown;
     /**
      * Enable the feature. Delegates to the base Feature enable() lifecycle.
      *
@@ -15653,6 +15800,25 @@ export declare class FS extends Feature {
      * \`\`\`
      */
     readFileAsync(path: string, encoding?: BufferEncoding | null): Promise<string | Buffer>;
+    /**
+     * Asynchronously reads just the first line of a file without loading the whole
+     * file into memory. Reads in chunks until a newline is found or \`maxBytes\` is
+     * reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL
+     * logs where only the header line is needed).
+     *
+     * @param {string} path - The file path relative to the container's working directory
+     * @param {number} [maxBytes=262144] - Maximum number of bytes to scan for a newline before giving up and returning what was read
+     * @returns {Promise<string>} The first line of the file (without the trailing newline)
+     * @throws {Error} Throws an error if the file doesn't exist or cannot be read
+     *
+     * @example
+     * \`\`\`typescript
+     * await fs.writeFileAsync('log.jsonl', '{"type":"meta"}\\n{"type":"event"}\\n')
+     * const header = await fs.readFirstLineAsync('log.jsonl')
+     * // header => '{"type":"meta"}'
+     * \`\`\`
+     */
+    readFirstLineAsync(path: string, maxBytes?: number): Promise<string>;
     /**
      * Synchronously reads and parses a JSON file.
      *
@@ -29748,7 +29914,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.8";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.9";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
