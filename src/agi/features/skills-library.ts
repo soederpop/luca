@@ -144,6 +144,12 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		this.container.feature('ui').print.yellow(`SkillsLibrary: ${message}`)
 	}
 
+	/** Emit an informational note, gated by the same env var as warn(). */
+	private info(message: string) {
+		if (process.env.LUCA_SKILLS_NO_WARN) return
+		this.container.feature('ui').print.dim(`SkillsLibrary: ${message}`)
+	}
+
 	/**
 	 * Report `only` patterns that match no discovered skill.
 	 *
@@ -194,14 +200,19 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	/**
 	 * Wire a started library into an assistant: describe the available skills in the
-	 * system prompt, and arrange for any preload list to be injected on the opening ask.
+	 * system prompt, and inject any preload list as already-loaded system prompt
+	 * extensions.
+	 *
+	 * Preload deliberately uses system prompt extensions rather than simulated tool
+	 * calls or question rewrites — extensions are the framework's durable channel.
+	 * They are copied on fork() (every history mode), swapped in fresh on thread
+	 * resume, and preserved through compaction; history messages survive none of
+	 * those. Framing the content as "already loaded" also means the model answers
+	 * the opening question directly instead of narrating a loadSkill round-trip.
 	 *
 	 * @param a - The assistant to attach to
 	 */
 	private attachSkillsToAssistant(a: Assistant) {
-		const assistant = a
-		const { container } = a
-		const skillsLibrary = this
 		const skillCount = Object.keys(this.filteredSkills).length
 		const isSmallSet = skillCount <= 10
 
@@ -224,11 +235,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 				'**Available skills:**',
 				table,
 				'',
-				'**When to use skills:**',
-				'- When working in an unfamiliar domain or framework — load the skill before writing code',
-				'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
-				'',
-				'**Workflow:** Choose a skill from the list above → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
+				'Load a skill with `loadSkill` when its domain is relevant to the task at hand. Use `askSkillBasedQuestion` for a targeted lookup when you don\'t need the whole guide.',
 				'',
 				'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
 			].join('\n'))
@@ -238,12 +245,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 				'',
 				`You have access to a large library of ${skillCount} curated skills — domain-specific reference guides with examples, patterns, and best practices.`,
 				'',
-				'**When to use skills:**',
-				'- When working in an unfamiliar domain or framework — search for a skill before writing code',
-				'- When the user asks about a topic that might have a matching skill — search first',
-				'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
-				'',
-				'**Workflow:** `searchAvailableSkills` → find relevant skill → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
+				'When a task touches a domain that might have a matching skill, use `searchAvailableSkills` to find it, then `loadSkill` for the full guide. Use `askSkillBasedQuestion` for a targeted lookup when you don\'t need the whole guide.',
 				'',
 				'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
 			].join('\n'))
@@ -257,9 +259,6 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			? (Array.isArray(configured) ? configured : [configured])
 			: []
 
-		// Preload only interpolates names into the question — unlike resolveSkillFolders
-		// it can't fail loudly on its own, so a typo would send the model off to loadSkill
-		// something that does not exist. Drop unknown names and say so.
 		const preloadSkills = requested.filter(name => this.find(name))
 		const unknown = requested.filter(name => !this.find(name))
 		if (unknown.length) {
@@ -272,38 +271,26 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			}`)
 		}
 
-		// The fork-based auto-detection is only affordable for small skill sets, but an
-		// explicit preload list must be honoured either way — a large library is exactly
-		// when naming the skills up front matters most.
-		if (isSmallSet || preloadSkills.length) {
-			async function beforeAskCheckIfWeNeedSkills(ctx: any, next: any) {
-					const { question } = ctx
-					const skills = isSmallSet
-						? await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
-						: []
+		for (const name of preloadSkills) {
+			const skill = this.find(name)!
+			const content = String(this.container.fs.readFile(skill.skillFilePath))
 
-					const allSkillsToLoad : string[] = container.utils.lodash.uniq([
-						...skills,
-						...preloadSkills,
-					])
+			a.addSystemPromptExtension(`skill:${name}`, [
+				`## Loaded Skill: ${name}`,
+				'',
+				'This skill is already loaded — treat it as active context. Do not call `loadSkill` for it.',
+				'',
+				'---',
+				'',
+				content,
+			].join('\n'))
 
-					if (allSkillsToLoad.length) {
-						ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${allSkillsToLoad.join(', ')}`
-					}
-
-					// Retire on the first ask that actually lands, not the first attempted.
-					// Removing before next() means a provider timeout or 429 on the opening
-					// question loses the reminder for the whole conversation — precisely the
-					// turn it exists for.
-					await next()
-
-					a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
-			}
-
-			assistant.intercept('beforeAsk', beforeAskCheckIfWeNeedSkills as any)
+			// Preloaded content rides every request — make the cost visible at attach
+			// time so bloat is a decision rather than a surprise.
+			this.info(`preloading skill "${name}" into system prompt (~${(Math.round(content.length / 4) / 1000).toFixed(1)}k tokens)`)
 		}
 
-		return assistant
+		return a
 	}
 
 	/** Discovered skills keyed by name (unfiltered). */
@@ -758,71 +745,6 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		return answer
 	}
 
-	/**
-	 * Fork the given assistant and ask it which skills (if any) are relevant
-	 * to the user's query. Returns an array of skill names that should be loaded
-	 * before the real question is answered.
-	 *
-	 * The fork is ephemeral (historyMode: 'none') and uses structured output so
-	 * the result is always a clean string array — never free text.
-	 *
-	 * @param assistant - The assistant instance to fork
-	 * @param userQuery - The user's original question
-	 * @returns Array of skill names relevant to the query (may be empty)
-	 */
-	async findRelevantSkillsForAssistant(assistant: Assistant, userQuery: string): Promise<string[]> {
-		if (!this.isStarted) await this.start()
-
-		const skills = this.list()
-		if (skills.length === 0) return []
-
-		const responseSchema = z.object({
-			skills: z.array(z.string()).describe('Names of skills relevant to the query. Empty array if none apply.'),
-		})
-	
-		const skillsDescription = Object.entries(this.skillsTable)
-			.map(([title,description]) => `- **${title}**: ${description}`)
-			.join("\n")
-
-		const prompt = this.container.ui.endent(`You are a routing assistant. Given a user query and a list of available skills, determine which skills (if any) should be loaded to help answer the query.
-Available skills:
--------
-${skillsDescription}
-
-User query: ${userQuery}
-
-Return only the skill names that are directly relevant. Return an empty array if none apply. Do not load skills speculatively — only include ones that would materially help answer this specific query.`)
-			
-			const fork = assistant.conversation.fork()
-			const result = await fork.ask(prompt, { schema: responseSchema })
-
-			// Providers with structured output return a parsed { skills } object;
-			// providers without it (e.g. claude-code) return text, so recover the
-			// names from an embedded JSON blob and fall back to none on failure.
-			const found = this.extractSkillNames(result).filter(name => this.find(name) !== undefined)
-
-			this.emit('foundSkills', found, assistant, userQuery)
-
-			return found
-	}
-
-	/** Pull skill names out of a structured object or a free-text/JSON response. */
-	private extractSkillNames(result: any): string[] {
-		if (Array.isArray(result?.skills)) return result.skills
-		if (Array.isArray(result)) return result
-		if (typeof result === 'string') {
-			try {
-				const match = result.match(/\{[\s\S]*\}/)
-				if (match) {
-					const parsed = JSON.parse(match[0])
-					if (Array.isArray(parsed?.skills)) return parsed.skills
-				}
-			} catch {
-				// Not JSON — treat as no skills selected.
-			}
-		}
-		return []
-	}
 }
 
 export default SkillsLibrary

@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). No paths are scanned by default — callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to automatically scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).
+Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). A local `skills/` folder in the project cwd is scanned automatically when it exists. Beyond that, callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to also scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).
 
 ## Usage
 
@@ -29,6 +29,14 @@ container.feature('skillsLibrary', {
 | `useAgentsFolders` | `boolean` | When true, automatically scan conventional agent skill folders: .claude/skills and .agents/skills in both the home directory and project cwd. |
 
 ## Methods
+
+### warnAboutUnmatchedFilters
+
+Report `only` patterns that match no discovered skill. A filter is a claim about what should be available, so a pattern matching nothing is almost always a typo or a location that failed to scan. Silently narrowing to nothing is the failure mode that hides both.
+
+**Returns:** `string[]`
+
+
 
 ### setupToolsConsumer
 
@@ -154,6 +162,77 @@ Create a tmp directory containing symlinked/copied skill folders by name, suitab
 
 
 
+### resolveSkillFolders
+
+Resolve skill folders out of a set of skill names and/or location folders. Names are looked up in the library (so it must be started). Folders are scanned directly for subfolders containing a SKILL.md, which needs no library state — a folder can be turned into a plugin before `start()` has ever run.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `spec` | `SkillsPluginSpec` | ✓ | Skill names and/or folders containing skill subfolders |
+
+`SkillsPluginSpec` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `skills` | `string[]` | Skill names to resolve out of the library (requires the library to be started). |
+| `folders` | `string[]` | Folders containing skill subfolders; every subfolder with a SKILL.md is included. |
+| `pluginName` | `string` | Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to "luca-skills". |
+
+**Returns:** `Array<{ name: string; path: string }>`
+
+
+
+### installToFolder
+
+Symlink resolved skill folders into a target folder, leaving anything already present alone. This is the building block behind {@link ensurePluginWithSkills}, and is useful on its own for laying skills into a `.claude/skills` folder, a scratch directory, or any other place a tool expects to find them.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `skills` | `string[] | SkillsPluginSpec` | ✓ | Skill names, or a spec mixing names and folders to scan |
+| `folder` | `string` | ✓ | Target folder; created if missing |
+
+**Returns:** `SkillInstallResult[]`
+
+```ts
+const lib = await container.feature('skillsLibrary').start()
+lib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')
+// => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]
+```
+
+
+
+### ensurePluginWithSkills
+
+Build a Claude Code plugin directory that exposes the given skills, and return its path for passing to `claude --plugin-dir`. Unlike {@link ensureFolderCreatedWithSkillsByName} — which only makes skill files *readable* via `--add-dir` — a plugin actually registers the skills, so Claude lists them and can invoke them as `<pluginName>:<skill>`. The plugin lives at `~/.luca/skills-plugins/<hash>`, where the hash covers each skill's **absolute path**, not just its name: two projects can each have a `contentbase` skill with different content, and they must not collide on one cached plugin. Skill folders are symlinked rather than copied, so edits to the source skill show up immediately and never go stale.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `spec` | `SkillsPluginSpec` | ✓ | Skill names to resolve from the library and/or folders to scan |
+
+`SkillsPluginSpec` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `skills` | `string[]` | Skill names to resolve out of the library (requires the library to be started). |
+| `folders` | `string[]` | Folders containing skill subfolders; every subfolder with a SKILL.md is included. |
+| `pluginName` | `string` | Plugin name, which becomes the `<pluginName>:<skill>` namespace. Defaults to "luca-skills". |
+
+**Returns:** `string | undefined`
+
+```ts
+const lib = await container.feature('skillsLibrary').start()
+const dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })
+// => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)
+```
+
+
+
 ### searchAvailableSkills
 
 Search available skills, optionally filtered by a query string. Respects the `only` filter.
@@ -193,21 +272,6 @@ Ask a question about a specific skill using a DocsReader.
 | `{ skillName, question }` | `{ skillName: string; question: string }` | ✓ | Parameter { skillName, question } |
 
 **Returns:** `Promise<string>`
-
-
-
-### findRelevantSkillsForAssistant
-
-Fork the given assistant and ask it which skills (if any) are relevant to the user's query. Returns an array of skill names that should be loaded before the real question is answered. The fork is ephemeral (historyMode: 'none') and uses structured output so the result is always a clean string array — never free text.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `assistant` | `Assistant` | ✓ | The assistant instance to fork |
-| `userQuery` | `string` | ✓ | The user's original question |
-
-**Returns:** `Promise<string[]>`
 
 
 
@@ -254,12 +318,6 @@ Fired when a skill is discovered during scanning
 
 
 
-### foundSkills
-
-Event emitted by SkillsLibrary
-
-
-
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -291,5 +349,25 @@ await lib2.start()
 ```ts
 // A plugin lending its skills for this run only
 await lib.addLocation(`${pluginDir}/skills`, { persist: false })
+```
+
+
+
+**installToFolder**
+
+```ts
+const lib = await container.feature('skillsLibrary').start()
+lib.installToFolder(['luca-framework', 'react-ink'], './.claude/skills')
+// => [{ name: 'luca-framework', path: '/…/skills/luca-framework', linkPath: '…', installed: true }, …]
+```
+
+
+
+**ensurePluginWithSkills**
+
+```ts
+const lib = await container.feature('skillsLibrary').start()
+const dir = lib.ensurePluginWithSkills({ skills: ['luca-framework', 'react-ink'] })
+// => ~/.luca/skills-plugins/ab12cd…  (pass as claude --plugin-dir <dir>)
 ```
 

@@ -6001,6 +6001,37 @@ setBuildTimeData('features.contentDb', {
       ],
       "returns": "void"
     },
+    "summarize": {
+      "description": "Generate the collection's documentation files, mirroring the contentbase CLI's `cnotes summary` command. Writes `README.md` (model definitions summary — an existing `## Overview` section is preserved) and `TABLE-OF-CONTENTS.md` (document listing grouped by model) to the collection root, and records both in feature state.",
+      "parameters": {
+        "options": {
+          "type": "{ includeIds?: boolean; toc?: boolean; tocTitle?: string }",
+          "description": "Parameter options",
+          "properties": {
+            "includeIds": {
+              "type": "any",
+              "description": "Include each model's matching document IDs in the summary (default: false)"
+            },
+            "toc": {
+              "type": "any",
+              "description": "Also write TABLE-OF-CONTENTS.md (default: true)"
+            },
+            "tocTitle": {
+              "type": "any",
+              "description": "Title heading for the table of contents (default: 'Table of Contents')"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ readmePath: string; tocPath?: string; summary: string; toc?: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ title: z.string().optional() }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '---\\ntitle: First\\n---\\n\\n# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst { readmePath, tocPath } = await contentDb.summarize()\nconsole.log(readmePath) // .../docs/README.md\nconsole.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md"
+        }
+      ]
+    },
     "ensureSearchIndex": {
       "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
       "parameters": {
@@ -6168,6 +6199,54 @@ setBuildTimeData('features.contentDb', {
         "args"
       ],
       "returns": "void"
+    },
+    "validateDocument": {
+      "description": "Validate a single document against its content model, returning plain-language errors instead of raw Zod issues. The collection is refresh-loaded first so a document that was just written or edited (by a file tool, an assistant, or another process) is validated against its current on-disk content, and brand-new documents are discovered.",
+      "parameters": {
+        "args": {
+          "type": "{ id: string }",
+          "description": "Parameter args",
+          "properties": {
+            "id": {
+              "type": "any",
+              "description": "The document's path ID (a trailing `.md` is tolerated)"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ valid: boolean; model: string | null; errors: string[]; note?: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ status: z.enum(['draft', 'published']) }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst result = await contentDb.validateDocument({ id: 'articles/first' })\nconsole.log(result.valid)  // false\nconsole.log(result.errors) // ['Missing required frontmatter field \"status\" ...']"
+        }
+      ]
+    },
+    "validateAllDocuments": {
+      "description": "Validate every document in the collection against its matched content model, returning a summary with plain-language errors per invalid document. Documents that don't match any model (or only match the catch-all Base model) are counted as skipped — there is no schema to check them against.",
+      "parameters": {
+        "args": {
+          "type": "{ model?: string }",
+          "description": "Parameter args",
+          "properties": {
+            "model": {
+              "type": "any",
+              "description": "Optionally restrict validation to one model's documents"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ valid: boolean; checked: number; skipped: number; invalid: { id: string; model: string; errors: string[] }[] }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst report = await contentDb.validateAllDocuments()\nif (!report.valid) {\n for (const doc of report.invalid) console.log(doc.id, doc.errors)\n}"
+        }
+      ]
     }
   },
   "getters": {
@@ -21708,24 +21787,6 @@ setBuildTimeData('features.skillsLibrary', {
         "{ skillName, question }"
       ],
       "returns": "Promise<string>"
-    },
-    "findRelevantSkillsForAssistant": {
-      "description": "Fork the given assistant and ask it which skills (if any) are relevant to the user's query. Returns an array of skill names that should be loaded before the real question is answered. The fork is ephemeral (historyMode: 'none') and uses structured output so the result is always a clean string array — never free text.",
-      "parameters": {
-        "assistant": {
-          "type": "Assistant",
-          "description": "The assistant instance to fork"
-        },
-        "userQuery": {
-          "type": "string",
-          "description": "The user's original question"
-        }
-      },
-      "required": [
-        "assistant",
-        "userQuery"
-      ],
-      "returns": "Promise<string[]>"
     }
   },
   "getters": {
@@ -21767,11 +21828,6 @@ setBuildTimeData('features.skillsLibrary', {
     },
     "skillDiscovered": {
       "name": "skillDiscovered",
-      "description": "Event emitted by SkillsLibrary",
-      "arguments": {}
-    },
-    "foundSkills": {
-      "name": "foundSkills",
       "description": "Event emitted by SkillsLibrary",
       "arguments": {}
     }
@@ -31733,6 +31789,37 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "summarize": {
+        "description": "Generate the collection's documentation files, mirroring the contentbase CLI's `cnotes summary` command. Writes `README.md` (model definitions summary — an existing `## Overview` section is preserved) and `TABLE-OF-CONTENTS.md` (document listing grouped by model) to the collection root, and records both in feature state.",
+        "parameters": {
+          "options": {
+            "type": "{ includeIds?: boolean; toc?: boolean; tocTitle?: string }",
+            "description": "Parameter options",
+            "properties": {
+              "includeIds": {
+                "type": "any",
+                "description": "Include each model's matching document IDs in the summary (default: false)"
+              },
+              "toc": {
+                "type": "any",
+                "description": "Also write TABLE-OF-CONTENTS.md (default: true)"
+              },
+              "tocTitle": {
+                "type": "any",
+                "description": "Title heading for the table of contents (default: 'Table of Contents')"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ readmePath: string; tocPath?: string; summary: string; toc?: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ title: z.string().optional() }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '---\\ntitle: First\\n---\\n\\n# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst { readmePath, tocPath } = await contentDb.summarize()\nconsole.log(readmePath) // .../docs/README.md\nconsole.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md"
+          }
+        ]
+      },
       "ensureSearchIndex": {
         "description": "Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.",
         "parameters": {
@@ -31900,6 +31987,54 @@ export const introspectionData: Record<string, any>[] = [
           "args"
         ],
         "returns": "void"
+      },
+      "validateDocument": {
+        "description": "Validate a single document against its content model, returning plain-language errors instead of raw Zod issues. The collection is refresh-loaded first so a document that was just written or edited (by a file tool, an assistant, or another process) is validated against its current on-disk content, and brand-new documents are discovered.",
+        "parameters": {
+          "args": {
+            "type": "{ id: string }",
+            "description": "Parameter args",
+            "properties": {
+              "id": {
+                "type": "any",
+                "description": "The document's path ID (a trailing `.md` is tolerated)"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ valid: boolean; model: string | null; errors: string[]; note?: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ status: z.enum(['draft', 'published']) }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst result = await contentDb.validateDocument({ id: 'articles/first' })\nconsole.log(result.valid)  // false\nconsole.log(result.errors) // ['Missing required frontmatter field \"status\" ...']"
+          }
+        ]
+      },
+      "validateAllDocuments": {
+        "description": "Validate every document in the collection against its matched content model, returning a summary with plain-language errors per invalid document. Documents that don't match any model (or only match the catch-all Base model) are counted as skipped — there is no schema to check them against.",
+        "parameters": {
+          "args": {
+            "type": "{ model?: string }",
+            "description": "Parameter args",
+            "properties": {
+              "model": {
+                "type": "any",
+                "description": "Optionally restrict validation to one model's documents"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ valid: boolean; checked: number; skipped: number; invalid: { id: string; model: string; errors: string[] }[] }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst report = await contentDb.validateAllDocuments()\nif (!report.valid) {\n for (const doc of report.invalid) console.log(doc.id, doc.errors)\n}"
+          }
+        ]
       }
     },
     "getters": {
@@ -47395,24 +47530,6 @@ export const introspectionData: Record<string, any>[] = [
           "{ skillName, question }"
         ],
         "returns": "Promise<string>"
-      },
-      "findRelevantSkillsForAssistant": {
-        "description": "Fork the given assistant and ask it which skills (if any) are relevant to the user's query. Returns an array of skill names that should be loaded before the real question is answered. The fork is ephemeral (historyMode: 'none') and uses structured output so the result is always a clean string array — never free text.",
-        "parameters": {
-          "assistant": {
-            "type": "Assistant",
-            "description": "The assistant instance to fork"
-          },
-          "userQuery": {
-            "type": "string",
-            "description": "The user's original question"
-          }
-        },
-        "required": [
-          "assistant",
-          "userQuery"
-        ],
-        "returns": "Promise<string[]>"
       }
     },
     "getters": {
@@ -47454,11 +47571,6 @@ export const introspectionData: Record<string, any>[] = [
       },
       "skillDiscovered": {
         "name": "skillDiscovered",
-        "description": "Event emitted by SkillsLibrary",
-        "arguments": {}
-      },
-      "foundSkills": {
-        "name": "foundSkills",
         "description": "Event emitted by SkillsLibrary",
         "arguments": {}
       }

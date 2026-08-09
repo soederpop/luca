@@ -226,8 +226,8 @@ describe('skillsLibrary assistant wiring', () => {
   // to keep these assertions about the fixtures rather than the developer's machine.
   const configPath = paths.resolve(root, 'skills.json')
 
-  // Over the ten-skill threshold the fork-based relevance check is skipped, which keeps
-  // the preload assertions off the network.
+  // Over the ten-skill threshold the prompt switches from a full table to the
+  // search-first framing.
   const bigRoot = paths.resolve(root, 'big')
 
   function writeSkillAt(location: string, name: string) {
@@ -260,6 +260,9 @@ describe('skillsLibrary assistant wiring', () => {
     expect(lib.isStarted).toBe(true)
     expect(ext).toContain('- **alpha**: the alpha skill')
     expect(ext).toContain('- **gamma**: the gamma skill')
+    // The old design ordered the model to load skills named in the question;
+    // preload is now injected state, so no protocol language should remain.
+    expect(ext).not.toContain('Required Skills')
   })
 
   it('reports only-patterns that match nothing', async () => {
@@ -270,7 +273,7 @@ describe('skillsLibrary assistant wiring', () => {
     expect(Object.keys(lib.filteredSkills)).toEqual(['alpha'])
   })
 
-  it('drops preload names that are not available rather than sending the model after them', async () => {
+  it('injects preloaded skills as already-loaded system prompt extensions', async () => {
     const lib = c.feature('skillsLibrary', { _cacheKey: 'wiring-c', locations: [bigRoot], configPath })
     await lib.start()
 
@@ -278,11 +281,19 @@ describe('skillsLibrary assistant wiring', () => {
     assistant.use(lib)
     await assistant.start()
 
-    // The interceptor is one-shot, so run it exactly once and read the mutated ctx.
-    const ctx: any = { question: 'hello' }
-    await assistant.interceptors.beforeAsk.run(ctx, async () => {})
+    const preloaded = assistant.systemPromptExtensions['skill:alpha'] ?? ''
+    expect(preloaded).toContain('## Loaded Skill: alpha')
+    expect(preloaded).toContain('already loaded')
+    expect(preloaded).toContain('body') // the SKILL.md content itself
 
-    expect(ctx.question).toContain('alpha')
-    expect(ctx.question).not.toContain('does-not-exist')
+    // Unknown names are dropped with a warning, never injected.
+    expect(assistant.systemPromptExtensions['skill:does-not-exist']).toBeUndefined()
+
+    // Preload is state, not behavior — no interceptor rewrites the opening question.
+    expect(assistant.interceptors.beforeAsk.hasInterceptors).toBe(false)
+
+    // Extensions are the durable channel: the preload must reach the conversation's
+    // system message so forks, resume, and compaction all carry it.
+    expect(assistant.effectiveSystemPrompt).toContain('## Loaded Skill: alpha')
   })
 })
