@@ -277,9 +277,64 @@ await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], 
 
 
 
+### summarize
+
+Generate the collection's documentation files, mirroring the contentbase CLI's `cnotes summary` command. Writes `README.md` (model definitions summary — an existing `## Overview` section is preserved) and `TABLE-OF-CONTENTS.md` (document listing grouped by model) to the collection root, and records both in feature state.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ includeIds?: boolean; toc?: boolean; tocTitle?: string }` |  | Parameter options |
+
+`{ includeIds?: boolean; toc?: boolean; tocTitle?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `includeIds` | `any` | Include each model's matching document IDs in the summary (default: false) |
+| `toc` | `any` | Also write TABLE-OF-CONTENTS.md (default: true) |
+| `tocTitle` | `any` | Title heading for the table of contents (default: 'Table of Contents') |
+
+**Returns:** `Promise<{ readmePath: string; tocPath?: string; summary: string; toc?: string }>`
+
+```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/articles')
+await fs.writeFileAsync('docs/models.ts', [
+ "import { defineModel, z } from 'contentbase'",
+ "export const Article = defineModel('Article', {",
+ "  prefix: 'articles',",
+ "  description: 'A published article',",
+ "  meta: z.object({ title: z.string().optional() }),",
+ "})",
+].join('\n'))
+await fs.writeFileAsync('docs/articles/first.md', '---\ntitle: First\n---\n\n# First\n\nHello.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const { readmePath, tocPath } = await contentDb.summarize()
+console.log(readmePath) // .../docs/README.md
+console.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md
+```
+
+
+
+### ensureSearchIndex
+
+Ensure the search index exists and is up to date, generating embeddings in-process via the semanticSearch feature. Called automatically by the search methods — no external `cbase embed` step is required. Runs at most once per feature instance (subsequent searches skip the staleness scan). If no embedding provider is available but an index already exists on disk, the existing (possibly stale) index is used. With no provider and no index, this throws with setup instructions.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }` |  | Parameter options |
+
+**Returns:** `Promise<{ indexed: number; total: number }>`
+
+
+
 ### search
 
-BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.
+BM25 keyword search across indexed documents. Builds the search index automatically if it doesn't exist yet.
 
 **Parameters:**
 
@@ -294,7 +349,7 @@ BM25 keyword search across indexed documents. If no search index exists, throws 
 
 ### vectorSearch
 
-Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.
+Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches. Builds the search index automatically if it doesn't exist yet.
 
 **Parameters:**
 
@@ -309,7 +364,7 @@ Vector similarity search using embeddings. Finds conceptually related documents 
 
 ### hybridSearch
 
-Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.
+Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection. Builds the search index automatically if it doesn't exist yet.
 
 **Parameters:**
 
@@ -439,6 +494,73 @@ Hybrid semantic search with graceful fallback to grep.
 | `args` | `{ query: string; limit?: number }` | ✓ | Parameter args |
 
 **Returns:** `void`
+
+
+
+### validateDocument
+
+Validate a single document against its content model, returning plain-language errors instead of raw Zod issues. The collection is refresh-loaded first so a document that was just written or edited (by a file tool, an assistant, or another process) is validated against its current on-disk content, and brand-new documents are discovered.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ id: string }` | ✓ | Parameter args |
+
+`{ id: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `any` | The document's path ID (a trailing `.md` is tolerated) |
+
+**Returns:** `Promise<{ valid: boolean; model: string | null; errors: string[]; note?: string }>`
+
+```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/articles')
+await fs.writeFileAsync('docs/models.ts', [
+ "import { defineModel, z } from 'contentbase'",
+ "export const Article = defineModel('Article', {",
+ "  prefix: 'articles',",
+ "  description: 'A published article',",
+ "  meta: z.object({ status: z.enum(['draft', 'published']) }),",
+ "})",
+].join('\n'))
+await fs.writeFileAsync('docs/articles/first.md', '# First\n\nHello.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const result = await contentDb.validateDocument({ id: 'articles/first' })
+console.log(result.valid)  // false
+console.log(result.errors) // ['Missing required frontmatter field "status" ...']
+```
+
+
+
+### validateAllDocuments
+
+Validate every document in the collection against its matched content model, returning a summary with plain-language errors per invalid document. Documents that don't match any model (or only match the catch-all Base model) are counted as skipped — there is no schema to check them against.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ model?: string }` |  | Parameter args |
+
+`{ model?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `model` | `any` | Optionally restrict validation to one model's documents |
+
+**Returns:** `Promise<{ valid: boolean; checked: number; skipped: number; invalid: { id: string; model: string; errors: string[] }[] }>`
+
+```ts
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const report = await contentDb.validateAllDocuments()
+if (!report.valid) {
+ for (const doc of report.invalid) console.log(doc.id, doc.errors)
+}
+```
 
 
 
@@ -579,6 +701,64 @@ await fs.writeFileAsync('docs/guides/setup.md', '# Setup\n\nInstall it.\n')
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.readMultiple(['guides/intro', 'guides/setup'])
 await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
+```
+
+
+
+**summarize**
+
+```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/articles')
+await fs.writeFileAsync('docs/models.ts', [
+ "import { defineModel, z } from 'contentbase'",
+ "export const Article = defineModel('Article', {",
+ "  prefix: 'articles',",
+ "  description: 'A published article',",
+ "  meta: z.object({ title: z.string().optional() }),",
+ "})",
+].join('\n'))
+await fs.writeFileAsync('docs/articles/first.md', '---\ntitle: First\n---\n\n# First\n\nHello.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const { readmePath, tocPath } = await contentDb.summarize()
+console.log(readmePath) // .../docs/README.md
+console.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md
+```
+
+
+
+**validateDocument**
+
+```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/articles')
+await fs.writeFileAsync('docs/models.ts', [
+ "import { defineModel, z } from 'contentbase'",
+ "export const Article = defineModel('Article', {",
+ "  prefix: 'articles',",
+ "  description: 'A published article',",
+ "  meta: z.object({ status: z.enum(['draft', 'published']) }),",
+ "})",
+].join('\n'))
+await fs.writeFileAsync('docs/articles/first.md', '# First\n\nHello.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const result = await contentDb.validateDocument({ id: 'articles/first' })
+console.log(result.valid)  // false
+console.log(result.errors) // ['Missing required frontmatter field "status" ...']
+```
+
+
+
+**validateAllDocuments**
+
+```ts
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+const report = await contentDb.validateAllDocuments()
+if (!report.valid) {
+ for (const doc of report.invalid) console.log(doc.id, doc.errors)
+}
 ```
 
 

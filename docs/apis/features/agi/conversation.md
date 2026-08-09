@@ -261,6 +261,7 @@ Send a message and get a streamed response. Automatically handles tool calls by 
 | Property | Type | Description |
 |----------|------|-------------|
 | `maxTokens` | `number` |  |
+| `instructions` | `string` | Additional instructions for this call only. They are sent to the model without being appended to the persisted conversation history. |
 | `schema` | `z.ZodType` | When provided, enables OpenAI Structured Outputs. The model is constrained to return JSON matching this Zod schema. The return value of ask() will be the parsed object instead of a raw string. |
 
 **Returns:** `Promise<string>`

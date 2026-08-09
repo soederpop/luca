@@ -52,8 +52,14 @@ container.feature('claudeCode', {
   strictMcpConfig,
   // Path to a custom settings file
   settingsFile,
-  // Directories containing Claude Code skills to load into sessions
+  // Directories containing Claude Code skills to register in sessions
   skillsFolders,
+  // Skill names to resolve from the skillsLibrary and register in sessions
+  skills,
+  // Plugin directories to load, passed as --plugin-dir
+  pluginDirs,
+  // Name of the generated skills plugin. Defaults to "luca-skills"
+  skillsPluginName,
   // Launch Claude Code with a Chrome browser tool
   chrome,
   // Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL
@@ -89,7 +95,10 @@ container.feature('claudeCode', {
 | `tools` | `array` | Default tools to make available |
 | `strictMcpConfig` | `boolean` | Require strict MCP config validation |
 | `settingsFile` | `string` | Path to a custom settings file |
-| `skillsFolders` | `array` | Directories containing Claude Code skills to load into sessions |
+| `skillsFolders` | `array` | Directories containing Claude Code skills to register in sessions |
+| `skills` | `array` | Skill names to resolve from the skillsLibrary and register in sessions |
+| `pluginDirs` | `array` | Plugin directories to load, passed as --plugin-dir |
+| `skillsPluginName` | `string` | Name of the generated skills plugin. Defaults to "luca-skills" |
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool |
 | `baseURL` | `string` | Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL |
 | `authToken` | `string` | Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN |
@@ -145,6 +154,67 @@ const configPath = await cc.writeMcpConfig({
 
 
 
+### ensureSkillsPlugin
+
+Compose the session's `skills` and `skillsFolders` into a generated Claude Code plugin, so the skills are actually registered rather than merely readable. Feature-level and per-session values are merged, then handed to `skillsLibrary.ensurePluginWithSkills()`. The library is started on demand, since resolving skills by name needs its scanned locations.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `RunOptions` |  | Per-session options, merged over the feature defaults |
+
+`RunOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `model` | `string` | Override model for this session. |
+| `cwd` | `string` | Override working directory. |
+| `systemPrompt` | `string` | System prompt for this session. |
+| `appendSystemPrompt` | `string` | Append system prompt for this session. |
+| `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'` | Permission mode override. |
+| `allowedTools` | `string[]` | Allowed tools override. |
+| `disallowedTools` | `string[]` | Disallowed tools override. |
+| `streaming` | `boolean` | Whether to stream partial messages. |
+| `resumeSessionId` | `string` | Resume a previous session by ID. |
+| `continue` | `boolean` | Continue the most recent conversation. |
+| `addDirs` | `string[]` | Additional directories to allow tool access to. |
+| `skillsFolders` | `string[]` | Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. |
+| `skills` | `string[]` | Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. |
+| `pluginDirs` | `string[]` | Plugin directories to load, passed as --plugin-dir. |
+| `skillsPluginName` | `string` | Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. |
+| `mcpConfig` | `string[]` | MCP config file paths. |
+| `mcpServers` | `Record<string, ClaudeCodeMcpServerConfig>` | MCP servers to inject, keyed by server name. |
+| `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
+| `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
+| `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
+| `fileLogLevel` | `FileLogLevel` | Verbosity level for file logging. Overrides feature-level fileLogLevel. |
+| `effort` | `'low' | 'medium' | 'high'` | Effort level for Claude reasoning. |
+| `maxBudgetUsd` | `number` | Maximum cost budget in USD. |
+| `fallbackModel` | `string` | Fallback model when the primary is unavailable. |
+| `jsonSchema` | `string | object` | JSON schema for structured output validation. |
+| `agent` | `string` | Agent to use for this session. |
+| `sessionId` | `string` | Resume or fork a specific Claude session by ID. |
+| `noSessionPersistence` | `boolean` | Disable session persistence for this run. |
+| `forkSession` | `boolean` | Fork from an existing session instead of resuming. |
+| `tools` | `string[]` | Tools to make available. |
+| `strictMcpConfig` | `boolean` | Require strict MCP config validation. |
+| `debug` | `string | boolean` | Enable debug output. Pass a string for specific debug channels, or true for all. |
+| `debugFile` | `string` | Path to write debug output to a file. |
+| `settingsFile` | `string` | Path to a custom settings file. |
+| `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
+| `baseURL` | `string` | Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env. |
+| `authToken` | `string` | Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. |
+
+**Returns:** `Promise<string | undefined>`
+
+```ts
+const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })
+// => ~/.luca/skills-plugins/<hash>
+```
+
+
+
 ### run
 
 Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON events, and resolves when the session completes.
@@ -171,7 +241,10 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `continue` | `boolean` | Continue the most recent conversation. |
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
-| `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
+| `skillsFolders` | `string[]` | Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. |
+| `skills` | `string[]` | Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. |
+| `pluginDirs` | `string[]` | Plugin directories to load, passed as --plugin-dir. |
+| `skillsPluginName` | `string` | Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
 | `mcpServers` | `Record<string, ClaudeCodeMcpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
@@ -252,7 +325,10 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `continue` | `boolean` | Continue the most recent conversation. |
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
-| `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
+| `skillsFolders` | `string[]` | Directories containing Claude Code skills. Every subfolder with a SKILL.md is registered via a generated plugin. |
+| `skills` | `string[]` | Skill names to resolve from the skillsLibrary and register in this session via a generated plugin. |
+| `pluginDirs` | `string[]` | Plugin directories to load, passed as --plugin-dir. |
+| `skillsPluginName` | `string` | Name of the generated skills plugin, which becomes the `<pluginName>:<skill>` namespace. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
 | `mcpServers` | `Record<string, ClaudeCodeMcpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
@@ -734,6 +810,15 @@ const configPath = await cc.writeMcpConfig({
  'my-api': { type: 'http', url: 'https://api.example.com/mcp' },
  'local-tool': { type: 'stdio', command: 'bun', args: ['run', 'server.ts'] }
 })
+```
+
+
+
+**ensureSkillsPlugin**
+
+```ts
+const dir = await cc.ensureSkillsPlugin({ skills: ['luca-framework'] })
+// => ~/.luca/skills-plugins/<hash>
 ```
 
 

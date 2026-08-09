@@ -1,7 +1,7 @@
 {
   "name": "luca",
   "website": "https://luca-js.soederpop.com",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
   "type": "module",
@@ -127,6 +127,7 @@
     "test:integration": "bun test ./test-integration/"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.14",
     "@types/cacache": "15.0.1",
     "@types/chalk": "2.2.4",
     "@types/child-process-promise": "2.2.6",

@@ -68,6 +68,27 @@ const buffer = await fs.readFileAsync('data.json', null) // pass null for a raw 
 
 
 
+### readFirstLineAsync
+
+Asynchronously reads just the first line of a file without loading the whole file into memory. Reads in chunks until a newline is found or `maxBytes` is reached, so it is safe to call on very large files (e.g. multi-megabyte JSONL logs where only the header line is needed).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The file path relative to the container's working directory |
+| `maxBytes` | `number` |  | Maximum number of bytes to scan for a newline before giving up and returning what was read |
+
+**Returns:** `Promise<string>`
+
+```ts
+await fs.writeFileAsync('log.jsonl', '{"type":"meta"}\n{"type":"event"}\n')
+const header = await fs.readFirstLineAsync('log.jsonl')
+// header => '{"type":"meta"}'
+```
+
+
+
 ### readJson
 
 Synchronously reads and parses a JSON file.
@@ -648,6 +669,46 @@ Resolves a symlink to its real path. Returns the resolved path as-is if not a sy
 | `path` | `string` | ✓ | The path to resolve |
 
 **Returns:** `string`
+
+
+
+### symlink
+
+Creates a symbolic link at `linkPath` pointing at `target`. Parent directories of the link are created as needed. Throws if `linkPath` already exists — use {@link ensureSymlink} for the idempotent version.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `target` | `string` | ✓ | The path the link should point at |
+| `linkPath` | `string` | ✓ | Where to create the link |
+
+**Returns:** `void`
+
+```ts
+fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')
+fs.isSymlink('plugin/skills/react-ink') // => true
+```
+
+
+
+### ensureSymlink
+
+Creates a symbolic link, replacing any existing link at `linkPath`. Idempotent: a link already pointing at `target` is left alone, a link pointing somewhere else (or a dangling one) is repointed. Returns false when `linkPath` exists as a real file or directory, since replacing real content is never implied by "ensure".
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `target` | `string` | ✓ | The path the link should point at |
+| `linkPath` | `string` | ✓ | Where the link should live |
+
+**Returns:** `boolean`
+
+```ts
+fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)
+fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)
+```
 
 
 
@@ -1360,6 +1421,16 @@ const buffer = await fs.readFileAsync('data.json', null) // pass null for a raw 
 
 
 
+**readFirstLineAsync**
+
+```ts
+await fs.writeFileAsync('log.jsonl', '{"type":"meta"}\n{"type":"event"}\n')
+const header = await fs.readFirstLineAsync('log.jsonl')
+// header => '{"type":"meta"}'
+```
+
+
+
 **readJson**
 
 ```ts
@@ -1520,6 +1591,24 @@ if (fs.existsSync('config.json')) {
 if (await fs.existsAsync('config.json')) {
  console.log('Config file exists!')
 }
+```
+
+
+
+**symlink**
+
+```ts
+fs.symlink('/abs/path/to/skills/react-ink', 'plugin/skills/react-ink')
+fs.isSymlink('plugin/skills/react-ink') // => true
+```
+
+
+
+**ensureSymlink**
+
+```ts
+fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (created)
+fs.ensureSymlink('/skills/react-ink', 'plugin/skills/react-ink') // => true (already correct)
 ```
 
 

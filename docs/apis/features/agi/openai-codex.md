@@ -181,6 +181,104 @@ Wait for a running session to complete or error. Resolves immediately if the ses
 
 
 
+### listHistorySessions
+
+List Codex sessions persisted on disk by mining the rollout transcripts under ~/.codex/sessions/. Unlike Claude Code, Codex buckets transcripts by date rather than by project directory, so only the first line (the session_meta record) of each file is read to recover the cwd — full transcripts are never loaded. Thread names are merged in from ~/.codex/session_index.jsonl when available. Results are sorted newest-first.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ cwd?: string; limit?: number }` |  | Filtering options |
+
+`{ cwd?: string; limit?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `cwd` | `any` | Only return sessions that ran in this working directory |
+| `limit` | `any` | Maximum number of sessions to return |
+
+**Returns:** `Promise<CodexHistorySession[]>`
+
+```ts
+const codex = container.feature('openaiCodex')
+const sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })
+for (const s of sessions) {
+ console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)
+}
+```
+
+
+
+### getConversationHistory
+
+Read the full conversation history for a persisted Codex session from its rollout JSONL file. Accepts either a Codex session/thread ID (from listHistorySessions or a session's threadId) or this feature's local session ID, which is resolved to its threadId automatically. Returns the raw parsed records: session_meta, response_item (messages, tool calls, reasoning), event_msg, and turn_context entries. Malformed lines are skipped so format drift between CLI versions degrades gracefully.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `sessionId` | `string` | ✓ | Codex session/thread ID or local session ID |
+
+**Returns:** `Promise<any[]>`
+
+```ts
+const [latest] = await codex.listHistorySessions({ limit: 1 })
+const records = await codex.getConversationHistory(latest.sessionId)
+const messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')
+```
+
+
+
+### searchUserPrompts
+
+Search the user's prompt history across all Codex sessions. Reads ~/.codex/history.jsonl, which logs every user prompt with its session ID and timestamp — handy for "which session did I ask about X in?".
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | ✓ | Case-insensitive substring to match against prompt text |
+| `options` | `{ limit?: number }` |  | Search options |
+
+`{ limit?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `limit` | `any` | Maximum number of matches to return |
+
+**Returns:** `Promise<CodexPromptHistoryEntry[]>`
+
+```ts
+const hits = await codex.searchUserPrompts('websocket')
+for (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)
+```
+
+
+
+### sessionHistoryToMarkdown
+
+Export a persisted Codex session's history as a readable markdown document. Mirrors claudeCode.sessionHistoryToMarkdown(). The source can be: - A path to a rollout JSONL file - A Codex session/thread ID (located via ~/.codex/sessions/) - A local session ID from this feature's state (resolved via its threadId) - Omitted, in which case the most recent session on disk is used
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `source` | `string` |  | Path to a rollout JSONL file, a session ID, or omit for the most recent session |
+
+**Returns:** `Promise<string>`
+
+```ts
+// Most recent session on this machine
+const md = await codex.sessionHistoryToMarkdown()
+
+// A specific session
+const [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })
+const doc = await codex.sessionHistoryToMarkdown(latest.sessionId)
+```
+
+
+
 ### enable
 
 Enable the feature. Delegates to the base Feature enable() lifecycle.
@@ -200,6 +298,7 @@ Enable the feature. Delegates to the base Feature enable() lifecycle.
 | Property | Type | Description |
 |----------|------|-------------|
 | `codexPath` | `string` |  |
+| `codexHome` | `string` | The Codex home directory. Honors the CODEX_HOME environment variable, falling back to ~/.codex. |
 
 ## Events (Zod v4 schema)
 
@@ -398,5 +497,49 @@ const sessionId = codex.start('Build a REST API for users')
 codex.on('session:delta', ({ sessionId: sid, text }) => {
  if (sid === sessionId) process.stdout.write(text)
 })
+```
+
+
+
+**listHistorySessions**
+
+```ts
+const codex = container.feature('openaiCodex')
+const sessions = await codex.listHistorySessions({ cwd: container.cwd, limit: 10 })
+for (const s of sessions) {
+ console.log(s.startedAt, s.threadName ?? s.sessionId, s.cwd)
+}
+```
+
+
+
+**getConversationHistory**
+
+```ts
+const [latest] = await codex.listHistorySessions({ limit: 1 })
+const records = await codex.getConversationHistory(latest.sessionId)
+const messages = records.filter(r => r.type === 'response_item' && r.payload?.type === 'message')
+```
+
+
+
+**searchUserPrompts**
+
+```ts
+const hits = await codex.searchUserPrompts('websocket')
+for (const hit of hits) console.log(new Date(hit.ts * 1000), hit.text)
+```
+
+
+
+**sessionHistoryToMarkdown**
+
+```ts
+// Most recent session on this machine
+const md = await codex.sessionHistoryToMarkdown()
+
+// A specific session
+const [latest] = await codex.listHistorySessions({ cwd: container.cwd, limit: 1 })
+const doc = await codex.sessionHistoryToMarkdown(latest.sessionId)
 ```
 

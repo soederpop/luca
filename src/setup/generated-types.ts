@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.7.0"
+export const typesBundleVersion = "3.7.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -6682,6 +6682,8 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
     get initialState(): SkillsLibraryState;
     /** Emit a warning unless LUCA_SKILLS_NO_WARN silences it. */
     private warn;
+    /** Emit an informational note, gated by the same env var as warn(). */
+    private info;
     /**
      * Report \`only\` patterns that match no discovered skill.
      *
@@ -6695,7 +6697,15 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
     setupToolsConsumer(assistant: Feature): Assistant;
     /**
      * Wire a started library into an assistant: describe the available skills in the
-     * system prompt, and arrange for any preload list to be injected on the opening ask.
+     * system prompt, and inject any preload list as already-loaded system prompt
+     * extensions.
+     *
+     * Preload deliberately uses system prompt extensions rather than simulated tool
+     * calls or question rewrites — extensions are the framework's durable channel.
+     * They are copied on fork() (every history mode), swapped in fresh on thread
+     * resume, and preserved through compaction; history messages survive none of
+     * those. Framing the content as "already loaded" also means the model answers
+     * the opening question directly instead of narrating a loadSkill round-trip.
      *
      * @param a - The assistant to attach to
      */
@@ -6843,21 +6853,6 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
         skillName: string;
         question: string;
     }): Promise<string>;
-    /**
-     * Fork the given assistant and ask it which skills (if any) are relevant
-     * to the user's query. Returns an array of skill names that should be loaded
-     * before the real question is answered.
-     *
-     * The fork is ephemeral (historyMode: 'none') and uses structured output so
-     * the result is always a clean string array — never free text.
-     *
-     * @param assistant - The assistant instance to fork
-     * @param userQuery - The user's original question
-     * @returns Array of skill names relevant to the query (may be empty)
-     */
-    findRelevantSkillsForAssistant(assistant: Assistant, userQuery: string): Promise<string[]>;
-    /** Pull skill names out of a structured object or a free-text/JSON response. */
-    private extractSkillNames;
 }
 export default SkillsLibrary;
 //# sourceMappingURL=skills-library.d.ts.map`,
@@ -13916,6 +13911,47 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     private _getLeadingContent;
     generateTableOfContents(): Promise<string>;
     generateModelSummary(options: any): Promise<string>;
+    /**
+     * Generate the collection's documentation files, mirroring the contentbase
+     * CLI's \`cnotes summary\` command. Writes \`README.md\` (model definitions
+     * summary — an existing \`## Overview\` section is preserved) and
+     * \`TABLE-OF-CONTENTS.md\` (document listing grouped by model) to the
+     * collection root, and records both in feature state.
+     *
+     * @param options.includeIds - Include each model's matching document IDs in the summary (default: false)
+     * @param options.toc - Also write TABLE-OF-CONTENTS.md (default: true)
+     * @param options.tocTitle - Title heading for the table of contents (default: 'Table of Contents')
+     * @returns The written file paths plus the generated summary and toc strings
+     * @example
+     * \`\`\`typescript
+     * const fs = container.feature('fs')
+     * await fs.ensureFolder('docs/articles')
+     * await fs.writeFileAsync('docs/models.ts', [
+     *   "import { defineModel, z } from 'contentbase'",
+     *   "export const Article = defineModel('Article', {",
+     *   "  prefix: 'articles',",
+     *   "  description: 'A published article',",
+     *   "  meta: z.object({ title: z.string().optional() }),",
+     *   "})",
+     * ].join('\\n'))
+     * await fs.writeFileAsync('docs/articles/first.md', '---\\ntitle: First\\n---\\n\\n# First\\n\\nHello.\\n')
+     *
+     * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+     * const { readmePath, tocPath } = await contentDb.summarize()
+     * console.log(readmePath) // .../docs/README.md
+     * console.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md
+     * \`\`\`
+     */
+    summarize(options?: {
+        includeIds?: boolean;
+        toc?: boolean;
+        tocTitle?: string;
+    }): Promise<{
+        readmePath: string;
+        tocPath?: string;
+        summary: string;
+        toc?: string;
+    }>;
     get modelDefinitionTable(): Record<string, {
         description: string;
         glob: string;
@@ -14116,6 +14152,88 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
         query: string;
         limit?: number;
     }): Promise<any>;
+    /**
+     * Validate a single document against its content model, returning
+     * plain-language errors instead of raw Zod issues.
+     *
+     * The collection is refresh-loaded first so a document that was just
+     * written or edited (by a file tool, an assistant, or another process)
+     * is validated against its current on-disk content, and brand-new
+     * documents are discovered.
+     *
+     * @param args.id - The document's path ID (a trailing \`.md\` is tolerated)
+     * @returns \`{ valid, model, errors }\` where errors are human-readable strings
+     * @example
+     * \`\`\`typescript
+     * const fs = container.feature('fs')
+     * await fs.ensureFolder('docs/articles')
+     * await fs.writeFileAsync('docs/models.ts', [
+     *   "import { defineModel, z } from 'contentbase'",
+     *   "export const Article = defineModel('Article', {",
+     *   "  prefix: 'articles',",
+     *   "  description: 'A published article',",
+     *   "  meta: z.object({ status: z.enum(['draft', 'published']) }),",
+     *   "})",
+     * ].join('\\n'))
+     * await fs.writeFileAsync('docs/articles/first.md', '# First\\n\\nHello.\\n')
+     *
+     * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+     * const result = await contentDb.validateDocument({ id: 'articles/first' })
+     * console.log(result.valid)  // false
+     * console.log(result.errors) // ['Missing required frontmatter field "status" ...']
+     * \`\`\`
+     */
+    validateDocument(args: {
+        id: string;
+    }): Promise<{
+        valid: boolean;
+        model: string | null;
+        errors: string[];
+        note?: string;
+    }>;
+    /**
+     * Validate every document in the collection against its matched content
+     * model, returning a summary with plain-language errors per invalid document.
+     *
+     * Documents that don't match any model (or only match the catch-all Base
+     * model) are counted as skipped — there is no schema to check them against.
+     *
+     * @param args.model - Optionally restrict validation to one model's documents
+     * @returns \`{ valid, checked, skipped, invalid }\` — \`invalid\` lists \`{ id, model, errors }\` per failing document
+     * @example
+     * \`\`\`typescript
+     * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+     * const report = await contentDb.validateAllDocuments()
+     * if (!report.valid) {
+     *   for (const doc of report.invalid) console.log(doc.id, doc.errors)
+     * }
+     * \`\`\`
+     */
+    validateAllDocuments(args?: {
+        model?: string;
+    }): Promise<{
+        valid: boolean;
+        checked: number;
+        skipped: number;
+        invalid: {
+            id: string;
+            model: string;
+            errors: string[];
+        }[];
+    }>;
+    /**
+     * Validate one document against a model definition, returning humanized
+     * error strings. Uses contentbase's standalone validator (rather than the
+     * model instance's validate()) because it also checks the H1 title and
+     * prefixes section issues with their section key.
+     */
+    private _validateAgainstModel;
+    /**
+     * Rewrite a Zod issue from contentbase's validator into plain language,
+     * so non-developer consumers (assistants) can act on it without knowing
+     * Zod's output format or the model definition internals.
+     */
+    private _humanizeValidationIssue;
 }
 export default ContentDb;
 //# sourceMappingURL=content-db.d.ts.map`,
@@ -29914,7 +30032,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.6.9";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.7.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -40953,9 +41071,24 @@ import type { Document } from "./document";
  */
 export declare function validateDocument(document: Document, definition: ModelDefinition): ValidationResult;
 //# sourceMappingURL=validator.d.ts.map`,
+  "deps/contentbase/src/gray-matter.d.ts": `// gray-matter's shipped types omit \`cache\`, even though passing any options
+// object (including \`{ cache: false }\`) bypasses its internal parse cache —
+// see gray-matter's \`matter()\`: it only reads/writes \`matter.cache\` when no
+// options argument is given at all. Declared here so call sites can opt out
+// of that shared cache explicitly instead of passing an empty \`{}\`.
+import "gray-matter";
+
+declare module "gray-matter" {
+  namespace matter {
+    interface GrayMatterOption<I extends Input, O extends GrayMatterOption<I, O>> {
+      cache?: boolean;
+    }
+  }
+}
+`,
   "deps/contentbase/package.json": `{
   "name": "contentbase",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "repository": "https://github.com/soederpop/contentbase",
   "website": "https://contentbase.soederpop.com",
   "type": "module",

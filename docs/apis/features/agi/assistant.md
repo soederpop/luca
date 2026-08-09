@@ -56,8 +56,12 @@ container.feature('assistant', {
   forbidTools,
   // Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.
   toolNames,
+  // Skill names to preload when the assistant uses the skillsLibrary
+  skills,
   // Options for the OpenAI client, passed through to the conversation
   clientOptions,
+  // Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config
+  config,
 })
 ```
 
@@ -89,7 +93,9 @@ container.feature('assistant', {
 | `allowTools` | `array` | Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching. |
 | `forbidTools` | `array` | Denylist of tool name patterns to exclude. Supports * glob matching. |
 | `toolNames` | `array` | Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns. |
+| `skills` | `array` | Skill names to preload when the assistant uses the skillsLibrary |
 | `clientOptions` | `object` | Options for the OpenAI client, passed through to the conversation |
+| `config` | `object` | Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config |
 
 ## Methods
 
@@ -236,6 +242,26 @@ Simulate a user question and assistant response by appending both messages to th
 | `response` | `string` | ✓ | The assistant's response |
 
 **Returns:** `this`
+
+
+
+### setting
+
+Read one value out of {@link config} by dot path, with an optional fallback. Use this in tools.ts/hooks.ts so a missing config block doesn't throw on nested access.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Dot path into the merged config (e.g. 'gws.profile') |
+| `fallback` | `T` |  | Returned when the path is absent or undefined |
+
+**Returns:** `T`
+
+```ts
+const profile = me.setting('gwsProfile', 'default')
+const budget = me.setting('limits.maxDownloads', 25)
+```
 
 
 
@@ -464,6 +490,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
 | `meta` | `Record<string, any>` | Parsed YAML frontmatter from CORE.md, or empty object if none. |
 | `effectiveOptions` | `AssistantOptions & Record<string, any>` | Merged options where CORE.md frontmatter provides defaults and constructor options take precedence. Prefer this over `this.options` anywhere model parameters or runtime config is consumed. |
+| `config` | `Record<string, any>` | Assistant-specific settings the framework never interprets — the supported home for arbitrary configuration. Every other option is schema-validated, so unknown top-level keys are silently stripped; keys nested under `config` survive untouched. Three layers deep-merge, weakest first: a `config:` block in the assistant's own CORE.md frontmatter, then the workspace's `assistants/options.yml` (`defaults.config` then `<name>.config`), then `config` passed to `create()`. The options.yml layer is what lets a project configure assistants it does not own — ones contributed by a plugin, or discovered from `~/.luca/assistants`. |
 | `paths` | `any` | Provides a helper for creating paths off of the assistant's base folder |
 | `assistantName` | `string` | The assistant name derived from the folder basename. |
 | `cwdHash` | `string` | An 8-char hash of the container cwd for per-project thread isolation. |
@@ -693,6 +720,15 @@ assistant
 
 
 
+**setting**
+
+```ts
+const profile = me.setting('gwsProfile', 'default')
+const budget = me.setting('limits.maxDownloads', 25)
+```
+
+
+
 **ask**
 
 ```ts
@@ -740,5 +776,21 @@ const results = await assistant.research([
 ```ts
 const researcher = await assistant.subagent('codingAssistant')
 const answer = await researcher.ask('Find all usages of container.feature("fs")')
+```
+
+
+
+**config**
+
+```yaml
+# <workspace>/assistants/options.yml — configures a plugin's assistant
+googleWorkspace:
+ config:
+   gwsProfile: northchief
+```
+
+```ts
+// assistants/googleWorkspace/tools.ts
+export const use = [container.feature('gws', { profile: me.config.gwsProfile })]
 ```
 
