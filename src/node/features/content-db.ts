@@ -113,6 +113,20 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         'Search documents using natural language — combines keyword matching with semantic similarity. Best for questions and topic exploration. The search index (including embeddings) is built automatically on first use; falls back to text search only if no embedding provider is available. For exact pattern matching, use searchContent instead.'
       ),
     },
+    validateDocument: {
+      schema: z.object({
+        id: z.string().describe('The document path ID to validate (e.g. "ideas/my-idea"). Get valid IDs from listDocuments.'),
+      }).describe(
+        'Validate a single document against its content model: required frontmatter fields, the H1 title, and required section headings. The document is re-read from disk first, so call this right after writing or editing a document and fix every reported error before moving on. Errors are returned in plain language.'
+      ),
+    },
+    validateAllDocuments: {
+      schema: z.object({
+        model: z.string().optional().describe('Only validate documents of this model type (e.g. "Plan", "Idea"). Get model names from getCollectionOverview.'),
+      }).describe(
+        'Validate every document in the collection (or every document of one model) against its content model. Returns a summary with per-document plain-language errors for each invalid document. Useful for audits and periodic reports.'
+      ),
+    },
   }
 
   /**
@@ -137,6 +151,8 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         '- `searchContent` — best for exact patterns, code references, or regex across all documents',
         '',
         '**Efficiency:** Don\'t read entire documents when you only need one section. Use `include` to request specific headings. Use `readMultipleDocuments` to batch reads instead of calling `readDocument` in a loop.',
+        '',
+        '**Writing:** Whenever you create or edit a document in this collection (by any means), call `validateDocument` with its path ID immediately afterward. If it reports errors, fix them before moving on — the errors are plain-language descriptions of missing frontmatter, titles, or required sections. For a full audit (e.g. in a periodic report), use `validateAllDocuments`.',
       ].join('\n'))
     }
   }
@@ -550,11 +566,67 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   async generateTableOfContents() {
+	  if (!this.isLoaded) await this.load()
 	  return this.collection.tableOfContents()
   }
 
   async generateModelSummary(options: any) {
+	  if (!this.isLoaded) await this.load()
 	  return this.collection.generateModelSummary(options)
+  }
+
+  /**
+   * Generate the collection's documentation files, mirroring the contentbase
+   * CLI's `cnotes summary` command. Writes `README.md` (model definitions
+   * summary — an existing `## Overview` section is preserved) and
+   * `TABLE-OF-CONTENTS.md` (document listing grouped by model) to the
+   * collection root, and records both in feature state.
+   *
+   * @param options.includeIds - Include each model's matching document IDs in the summary (default: false)
+   * @param options.toc - Also write TABLE-OF-CONTENTS.md (default: true)
+   * @param options.tocTitle - Title heading for the table of contents (default: 'Table of Contents')
+   * @returns The written file paths plus the generated summary and toc strings
+   * @example
+   * ```typescript
+   * const fs = container.feature('fs')
+   * await fs.ensureFolder('docs/articles')
+   * await fs.writeFileAsync('docs/models.ts', [
+   *   "import { defineModel, z } from 'contentbase'",
+   *   "export const Article = defineModel('Article', {",
+   *   "  prefix: 'articles',",
+   *   "  description: 'A published article',",
+   *   "  meta: z.object({ title: z.string().optional() }),",
+   *   "})",
+   * ].join('\n'))
+   * await fs.writeFileAsync('docs/articles/first.md', '---\ntitle: First\n---\n\n# First\n\nHello.\n')
+   *
+   * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+   * const { readmePath, tocPath } = await contentDb.summarize()
+   * console.log(readmePath) // .../docs/README.md
+   * console.log(tocPath)    // .../docs/TABLE-OF-CONTENTS.md
+   * ```
+   */
+  async summarize(options: { includeIds?: boolean; toc?: boolean; tocTitle?: string } = {}): Promise<{ readmePath: string; tocPath?: string; summary: string; toc?: string }> {
+    if (!this.isLoaded) await this.load()
+
+    const { includeIds = false, toc: writeToc = true, tocTitle = 'Table of Contents' } = options
+
+    const summary = await this.collection.saveModelSummary({ includeIds })
+    const readmePath = this.container.paths.resolve(this.collectionPath, 'README.md')
+    this.state.set('modelSummary', summary)
+
+    const result: { readmePath: string; tocPath?: string; summary: string; toc?: string } = { readmePath, summary }
+
+    if (writeToc) {
+      const toc = this.collection.tableOfContents({ title: tocTitle })
+      const tocPath = this.container.paths.resolve(this.collectionPath, 'TABLE-OF-CONTENTS.md')
+      await this.container.fs.writeFileAsync(tocPath, toc)
+      this.state.set('tableOfContents', toc)
+      result.tocPath = tocPath
+      result.toc = toc
+    }
+
+    return result
   }
   
   get modelDefinitionTable(): Record<string, { description: string; glob: string; routePatterns: string[] }> {
@@ -1010,6 +1082,173 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         note: 'Semantic search unavailable (no embedding provider) — fell back to text search. Run `luca setup --local-embeddings` or set OPENAI_API_KEY to enable it.',
       }
     }
+  }
+
+  /**
+   * Validate a single document against its content model, returning
+   * plain-language errors instead of raw Zod issues.
+   *
+   * The collection is refresh-loaded first so a document that was just
+   * written or edited (by a file tool, an assistant, or another process)
+   * is validated against its current on-disk content, and brand-new
+   * documents are discovered.
+   *
+   * @param args.id - The document's path ID (a trailing `.md` is tolerated)
+   * @returns `{ valid, model, errors }` where errors are human-readable strings
+   * @example
+   * ```typescript
+   * const fs = container.feature('fs')
+   * await fs.ensureFolder('docs/articles')
+   * await fs.writeFileAsync('docs/models.ts', [
+   *   "import { defineModel, z } from 'contentbase'",
+   *   "export const Article = defineModel('Article', {",
+   *   "  prefix: 'articles',",
+   *   "  description: 'A published article',",
+   *   "  meta: z.object({ status: z.enum(['draft', 'published']) }),",
+   *   "})",
+   * ].join('\n'))
+   * await fs.writeFileAsync('docs/articles/first.md', '# First\n\nHello.\n')
+   *
+   * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+   * const result = await contentDb.validateDocument({ id: 'articles/first' })
+   * console.log(result.valid)  // false
+   * console.log(result.errors) // ['Missing required frontmatter field "status" ...']
+   * ```
+   */
+  async validateDocument(args: { id: string }): Promise<{ valid: boolean; model: string | null; errors: string[]; note?: string }> {
+    const id = args.id.replace(/\.md$/i, '').replace(/^\.?\/+/, '')
+
+    if (!this.isLoaded) await this.load()
+    await this.reload()
+
+    if (!this.available.includes(id)) {
+      return {
+        valid: false,
+        model: null,
+        errors: [`Document "${id}" was not found in the collection. Check the path ID with listDocuments — IDs are relative to the collection root, without the .md extension.`],
+      }
+    }
+
+    const def = this.collection.findModelDefinition(id)
+    if (!def || def.name === 'Base') {
+      return {
+        valid: true,
+        model: def?.name ?? null,
+        errors: [],
+        note: 'No content model matched this document, so there is no schema to validate against.',
+      }
+    }
+
+    const errors = await this._validateAgainstModel(id, def)
+
+    return {
+      valid: errors.length === 0,
+      model: def.name,
+      errors,
+    }
+  }
+
+  /**
+   * Validate every document in the collection against its matched content
+   * model, returning a summary with plain-language errors per invalid document.
+   *
+   * Documents that don't match any model (or only match the catch-all Base
+   * model) are counted as skipped — there is no schema to check them against.
+   *
+   * @param args.model - Optionally restrict validation to one model's documents
+   * @returns `{ valid, checked, skipped, invalid }` — `invalid` lists `{ id, model, errors }` per failing document
+   * @example
+   * ```typescript
+   * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+   * const report = await contentDb.validateAllDocuments()
+   * if (!report.valid) {
+   *   for (const doc of report.invalid) console.log(doc.id, doc.errors)
+   * }
+   * ```
+   */
+  async validateAllDocuments(args: { model?: string } = {}): Promise<{ valid: boolean; checked: number; skipped: number; invalid: { id: string; model: string; errors: string[] }[] }> {
+    if (!this.isLoaded) await this.load()
+    await this.reload()
+
+    if (args.model && !this.models[args.model]) {
+      return {
+        valid: false,
+        checked: 0,
+        skipped: 0,
+        invalid: [{ id: '', model: args.model, errors: [`Unknown model "${args.model}". Available: ${this.modelNames.join(', ')}`] }],
+      }
+    }
+
+    const invalid: { id: string; model: string; errors: string[] }[] = []
+    let checked = 0
+    let skipped = 0
+
+    for (const id of this.available) {
+      const def = this.collection.findModelDefinition(id)
+      if (!def || def.name === 'Base') {
+        skipped++
+        continue
+      }
+      if (args.model && def.name !== args.model) continue
+
+      const errors = await this._validateAgainstModel(id, def)
+      checked++
+      if (errors.length) invalid.push({ id, model: def.name, errors })
+    }
+
+    return { valid: invalid.length === 0, checked, skipped, invalid }
+  }
+
+  /**
+   * Validate one document against a model definition, returning humanized
+   * error strings. Uses contentbase's standalone validator (rather than the
+   * model instance's validate()) because it also checks the H1 title and
+   * prefixes section issues with their section key.
+   */
+  private async _validateAgainstModel(id: string, def: ModelDefinition): Promise<string[]> {
+    const doc = this.collection.document(id)
+    const result = (contentbaseExports as any).validateDocument(doc, def)
+    return result.errors.map((issue: any) => this._humanizeValidationIssue(issue, def, doc.meta))
+  }
+
+  /**
+   * Rewrite a Zod issue from contentbase's validator into plain language,
+   * so non-developer consumers (assistants) can act on it without knowing
+   * Zod's output format or the model definition internals.
+   */
+  private _humanizeValidationIssue(issue: any, def: ModelDefinition, docMeta?: Record<string, any>): string {
+    const path: (string | number)[] = Array.isArray(issue.path) ? issue.path : []
+    const message: string = issue.message ?? 'Invalid value'
+
+    // Section-schema issues arrive prefixed with ['sections', key, ...]
+    if (path[0] === 'sections') {
+      const key = String(path[1] ?? '')
+      const heading = (def as any).sections?.[key]?.heading ?? key
+      const rest = path.slice(2).join('.')
+      // An issue on the section's whole extracted value almost always means
+      // the "## Heading" is absent or has no usable content
+      if (!rest && (issue.code === 'too_small' || issue.code === 'invalid_type')) {
+        return `Missing or empty required section "## ${heading}"`
+      }
+      return `Section "## ${heading}"${rest ? ` (${rest})` : ''}: ${message}`
+    }
+
+    // The validator's custom title issue is already human-readable
+    if (path.length === 1 && path[0] === 'title' && issue.code === 'custom') {
+      return message
+    }
+
+    const field = path.join('.') || '(document)'
+    const expected = issue.expected
+      ? String(issue.expected)
+      : Array.isArray(issue.values) ? `one of ${issue.values.map((v: any) => JSON.stringify(v)).join(' | ')}` : ''
+    const fieldAbsent = docMeta ? this.container.utils.lodash.get(docMeta, field) === undefined : false
+    const isMissing = fieldAbsent || /required/i.test(message) || /received undefined/i.test(message)
+
+    if (isMissing) {
+      return `Missing required frontmatter field "${field}"${expected ? ` — expected ${expected}` : ''}`
+    }
+    return `Frontmatter field "${field}": ${message}`
   }
 }
 
