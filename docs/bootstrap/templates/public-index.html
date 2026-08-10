@@ -461,6 +461,9 @@ export async function searchDocs({ query }) {
       <code>luca prompt</code> closes the loop: a markdown prompt file can <em>evaluate code first</em> —
       fenced blocks run against the container, and their output is woven into the prompt —
       then the result is sent to a coding agent (Claude Code, Codex) or one of your own assistants.
+      Evaluation is opt-in: blocks ship as literal source unless the document declares
+      <code>evalMode: all</code> (or <code>optIn</code>) in frontmatter, or the caller passes
+      <code>--eval-mode</code>.
     </p>
 
     <div class="diagram">
@@ -509,7 +512,8 @@ export async function searchDocs({ query }) {
     <pre><code><span class="cmd">luca prompt claude ./prompts/refactor.md</span>       <span class="comment"># send to Claude Code</span>
 <span class="cmd">luca prompt researcher ./question.md</span>            <span class="comment"># or to one of your assistants</span>
 <span class="cmd">luca prompt claude a.md b.md --parallel</span>         <span class="comment"># run prompts side by side</span>
-<span class="cmd">luca prompt claude ./task.md --dry-run</span>          <span class="comment"># preview the resolved prompt first</span></code></pre>
+<span class="cmd">luca prompt claude ./task.md --dry-run</span>          <span class="comment"># preview the resolved prompt first</span>
+<span class="cmd">luca prompt claude ./runbook.md --eval-mode all</span> <span class="comment"># run its code blocks into the prompt</span></code></pre>
 
     <div class="philosophy">
       <strong>The payoff:</strong> the same markdown format runs as a notebook (<code>luca run</code>)

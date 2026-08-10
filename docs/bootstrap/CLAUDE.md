@@ -113,6 +113,7 @@ The container provides more than you might expect. Before importing anything ext
 - **Server options belong in the constructor** — `container.server('websocket', { port: 8099, json: true })`, then `start()`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
 - **Builds can lie** — `bun build --compile` can exit 0 without writing the binary. Check the artifact exists on disk before reporting success.
 - **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: `afterInitialize()` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit `connect()`.
+- **Markdown code blocks and eval modes**: `luca run doc.md` executes `ts`/`js`/`tsx`/`jsx` fences by default; `luca prompt` does NOT — blocks ship to the agent as literal source unless the doc declares `evalMode: all` (or `optIn`, which runs only ` ```ts eval ` fences) in frontmatter, or the caller passes `--eval-mode`. ` ```ts skip ` opts a block out in any mode (exact word in the fence meta). Prompts that gather live context via code blocks need the opt-in.
 
 ## Extending the Container
 

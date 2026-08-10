@@ -67,9 +67,38 @@ When you run `luca run docs/tutorial.md`, it:
 4. Displays and executes the second codeblock (which can reference `container` from block 1)
 5. Skips the Python block entirely (only `ts` and `js` blocks execute)
 
+### Eval Modes
+
+Which blocks execute is controlled by an **eval mode**: `--eval-mode` flag >
+`evalMode:` YAML frontmatter > the command default.
+
+- `all` — every `ts`/`js`/`tsx`/`jsx` block runs (`luca run`'s default)
+- `optIn` — only blocks marked ` ```ts eval ` run; the rest are just displayed
+- `none` — nothing runs; the document renders with its code shown as source
+
+`luca prompt` defaults to `none` — a prompt file's code blocks ship to the
+agent as literal source unless the doc declares `evalMode: all`/`optIn` in
+frontmatter or the caller passes `--eval-mode`. `luca run` defaults to `all`.
+
+```bash
+luca run docs/tutorial.md --eval-mode optIn
+```
+
+````markdown
+---
+evalMode: optIn
+---
+
+```ts eval
+// Marked eval: this block executes under optIn
+console.log(container.features.available)
+```
+````
+
 ### Skipping Blocks
 
-Add `skip` in the code fence meta to prevent a block from running:
+Add `skip` in the code fence meta to prevent a block from running in **any**
+mode (exact word in the fence meta — `skip-this` doesn't count):
 
 ````markdown
 ```ts skip
@@ -77,6 +106,9 @@ Add `skip` in the code fence meta to prevent a block from running:
 dangerousOperation()
 ```
 ````
+
+Under `luca run` a skipped block is displayed without running; under
+`luca prompt` it is dropped from the dispatched prompt entirely.
 
 ### Safe Mode
 

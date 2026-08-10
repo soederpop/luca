@@ -3,6 +3,13 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import { displayResult } from '../node/features/display-result.js'
 import type { ContainerContext } from '../container.js'
+import {
+	decideBlock,
+	parseFenceMeta,
+	resolveEvalMode,
+	sliceNodeSource,
+	transpileBlock,
+} from './lib/markdown-eval.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -14,6 +21,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	safe: z.boolean().default(false).describe('Require approval before each code block (markdown mode)'),
 	console: z.boolean().default(false).describe('Start an interactive REPL after executing a markdown file, with all accumulated context'),
 	onlySections: z.string().optional().describe('Comma-separated list of section headings to run (case-insensitive, markdown only)'),
+	'eval-mode': z.enum(['all', 'optIn', 'opt-in', 'none']).optional().describe('Which fenced code blocks execute (markdown mode): all, optIn (only ```ts eval fences), or none. Overrides evalMode frontmatter. Default: all.'),
 })
 
 
@@ -76,7 +84,20 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 	await container.docs.load()
 
 	const doc = await container.docs.parseMarkdownAtPath(scriptPath)
-	const rawSource = container.fs.readFile(scriptPath) as string
+	// AST offsets are relative to doc.content (the frontmatter-stripped body),
+	// not the raw file — slicing the raw file misaligns on frontmatter docs.
+	const bodySource = doc.content as string
+
+	// Eval mode: --eval-mode flag > evalMode frontmatter > all.
+	// Running a doc is this command's stated purpose, so the default executes.
+	const evalMode = resolveEvalMode({
+		flag: options['eval-mode'],
+		frontmatter: doc.meta?.evalMode,
+		fallback: 'all',
+		onInvalid: (source, value) => {
+			console.warn(`Ignoring invalid evalMode ${source} value ${JSON.stringify(value)} (expected all | optIn | none)`)
+		},
+	})
 
 	const transpiler = container.feature('transpiler')
 	const ink = container.feature('ink', { enable: true })
@@ -97,7 +118,8 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 	// ─── Parse and register ## Blocks section ──────────────────────────
 	const { skipIndices, blockSources } = extractBlocksSection(doc.ast.children)
 
-	for (const source of blockSources) {
+	// Under eval mode none nothing executes — including Ink block registration.
+	for (const source of evalMode === 'none' ? [] : blockSources) {
 		const keysBefore = new Set(Object.keys(shared))
 		const { code: transformed } = transpiler.transformSync(source, { loader: 'tsx', format: 'cjs' })
 
@@ -139,38 +161,18 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		if (node.type === 'code') {
 			const { value, lang, meta } = node
 
-			if (lang !== 'ts' && lang !== 'js' && lang !== 'tsx' && lang !== 'jsx') {
-				console.log(container.ui.markdown(['```' + (lang || ''), value, '```'].join('\n')))
-				continue
-			}
+			// Every block prints; the decision only controls execution.
+			console.log(container.ui.markdown(['```' + (lang || ''), value, '```'].join('\n')))
 
-			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) {
-				console.log(container.ui.markdown(['```' + lang, value, '```'].join('\n')))
-				continue
-			}
-
-			console.log(container.ui.markdown(['```' + lang, value, '```'].join('\n')))
+			const decision = decideBlock(lang, meta, evalMode)
+			if (decision !== 'execute') continue
 
 			if (requireApproval) {
 				const answer = await container.ui.askQuestion('Run this block? (y/n)')
 				if (answer.question.toLowerCase() !== 'y') continue
 			}
 
-			// Transform tsx/jsx through esbuild, and also ts for consistency
-			// (ts blocks with type annotations are invalid JS and fail in the vm otherwise).
-			// ts blocks only strip types (format esm): doc blocks use the injected
-			// container, not module syntax, so the cjs conversion is unnecessary.
-			const needsTransform = lang === 'tsx' || lang === 'jsx' || lang === 'ts'
-			let code = value
-
-			if (needsTransform) {
-				const { code: transformed } = transpiler.transformSync(value, {
-					loader: lang as 'ts' | 'tsx' | 'jsx',
-					format: lang === 'ts' ? 'esm' : 'cjs',
-				})
-				code = transformed
-			}
-
+			const code = transpileBlock(transpiler, lang, value)
 			const result = await vm.run(code, shared)
 
 			// Literate-eval contract: a block's final expression value is shown
@@ -178,8 +180,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			// ending in declarations/loops resolve undefined and print nothing;
 			// a `silent` meta (```ts silent) suppresses the print for noisy
 			// setup blocks.
-			const isSilent = meta && typeof meta === 'string' && meta.toLowerCase().includes('silent')
-			if (result !== undefined && !isSilent) {
+			if (result !== undefined && !parseFenceMeta(meta).has('silent')) {
 				process.stdout.write(container.ui.colors.dim('⇒ '))
 				displayResult(result)
 			}
@@ -187,21 +188,10 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			// if we enabled any features, they will be in the context object
 			Object.assign(shared, container.context)
 		} else {
-			// Prefer the raw source slice — it's verbatim (no lossy re-render) and
-			// immune to stringifier gaps (contentbase's toMarkdown lacks the GFM
-			// extensions, so re-stringifying a table node throws).
-			const start = node.position?.start?.offset
-			const end = node.position?.end?.offset
-			let md: string
-			if (typeof start === 'number' && typeof end === 'number') {
-				md = rawSource.slice(start, end)
-			} else {
-				try {
-					md = doc.stringify({ type: 'root', children: [node] })
-				} catch {
-					md = ''
-				}
-			}
+			// Prefer the verbatim source slice — it's immune to stringifier gaps
+			// (contentbase's toMarkdown lacks the GFM extensions, so
+			// re-stringifying a table node throws).
+			const md = sliceNodeSource(node, bodySource, (n) => doc.stringify({ type: 'root', children: [n] }))
 			console.log(container.ui.markdown(md))
 		}
 	}
@@ -319,6 +309,7 @@ export const examples = [
 	{ command: 'luca run docs/examples/full-stack-slice.md', description: 'Markdown files run their fenced code blocks in order' },
 	{ command: 'luca run notes.md --onlySections "Setup,Seed Data"', description: 'Run only specific markdown sections' },
 	{ command: 'luca run notes.md --console', description: 'Drop into a REPL with the accumulated context afterwards' },
+	{ command: 'luca run notes.md --eval-mode optIn', description: 'Only run fences marked ```ts eval; use none to render without executing (default: all, or the doc\'s evalMode frontmatter)' },
 ]
 
 commands.registerHandler('run', {

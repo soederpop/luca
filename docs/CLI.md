@@ -40,6 +40,7 @@ Resolves the file by trying the path as-is, then appending `.ts`, `.js`, `.md` i
 |------|------|---------|-------------|
 | `--safe` | boolean | `false` | Require approval before each code block (markdown mode) |
 | `--console` | boolean | `false` | Start an interactive REPL after executing a markdown file, with all accumulated context |
+| `--eval-mode` | `all` \| `optIn` \| `none` | `all` | Which fenced code blocks execute (markdown mode); a document can also declare `evalMode:` in frontmatter |
 
 ---
 
@@ -226,12 +227,40 @@ The target can be:
 - `codex` — runs the prompt through the OpenAI Codex CLI
 - Any other name — looks up a local assistant via `assistantsManager`
 
-The prompt file is read as plain text and sent in full. Output streams to stdout as it arrives.
+The prompt file is read, resolved (see eval modes below), and sent in full. Output streams to stdout as it arrives.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--model` | string | | Override the LLM model (assistant mode only) |
 | `--folder` | string | `assistants` | Directory containing assistant definitions |
+| `--eval-mode` | `all` \| `optIn` \| `none` | `none` | Which fenced code blocks execute before dispatch |
+| `--skip-eval` | boolean | `false` | Deprecated alias for `--eval-mode none` |
+
+**Eval modes — code blocks are safe by default**
+
+A prompt file's fenced `ts`/`js`/`tsx`/`jsx` blocks *can* execute against the
+container, with their captured `console.log` output replacing the block in the
+dispatched prompt — that's how plays and runbooks inject live context. But by
+default (`none`) nothing runs: blocks ship to the agent as literal source.
+
+Opt in per document with frontmatter, or per run with the flag (the flag wins):
+
+```markdown
+---
+evalMode: all   # or optIn: only ```ts eval fences run
+---
+
+## Current failing tests
+
+```ts
+const results = await container.feature('proc').exec('bun test --reporter json')
+console.log(results.stdout)
+```
+```
+
+Per-fence markers (exact words in the fence meta): ` ```ts eval ` opts a block
+in under `optIn`; ` ```ts skip ` opts it out in any mode — a skipped block is
+dropped from the dispatched prompt entirely.
 
 **Giving a prompt its own skills**
 

@@ -30,7 +30,11 @@ Luca has **one execution contract with three entry points**:
 - **`luca run doc.md`** is *literate eval*: each fenced `ts`/`js` block runs like an
   eval snippet in one shared context, top to bottom, and each block's final expression
   value is displayed beneath it (`⇒ ...`). Mark a block ` ```ts silent` to run it
-  without displaying its value, or ` ```ts skip` to not run it at all.
+  without displaying its value, or ` ```ts skip` to not run it at all. Which blocks
+  execute is governed by an eval mode (`--eval-mode` flag > `evalMode:` frontmatter >
+  default): `all` (run's default), `optIn` (only ` ```ts eval ` fences), or `none`.
+  `luca prompt` walks the same fences but defaults to `none` — its blocks ship to the
+  agent as literal source unless the doc or caller opts in.
 
 In all three, the container is in scope and **top-level `await` just works** — code
 containing it is wrapped in an async IIFE, and the final expression's value survives the

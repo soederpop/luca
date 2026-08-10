@@ -534,6 +534,8 @@ These complement `luca describe` — describe gives you the API surface and per-
 
 **Tip:** Runnable markdown is a great artifact to produce when building with luca. `luca run doc.md` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
 
+**Eval modes:** which fenced blocks execute is controlled by `--eval-mode` flag > `evalMode:` frontmatter > command default. `luca run` defaults to `all`; `luca prompt` defaults to `none` — a prompt file's code blocks ship to the agent as literal source unless the doc or caller opts in (`evalMode: all`, or `optIn` to run only ` ```ts eval ` fences). ` ```ts skip ` opts a block out in any mode; ` ```ts silent ` runs without printing the result (`luca run` only).
+
 ### Container Primitives
 
 | Primitive | Access | Purpose |

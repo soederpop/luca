@@ -3,6 +3,14 @@ import { Document } from 'contentbase'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
+import {
+	type EvalMode,
+	decideBlock,
+	parseFenceMeta,
+	resolveEvalMode,
+	sliceNodeSource,
+	transpileBlock,
+} from './lib/markdown-eval.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -13,7 +21,8 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model (assistant mode only)'),
 	'include-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it before sending to the agent.'),
-	'skip-eval': z.boolean().default(false).describe('Skip execution of fenced code blocks in the prompt file'),
+	'eval-mode': z.enum(['all', 'optIn', 'opt-in', 'none']).optional().describe('Which fenced code blocks execute: all, optIn (only ```ts eval fences), or none (blocks ship as literal source). Overrides evalMode frontmatter. Default: none.'),
+	'skip-eval': z.boolean().default(false).describe('Deprecated alias for --eval-mode none'),
 	'permission-mode': z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).default('acceptEdits').describe('Permission mode for CLI agents (default: acceptEdits)'),
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
@@ -808,11 +817,18 @@ function substituteInputs(content: string, inputs: Record<string, any>): string 
 	})
 }
 
-async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>): Promise<string> {
+async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode: EvalMode = 'none'): Promise<string> {
 	if (!container.docs.isLoaded) await container.docs.load()
 	const doc = await container.docs.parseMarkdownAtPath(resolvedPath)
 	const vm = container.feature('vm')
+	const transpiler = container.feature('transpiler')
 	const parts: string[] = []
+
+	// AST offsets are relative to doc.content (the frontmatter-stripped body),
+	// so verbatim slices must come from it, not the raw file.
+	const bodySource = doc.content as string
+	const nodeSource = (node: any) =>
+		sliceNodeSource(node, bodySource, (n) => doc.stringify({ type: 'root', children: [n] }))
 
 	const capturedLines: string[] = []
 	const captureConsole = {
@@ -831,34 +847,63 @@ async function executePromptFile(resolvedPath: string, container: any, inputs?: 
 	})
 
 	for (const node of doc.ast.children) {
+		if (node.type === 'yaml') continue
 		if (node.type === 'code') {
 			const { value, lang, meta } = node
-			if (!lang || !['ts', 'js', 'tsx', 'jsx'].includes(lang)) {
-				parts.push(doc.stringify({ type: 'root', children: [node] }))
+			const decision = decideBlock(lang, meta, evalMode)
+
+			// `skip` drops the block from the dispatched prompt entirely; blocks
+			// that merely don't run under the mode ship as literal fenced source.
+			if (decision === 'skip') continue
+			if (decision === 'literal') {
+				if (evalMode === 'none' && parseFenceMeta(meta).has('eval')) {
+					console.warn(`Ignoring \`\`\`${lang} eval marker in ${resolvedPath}: eval mode is none`)
+				}
+				parts.push(nodeSource(node))
 				continue
 			}
-			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
 
 			capturedLines.length = 0
-			let code = value
-			if (lang === 'tsx' || lang === 'jsx') {
-				const transpiler = container.feature('transpiler')
-				const { code: transformed } = transpiler.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
-				code = transformed
-			}
+			const code = transpileBlock(transpiler, lang, value)
 
-				await vm.run(code, shared)
+			await vm.run(code, shared)
 			Object.assign(shared, container.context)
 
 			if (capturedLines.length) {
 				parts.push(capturedLines.join('\n'))
 			}
 		} else {
-			parts.push(doc.stringify({ type: 'root', children: [node] }))
+			parts.push(nodeSource(node))
 		}
 	}
 
 	return parts.join('\n\n')
+}
+
+let warnedSkipEvalDeprecated = false
+
+/**
+ * Resolve the effective eval mode for a prompt file: `--eval-mode` flag >
+ * `evalMode:` frontmatter > safe default (`none`). `--skip-eval` is honored
+ * as a deprecated alias for `--eval-mode none`.
+ */
+function resolvePromptEvalMode(options: z.infer<typeof argsSchema>, meta: Record<string, any>): EvalMode {
+	let flag: string | undefined = options['eval-mode']
+	if (!flag && options['skip-eval']) {
+		if (!warnedSkipEvalDeprecated) {
+			warnedSkipEvalDeprecated = true
+			console.warn('--skip-eval is deprecated; use --eval-mode none')
+		}
+		flag = 'none'
+	}
+	return resolveEvalMode({
+		flag,
+		frontmatter: meta?.evalMode,
+		fallback: 'none',
+		onInvalid: (source, value) => {
+			console.warn(`Ignoring invalid evalMode ${source} value ${JSON.stringify(value)} (expected all | optIn | none)`)
+		},
+	})
 }
 
 async function preparePrompt(
@@ -886,15 +931,16 @@ async function preparePrompt(
 
 	let content = fs.readFile(resolvedPath) as string
 
-	// Parse frontmatter for input definitions and agentOptions
+	// Parse frontmatter for input definitions, agentOptions, and evalMode
 	let resolvedInputs: Record<string, any> = {}
 	let agentOptions: Record<string, any> = {}
+	let meta: Record<string, any> = {}
 	let hasInputDefs = false
 	if (content.startsWith('---')) {
 		const fmEnd = content.indexOf('\n---', 3)
 		if (fmEnd !== -1) {
 			const yaml = container.feature('yaml')
-			const meta = yaml.parse(content.slice(4, fmEnd)) || {}
+			meta = yaml.parse(content.slice(4, fmEnd)) || {}
 			const inputDefs = parseInputDefs(meta)
 			if (inputDefs) {
 				hasInputDefs = true
@@ -908,22 +954,8 @@ async function preparePrompt(
 		console.warn(`Warning: --inputs-file was provided but ${filePath} does not define any inputs in its frontmatter`)
 	}
 
-	let promptContent: string
-	if (options['skip-eval']) {
-		// Strip frontmatter but don't execute code blocks
-		if (content.startsWith('---')) {
-			const fmEnd = content.indexOf('\n---', 3)
-			if (fmEnd !== -1) {
-				promptContent = content.slice(fmEnd + 4).trimStart()
-			} else {
-				promptContent = content
-			}
-		} else {
-			promptContent = content
-		}
-	} else {
-		promptContent = await executePromptFile(resolvedPath, container, resolvedInputs)
-	}
+	const evalMode = resolvePromptEvalMode(options, meta)
+	let promptContent = await executePromptFile(resolvedPath, container, resolvedInputs, evalMode)
 
 	// Re-attach frontmatter if requested
 	if (options['include-frontmatter'] && content.startsWith('---')) {
@@ -1112,6 +1144,7 @@ export const examples = [
 	{ command: 'luca prompt claude a.md b.md --parallel', description: 'Run multiple prompts side by side (max 4)' },
 	{ command: 'luca prompt researcher ./question.md --out-file session.md', description: 'Send to a local assistant and save the session' },
 	{ command: 'luca prompt claude ./task.md --dry-run', description: 'Preview the resolved prompt without running' },
+	{ command: 'luca prompt claude ./play.md --eval-mode all', description: 'Execute the file\'s code blocks and splice their console output into the prompt (default is none: blocks ship as literal source)' },
 	{ command: 'luca prompt hermes ./task.md', description: 'Delegate the prompt to the Hermes agent (via its ACP adapter)' },
 ]
 

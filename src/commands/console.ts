@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
+import { decideBlock, resolveEvalMode, transpileBlock } from './lib/markdown-eval.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -46,22 +47,20 @@ async function evalBeforeRepl(evalArg: string, container: any, featureContext: R
 			...container.context,
 		})
 
+		// --eval exists to execute, so the fallback mode is all; the doc can
+		// still opt down via evalMode frontmatter.
+		const evalMode = resolveEvalMode({ frontmatter: doc.meta?.evalMode, fallback: 'all' })
+
 		const children = doc.ast.children
 		for (let i = 0; i < children.length; i++) {
 			const node = children[i]
 			if (node.type === 'code') {
 				const { value, lang, meta } = node
-				if (lang !== 'ts' && lang !== 'js' && lang !== 'tsx' && lang !== 'jsx') continue
-				if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
+				if (decideBlock(lang, meta, evalMode) !== 'execute') continue
 
 				console.log(ui.markdown(['```' + lang, value, '```'].join('\n')))
 
-				const needsTransform = lang === 'tsx' || lang === 'jsx'
-				let code = value
-				if (needsTransform) {
-					const { code: transformed } = transpiler.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
-					code = transformed
-				}
+				const code = transpileBlock(transpiler, lang, value)
 
 				await vm.run(code, shared)
 				Object.assign(shared, container.context)
