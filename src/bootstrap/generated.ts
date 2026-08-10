@@ -541,6 +541,8 @@ These complement \`luca describe\` — describe gives you the API surface and pe
 
 **Tip:** Runnable markdown is a great artifact to produce when building with luca. \`luca run doc.md\` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
 
+**Eval modes:** which fenced blocks execute is controlled by \`--eval-mode\` flag > \`evalMode:\` frontmatter > command default. \`luca run\` defaults to \`all\`; \`luca prompt\` defaults to \`none\` — a prompt file's code blocks ship to the agent as literal source unless the doc or caller opts in (\`evalMode: all\`, or \`optIn\` to run only \` \`\`\`ts eval \` fences). \` \`\`\`ts skip \` opts a block out in any mode; \` \`\`\`ts silent \` runs without printing the result (\`luca run\` only).
+
 ### Container Primitives
 
 | Primitive | Access | Purpose |
@@ -666,6 +668,7 @@ The container provides more than you might expect. Before importing anything ext
 - **Server options belong in the constructor** — \`container.server('websocket', { port: 8099, json: true })\`, then \`start()\`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
 - **Builds can lie** — \`bun build --compile\` can exit 0 without writing the binary. Check the artifact exists on disk before reporting success.
 - **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: \`afterInitialize()\` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit \`connect()\`.
+- **Markdown code blocks and eval modes**: \`luca run doc.md\` executes \`ts\`/\`js\`/\`tsx\`/\`jsx\` fences by default; \`luca prompt\` does NOT — blocks ship to the agent as literal source unless the doc declares \`evalMode: all\` (or \`optIn\`, which runs only \` \`\`\`ts eval \` fences) in frontmatter, or the caller passes \`--eval-mode\`. \` \`\`\`ts skip \` opts a block out in any mode (exact word in the fence meta). Prompts that gather live context via code blocks need the opt-in.
 
 ## Extending the Container
 
@@ -1283,6 +1286,9 @@ export async function searchDocs({ query }) {
       <code>luca prompt</code> closes the loop: a markdown prompt file can <em>evaluate code first</em> —
       fenced blocks run against the container, and their output is woven into the prompt —
       then the result is sent to a coding agent (Claude Code, Codex) or one of your own assistants.
+      Evaluation is opt-in: blocks ship as literal source unless the document declares
+      <code>evalMode: all</code> (or <code>optIn</code>) in frontmatter, or the caller passes
+      <code>--eval-mode</code>.
     </p>
 
     <div class="diagram">
@@ -1331,7 +1337,8 @@ export async function searchDocs({ query }) {
     <pre><code><span class="cmd">luca prompt claude ./prompts/refactor.md</span>       <span class="comment"># send to Claude Code</span>
 <span class="cmd">luca prompt researcher ./question.md</span>            <span class="comment"># or to one of your assistants</span>
 <span class="cmd">luca prompt claude a.md b.md --parallel</span>         <span class="comment"># run prompts side by side</span>
-<span class="cmd">luca prompt claude ./task.md --dry-run</span>          <span class="comment"># preview the resolved prompt first</span></code></pre>
+<span class="cmd">luca prompt claude ./task.md --dry-run</span>          <span class="comment"># preview the resolved prompt first</span>
+<span class="cmd">luca prompt claude ./runbook.md --eval-mode all</span> <span class="comment"># run its code blocks into the prompt</span></code></pre>
 
     <div class="philosophy">
       <strong>The payoff:</strong> the same markdown format runs as a notebook (<code>luca run</code>)
@@ -10247,7 +10254,11 @@ Luca has **one execution contract with three entry points**:
 - **\`luca run doc.md\`** is *literate eval*: each fenced \`ts\`/\`js\` block runs like an
   eval snippet in one shared context, top to bottom, and each block's final expression
   value is displayed beneath it (\`⇒ ...\`). Mark a block \` \`\`\`ts silent\` to run it
-  without displaying its value, or \` \`\`\`ts skip\` to not run it at all.
+  without displaying its value, or \` \`\`\`ts skip\` to not run it at all. Which blocks
+  execute is governed by an eval mode (\`--eval-mode\` flag > \`evalMode:\` frontmatter >
+  default): \`all\` (run's default), \`optIn\` (only \` \`\`\`ts eval \` fences), or \`none\`.
+  \`luca prompt\` walks the same fences but defaults to \`none\` — its blocks ship to the
+  agent as literal source unless the doc or caller opts in.
 
 In all three, the container is in scope and **top-level \`await\` just works** — code
 containing it is wrapped in an async IIFE, and the final expression's value survives the
@@ -10641,9 +10652,38 @@ When you run \`luca run docs/tutorial.md\`, it:
 4. Displays and executes the second codeblock (which can reference \`container\` from block 1)
 5. Skips the Python block entirely (only \`ts\` and \`js\` blocks execute)
 
+### Eval Modes
+
+Which blocks execute is controlled by an **eval mode**: \`--eval-mode\` flag >
+\`evalMode:\` YAML frontmatter > the command default.
+
+- \`all\` — every \`ts\`/\`js\`/\`tsx\`/\`jsx\` block runs (\`luca run\`'s default)
+- \`optIn\` — only blocks marked \` \`\`\`ts eval \` run; the rest are just displayed
+- \`none\` — nothing runs; the document renders with its code shown as source
+
+\`luca prompt\` defaults to \`none\` — a prompt file's code blocks ship to the
+agent as literal source unless the doc declares \`evalMode: all\`/\`optIn\` in
+frontmatter or the caller passes \`--eval-mode\`. \`luca run\` defaults to \`all\`.
+
+\`\`\`bash
+luca run docs/tutorial.md --eval-mode optIn
+\`\`\`
+
+\`\`\`\`markdown
+---
+evalMode: optIn
+---
+
+\`\`\`ts eval
+// Marked eval: this block executes under optIn
+console.log(container.features.available)
+\`\`\`
+\`\`\`\`
+
 ### Skipping Blocks
 
-Add \`skip\` in the code fence meta to prevent a block from running:
+Add \`skip\` in the code fence meta to prevent a block from running in **any**
+mode (exact word in the fence meta — \`skip-this\` doesn't count):
 
 \`\`\`\`markdown
 \`\`\`ts skip
@@ -10651,6 +10691,9 @@ Add \`skip\` in the code fence meta to prevent a block from running:
 dangerousOperation()
 \`\`\`
 \`\`\`\`
+
+Under \`luca run\` a skipped block is displayed without running; under
+\`luca prompt\` it is dropped from the dispatched prompt entirely.
 
 ### Safe Mode
 
