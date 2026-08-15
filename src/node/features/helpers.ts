@@ -15,6 +15,7 @@ import { WebsocketServer } from '../../servers/socket.js'
 import { Command, commands } from '../../command.js'
 import { graftModule, isNativeHelperClass } from '../../graft.js'
 import * as introspectionModule from '../../introspection/index.js'
+import * as markdownEvalModule from '../../commands/lib/markdown-eval.js'
 import { endpoints } from '../../endpoint.js'
 import { Selector, selectors } from '../../selector.js'
 import type { Registry } from '../../registry.js'
@@ -255,6 +256,11 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('luca/introspection', { ...introspectionModule, default: introspectionModule })
     vm.defineModule('@soederpop/luca/introspection', { ...introspectionModule, default: introspectionModule })
 
+    // The fence classifier is the single source of truth for eval-mode
+    // decisions; project endpoints (e.g. block-analysis surfaces) import it
+    // by subpath, which the compiled binary can only serve as a virtual module.
+    vm.defineModule('luca/commands/lib/markdown-eval', { ...markdownEvalModule, default: markdownEvalModule })
+
     vm.defineModule('luca/client', clientModule)
     vm.defineModule('luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
     vm.defineModule('luca/clients/rest', { RestClient, default: RestClient })
@@ -267,6 +273,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('@soederpop/luca', lucaExports)
     vm.defineModule('@soederpop/luca/schemas', schemasModule)
     vm.defineModule('@soederpop/luca/node', lucaExports)
+    vm.defineModule('@soederpop/luca/commands/lib/markdown-eval', { ...markdownEvalModule, default: markdownEvalModule })
     vm.defineModule('@soederpop/luca/client', clientModule)
     vm.defineModule('@soederpop/luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
     vm.defineModule('@soederpop/luca/clients/rest', { RestClient, default: RestClient })
@@ -359,19 +366,6 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       result[type] = registry.available
     }
     return result
-  }
-
-  /**
-   * Ensures the fileManager feature is started before using it for discovery.
-   *
-   * @returns The started fileManager instance
-   */
-  private async ensureFileManager(): Promise<FileManager> {
-    const fm = this.container.feature('fileManager', { enable: true }) as unknown as FileManager
-    if (!fm.isStarted) {
-      await fm.start()
-    }
-    return fm
   }
 
   /**
@@ -733,13 +727,15 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       }
     } catch {}
 
-    // Try fileManager first (faster in git repos, and now symlink-aware),
-    // fall back to fs.walk which also follows symlinks natively.
+    // Use the fileManager index only if something else already built it —
+    // discovery must not trigger a full-project index just to scan a few
+    // helper dirs. Otherwise fall through to the dir-scoped fs.walk below.
     let files: string[] = []
     const defaultDir = this.resolveFolderPath(type)
     const isOverrideDir = !defaultDir || resolve(dir) !== resolve(defaultDir)
     try {
-      const fm = await this.ensureFileManager()
+      const fm = this.container.feature('fileManager', { enable: true }) as unknown as FileManager
+      if (!fm.isStarted) throw new Error('fileManager not started')
       const absPatterns = [`${dir}/*.ts`, `${dir}/**/*.ts`]
       // Only use relative patterns when rootDir matches the container cwd,
       // otherwise the fileManager (rooted in cwd) returns files from the
