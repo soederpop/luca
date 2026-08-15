@@ -2127,6 +2127,48 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "void"
     },
+    "setModel": {
+      "description": "Switch the model for every subsequent turn. Safe to call mid-chat — the conversation, its history, and its tools are all preserved.",
+      "parameters": {
+        "model": {
+          "type": "string",
+          "description": "The model name to use from here on"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.setModel('gpt-5.4')\nawait assistant.ask('try that again, more carefully')"
+        }
+      ]
+    },
+    "setProvider": {
+      "description": "Switch the backend for every subsequent turn — including across transport families (an OpenAI-compatible endpoint to claude-code, say). Safe to call mid-chat: history and tools survive, and an unregistered provider id throws immediately rather than at the next `ask()`. With no explicit `model`, the new provider's own default model takes over.",
+      "parameters": {
+        "provider": {
+          "type": "string | Record<string, any> | null",
+          "description": "A registered provider id, an inline provider config, or null for the container default"
+        },
+        "options": {
+          "type": "SetProviderOptions",
+          "description": "Optional `model` and `providerOptions` to apply along with the switch"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.setProvider('claude-code', { model: 'sonnet' })\nawait assistant.ask('pick up where we left off')"
+        }
+      ]
+    },
     "addSystemPromptExtension": {
       "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
       "parameters": {
@@ -2503,6 +2545,16 @@ setBuildTimeData('features.assistant', {
     "conversation": {
       "description": "",
       "returns": "Conversation"
+    },
+    "routing": {
+      "description": "Where the assistant's next turn will go: provider, model, OpenAI dialect, and turn loop. Derived live from the underlying conversation.",
+      "returns": "ConversationRouting",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.routing\n// => { provider: 'local', model: 'qwen3-coder', apiMode: 'chat', transport: 'openai' }"
+        }
+      ]
     },
     "availableTools": {
       "description": "",
@@ -6449,6 +6501,58 @@ setBuildTimeData('features.conversation', {
         }
       ]
     },
+    "setModel": {
+      "description": "Switch the model for every subsequent turn. Safe to call mid-conversation — history is kept, and the next `ask()` uses the new model. Any provider-side continuation handle (an OpenAI Responses `previous_response_id`, a codex/claude-session id) is dropped, because it encodes the *old* routing. The full message history lives locally, so the next turn simply re-sends it.",
+      "parameters": {
+        "model": {
+          "type": "string",
+          "description": "The model name to use from here on"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "conversation.setModel('gpt-5.4')\nawait conversation.ask('now try that again with more care')"
+        }
+      ]
+    },
+    "setProvider": {
+      "description": "Switch the backend for every subsequent turn. Safe to call mid-conversation: history is kept, tools stay registered, and the next `ask()` is routed through the new provider — including a switch between the native OpenAI loops and the generic transport loop (codex, claude-code). An unregistered provider id throws here rather than at the next `ask()`, and the previous routing is left intact when it does. With no explicit `model`, the new provider's own default model takes over — a model name from the old provider is rarely valid on the new one.",
+      "parameters": {
+        "provider": {
+          "type": "string | Record<string, any> | null",
+          "description": "A registered provider id, an inline provider config, or null to fall back to the container default"
+        },
+        "options": {
+          "type": "SetProviderOptions",
+          "description": "Optional `model` and `providerOptions` to apply along with the switch",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Model to use on the new provider. Omit to let the provider's own default model take over."
+            },
+            "providerOptions": {
+              "type": "Record<string, any>",
+              "description": "Provider-specific transport options, replacing any currently configured."
+            }
+          }
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "conversation.setProvider('claude-code', { model: 'sonnet' })\nconversation.setProvider(null) // back to the container's default provider"
+        }
+      ]
+    },
     "abort": {
       "description": "Abort the current ask() call. Cancels the in-flight network request and any pending tool executions. The ask() promise will reject with a ConversationAbortError whose `partial` property contains any text accumulated before the abort.",
       "parameters": {},
@@ -6561,6 +6665,16 @@ setBuildTimeData('features.conversation', {
       "description": "Returns the OpenAI model name being used for completions.",
       "returns": "string"
     },
+    "routing": {
+      "description": "Where the next turn will go: the provider, the model, the OpenAI dialect, and which turn loop runs. Everything here is derived live, so it reflects any mid-conversation `setModel()` / `setProvider()` call.",
+      "returns": "ConversationRouting",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "conversation.routing\n// => { provider: 'claude-code', model: 'sonnet', apiMode: 'chat', transport: 'generic' }"
+        }
+      ]
+    },
     "apiMode": {
       "description": "Returns the active completion API mode after resolving auto behavior.",
       "returns": "'responses' | 'chat'"
@@ -6587,6 +6701,11 @@ setBuildTimeData('features.conversation', {
     }
   },
   "events": {
+    "routingChanged": {
+      "name": "routingChanged",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
     "summarizeStart": {
       "name": "summarizeStart",
       "description": "Event emitted by Conversation",
@@ -6717,6 +6836,21 @@ setBuildTimeData('features.conversation', {
         }
       }
     },
+    "SetProviderOptions": {
+      "description": "Options for `Conversation#setProvider` / `Assistant#setProvider`.",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model to use on the new provider. Omit to let the provider's own default model take over.",
+          "optional": true
+        },
+        "providerOptions": {
+          "type": "Record<string, any>",
+          "description": "Provider-specific transport options, replacing any currently configured.",
+          "optional": true
+        }
+      }
+    },
     "AskOptions": {
       "description": "",
       "properties": {
@@ -6758,6 +6892,27 @@ setBuildTimeData('features.conversation', {
           "type": "'always' | 'never' | {\n\t\talways?: { tool_names?: string[] }\n\t\tnever?: { tool_names?: string[] }\n\t}",
           "description": "",
           "optional": true
+        }
+      }
+    },
+    "ConversationRouting": {
+      "description": "Where the next turn goes: the resolved backend, model, dialect, and turn loop.",
+      "properties": {
+        "provider": {
+          "type": "string | Record<string, any> | null",
+          "description": "The provider in effect: a registered preset id, an inline provider config, or null for the container default."
+        },
+        "model": {
+          "type": "string",
+          "description": "The model the next turn will request."
+        },
+        "apiMode": {
+          "type": "'responses' | 'chat'",
+          "description": "The OpenAI dialect in effect. Not meaningful for generic-transport providers."
+        },
+        "transport": {
+          "type": "'openai' | 'generic'",
+          "description": "Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code."
         }
       }
     }
@@ -27929,6 +28084,48 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "void"
       },
+      "setModel": {
+        "description": "Switch the model for every subsequent turn. Safe to call mid-chat — the conversation, its history, and its tools are all preserved.",
+        "parameters": {
+          "model": {
+            "type": "string",
+            "description": "The model name to use from here on"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.setModel('gpt-5.4')\nawait assistant.ask('try that again, more carefully')"
+          }
+        ]
+      },
+      "setProvider": {
+        "description": "Switch the backend for every subsequent turn — including across transport families (an OpenAI-compatible endpoint to claude-code, say). Safe to call mid-chat: history and tools survive, and an unregistered provider id throws immediately rather than at the next `ask()`. With no explicit `model`, the new provider's own default model takes over.",
+        "parameters": {
+          "provider": {
+            "type": "string | Record<string, any> | null",
+            "description": "A registered provider id, an inline provider config, or null for the container default"
+          },
+          "options": {
+            "type": "SetProviderOptions",
+            "description": "Optional `model` and `providerOptions` to apply along with the switch"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.setProvider('claude-code', { model: 'sonnet' })\nawait assistant.ask('pick up where we left off')"
+          }
+        ]
+      },
       "addSystemPromptExtension": {
         "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
         "parameters": {
@@ -28305,6 +28502,16 @@ export const introspectionData: Record<string, any>[] = [
       "conversation": {
         "description": "",
         "returns": "Conversation"
+      },
+      "routing": {
+        "description": "Where the assistant's next turn will go: provider, model, OpenAI dialect, and turn loop. Derived live from the underlying conversation.",
+        "returns": "ConversationRouting",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.routing\n// => { provider: 'local', model: 'qwen3-coder', apiMode: 'chat', transport: 'openai' }"
+          }
+        ]
       },
       "availableTools": {
         "description": "",
@@ -32242,6 +32449,58 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "setModel": {
+        "description": "Switch the model for every subsequent turn. Safe to call mid-conversation — history is kept, and the next `ask()` uses the new model. Any provider-side continuation handle (an OpenAI Responses `previous_response_id`, a codex/claude-session id) is dropped, because it encodes the *old* routing. The full message history lives locally, so the next turn simply re-sends it.",
+        "parameters": {
+          "model": {
+            "type": "string",
+            "description": "The model name to use from here on"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "conversation.setModel('gpt-5.4')\nawait conversation.ask('now try that again with more care')"
+          }
+        ]
+      },
+      "setProvider": {
+        "description": "Switch the backend for every subsequent turn. Safe to call mid-conversation: history is kept, tools stay registered, and the next `ask()` is routed through the new provider — including a switch between the native OpenAI loops and the generic transport loop (codex, claude-code). An unregistered provider id throws here rather than at the next `ask()`, and the previous routing is left intact when it does. With no explicit `model`, the new provider's own default model takes over — a model name from the old provider is rarely valid on the new one.",
+        "parameters": {
+          "provider": {
+            "type": "string | Record<string, any> | null",
+            "description": "A registered provider id, an inline provider config, or null to fall back to the container default"
+          },
+          "options": {
+            "type": "SetProviderOptions",
+            "description": "Optional `model` and `providerOptions` to apply along with the switch",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Model to use on the new provider. Omit to let the provider's own default model take over."
+              },
+              "providerOptions": {
+                "type": "Record<string, any>",
+                "description": "Provider-specific transport options, replacing any currently configured."
+              }
+            }
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "conversation.setProvider('claude-code', { model: 'sonnet' })\nconversation.setProvider(null) // back to the container's default provider"
+          }
+        ]
+      },
       "abort": {
         "description": "Abort the current ask() call. Cancels the in-flight network request and any pending tool executions. The ask() promise will reject with a ConversationAbortError whose `partial` property contains any text accumulated before the abort.",
         "parameters": {},
@@ -32354,6 +32613,16 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Returns the OpenAI model name being used for completions.",
         "returns": "string"
       },
+      "routing": {
+        "description": "Where the next turn will go: the provider, the model, the OpenAI dialect, and which turn loop runs. Everything here is derived live, so it reflects any mid-conversation `setModel()` / `setProvider()` call.",
+        "returns": "ConversationRouting",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "conversation.routing\n// => { provider: 'claude-code', model: 'sonnet', apiMode: 'chat', transport: 'generic' }"
+          }
+        ]
+      },
       "apiMode": {
         "description": "Returns the active completion API mode after resolving auto behavior.",
         "returns": "'responses' | 'chat'"
@@ -32380,6 +32649,11 @@ export const introspectionData: Record<string, any>[] = [
       }
     },
     "events": {
+      "routingChanged": {
+        "name": "routingChanged",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
       "summarizeStart": {
         "name": "summarizeStart",
         "description": "Event emitted by Conversation",
@@ -32510,6 +32784,21 @@ export const introspectionData: Record<string, any>[] = [
           }
         }
       },
+      "SetProviderOptions": {
+        "description": "Options for `Conversation#setProvider` / `Assistant#setProvider`.",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Model to use on the new provider. Omit to let the provider's own default model take over.",
+            "optional": true
+          },
+          "providerOptions": {
+            "type": "Record<string, any>",
+            "description": "Provider-specific transport options, replacing any currently configured.",
+            "optional": true
+          }
+        }
+      },
       "AskOptions": {
         "description": "",
         "properties": {
@@ -32551,6 +32840,27 @@ export const introspectionData: Record<string, any>[] = [
             "type": "'always' | 'never' | {\n\t\talways?: { tool_names?: string[] }\n\t\tnever?: { tool_names?: string[] }\n\t}",
             "description": "",
             "optional": true
+          }
+        }
+      },
+      "ConversationRouting": {
+        "description": "Where the next turn goes: the resolved backend, model, dialect, and turn loop.",
+        "properties": {
+          "provider": {
+            "type": "string | Record<string, any> | null",
+            "description": "The provider in effect: a registered preset id, an inline provider config, or null for the container default."
+          },
+          "model": {
+            "type": "string",
+            "description": "The model the next turn will request."
+          },
+          "apiMode": {
+            "type": "'responses' | 'chat'",
+            "description": "The OpenAI dialect in effect. Not meaningful for generic-transport providers."
+          },
+          "transport": {
+            "type": "'openai' | 'generic'",
+            "description": "Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code."
           }
         }
       }

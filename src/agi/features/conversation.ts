@@ -186,7 +186,31 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 	compactStart: z.tuple([z.object({ messageCount: z.number(), keepRecent: z.number() })]).describe('Fired before compacting the conversation history'),
 	compactEnd: z.tuple([z.object({ summary: z.string(), removedCount: z.number(), estimatedTokens: z.number(), compactionCount: z.number() })]).describe('Fired after compaction completes'),
 	autoCompactTriggered: z.tuple([z.object({ estimated: z.number(), limit: z.number(), contextWindow: z.number() })]).describe('Fired when auto-compact kicks in because tokens exceeded the threshold'),
+	routingChanged: z.tuple([z.object({
+		previous: z.any().describe('The routing in effect before the change'),
+		current: z.any().describe('The routing the next turn will use'),
+	})]).describe('Fired when setModel() or setProvider() changes which backend or model the next turn uses'),
 }).describe('Conversation events')
+
+/** Where the next turn goes: the resolved backend, model, dialect, and turn loop. */
+export type ConversationRouting = {
+	/** The provider in effect: a registered preset id, an inline provider config, or null for the container default. */
+	provider: string | Record<string, any> | null
+	/** The model the next turn will request. */
+	model: string
+	/** The OpenAI dialect in effect. Not meaningful for generic-transport providers. */
+	apiMode: 'responses' | 'chat'
+	/** Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code. */
+	transport: 'openai' | 'generic'
+}
+
+/** Options for `Conversation#setProvider` / `Assistant#setProvider`. */
+export type SetProviderOptions = {
+	/** Model to use on the new provider. Omit to let the provider's own default model take over. */
+	model?: string
+	/** Provider-specific transport options, replacing any currently configured. */
+	providerOptions?: Record<string, any>
+}
 
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
 export type ConversationState = z.infer<typeof ConversationStateSchema>
@@ -525,6 +549,119 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Returns the OpenAI model name being used for completions. */
 	get model(): string {
 		return this.state.get('model')!
+	}
+
+	/**
+	 * Where the next turn will go: the provider, the model, the OpenAI dialect,
+	 * and which turn loop runs. Everything here is derived live, so it reflects
+	 * any mid-conversation `setModel()` / `setProvider()` call.
+	 *
+	 * @example
+	 * conversation.routing
+	 * // => { provider: 'claude-code', model: 'sonnet', apiMode: 'chat', transport: 'generic' }
+	 */
+	get routing(): ConversationRouting {
+		return {
+			provider: (this.effectiveProvider as string | Record<string, any> | undefined) ?? null,
+			model: this.model,
+			apiMode: this.apiMode,
+			transport: this.usesGenericTransportLoop ? 'generic' : 'openai',
+		}
+	}
+
+	/**
+	 * Switch the model for every subsequent turn. Safe to call mid-conversation —
+	 * history is kept, and the next `ask()` uses the new model.
+	 *
+	 * Any provider-side continuation handle (an OpenAI Responses `previous_response_id`,
+	 * a codex/claude-session id) is dropped, because it encodes the *old* routing.
+	 * The full message history lives locally, so the next turn simply re-sends it.
+	 *
+	 * @param model - The model name to use from here on
+	 *
+	 * @example
+	 * conversation.setModel('gpt-5.4')
+	 * await conversation.ask('now try that again with more care')
+	 */
+	setModel(model: string): this {
+		if (!model || typeof model !== 'string') {
+			throw new Error('setModel(model) requires a model name, e.g. conversation.setModel("gpt-5.4")')
+		}
+		return this._applyRouting({ model })
+	}
+
+	/**
+	 * Switch the backend for every subsequent turn. Safe to call mid-conversation:
+	 * history is kept, tools stay registered, and the next `ask()` is routed through
+	 * the new provider — including a switch between the native OpenAI loops and the
+	 * generic transport loop (codex, claude-code).
+	 *
+	 * An unregistered provider id throws here rather than at the next `ask()`, and
+	 * the previous routing is left intact when it does.
+	 *
+	 * With no explicit `model`, the new provider's own default model takes over —
+	 * a model name from the old provider is rarely valid on the new one.
+	 *
+	 * @param provider - A registered provider id, an inline provider config, or null to fall back to the container default
+	 * @param options - Optional `model` and `providerOptions` to apply along with the switch
+	 *
+	 * @example
+	 * conversation.setProvider('claude-code', { model: 'sonnet' })
+	 * conversation.setProvider(null) // back to the container's default provider
+	 */
+	setProvider(provider: string | Record<string, any> | null, options: SetProviderOptions = {}): this {
+		return this._applyRouting({
+			provider,
+			providerGiven: true,
+			model: options.model,
+			providerOptions: options.providerOptions,
+		})
+	}
+
+	/**
+	 * Shared implementation behind setModel()/setProvider(): mutate the routing
+	 * options, resync the derived state (model, context window, api), and drop
+	 * continuation handles that belonged to the previous routing.
+	 */
+	private _applyRouting(change: {
+		provider?: string | Record<string, any> | null
+		providerGiven?: boolean
+		model?: string
+		providerOptions?: Record<string, any>
+	}): this {
+		const previous = this.routing
+		const opts = this.options as Record<string, any>
+		const restore = { provider: opts.provider, model: opts.model, providerOptions: opts.providerOptions }
+
+		if (change.providerGiven) {
+			opts.provider = change.provider ?? undefined
+			if (change.providerOptions !== undefined) opts.providerOptions = change.providerOptions
+			try {
+				this.assertConfiguredProviderResolvable()
+			} catch (error) {
+				Object.assign(opts, restore)
+				throw error
+			}
+			// A model tied to the old provider would be sent to a backend that has
+			// never heard of it — clear it so the new provider's default wins unless
+			// the caller named one explicitly.
+			opts.model = change.model
+		} else if (change.model) {
+			opts.model = change.model
+		}
+
+		const model = change.model
+			?? (change.providerGiven ? (this.configuredProviderDefaultModel ?? previous.model) : previous.model)
+
+		this.state.set('model', model)
+		this.state.set('contextWindow', this.options.contextWindow || getContextWindow(model))
+		this.state.set('api', this.apiMode)
+		this.state.set('lastResponseId', null)
+		this.state.set('lastProviderData', undefined)
+
+		const current = this.routing
+		this.emit('routingChanged', { previous, current })
+		return this
 	}
 
 	/** Returns the active completion API mode after resolving auto behavior. */

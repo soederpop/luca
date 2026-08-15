@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message } from './conversation'
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions } from './conversation'
 import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -452,6 +452,85 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			this.state.set('conversation', conv)
 		}
 		return conv
+	}
+
+	/**
+	 * Where the assistant's next turn will go: provider, model, OpenAI dialect,
+	 * and turn loop. Derived live from the underlying conversation.
+	 *
+	 * @example
+	 * assistant.routing
+	 * // => { provider: 'local', model: 'qwen3-coder', apiMode: 'chat', transport: 'openai' }
+	 */
+	get routing(): ConversationRouting {
+		return this.conversation.routing
+	}
+
+	/**
+	 * Switch the model for every subsequent turn. Safe to call mid-chat — the
+	 * conversation, its history, and its tools are all preserved.
+	 *
+	 * @param model - The model name to use from here on
+	 *
+	 * @example
+	 * assistant.setModel('gpt-5.4')
+	 * await assistant.ask('try that again, more carefully')
+	 */
+	setModel(model: string): this {
+		if (!model || typeof model !== 'string') {
+			throw new Error('setModel(model) requires a model name, e.g. assistant.setModel("gpt-5.4")')
+		}
+		;(this.options as Record<string, any>).model = model
+		const existing = this.state.get('conversation') as Conversation | null
+		existing?.setModel(model)
+		return this
+	}
+
+	/**
+	 * Switch the backend for every subsequent turn — including across transport
+	 * families (an OpenAI-compatible endpoint to claude-code, say). Safe to call
+	 * mid-chat: history and tools survive, and an unregistered provider id throws
+	 * immediately rather than at the next `ask()`.
+	 *
+	 * With no explicit `model`, the new provider's own default model takes over.
+	 *
+	 * @param provider - A registered provider id, an inline provider config, or null for the container default
+	 * @param options - Optional `model` and `providerOptions` to apply along with the switch
+	 *
+	 * @example
+	 * assistant.setProvider('claude-code', { model: 'sonnet' })
+	 * await assistant.ask('pick up where we left off')
+	 */
+	setProvider(provider: string | Record<string, any> | null, options: SetProviderOptions = {}): this {
+		const opts = this.options as Record<string, any>
+		const restore = { provider: opts.provider, model: opts.model, providerOptions: opts.providerOptions }
+		// Mirror the conversation's rule: a model tied to the old provider (including
+		// one from CORE.md frontmatter) must not follow the switch unless named here.
+		opts.provider = provider ?? undefined
+		opts.model = options.model
+		if (options.providerOptions !== undefined) opts.providerOptions = options.providerOptions
+
+		const existing = this.state.get('conversation') as Conversation | null
+		try {
+			if (existing) {
+				existing.setProvider(provider, options)
+			} else if (typeof provider === 'string') {
+				// No conversation yet, so nobody else will validate the id until the
+				// first ask() — check it here so the caller learns now.
+				const modelProviders = this.container.feature('modelProviders')
+				if (!modelProviders.get(provider)) {
+					const available = Object.keys(modelProviders.profiles ?? {})
+					throw new Error(
+						`Unknown model provider: "${provider}". It is not registered in modelProviders. ` +
+						`Register it (e.g. modelProviders.registerLocal('${provider}', baseURL, model) in luca.cli.ts) or use one of the registered ids: ${available.join(', ') || '(none)'}.`
+					)
+				}
+			}
+		} catch (error) {
+			Object.assign(opts, restore)
+			throw error
+		}
+		return this
 	}
 
 	/** The container's default provider id (via modelProviders), or undefined when none is available. */
