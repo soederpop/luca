@@ -45,9 +45,11 @@ export class Client<
   K extends ClientOptions = ClientOptions
 > extends Helper<T, K> {
   static override shortcut = "clients.base"
-  static override stateSchema = ClientStateSchema
-  static override optionsSchema = ClientOptionsSchema
-  static override eventsSchema = ClientEventsSchema
+  // annotated with z.ZodObject<any> (like Feature) so subclasses can override
+  // with extended/defaulted shapes without tripping TS2417 static-side checks
+  static override stateSchema: z.ZodObject<any> = ClientStateSchema
+  static override optionsSchema: z.ZodObject<any> = ClientOptionsSchema
+  static override eventsSchema: z.ZodObject<any> = ClientEventsSchema
 
   /** Self-register a Client subclass from a static initialization block. */
   static register: (SubClass: abstract new (options: any, context: any) => Client, id?: string) => abstract new (options: any, context: any) => Client

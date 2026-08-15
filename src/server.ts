@@ -25,9 +25,11 @@ export interface ServersInterface {
 export interface AvailableServers {}
 
 export class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
-    static override stateSchema = ServerStateSchema
-    static override optionsSchema = ServerOptionsSchema
-    static override eventsSchema = ServerEventsSchema
+    // annotated with z.ZodObject<any> (like Feature) so subclasses can override
+    // with extended/defaulted shapes without tripping TS2417 static-side checks
+    static override stateSchema: z.ZodObject<any> = ServerStateSchema
+    static override optionsSchema: z.ZodObject<any> = ServerOptionsSchema
+    static override eventsSchema: z.ZodObject<any> = ServerEventsSchema
 
     /** Self-register a Server subclass from a static initialization block. */
     static register: (SubClass: abstract new (options: any, context: any) => Server, id?: string) => abstract new (options: any, context: any) => Server

@@ -7558,19 +7558,9 @@ export interface ClientsInterface {
  */
 export declare class Client<T extends ClientState = ClientState, K extends ClientOptions = ClientOptions> extends Helper<T, K> {
     static shortcut: string;
-    static stateSchema: z.ZodObject<{
-        connected: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$loose>;
-    static optionsSchema: z.ZodObject<{
-        name: z.ZodOptional<z.ZodString>;
-        _cacheKey: z.ZodOptional<z.ZodString>;
-        baseURL: z.ZodOptional<z.ZodString>;
-        json: z.ZodOptional<z.ZodBoolean>;
-    }, z.core.$strip>;
-    static eventsSchema: z.ZodObject<{
-        stateChange: z.ZodTuple<[z.ZodAny], null>;
-        failure: z.ZodTuple<[z.ZodAny], null>;
-    }, z.core.$strip>;
+    static stateSchema: z.ZodObject<any>;
+    static optionsSchema: z.ZodObject<any>;
+    static eventsSchema: z.ZodObject<any>;
     /** Self-register a Client subclass from a static initialization block. */
     static register: (SubClass: abstract new (options: any, context: any) => Client, id?: string) => abstract new (options: any, context: any) => Client;
     static attach(container: Container & ClientsInterface): any;
@@ -13512,6 +13502,7 @@ export default CipherSocialFeature;
 //# sourceMappingURL=cipher-social.d.ts.map`,
   "node/features/container-link.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
+import { WebSocketServer } from 'ws';
 export declare const MessageTypes: {
     readonly register: "register";
     readonly registered: "registered";
@@ -13603,6 +13594,12 @@ export declare const ContainerLinkEventsSchema: z.ZodObject<{
  * const link = container.feature('containerLink', { enable: true, port: 8089 })
  * await link.start()
  *
+ * // Or share an existing HTTP server's port instead of opening one:
+ * // const wss = link.attachNoServer()
+ * // httpServer.on('upgrade', (req, socket, head) => {
+ * //   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+ * // })
+ *
  * // When a web container connects:
  * link.on('connection', (uuid, meta) => {
  *   console.log('Connected:', uuid)
@@ -13662,6 +13659,17 @@ export declare class ContainerLink extends Feature<ContainerLinkState, Container
      * @returns This feature instance for chaining
      */
     start(): Promise<this>;
+    /**
+     * Create the WebSocket server without opening a port, so it can share an
+     * existing HTTP server's listener. The caller owns upgrade routing:
+     * route HTTP \`upgrade\` events to the returned server via
+     * \`wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))\`.
+     *
+     * @returns The noServer-mode WebSocketServer
+     */
+    attachNoServer(): WebSocketServer;
+    /** Wire per-connection message/close/error handling onto a WebSocketServer. */
+    private wireServer;
     /**
      * Stop the WebSocket server and disconnect all clients.
      *
@@ -29078,21 +29086,9 @@ export interface ServersInterface {
 export interface AvailableServers {
 }
 export declare class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
-    static stateSchema: z.ZodObject<{
-        port: z.ZodOptional<z.ZodNumber>;
-        listening: z.ZodDefault<z.ZodBoolean>;
-        configured: z.ZodDefault<z.ZodBoolean>;
-        stopped: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$loose>;
-    static optionsSchema: z.ZodObject<{
-        name: z.ZodOptional<z.ZodString>;
-        _cacheKey: z.ZodOptional<z.ZodString>;
-        port: z.ZodOptional<z.ZodNumber>;
-        host: z.ZodOptional<z.ZodString>;
-    }, z.core.$strip>;
-    static eventsSchema: z.ZodObject<{
-        stateChange: z.ZodTuple<[z.ZodAny], null>;
-    }, z.core.$strip>;
+    static stateSchema: z.ZodObject<any>;
+    static optionsSchema: z.ZodObject<any>;
+    static eventsSchema: z.ZodObject<any>;
     /** Self-register a Server subclass from a static initialization block. */
     static register: (SubClass: abstract new (options: any, context: any) => Server, id?: string) => abstract new (options: any, context: any) => Server;
     get initialState(): T;
