@@ -125,16 +125,18 @@ export class Git extends Feature {
             status ? '-t' : '',
         ].filter(v => v?.length).flat()
         
-        const gitIgnorePath = this.container.fs.findUp('.gitignore', { cwd: this.container.cwd })
-        
         if (others && exclude.length) {
             flags.push(
                 ...exclude.map((p:string) =>['--exclude', p]).flat()
             )
         }
-        
-        if (others && gitIgnorePath && !includeIgnored) {
-            flags.push(...['--exclude-from', gitIgnorePath])
+
+        // --exclude-standard applies all .gitignore files (at every level),
+        // .git/info/exclude, and the user's global excludes file — the union
+        // a git user means by "ignored." Preferable to --exclude-from with a
+        // single findUp'd .gitignore, which misses nested/global/info excludes.
+        if (others && !includeIgnored) {
+            flags.push('--exclude-standard')
         }
         
         
