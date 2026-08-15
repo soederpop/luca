@@ -5524,6 +5524,12 @@ setBuildTimeData('features.containerLink', {
       "required": [],
       "returns": "Promise<this>"
     },
+    "attachNoServer": {
+      "description": "Create the WebSocket server without opening a port, so it can share an existing HTTP server's listener. The caller owns upgrade routing: route HTTP `upgrade` events to the returned server via `wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))`.",
+      "parameters": {},
+      "required": [],
+      "returns": "WebSocketServer"
+    },
     "stop": {
       "description": "Stop the WebSocket server and disconnect all clients.",
       "parameters": {},
@@ -5692,7 +5698,7 @@ setBuildTimeData('features.containerLink', {
   "examples": [
     {
       "language": "ts",
-      "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
+      "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// Or share an existing HTTP server's port instead of opening one:\n// const wss = link.attachNoServer()\n// httpServer.on('upgrade', (req, socket, head) => {\n//   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))\n// })\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
     }
   ],
   "types": {
@@ -31313,6 +31319,12 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<this>"
       },
+      "attachNoServer": {
+        "description": "Create the WebSocket server without opening a port, so it can share an existing HTTP server's listener. The caller owns upgrade routing: route HTTP `upgrade` events to the returned server via `wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))`.",
+        "parameters": {},
+        "required": [],
+        "returns": "WebSocketServer"
+      },
       "stop": {
         "description": "Stop the WebSocket server and disconnect all clients.",
         "parameters": {},
@@ -31481,7 +31493,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
+        "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// Or share an existing HTTP server's port instead of opening one:\n// const wss = link.attachNoServer()\n// httpServer.on('upgrade', (req, socket, head) => {\n//   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))\n// })\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
       }
     ],
     "types": {

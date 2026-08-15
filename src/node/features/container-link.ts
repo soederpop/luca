@@ -124,6 +124,12 @@ type PendingEval = {
  * const link = container.feature('containerLink', { enable: true, port: 8089 })
  * await link.start()
  *
+ * // Or share an existing HTTP server's port instead of opening one:
+ * // const wss = link.attachNoServer()
+ * // httpServer.on('upgrade', (req, socket, head) => {
+ * //   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+ * // })
+ *
  * // When a web container connects:
  * link.on('connection', (uuid, meta) => {
  *   console.log('Connected:', uuid)
@@ -190,33 +196,57 @@ export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOpti
         resolve(this)
       })
 
-      this._wss.on('connection', (ws) => {
-        ws.on('message', (raw: Buffer | string) => {
-          this.handleMessage(ws, raw)
-        })
+      this.wireServer(this._wss)
+    })
+  }
 
-        ws.on('close', () => {
-          const entry = this.findConnectionByWs(ws)
-          if (entry) {
-            this._connections.delete(entry.uuid)
-            this.setState({ connectionCount: this._connections.size })
-            this.emit('disconnection', entry.uuid, 'closed')
-          }
-        })
+  /**
+   * Create the WebSocket server without opening a port, so it can share an
+   * existing HTTP server's listener. The caller owns upgrade routing:
+   * route HTTP `upgrade` events to the returned server via
+   * `wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))`.
+   *
+   * @returns The noServer-mode WebSocketServer
+   */
+  attachNoServer(): WebSocketServer {
+    if (this._wss) return this._wss
 
-        ws.on('error', () => {
-          const entry = this.findConnectionByWs(ws)
-          if (entry) {
-            this._connections.delete(entry.uuid)
-            this.setState({ connectionCount: this._connections.size })
-            this.emit('disconnection', entry.uuid, 'error')
-          }
-        })
+    this._wss = new WebSocketServer({ noServer: true })
+    this.wireServer(this._wss)
+    this.startHeartbeat()
+    this.setState({ listening: true })
+
+    return this._wss
+  }
+
+  /** Wire per-connection message/close/error handling onto a WebSocketServer. */
+  private wireServer(wss: WebSocketServer): void {
+    wss.on('connection', (ws) => {
+      ws.on('message', (raw: Buffer | string) => {
+        this.handleMessage(ws, raw)
       })
 
-      this._wss.on('error', (err) => {
-        this.emit('error', err)
+      ws.on('close', () => {
+        const entry = this.findConnectionByWs(ws)
+        if (entry) {
+          this._connections.delete(entry.uuid)
+          this.setState({ connectionCount: this._connections.size })
+          this.emit('disconnection', entry.uuid, 'closed')
+        }
       })
+
+      ws.on('error', () => {
+        const entry = this.findConnectionByWs(ws)
+        if (entry) {
+          this._connections.delete(entry.uuid)
+          this.setState({ connectionCount: this._connections.size })
+          this.emit('disconnection', entry.uuid, 'error')
+        }
+      })
+    })
+
+    wss.on('error', (err) => {
+      this.emit('error', err)
     })
   }
 
