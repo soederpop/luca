@@ -310,12 +310,19 @@ export class VM<
    */
   createContext(ctx: any = {}): vm.Context {
     if (this.isContext(ctx)) return ctx
-    return vm.createContext({
+    const sandbox: any = {
       console,
       setTimeout,
       setInterval,
       clearTimeout,
       clearInterval,
+      setImmediate,
+      clearImmediate,
+      queueMicrotask,
+      structuredClone,
+      performance,
+      EventTarget,
+      Event,
       process,
       Buffer,
       URL,
@@ -334,7 +341,12 @@ export class VM<
       TextDecoder,
       ...this.container.context,
       ...ctx
-    })
+    }
+    // Bundled npm deps (imapflow, nodemailer, ...) reference `global`. Bind it to the
+    // sandbox itself — the same object vm.createContext contextifies — so writes to
+    // `global.x` and bare `x` stay consistent, like Node's real self-referential global.
+    if (!('global' in sandbox)) sandbox.global = sandbox
+    return vm.createContext(sandbox)
   }
   
   /**
@@ -720,6 +732,15 @@ export class VM<
       setInterval,
       clearTimeout,
       clearInterval,
+      setImmediate,
+      clearImmediate,
+      queueMicrotask,
+      structuredClone,
+      performance,
+      EventTarget,
+      Event,
+      // `global` is bound self-referentially in createContext(), which this
+      // context flows through via performSync — don't bind it to host globalThis here.
       process,
       Buffer,
       URL,

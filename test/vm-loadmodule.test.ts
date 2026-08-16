@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'bun:test'
+import { tmpdir } from 'os'
 import { NodeContainer } from '../src/node/container'
 
 /**
@@ -258,6 +259,100 @@ describe('vm.loadModule pipeline', () => {
 			const c = new NodeContainer()
 			expect(c.zod).toBe(c.z)
 			expect(typeof c.zod.object).toBe('function')
+		})
+	})
+
+	describe('node globals in the VM context', () => {
+		/**
+		 * Bundled npm deps (imapflow, nodemailer, mailparser) reference global,
+		 * setImmediate, and queueMicrotask at module init. The VM context must
+		 * provide them or plugin features fail only inside the compiled binary.
+		 */
+		const GLOBALS_MODULE = `
+			export function checkGlobals() {
+				return {
+					global: typeof global,
+					setImmediate: typeof setImmediate,
+					clearImmediate: typeof clearImmediate,
+					queueMicrotask: typeof queueMicrotask,
+					structuredClone: typeof structuredClone,
+					performance: typeof performance,
+					EventTarget: typeof EventTarget,
+					Event: typeof Event,
+				}
+			}
+			export function globalIsSelfReferential() {
+				;(global as any).__vmMarker = 'set-via-global'
+				// a bare read resolves through the contextified global, so this only
+				// passes when \`global\` is the sandbox itself, not the host globalThis
+				return (globalThis as any).__vmMarker === 'set-via-global'
+			}
+			export function runsSetImmediate(): Promise<string> {
+				return new Promise(resolve => setImmediate(() => resolve('ran')))
+			}
+		`
+
+		function writeGlobalsModule(c: NodeContainer): string {
+			const fs = c.feature('fs')
+			const dir = c.paths.resolve(tmpdir(), `vm-loadmodule-globals-${c.utils.uuid()}`)
+			fs.mkdir(dir)
+			const file = c.paths.resolve(dir, 'globals.ts')
+			fs.writeFile(file, GLOBALS_MODULE)
+			return file
+		}
+
+		async function assertGlobalsWork(c: NodeContainer, file: string) {
+			const vm = c.feature('vm')
+			const mod = vm.loadModule(file)
+			expect(mod.checkGlobals()).toEqual({
+				global: 'object',
+				setImmediate: 'function',
+				clearImmediate: 'function',
+				queueMicrotask: 'function',
+				structuredClone: 'function',
+				performance: 'object',
+				EventTarget: 'function',
+				Event: 'function',
+			})
+			expect(mod.globalIsSelfReferential()).toBe(true)
+			expect(await mod.runsSetImmediate()).toBe('ran')
+		}
+
+		it('provides them on the plain transpile path', async () => {
+			const c = new NodeContainer()
+			await assertGlobalsWork(c, writeGlobalsModule(c))
+		})
+
+		it('provides them on the bundled path (virtual modules seeded)', async () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			await assertGlobalsWork(c, writeGlobalsModule(c))
+		})
+
+		it('bundled dynamic import of an inlined CJS dep yields its named exports', async () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules() // force the _loadModuleBundled path
+			const fs = c.feature('fs')
+			const vm = c.feature('vm')
+
+			const dir = c.paths.resolve(tmpdir(), `vm-loadmodule-interop-${c.utils.uuid()}`)
+			fs.mkdir(dir)
+			// mimics imapflow: CJS module that touches `global` at init and exports a class
+			fs.writeFile(c.paths.resolve(dir, 'dep.js'), `
+				global.__depInit = true
+				class ImapFlow { constructor() { this.ok = true } }
+				module.exports.ImapFlow = ImapFlow
+			`)
+			const entry = c.paths.resolve(dir, 'entry.ts')
+			fs.writeFile(entry, `
+				export async function connect() {
+					const { ImapFlow } = await import('./dep.js')
+					return new ImapFlow().ok
+				}
+			`)
+
+			const mod = vm.loadModule(entry)
+			expect(await mod.connect()).toBe(true)
 		})
 	})
 })
