@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.7.3"
+export const typesBundleVersion = "3.8.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -106,7 +106,7 @@ export { CodingTools } from "./features/coding-tools";
 export { ConversationHistory } from "./features/conversation-history";
 export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
 export { Conversation } from "./features/conversation";
-export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationOptions, ConversationState, AskOptions, ForkOptions } from "./features/conversation";
+export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, AskOptions, ForkOptions } from "./features/conversation";
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
@@ -551,7 +551,7 @@ export default Memory;
 //# sourceMappingURL=agent-memory.d.ts.map`,
   "agi/features/assistant.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions } from './conversation';
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, ConversationRouting, SetProviderOptions } from './conversation';
 import type { ContentDb } from 'luca/node';
 import type { ConversationHistory, ConversationMeta } from './conversation-history';
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js';
@@ -866,6 +866,42 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      */
     afterInitialize(): void;
     get conversation(): Conversation;
+    /**
+     * Where the assistant's next turn will go: provider, model, OpenAI dialect,
+     * and turn loop. Derived live from the underlying conversation.
+     *
+     * @example
+     * assistant.routing
+     * // => { provider: 'local', model: 'qwen3-coder', apiMode: 'chat', transport: 'openai' }
+     */
+    get routing(): ConversationRouting;
+    /**
+     * Switch the model for every subsequent turn. Safe to call mid-chat — the
+     * conversation, its history, and its tools are all preserved.
+     *
+     * @param model - The model name to use from here on
+     *
+     * @example
+     * assistant.setModel('gpt-5.4')
+     * await assistant.ask('try that again, more carefully')
+     */
+    setModel(model: string): this;
+    /**
+     * Switch the backend for every subsequent turn — including across transport
+     * families (an OpenAI-compatible endpoint to claude-code, say). Safe to call
+     * mid-chat: history and tools survive, and an unregistered provider id throws
+     * immediately rather than at the next \`ask()\`.
+     *
+     * With no explicit \`model\`, the new provider's own default model takes over.
+     *
+     * @param provider - A registered provider id, an inline provider config, or null for the container default
+     * @param options - Optional \`model\` and \`providerOptions\` to apply along with the switch
+     *
+     * @example
+     * assistant.setProvider('claude-code', { model: 'sonnet' })
+     * await assistant.ask('pick up where we left off')
+     */
+    setProvider(provider: string | Record<string, any> | null, options?: SetProviderOptions): this;
     /** The container's default provider id (via modelProviders), or undefined when none is available. */
     private resolveDefaultProviderId;
     get availableTools(): string[];
@@ -3985,7 +4021,29 @@ export declare const ConversationEventsSchema: z.ZodObject<{
         limit: z.ZodNumber;
         contextWindow: z.ZodNumber;
     }, z.core.$strip>], null>;
+    routingChanged: z.ZodTuple<[z.ZodObject<{
+        previous: z.ZodAny;
+        current: z.ZodAny;
+    }, z.core.$strip>], null>;
 }, z.core.$strip>;
+/** Where the next turn goes: the resolved backend, model, dialect, and turn loop. */
+export type ConversationRouting = {
+    /** The provider in effect: a registered preset id, an inline provider config, or null for the container default. */
+    provider: string | Record<string, any> | null;
+    /** The model the next turn will request. */
+    model: string;
+    /** The OpenAI dialect in effect. Not meaningful for generic-transport providers. */
+    apiMode: 'responses' | 'chat';
+    /** Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code. */
+    transport: 'openai' | 'generic';
+};
+/** Options for \`Conversation#setProvider\` / \`Assistant#setProvider\`. */
+export type SetProviderOptions = {
+    /** Model to use on the new provider. Omit to let the provider's own default model take over. */
+    model?: string;
+    /** Provider-specific transport options, replacing any currently configured. */
+    providerOptions?: Record<string, any>;
+};
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>;
 export type ConversationState = z.infer<typeof ConversationStateSchema>;
 export type AskOptions = {
@@ -4151,6 +4209,10 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
             limit: z.ZodNumber;
             contextWindow: z.ZodNumber;
         }, z.core.$strip>], null>;
+        routingChanged: z.ZodTuple<[z.ZodObject<{
+            previous: z.ZodAny;
+            current: z.ZodAny;
+        }, z.core.$strip>], null>;
     }, z.core.$strip>;
     static shortcut: "features.conversation";
     static stability: "stable";
@@ -4268,6 +4330,57 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     })[], defaults?: ForkOptions): Promise<string[]>;
     /** Returns the OpenAI model name being used for completions. */
     get model(): string;
+    /**
+     * Where the next turn will go: the provider, the model, the OpenAI dialect,
+     * and which turn loop runs. Everything here is derived live, so it reflects
+     * any mid-conversation \`setModel()\` / \`setProvider()\` call.
+     *
+     * @example
+     * conversation.routing
+     * // => { provider: 'claude-code', model: 'sonnet', apiMode: 'chat', transport: 'generic' }
+     */
+    get routing(): ConversationRouting;
+    /**
+     * Switch the model for every subsequent turn. Safe to call mid-conversation —
+     * history is kept, and the next \`ask()\` uses the new model.
+     *
+     * Any provider-side continuation handle (an OpenAI Responses \`previous_response_id\`,
+     * a codex/claude-session id) is dropped, because it encodes the *old* routing.
+     * The full message history lives locally, so the next turn simply re-sends it.
+     *
+     * @param model - The model name to use from here on
+     *
+     * @example
+     * conversation.setModel('gpt-5.4')
+     * await conversation.ask('now try that again with more care')
+     */
+    setModel(model: string): this;
+    /**
+     * Switch the backend for every subsequent turn. Safe to call mid-conversation:
+     * history is kept, tools stay registered, and the next \`ask()\` is routed through
+     * the new provider — including a switch between the native OpenAI loops and the
+     * generic transport loop (codex, claude-code).
+     *
+     * An unregistered provider id throws here rather than at the next \`ask()\`, and
+     * the previous routing is left intact when it does.
+     *
+     * With no explicit \`model\`, the new provider's own default model takes over —
+     * a model name from the old provider is rarely valid on the new one.
+     *
+     * @param provider - A registered provider id, an inline provider config, or null to fall back to the container default
+     * @param options - Optional \`model\` and \`providerOptions\` to apply along with the switch
+     *
+     * @example
+     * conversation.setProvider('claude-code', { model: 'sonnet' })
+     * conversation.setProvider(null) // back to the container's default provider
+     */
+    setProvider(provider: string | Record<string, any> | null, options?: SetProviderOptions): this;
+    /**
+     * Shared implementation behind setModel()/setProvider(): mutate the routing
+     * options, resync the derived state (model, context window, api), and drop
+     * continuation handles that belonged to the previous routing.
+     */
+    private _applyRouting;
     /** Returns the active completion API mode after resolving auto behavior. */
     get apiMode(): 'responses' | 'chat';
     /** Cached container-default provider id: undefined = not computed yet, null = none (or the legacy OpenAI path). */
@@ -18978,12 +19091,6 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
      */
     get available(): Record<string, string[]>;
     /**
-     * Ensures the fileManager feature is started before using it for discovery.
-     *
-     * @returns The started fileManager instance
-     */
-    private ensureFileManager;
-    /**
      * Resolves which conventional folder path exists for a given registry type.
      * Tries each candidate folder in order and returns the first one that exists.
      *
@@ -30119,7 +30226,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.7.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

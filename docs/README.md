@@ -9,7 +9,7 @@
 ```
 Collection: /Users/jonathansoeder/@soederpop/projects/luca/docs
 Root: /Users/jonathansoeder/@soederpop/projects/luca/docs
-Items: 208
+Items: 213
 
   Model: Challenge
     Description: challenges are used by our evaluation suite to measure the quality of the introspection content and tool, as well as the SKILL.md that gets generated to help coding assistants work with the luca framework
