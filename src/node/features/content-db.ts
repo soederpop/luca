@@ -1,6 +1,6 @@
 import { Feature } from '../feature.js'
 import * as contentbaseExports from 'contentbase'
-import { parse, Collection, Document, extractSections, type ModelDefinition } from 'contentbase'
+import { parse, Collection, Document, extractSections, parseWhereClause, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { realpathSync } from 'node:fs'
@@ -1035,8 +1035,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     if (args.where) {
       const where: Record<string, any> = typeof args.where === 'string' ? JSON.parse(args.where) : args.where
-      for (const [path, value] of Object.entries(where)) {
-        q = q.where(path, value)
+      // parseWhereClause turns operator objects ({"$in": [...]}) into conditions;
+      // plain q.where(path, objectValue) would silently compare them as literal eq
+      for (const cond of parseWhereClause(where)) {
+        q = q.where(cond.path, cond.operator, cond.value)
       }
     }
     if (args.sort) {
