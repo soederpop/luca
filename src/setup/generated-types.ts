@@ -41282,7 +41282,7 @@ declare module "gray-matter" {
 `,
   "deps/contentbase/package.json": `{
   "name": "contentbase",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "repository": "https://github.com/soederpop/contentbase",
   "website": "https://contentbase.soederpop.com",
   "type": "module",
