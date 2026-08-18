@@ -173,6 +173,33 @@ describe('OpenAPI.toSystemPrompt()', () => {
 		expect(prompt).not.toContain('Everything about pets')
 		expect(prompt).not.toContain('example.com/docs')
 	})
+
+	it('options.info overrides the spec info block', async () => {
+		const container = new AGIContainer()
+		const api = container.feature('openapi', {
+			url: baseUrl,
+			info: {
+				title: 'House Pets',
+				summary: 'Only the good ones.',
+				description: 'A hand-curated pet registry.',
+			},
+		})
+		await api.load()
+
+		expect(api.state.get('title')).toBe('House Pets')
+		const prompt = api.toSystemPrompt()
+		expect(prompt).toContain('"House Pets" API')
+		expect(prompt).toContain('Only the good ones.')
+		expect(prompt).toContain('A hand-curated pet registry.')
+		expect(prompt).not.toContain('A store for pets')
+
+		// Partial overrides keep the spec's other fields
+		const partial = container.feature('openapi', { url: baseUrl, info: { title: 'Renamed' } })
+		await partial.load()
+		expect(partial.info.title).toBe('Renamed')
+		expect(partial.info.version).toBe('1.0.0')
+		expect(partial.info.description).toContain('A store for pets')
+	})
 })
 
 describe('loading a spec from a local file path', () => {

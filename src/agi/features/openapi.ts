@@ -18,7 +18,13 @@ export const OpenAPIStateSchema = FeatureStateSchema.extend({
 })
 
 export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
-  url: z.string().optional().describe('URL to the OpenAPI/Swagger spec or the API server base URL')
+  url: z.string().optional().describe('URL to the OpenAPI/Swagger spec or the API server base URL'),
+  info: z.object({
+    title: z.string().optional().describe('Override the spec info.title'),
+    version: z.string().optional().describe('Override the spec info.version'),
+    description: z.string().optional().describe('Override the spec info.description'),
+    summary: z.string().optional().describe('Override the spec info.summary'),
+  }).optional().describe('Overrides for the spec info block — used by state and toSystemPrompt'),
 })
 
 export const OpenAPIEventsSchema = FeatureEventsSchema.extend({
@@ -153,6 +159,15 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
     return this._spec
   }
 
+  /** The spec's info block with any options.info overrides applied */
+  get info(): { title?: string; version?: string; description?: string; summary?: string } {
+    const overrides: Record<string, string> = {}
+    for (const [key, value] of Object.entries(this.options.info || {})) {
+      if (value !== undefined) overrides[key] = value
+    }
+    return { ...(this._spec?.info || {}), ...overrides }
+  }
+
   /**
    * Fetches and parses the OpenAPI spec from the configured URL.
    * Populates `endpoints`, updates state with spec metadata.
@@ -186,8 +201,8 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
     this.setState({
       loaded: true,
-      title: this._spec.info?.title || '',
-      version: this._spec.info?.version || '',
+      title: this.info.title || '',
+      version: this.info.version || '',
       endpointCount: this._endpoints.size,
     })
 
@@ -423,7 +438,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
    * @returns {string} Text suitable for a system prompt extension
    */
   toSystemPrompt(): string {
-    const info = this._spec?.info || {}
+    const info = this.info
     const title = info.title || this.serverUrl || 'OpenAPI'
     const lines: string[] = [
       `You have tools for the "${title}" API (${this._endpoints.size} endpoints). Each tool calls the live API and returns its response.`,

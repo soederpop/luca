@@ -95,11 +95,26 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 	if (endpointsDir) {
 		await expressServer.useEndpoints(endpointsDir)
 
-		expressServer.serveOpenAPISpec({
+		// A project-level openapi.json wins over package.json for the info block —
+		// it's the place to write real API docs (including the 3.1 summary field)
+		let info: { title?: string; version?: string; description?: string; summary?: string } = {
 			title: manifest.name || 'API',
 			version: manifest.version || '0.0.0',
 			description: manifest.description || '',
-		})
+		}
+		const localSpecPath = paths.resolve('openapi.json')
+		if (fs.exists(localSpecPath)) {
+			try {
+				const localSpec = JSON.parse(fs.readFile(localSpecPath) as string)
+				if (localSpec?.info && typeof localSpec.info === 'object') {
+					info = { ...info, ...localSpec.info }
+				}
+			} catch (error: any) {
+				console.warn(`Ignoring ${localSpecPath}: ${error.message}`)
+			}
+		}
+
+		expressServer.serveOpenAPISpec(info)
 	}
 
 	if (options.setup) {

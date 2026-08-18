@@ -498,7 +498,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * await server.stop()
      * ```
      */
-    serveOpenAPISpec(options: { title?: string; version?: string; description?: string } = {}): this {
+    serveOpenAPISpec(options: { title?: string; version?: string; description?: string; summary?: string } = {}): this {
       const server = this
       this.app.get('/openapi.json', (_req: any, res: any) => {
         res.json(server.generateOpenAPISpec(options))
@@ -526,7 +526,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * console.log(Object.keys(spec.paths))  // ['/status']
      * ```
      */
-    generateOpenAPISpec(options: { title?: string; version?: string; description?: string } = {}): Record<string, any> {
+    generateOpenAPISpec(options: { title?: string; version?: string; description?: string; summary?: string } = {}): Record<string, any> {
       const paths: Record<string, any> = {}
 
       for (const ep of this._mountedEndpoints) {
@@ -539,6 +539,8 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
           title: options.title || 'Luca API',
           version: options.version || '1.0.0',
           description: options.description || 'Auto-generated from Luca endpoints',
+          // info.summary is an OpenAPI 3.1 field — only include it when provided
+          ...(options.summary ? { summary: options.summary } : {}),
         },
         servers: [{ url: `http://localhost:${this.port}` }],
         paths,
