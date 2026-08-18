@@ -21,7 +21,7 @@
         "chokidar": "3.6.0",
         "cli-markdown": "3.5.0",
         "compromise": "14.14.5",
-        "contentbase": "0.6.1",
+        "contentbase": "0.7.0",
         "cors": "2.8.5",
         "detect-port": "1.6.1",
         "dotenv": "17.2.4",
@@ -615,7 +615,7 @@
 
     "content-type": ["content-type@1.0.5", "", {}, "sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA=="],
 
-    "contentbase": ["contentbase@0.6.1", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.1", "chalk": "^5.4.1", "cors": "^2.8.5", "express": "^4.21.2", "gray-matter": "^4.0.3", "js-yaml": "^4.1.0", "marked": "^15.0.12", "marked-terminal": "^7.3.0", "mdast-util-gfm": "^3.1.0", "mdast-util-mdxjs-esm": "^2.0.1", "mdast-util-to-markdown": "^2.1.2", "mdast-util-to-string": "^4.0.0", "picomatch": "^4.0.3", "rehype-stringify": "^10.0.1", "remark-gfm": "^4.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.1.2", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "unist-util-find-after": "^5.0.0", "unist-util-find-all-after": "^5.0.0", "unist-util-find-all-before": "^5.0.0", "unist-util-find-before": "^4.0.0", "unist-util-select": "^5.1.0", "unist-util-visit": "^5.0.0", "zod": "^4.3.6" }, "bin": { "cnotes": "src/cli/index.ts", "contentbase": "src/cli/index.ts" } }, "sha512-JoeKFdurRUc3vajxBVXRDnEvgWXcKQ0EMe+gEP0kFoTQynRtouBUlewGa9r9MrwyxCLO6aXjtEuF+KA9BiuF8Q=="],
+    "contentbase": ["contentbase@0.7.0", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.1", "chalk": "^5.4.1", "cors": "^2.8.5", "express": "^4.21.2", "gray-matter": "^4.0.3", "js-yaml": "^4.1.0", "marked": "^15.0.12", "marked-terminal": "^7.3.0", "mdast-util-gfm": "^3.1.0", "mdast-util-mdxjs-esm": "^2.0.1", "mdast-util-to-markdown": "^2.1.2", "mdast-util-to-string": "^4.0.0", "picomatch": "^4.0.3", "rehype-stringify": "^10.0.1", "remark-gfm": "^4.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.1.2", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "unist-util-find-after": "^5.0.0", "unist-util-find-all-after": "^5.0.0", "unist-util-find-all-before": "^5.0.0", "unist-util-find-before": "^4.0.0", "unist-util-select": "^5.1.0", "unist-util-visit": "^5.0.0", "zod": "^4.3.6" }, "bin": { "cnotes": "src/cli/index.ts", "contentbase": "src/cli/index.ts" } }, "sha512-3MIjHabGSLZtMInKryuoXkZ/CMs2aLcB4QkvdvZFBTxnIrzPrqNZq/0usrTOcv3sSE0kE4staRCQyY2dDvAanw=="],
 
     "convert-to-spaces": ["convert-to-spaces@2.0.1", "", {}, "sha512-rcQ1bsQO9799wq24uE5AM2tAILy4gXGIK/njFWcVQkGNZ96edlpY+A7bjwvzjYvLDyzmG1MmMLZhpcsb+klNMQ=="],
 
