@@ -1,4 +1,5 @@
 import { Feature } from '../feature.js'
+import type { Helper } from '../../helper.js'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'
@@ -99,6 +100,13 @@ export interface OpenAIToolDef {
  *
  * // Convert a single endpoint to a function definition
  * api.toFunction('getPetById')
+ *
+ * // Call an endpoint directly
+ * await api.call('getPetById', { petId: 42 })
+ *
+ * // Give an assistant the whole API as callable tools — the spec is loaded
+ * // and the tools registered before the assistant starts
+ * assistant.use(container.feature('openapi', { url: 'https://petstore.swagger.io/v2' }))
  * ```
  */
 export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
@@ -125,7 +133,12 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /** The base server URL derived from options, normalizing the openapi.json suffix */
   get serverUrl(): string {
-    return this.options.url!.replace(/\/openapi\.json\/?$/, '').replace(/\/swagger\.json\/?$/, '').replace(/\/$/, '')
+    const url = this.options.url || ''
+    // Spec loaded from a local file — the only callable base URL is the one the spec declares
+    if (!/^https?:\/\//.test(url)) {
+      return String(this._spec?.servers?.[0]?.url || '').replace(/\/$/, '')
+    }
+    return url.replace(/\/openapi\.json\/?$/, '').replace(/\/swagger\.json\/?$/, '').replace(/\/$/, '')
   }
 
   /** The URL that will be fetched for the spec document */
@@ -147,13 +160,28 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
    * @returns {Promise<this>} This instance, for chaining
    */
   async load(): Promise<this> {
-    const response = await fetch(this.specUrl)
+    const specUrl = this.specUrl
+    let raw: string
 
-    if (!response.ok) {
-      throw new Error(`Failed to load OpenAPI spec from ${this.specUrl}: ${response.status} ${response.statusText}`)
+    const fsAvailable = (this.container as any).features?.available?.includes?.('fs')
+    if (!/^https?:\/\//.test(specUrl) && fsAvailable) {
+      raw = (this.container as any).feature('fs').readFile(specUrl) as string
+    } else {
+      const response = await fetch(specUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to load OpenAPI spec from ${specUrl}: ${response.status} ${response.statusText}`)
+      }
+      raw = await response.text()
     }
 
-    this._spec = await response.json()
+    try {
+      this._spec = JSON.parse(raw)
+    } catch (jsonErr) {
+      // Specs are commonly YAML — fall back when the yaml feature is around
+      const yamlAvailable = (this.container as any).features?.available?.includes?.('yaml')
+      if (!yamlAvailable) throw jsonErr
+      this._spec = (this.container as any).feature('yaml').parse(raw)
+    }
     this._endpoints = buildEndpointMap(this._spec)
 
     this.setState({
@@ -248,6 +276,145 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
     const ep = this.endpoint(name)
     if (!ep) return undefined
     return endpointToFunction(ep)
+  }
+
+  /**
+   * Execute an endpoint against the live API.
+   *
+   * Splits the flat args object back into path, query, and header parameters
+   * (mirroring how `toOpenAITools` flattened them) and sends whatever remains
+   * as the JSON request body. Loads the spec first if it hasn't been loaded.
+   *
+   * @param {string} name - The endpoint friendly name or operationId
+   * @param {Record<string, any>} [args] - Flat argument object matching the tool schema
+   * @returns {Promise<any>} Parsed JSON response body (or raw text if not JSON). HTTP errors return { error, status, statusText, data } instead of throwing.
+   *
+   * @example
+   * ```typescript
+   * const pet = await api.call('getPetById', { petId: 42 })
+   * ```
+   */
+  async call(name: string, args: Record<string, any> = {}): Promise<any> {
+    if (!this.state.get('loaded')) await this.load()
+
+    const ep = this.endpoint(name)
+    if (!ep) throw new Error(`Unknown endpoint "${name}". Available: ${this.endpointNames.join(', ')}`)
+
+    const base = this.serverUrl
+    if (!base) throw new Error(`No server URL to call for "${name}" — pass an http(s) url in options, or declare servers[] in the spec`)
+
+    let path = ep.path
+    const query = new URLSearchParams()
+    const headers: Record<string, string> = {}
+    const consumed = new Set<string>()
+
+    for (const param of ep.parameters) {
+      const value = args[param.name]
+      if (value === undefined || value === null) continue
+      if (param.in === 'path') {
+        path = path.replace(`{${param.name}}`, encodeURIComponent(String(value)))
+        consumed.add(param.name)
+      } else if (param.in === 'query') {
+        query.set(param.name, String(value))
+        consumed.add(param.name)
+      } else if (param.in === 'header') {
+        headers[param.name] = String(value)
+        consumed.add(param.name)
+      }
+    }
+
+    let body: any
+    const bodySchema = ep.requestBody?.content?.['application/json']?.schema
+    if (bodySchema) {
+      if (!bodySchema.properties && args.body !== undefined) {
+        // Single-schema bodies are exposed as a "body" arg by endpointToFunction
+        body = args.body
+      } else {
+        const rest: Record<string, any> = {}
+        for (const [key, value] of Object.entries(args)) {
+          if (!consumed.has(key) && value !== undefined) rest[key] = value
+        }
+        if (Object.keys(rest).length) body = rest
+      }
+    }
+
+    const qs = query.toString()
+    const url = `${base}${path}${qs ? `?${qs}` : ''}`
+    const init: RequestInit = { method: ep.method.toUpperCase(), headers }
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      init.body = JSON.stringify(body)
+    }
+
+    const response = await fetch(url, init)
+    const text = await response.text()
+    let data: any = text
+    try { data = text ? JSON.parse(text) : null } catch { /* leave as text */ }
+
+    if (!response.ok) {
+      // Returned, not thrown, so the model can read the failure and adjust
+      return { error: true, status: response.status, statusText: response.statusText, data }
+    }
+    return data
+  }
+
+  /**
+   * Expose every endpoint as an assistant tool, satisfying the standard
+   * `toTools()` contract so `assistant.use(container.feature('openapi', { url }))`
+   * just works. Each handler executes the live HTTP call via `call()`.
+   *
+   * If the spec hasn't loaded yet this returns no tools — `setupToolsConsumer`
+   * defers loading and registers the real tools before the assistant starts.
+   *
+   * @param {{ only?: string[], except?: string[] }} [options] - Filter tools by endpoint name
+   * @returns Tools bundle consumable by `assistant.use()`
+   */
+  override toTools(options?: { only?: string[], except?: string[] }): ReturnType<Helper['toTools']> {
+    let eps = this.endpoints
+    if (options?.only) eps = eps.filter((ep) => options.only!.includes(ep.name))
+    if (options?.except) eps = eps.filter((ep) => !options.except!.includes(ep.name))
+
+    const schemas: Record<string, any> = {}
+    const handlers: Record<string, Function> = {}
+
+    for (const ep of eps) {
+      const def = endpointToFunction(ep)
+      // addTool() only needs a .toJSONSchema() duck type (same trick as mcpBridge)
+      schemas[ep.name] = {
+        description: def.description,
+        toJSONSchema: () => ({ ...def.parameters, description: def.description }),
+      }
+      handlers[ep.name] = (toolArgs: any) => this.call(ep.name, toolArgs || {})
+    }
+
+    return { schemas, handlers, setup: (consumer: Helper) => this.setupToolsConsumer(consumer) } as any
+  }
+
+  /**
+   * When an assistant consumes this feature before the spec is loaded, queue an
+   * async plugin that loads the spec and registers the real tools — assistants
+   * await these before starting. Once loaded, adds a system prompt extension
+   * describing the API.
+   */
+  override setupToolsConsumer(consumer: Helper): void {
+    const assistant = consumer as any
+    if (typeof assistant.use !== 'function') return
+
+    if (!this.state.get('loaded')) {
+      assistant.use(async () => {
+        await this.load()
+        assistant.use(this.toTools())
+      })
+      return
+    }
+
+    if (typeof assistant.addSystemPromptExtension === 'function') {
+      const title = this.state.get('title') || this.serverUrl || 'OpenAPI'
+      assistant.addSystemPromptExtension(
+        `openapi:${title}`,
+        `You have tools for the "${title}" API (${this._endpoints.size} endpoints${this.serverUrl ? ` at ${this.serverUrl}` : ''}). Each tool calls the live API and returns its response.`,
+      )
+    }
   }
 
   /**
