@@ -157,8 +157,6 @@ describe('assistant.use(openapi) before the spec is loaded', () => {
 		const prompt = assistant.effectiveSystemPrompt
 		expect(prompt).toContain('Pet API')
 		expect(prompt).toContain('A store for pets')
-		expect(prompt).toContain('Everything about pets')
-		expect(prompt).toContain('https://example.com/docs')
 	})
 })
 
@@ -169,12 +167,11 @@ describe('OpenAPI.toSystemPrompt()', () => {
 		await api.load()
 
 		const prompt = api.toSystemPrompt()
-		expect(prompt).toContain('"Pet API" API (v1.0.0)')
-		expect(prompt).toContain(`at ${baseUrl}`)
-		expect(prompt).toContain('2 endpoints')
+		expect(prompt).toContain('"Pet API" API (2 endpoints)')
 		expect(prompt).toContain('A store for pets. Use it to look up and register animals.')
-		expect(prompt).toContain('pets (1 endpoint): Everything about pets')
-		expect(prompt).toContain('More docs: https://example.com/docs (Full reference)')
+		// Deliberately just the info block — no tag or externalDocs dumps
+		expect(prompt).not.toContain('Everything about pets')
+		expect(prompt).not.toContain('example.com/docs')
 	})
 })
 
