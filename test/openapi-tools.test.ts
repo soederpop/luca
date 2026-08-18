@@ -55,7 +55,8 @@ const spec = {
 
 let server: any
 let baseUrl: string
-let lastRequest: { method: string; path: string; body: any } | null = null
+let lastRequest: { method: string; path: string; body: any; headers: Record<string, string> } | null = null
+let lastSpecFetchHeaders: Record<string, string> | null = null
 
 beforeAll(() => {
 	server = Bun.serve({
@@ -63,12 +64,14 @@ beforeAll(() => {
 		async fetch(req) {
 			const url = new URL(req.url)
 			if (url.pathname === '/openapi.json') {
+				lastSpecFetchHeaders = Object.fromEntries(req.headers.entries())
 				return Response.json({ ...spec, servers: [{ url: `http://localhost:${server.port}` }] })
 			}
 			lastRequest = {
 				method: req.method,
 				path: url.pathname + (url.search || ''),
 				body: req.method === 'POST' ? await req.json() : null,
+				headers: Object.fromEntries(req.headers.entries()),
 			}
 			if (url.pathname === '/pets/404') {
 				return Response.json({ message: 'no such pet' }, { status: 404 })
@@ -121,6 +124,40 @@ describe('OpenAPI.toTools()', () => {
 
 		expect(Object.keys(api.toTools({ only: ['addPet'] }).schemas)).toEqual(['addPet'])
 		expect(Object.keys(api.toTools({ except: ['addPet'] }).schemas)).toEqual(['getPetById'])
+	})
+
+	it('options.headers ride on the spec fetch and every call()', async () => {
+		const container = new AGIContainer()
+		const api = container.feature('openapi', {
+			url: baseUrl,
+			headers: { authorization: 'Bearer sekrit', 'x-team': 'luca' },
+		} as any)
+		await api.load()
+
+		expect(lastSpecFetchHeaders?.authorization).toBe('Bearer sekrit')
+
+		await api.call('getPetById', { petId: 1 })
+		expect(lastRequest?.headers.authorization).toBe('Bearer sekrit')
+		expect(lastRequest?.headers['x-team']).toBe('luca')
+	})
+
+	it('options.beforeRequest can mutate the request or replace the url/init', async () => {
+		const container = new AGIContainer()
+		const seen: string[] = []
+		const api = container.feature('openapi', {
+			url: baseUrl,
+			beforeRequest: ({ url, init, endpoint }: any) => {
+				seen.push(endpoint)
+				;(init.headers as Record<string, string>)['x-trace'] = 'abc123'
+				// Replace the url for one endpoint to prove returned values win
+				if (endpoint === 'getPetById') return { url: url.replace('/pets/1', '/pets/2') }
+			},
+		} as any)
+
+		const pet = await api.call('getPetById', { petId: 1 })
+		expect(seen).toEqual(['load', 'getPetById'])
+		expect(pet.id).toBe(2)
+		expect(lastRequest?.headers['x-trace']).toBe('abc123')
 	})
 
 	it('call() returns HTTP errors as data instead of throwing', async () => {

@@ -17,8 +17,27 @@ export const OpenAPIStateSchema = FeatureStateSchema.extend({
   endpointCount: z.number().default(0).describe('Number of parsed endpoints in the spec'),
 })
 
+/**
+ * Request details passed to the beforeRequest hook. Mutate in place, or
+ * return a replacement object — a returned url/init wins over mutation.
+ */
+export interface OpenAPIRequest {
+  /** Fully assembled request URL including query string */
+  url: string
+  /** The fetch init — method, headers, and body are already set */
+  init: RequestInit
+  /** Friendly name of the endpoint being called, or "load" for the spec fetch */
+  endpoint: string
+  /** The flat argument object the caller passed (empty for the spec fetch) */
+  args: Record<string, any>
+}
+
+export type OpenAPIBeforeRequestHook = (request: OpenAPIRequest) => void | Partial<Pick<OpenAPIRequest, 'url' | 'init'>> | Promise<void | Partial<Pick<OpenAPIRequest, 'url' | 'init'>>>
+
 export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
   url: z.string().optional().describe('URL to the OpenAPI/Swagger spec or the API server base URL'),
+  headers: z.record(z.string(), z.string()).optional().describe('Default headers sent with every request — the spec fetch and every call(). Spec-declared header params passed as call args override these per request.'),
+  beforeRequest: z.custom<OpenAPIBeforeRequestHook>().optional().describe('Hook invoked with { url, init, endpoint, args } before every fetch. Mutate the request in place or return { url?, init? } to replace either. Awaited, so it can fetch tokens.'),
   info: z.object({
     title: z.string().optional().describe('Override the spec info.title'),
     version: z.string().optional().describe('Override the spec info.version'),
@@ -95,6 +114,14 @@ export interface OpenAIToolDef {
  * const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })
  * await api.load()
  *
+ * // Authenticated APIs: default headers ride on every request (spec fetch included),
+ * // and beforeRequest can rewrite the url/init just before fetch executes
+ * container.feature('openapi', {
+ *   url: 'https://api.example.com',
+ *   headers: { Authorization: `Bearer ${token}` },
+ *   beforeRequest: ({ init }) => { (init.headers as any)['X-Trace-Id'] = crypto.randomUUID() },
+ * })
+ *
  * // Inspect all endpoints
  * api.endpoints
  *
@@ -169,6 +196,21 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   }
 
   /**
+   * Runs a fetch through the request pipeline: applies the beforeRequest
+   * hook (which may mutate or replace url/init), then executes.
+   * Default headers are expected to already be present on init.headers.
+   */
+  private async executeFetch(request: OpenAPIRequest): Promise<Response> {
+    const hook = this.options.beforeRequest
+    if (hook) {
+      const replacement = await hook(request)
+      if (replacement?.url) request.url = replacement.url
+      if (replacement?.init) request.init = replacement.init
+    }
+    return fetch(request.url, request.init)
+  }
+
+  /**
    * Fetches and parses the OpenAPI spec from the configured URL.
    * Populates `endpoints`, updates state with spec metadata.
    *
@@ -182,7 +224,12 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
     if (!/^https?:\/\//.test(specUrl) && fsAvailable) {
       raw = (this.container as any).feature('fs').readFile(specUrl) as string
     } else {
-      const response = await fetch(specUrl)
+      const response = await this.executeFetch({
+        url: specUrl,
+        init: { headers: { ...this.options.headers } },
+        endpoint: 'load',
+        args: {},
+      })
       if (!response.ok) {
         throw new Error(`Failed to load OpenAPI spec from ${specUrl}: ${response.status} ${response.statusText}`)
       }
@@ -320,7 +367,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
     let path = ep.path
     const query = new URLSearchParams()
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = { ...this.options.headers }
     const consumed = new Set<string>()
 
     for (const param of ep.parameters) {
@@ -361,7 +408,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
       init.body = JSON.stringify(body)
     }
 
-    const response = await fetch(url, init)
+    const response = await this.executeFetch({ url, init, endpoint: ep.name, args })
     const text = await response.text()
     let data: any = text
     try { data = text ? JSON.parse(text) : null } catch { /* leave as text */ }

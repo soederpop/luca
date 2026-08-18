@@ -16759,7 +16759,7 @@ setBuildTimeData('servers.express', {
       "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string }",
+          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
           "description": "Optional info-block overrides (title, version, description)"
         }
       },
@@ -16776,7 +16776,7 @@ setBuildTimeData('servers.express', {
       "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string }",
+          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
           "description": "Optional info-block overrides (title, version, description)"
         }
       },
@@ -34587,7 +34587,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string }",
+            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
             "description": "Optional info-block overrides (title, version, description)"
           }
         },
@@ -34604,7 +34604,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string }",
+            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
             "description": "Optional info-block overrides (title, version, description)"
           }
         },

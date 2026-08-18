@@ -17287,6 +17287,59 @@ setBuildTimeData('features.openapi', {
       ],
       "returns": "OpenAIFunctionDef | undefined"
     },
+    "call": {
+      "description": "Execute an endpoint against the live API. Splits the flat args object back into path, query, and header parameters (mirroring how `toOpenAITools` flattened them) and sends whatever remains as the JSON request body. Loads the spec first if it hasn't been loaded.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The endpoint friendly name or operationId"
+        },
+        "args": {
+          "type": "Record<string, any>",
+          "description": "Flat argument object matching the tool schema"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const pet = await api.call('getPetById', { petId: 42 })"
+        }
+      ]
+    },
+    "toTools": {
+      "description": "Expose every endpoint as an assistant tool, satisfying the standard `toTools()` contract so `assistant.use(container.feature('openapi', { url }))` just works. Each handler executes the live HTTP call via `call()`. If the spec hasn't loaded yet this returns no tools — `setupToolsConsumer` defers loading and registers the real tools before the assistant starts.",
+      "parameters": {
+        "options": {
+          "type": "{ only?: string[], except?: string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "ReturnType<Helper['toTools']>"
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes this feature before the spec is loaded, queue an async plugin that loads the spec and registers the real tools — assistants await these before starting. Once loaded, adds a system prompt extension describing the API.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
+    "toSystemPrompt": {
+      "description": "Build a system prompt brief for this API from the spec's info block: title, summary (OpenAPI 3.1), and description. This is what `assistant.use(api)` injects so the model knows what the API is, not just what its tools are.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
     "toJSON": {
       "description": "Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.",
       "parameters": {},
@@ -17306,6 +17359,10 @@ setBuildTimeData('features.openapi', {
     "spec": {
       "description": "The raw spec object. Null before load() is called.",
       "returns": "any"
+    },
+    "info": {
+      "description": "The spec's info block with any options.info overrides applied",
+      "returns": "{ title?: string; version?: string; description?: string; summary?: string }"
     },
     "endpoints": {
       "description": "All parsed endpoints as an array",
@@ -17335,7 +17392,7 @@ setBuildTimeData('features.openapi', {
   "examples": [
     {
       "language": "ts",
-      "code": "const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })\nawait api.load()\n\n// Inspect all endpoints\napi.endpoints\n\n// Get a single endpoint by its friendly name\napi.endpoint('getPetById')\n\n// Convert to OpenAI tool definitions\napi.toOpenAITools()\n\n// Convert a single endpoint to a function definition\napi.toFunction('getPetById')"
+      "code": "const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })\nawait api.load()\n\n// Authenticated APIs: default headers ride on every request (spec fetch included),\n// and beforeRequest can rewrite the url/init just before fetch executes\ncontainer.feature('openapi', {\n url: 'https://api.example.com',\n headers: { Authorization: `Bearer ${token}` },\n beforeRequest: ({ init }) => { (init.headers as any)['X-Trace-Id'] = crypto.randomUUID() },\n})\n\n// Inspect all endpoints\napi.endpoints\n\n// Get a single endpoint by its friendly name\napi.endpoint('getPetById')\n\n// Convert to OpenAI tool definitions\napi.toOpenAITools()\n\n// Convert a single endpoint to a function definition\napi.toFunction('getPetById')\n\n// Call an endpoint directly\nawait api.call('getPetById', { petId: 42 })\n\n// Give an assistant the whole API as callable tools — the spec is loaded\n// and the tools registered before the assistant starts\nassistant.use(container.feature('openapi', { url: 'https://petstore.swagger.io/v2' }))"
     }
   ],
   "types": {
@@ -24784,7 +24841,7 @@ setBuildTimeData('servers.express', {
       "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string }",
+          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
           "description": "Optional info-block overrides (title, version, description)"
         }
       },
@@ -24801,7 +24858,7 @@ setBuildTimeData('servers.express', {
       "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string }",
+          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
           "description": "Optional info-block overrides (title, version, description)"
         }
       },
@@ -43205,6 +43262,59 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "OpenAIFunctionDef | undefined"
       },
+      "call": {
+        "description": "Execute an endpoint against the live API. Splits the flat args object back into path, query, and header parameters (mirroring how `toOpenAITools` flattened them) and sends whatever remains as the JSON request body. Loads the spec first if it hasn't been loaded.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The endpoint friendly name or operationId"
+          },
+          "args": {
+            "type": "Record<string, any>",
+            "description": "Flat argument object matching the tool schema"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const pet = await api.call('getPetById', { petId: 42 })"
+          }
+        ]
+      },
+      "toTools": {
+        "description": "Expose every endpoint as an assistant tool, satisfying the standard `toTools()` contract so `assistant.use(container.feature('openapi', { url }))` just works. Each handler executes the live HTTP call via `call()`. If the spec hasn't loaded yet this returns no tools — `setupToolsConsumer` defers loading and registers the real tools before the assistant starts.",
+        "parameters": {
+          "options": {
+            "type": "{ only?: string[], except?: string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "ReturnType<Helper['toTools']>"
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes this feature before the spec is loaded, queue an async plugin that loads the spec and registers the real tools — assistants await these before starting. Once loaded, adds a system prompt extension describing the API.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
+      "toSystemPrompt": {
+        "description": "Build a system prompt brief for this API from the spec's info block: title, summary (OpenAPI 3.1), and description. This is what `assistant.use(api)` injects so the model knows what the API is, not just what its tools are.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
       "toJSON": {
         "description": "Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.",
         "parameters": {},
@@ -43224,6 +43334,10 @@ export const introspectionData: Record<string, any>[] = [
       "spec": {
         "description": "The raw spec object. Null before load() is called.",
         "returns": "any"
+      },
+      "info": {
+        "description": "The spec's info block with any options.info overrides applied",
+        "returns": "{ title?: string; version?: string; description?: string; summary?: string }"
       },
       "endpoints": {
         "description": "All parsed endpoints as an array",
@@ -43253,7 +43367,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })\nawait api.load()\n\n// Inspect all endpoints\napi.endpoints\n\n// Get a single endpoint by its friendly name\napi.endpoint('getPetById')\n\n// Convert to OpenAI tool definitions\napi.toOpenAITools()\n\n// Convert a single endpoint to a function definition\napi.toFunction('getPetById')"
+        "code": "const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })\nawait api.load()\n\n// Authenticated APIs: default headers ride on every request (spec fetch included),\n// and beforeRequest can rewrite the url/init just before fetch executes\ncontainer.feature('openapi', {\n url: 'https://api.example.com',\n headers: { Authorization: `Bearer ${token}` },\n beforeRequest: ({ init }) => { (init.headers as any)['X-Trace-Id'] = crypto.randomUUID() },\n})\n\n// Inspect all endpoints\napi.endpoints\n\n// Get a single endpoint by its friendly name\napi.endpoint('getPetById')\n\n// Convert to OpenAI tool definitions\napi.toOpenAITools()\n\n// Convert a single endpoint to a function definition\napi.toFunction('getPetById')\n\n// Call an endpoint directly\nawait api.call('getPetById', { petId: 42 })\n\n// Give an assistant the whole API as callable tools — the spec is loaded\n// and the tools registered before the assistant starts\nassistant.use(container.feature('openapi', { url: 'https://petstore.swagger.io/v2' }))"
       }
     ],
     "types": {
@@ -50673,7 +50787,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string }",
+            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
             "description": "Optional info-block overrides (title, version, description)"
           }
         },
@@ -50690,7 +50804,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string }",
+            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
             "description": "Optional info-block overrides (title, version, description)"
           }
         },

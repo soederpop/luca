@@ -6463,6 +6463,7 @@ export declare class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOp
 export default OpenAICodex;
 //# sourceMappingURL=openai-codex.d.ts.map`,
   "agi/features/openapi.d.ts": `import { Feature } from '../feature.js';
+import type { Helper } from '../../helper.js';
 import { z } from 'zod';
 declare module '../../feature.js' {
     interface AvailableFeatures {
@@ -6556,6 +6557,13 @@ export interface OpenAIToolDef {
  *
  * // Convert a single endpoint to a function definition
  * api.toFunction('getPetById')
+ *
+ * // Call an endpoint directly
+ * await api.call('getPetById', { petId: 42 })
+ *
+ * // Give an assistant the whole API as callable tools — the spec is loaded
+ * // and the tools registered before the assistant starts
+ * assistant.use(container.feature('openapi', { url: 'https://petstore.swagger.io/v2' }))
  * \`\`\`
  */
 export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
@@ -6642,6 +6650,45 @@ export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
      * @returns {OpenAIFunctionDef | undefined} The function definition, or undefined if not found
      */
     toFunction(name: string): OpenAIFunctionDef | undefined;
+    /**
+     * Execute an endpoint against the live API.
+     *
+     * Splits the flat args object back into path, query, and header parameters
+     * (mirroring how \`toOpenAITools\` flattened them) and sends whatever remains
+     * as the JSON request body. Loads the spec first if it hasn't been loaded.
+     *
+     * @param {string} name - The endpoint friendly name or operationId
+     * @param {Record<string, any>} [args] - Flat argument object matching the tool schema
+     * @returns {Promise<any>} Parsed JSON response body (or raw text if not JSON). HTTP errors return { error, status, statusText, data } instead of throwing.
+     *
+     * @example
+     * \`\`\`typescript
+     * const pet = await api.call('getPetById', { petId: 42 })
+     * \`\`\`
+     */
+    call(name: string, args?: Record<string, any>): Promise<any>;
+    /**
+     * Expose every endpoint as an assistant tool, satisfying the standard
+     * \`toTools()\` contract so \`assistant.use(container.feature('openapi', { url }))\`
+     * just works. Each handler executes the live HTTP call via \`call()\`.
+     *
+     * If the spec hasn't loaded yet this returns no tools — \`setupToolsConsumer\`
+     * defers loading and registers the real tools before the assistant starts.
+     *
+     * @param {{ only?: string[], except?: string[] }} [options] - Filter tools by endpoint name
+     * @returns Tools bundle consumable by \`assistant.use()\`
+     */
+    toTools(options?: {
+        only?: string[];
+        except?: string[];
+    }): ReturnType<Helper['toTools']>;
+    /**
+     * When an assistant consumes this feature before the spec is loaded, queue an
+     * async plugin that loads the spec and registers the real tools — assistants
+     * await these before starting. Once loaded, adds a system prompt extension
+     * describing the API.
+     */
+    setupToolsConsumer(consumer: Helper): void;
     /**
      * Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.
      *

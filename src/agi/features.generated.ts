@@ -57,7 +57,7 @@ export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, Mod
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
-export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
+export type { OpenAPIRequest, OpenAPIBeforeRequestHook, OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";
 export type { SkillInfo, SkillsPluginSpec, SkillInstallResult, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
