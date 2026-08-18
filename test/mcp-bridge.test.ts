@@ -1,6 +1,10 @@
 import { describe, it, expect, afterEach } from 'bun:test'
 import { McpBridge } from '../src/agi/features/mcp-bridge'
 import { AGIContainer } from '../src/agi/container.server'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { createTestMcpServer } from './fixtures/mcp-test-server-core'
 
 // Path to a tiny MCP server used for testing (ships with the SDK examples)
 const TEST_SERVER_SCRIPT = new URL('./fixtures/mcp-test-server.ts', import.meta.url).pathname
@@ -286,5 +290,68 @@ describe('McpBridge', () => {
 			await bridge.disconnectServer('test')
 			expect(bridge.connectedServers.length).toBe(0)
 		}, 15_000)
+	})
+
+	describe('http transport', () => {
+		let httpServer: ReturnType<typeof createServer> | undefined
+		let seenAuthHeaders: Array<string | undefined> = []
+
+		afterEach(async () => {
+			// The bridge client is still connected here (its afterEach runs later),
+			// so force keep-alive sockets closed or close() never resolves
+			httpServer?.closeAllConnections()
+			await new Promise<void>(resolve => httpServer ? httpServer.close(() => resolve()) : resolve())
+			httpServer = undefined
+			seenAuthHeaders = []
+		})
+
+		/** Stateless Streamable HTTP host: fresh server + transport per request. */
+		async function startHttpMcpServer(): Promise<string> {
+			httpServer = createServer(async (req, res) => {
+				seenAuthHeaders.push(req.headers.authorization)
+				const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
+				const server = createTestMcpServer()
+				await server.connect(transport)
+				res.on('close', () => { transport.close(); server.close() })
+				await transport.handleRequest(req, res)
+			})
+			await new Promise<void>(resolve => httpServer!.listen(0, resolve))
+			const port = (httpServer!.address() as AddressInfo).port
+			return `http://localhost:${port}/mcp`
+		}
+
+		it('connects to a url server over Streamable HTTP and calls tools', async () => {
+			const url = await startHttpMcpServer()
+			const c = new AGIContainer()
+			bridge = c.feature('mcpBridge', {
+				servers: {
+					remote: { url, headers: { Authorization: 'Bearer sekrit' } },
+				},
+			})
+
+			await bridge.connectAll()
+
+			expect(bridge.connectedServers).toContain('remote')
+			expect(bridge.getServer('remote')!.tools.map(t => t.name)).toContain('echo')
+
+			const result = await bridge.useMcpTool({ server: 'remote', tool: 'add', arguments: '{"a":2,"b":3}' })
+			expect(result).toBe('5')
+
+			// Config headers ride on every request
+			expect(seenAuthHeaders.length).toBeGreaterThan(0)
+			expect(seenAuthHeaders.every(h => h === 'Bearer sekrit')).toBe(true)
+		}, 15_000)
+
+		it('rejects a server config with neither command nor url', async () => {
+			const c = new AGIContainer()
+			bridge = c.feature('mcpBridge', { servers: { broken: {} as any } })
+
+			await bridge.connectAll() // swallows per-server failures
+
+			expect(bridge.connectedServers).not.toContain('broken')
+			const servers = bridge.state.get('servers') as Record<string, any>
+			expect(servers.broken.status).toBe('error')
+			expect(servers.broken.error).toContain('command')
+		})
 	})
 })

@@ -4,14 +4,18 @@ import type { Helper } from '../../helper'
 import type { FeatureState, FeatureOptions } from '../../feature'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const McpServerConfigSchema = z.object({
-	command: z.string().describe('The executable to run (e.g. npx, bun, node)'),
-	args: z.array(z.string()).optional().default([]).describe('Arguments to pass to the command'),
-	env: z.record(z.string(), z.string()).optional().describe('Extra environment variables merged with process.env'),
-	cwd: z.string().optional().describe('Working directory for the server process'),
+	command: z.string().optional().describe('The executable to run for a stdio server (e.g. npx, bun, node). Mutually exclusive with url.'),
+	url: z.string().optional().describe('URL of a remote MCP server using the Streamable HTTP transport (e.g. https://example.com/mcp). Takes precedence over command.'),
+	headers: z.record(z.string(), z.string()).optional().describe('Headers sent with every request to an http server (e.g. Authorization). Ignored for stdio servers.'),
+	args: z.array(z.string()).optional().default([]).describe('Arguments to pass to the command (stdio only)'),
+	env: z.record(z.string(), z.string()).optional().describe('Extra environment variables merged with process.env (stdio only)'),
+	cwd: z.string().optional().describe('Working directory for the server process (stdio only)'),
 	include: z.array(z.string()).optional().describe('Only expose tools whose names match these patterns'),
 	exclude: z.array(z.string()).optional().describe('Hide tools whose names match these patterns'),
 })
@@ -56,7 +60,7 @@ interface McpToolInfo {
 
 interface ConnectedServer {
 	client: Client
-	transport: StdioClientTransport
+	transport: Transport
 	tools: McpToolInfo[]
 	resources: Array<{ uri: string; name: string; description?: string }>
 	prompts: Array<{ name: string; description?: string; arguments?: Array<{ name: string; description?: string; required?: boolean }> }>
@@ -90,9 +94,12 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
 // ── Feature ──────────────────────────────────────────────────────────────────
 
 /**
- * Bridges local stdio MCP servers to Luca assistants by connecting to them,
+ * Bridges MCP servers to Luca assistants by connecting to them,
  * discovering their tools/resources/prompts, and exposing them as first-class
  * assistant tool calls. To the model, MCP tools look like ordinary tools.
+ *
+ * Servers with a `command` are spawned locally over stdio; servers with a
+ * `url` are reached over the Streamable HTTP transport.
  *
  * @example
  * ```ts
@@ -102,6 +109,10 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  *       command: 'npx',
  *       args: ['-y', '@modelcontextprotocol/server-github'],
  *       env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
+ *     },
+ *     remote: {
+ *       url: 'https://mcp.example.com/mcp',
+ *       headers: { Authorization: `Bearer ${token}` },
  *     },
  *   },
  * })
@@ -114,7 +125,7 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 	static override optionsSchema = McpBridgeOptionsSchema
 	static override stateSchema = McpBridgeStateSchema
 	static override eventsSchema = McpBridgeEventsSchema
-	static override description = 'Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls.'
+	static override description = 'Bridges MCP servers (local stdio or remote Streamable HTTP) to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls.'
 
 	private _connections = new Map<string, ConnectedServer>()
 	private _connected = false
@@ -194,12 +205,24 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 		// Update state to connecting
 		this._updateServerState(name, { status: 'connecting', toolCount: 0, resourceCount: 0, promptCount: 0 })
 
-		const transport = new StdioClientTransport({
-			command: config.command,
-			args: config.args || [],
-			env: config.env ? { ...process.env, ...config.env } as Record<string, string> : undefined,
-			cwd: config.cwd,
-		})
+		let transport: Transport
+		if (config.url) {
+			transport = new StreamableHTTPClientTransport(
+				new URL(config.url),
+				config.headers ? { requestInit: { headers: config.headers } } : undefined,
+			)
+		} else if (config.command) {
+			transport = new StdioClientTransport({
+				command: config.command,
+				args: config.args || [],
+				env: config.env ? { ...process.env, ...config.env } as Record<string, string> : undefined,
+				cwd: config.cwd,
+			})
+		} else {
+			const err = new Error(`Server "${name}" needs either a command (stdio) or a url (http) in its config`)
+			this._updateServerState(name, { status: 'error', toolCount: 0, resourceCount: 0, promptCount: 0, error: err.message })
+			throw err
+		}
 
 		const client = new Client({ name: `luca-mcp-bridge/${name}`, version: '1.0.0' })
 

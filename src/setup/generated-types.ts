@@ -119,7 +119,7 @@ export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, Mod
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
-export type { OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
+export type { OpenAPIRequest, OpenAPIBeforeRequestHook, OpenAPIOptions, OpenAPIState, EndpointInfo, OpenAPIParameter, OpenAIFunctionDef, OpenAIToolDef } from "./features/openapi";
 export { SkillsLibrary } from "./features/skills-library";
 export type { SkillInfo, SkillsPluginSpec, SkillInstallResult, SkillsLibraryState, SkillsLibraryOptions } from "./features/skills-library";
 export { VoiceMode } from "./features/voice-mode";
@@ -6477,12 +6477,35 @@ export declare const OpenAPIStateSchema: z.ZodObject<{
     version: z.ZodDefault<z.ZodString>;
     endpointCount: z.ZodDefault<z.ZodNumber>;
 }, z.core.$loose>;
+/**
+ * Request details passed to the beforeRequest hook. Mutate in place, or
+ * return a replacement object — a returned url/init wins over mutation.
+ */
+export interface OpenAPIRequest {
+    /** Fully assembled request URL including query string */
+    url: string;
+    /** The fetch init — method, headers, and body are already set */
+    init: RequestInit;
+    /** Friendly name of the endpoint being called, or "load" for the spec fetch */
+    endpoint: string;
+    /** The flat argument object the caller passed (empty for the spec fetch) */
+    args: Record<string, any>;
+}
+export type OpenAPIBeforeRequestHook = (request: OpenAPIRequest) => void | Partial<Pick<OpenAPIRequest, 'url' | 'init'>> | Promise<void | Partial<Pick<OpenAPIRequest, 'url' | 'init'>>>;
 export declare const OpenAPIOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     url: z.ZodOptional<z.ZodString>;
+    headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    beforeRequest: z.ZodOptional<z.ZodCustom<OpenAPIBeforeRequestHook, OpenAPIBeforeRequestHook>>;
+    info: z.ZodOptional<z.ZodObject<{
+        title: z.ZodOptional<z.ZodString>;
+        version: z.ZodOptional<z.ZodString>;
+        description: z.ZodOptional<z.ZodString>;
+        summary: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const OpenAPIEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -6546,6 +6569,14 @@ export interface OpenAIToolDef {
  * const api = container.feature('openapi', { url: 'https://petstore.swagger.io/v2' })
  * await api.load()
  *
+ * // Authenticated APIs: default headers ride on every request (spec fetch included),
+ * // and beforeRequest can rewrite the url/init just before fetch executes
+ * container.feature('openapi', {
+ *   url: 'https://api.example.com',
+ *   headers: { Authorization: \`Bearer \${token}\` },
+ *   beforeRequest: ({ init }) => { (init.headers as any)['X-Trace-Id'] = crypto.randomUUID() },
+ * })
+ *
  * // Inspect all endpoints
  * api.endpoints
  *
@@ -6584,6 +6615,14 @@ export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         url: z.ZodOptional<z.ZodString>;
+        headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        beforeRequest: z.ZodOptional<z.ZodCustom<OpenAPIBeforeRequestHook, OpenAPIBeforeRequestHook>>;
+        info: z.ZodOptional<z.ZodObject<{
+            title: z.ZodOptional<z.ZodString>;
+            version: z.ZodOptional<z.ZodString>;
+            description: z.ZodOptional<z.ZodString>;
+            summary: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -6602,6 +6641,19 @@ export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
     get specUrl(): string;
     /** The raw spec object. Null before load() is called. */
     get spec(): any;
+    /** The spec's info block with any options.info overrides applied */
+    get info(): {
+        title?: string;
+        version?: string;
+        description?: string;
+        summary?: string;
+    };
+    /**
+     * Runs a fetch through the request pipeline: applies the beforeRequest
+     * hook (which may mutate or replace url/init), then executes.
+     * Default headers are expected to already be present on init.headers.
+     */
+    private executeFetch;
     /**
      * Fetches and parses the OpenAPI spec from the configured URL.
      * Populates \`endpoints\`, updates state with spec metadata.
@@ -6689,6 +6741,15 @@ export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
      * describing the API.
      */
     setupToolsConsumer(consumer: Helper): void;
+    /**
+     * Build a system prompt brief for this API from the spec's info block:
+     * title, summary (OpenAPI 3.1), and description. This is what
+     * \`assistant.use(api)\` injects so the model knows what the API is,
+     * not just what its tools are.
+     *
+     * @returns {string} Text suitable for a system prompt extension
+     */
+    toSystemPrompt(): string;
     /**
      * Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.
      *
@@ -29636,6 +29697,7 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
         title?: string;
         version?: string;
         description?: string;
+        summary?: string;
     }): this;
     /**
      * Build an OpenAPI 3.1 document describing every mounted endpoint —
@@ -29661,6 +29723,7 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
         title?: string;
         version?: string;
         description?: string;
+        summary?: string;
     }): Record<string, any>;
 }
 export default ExpressServer;

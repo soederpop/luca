@@ -14757,7 +14757,7 @@ setBuildTimeData('features.llamaServer', {
 
 setBuildTimeData('features.mcpBridge', {
   "id": "features.mcpBridge",
-  "description": "Bridges local stdio MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools.",
+  "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport.",
   "shortcut": "features.mcpBridge",
   "className": "McpBridge",
   "methods": {
@@ -14923,7 +14923,7 @@ setBuildTimeData('features.mcpBridge', {
   "examples": [
     {
       "language": "ts",
-      "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n },\n})"
+      "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n },\n})"
     }
   ],
   "types": {
@@ -14935,7 +14935,7 @@ setBuildTimeData('features.mcpBridge', {
           "description": ""
         },
         "transport": {
-          "type": "StdioClientTransport",
+          "type": "Transport",
           "description": ""
         },
         "tools": {
@@ -40738,7 +40738,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.mcpBridge",
-    "description": "Bridges local stdio MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools.",
+    "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport.",
     "shortcut": "features.mcpBridge",
     "className": "McpBridge",
     "methods": {
@@ -40904,7 +40904,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n },\n})"
+        "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n },\n})"
       }
     ],
     "types": {
@@ -40916,7 +40916,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": ""
           },
           "transport": {
-            "type": "StdioClientTransport",
+            "type": "Transport",
             "description": ""
           },
           "tools": {
