@@ -12,11 +12,18 @@ import { join } from 'path'
 
 const spec = {
 	openapi: '3.0.0',
-	info: { title: 'Pet API', version: '1.0.0' },
+	info: {
+		title: 'Pet API',
+		version: '1.0.0',
+		description: 'A store for pets. Use it to look up and register animals.',
+	},
+	tags: [{ name: 'pets', description: 'Everything about pets' }],
+	externalDocs: { url: 'https://example.com/docs', description: 'Full reference' },
 	paths: {
 		'/pets/{petId}': {
 			get: {
 				operationId: 'getPetById',
+				tags: ['pets'],
 				summary: 'Fetch a pet',
 				parameters: [
 					{ name: 'petId', in: 'path', required: true, schema: { type: 'integer' } },
@@ -145,6 +152,29 @@ describe('assistant.use(openapi) before the spec is loaded', () => {
 		expect(Object.keys(assistant.tools).sort()).toEqual(['addPet', 'getPetById'])
 		const pet = await assistant.tools.getPetById.handler({ petId: 3 })
 		expect(pet).toEqual({ id: 3, name: 'Rex' })
+
+		// The spec's own docs land in the system prompt
+		const prompt = assistant.effectiveSystemPrompt
+		expect(prompt).toContain('Pet API')
+		expect(prompt).toContain('A store for pets')
+		expect(prompt).toContain('Everything about pets')
+		expect(prompt).toContain('https://example.com/docs')
+	})
+})
+
+describe('OpenAPI.toSystemPrompt()', () => {
+	it('assembles the info block, tags, and external docs into a brief', async () => {
+		const container = new AGIContainer()
+		const api = container.feature('openapi', { url: baseUrl })
+		await api.load()
+
+		const prompt = api.toSystemPrompt()
+		expect(prompt).toContain('"Pet API" API (v1.0.0)')
+		expect(prompt).toContain(`at ${baseUrl}`)
+		expect(prompt).toContain('2 endpoints')
+		expect(prompt).toContain('A store for pets. Use it to look up and register animals.')
+		expect(prompt).toContain('pets (1 endpoint): Everything about pets')
+		expect(prompt).toContain('More docs: https://example.com/docs (Full reference)')
 	})
 })
 

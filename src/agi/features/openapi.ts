@@ -410,11 +410,57 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
     if (typeof assistant.addSystemPromptExtension === 'function') {
       const title = this.state.get('title') || this.serverUrl || 'OpenAPI'
-      assistant.addSystemPromptExtension(
-        `openapi:${title}`,
-        `You have tools for the "${title}" API (${this._endpoints.size} endpoints${this.serverUrl ? ` at ${this.serverUrl}` : ''}). Each tool calls the live API and returns its response.`,
-      )
+      assistant.addSystemPromptExtension(`openapi:${title}`, this.toSystemPrompt())
     }
+  }
+
+  /**
+   * Build a system prompt brief for this API from the spec's own documentation:
+   * the info block (title, version, summary, description), server descriptions,
+   * tag descriptions, and external docs. This is what `assistant.use(api)`
+   * injects so the model knows what the API is, not just what its tools are.
+   *
+   * @returns {string} Markdown-ish text suitable for a system prompt extension
+   */
+  toSystemPrompt(): string {
+    const info = this._spec?.info || {}
+    const title = info.title || this.serverUrl || 'OpenAPI'
+    const lines: string[] = []
+
+    const header = `You have tools for the "${title}" API${info.version ? ` (v${info.version})` : ''}` +
+      `${this.serverUrl ? ` at ${this.serverUrl}` : ''} — ${this._endpoints.size} endpoints. ` +
+      `Each tool calls the live API and returns its response.`
+    lines.push(header)
+
+    // info.summary is OpenAPI 3.1; description is the long-form markdown docs
+    if (info.summary) lines.push(info.summary)
+    if (info.description) lines.push(info.description)
+
+    // Server descriptions explain what each base URL is (prod, sandbox, ...)
+    const serverNotes = (this._spec?.servers || [])
+      .filter((s: any) => s.description)
+      .map((s: any) => `- ${s.url}: ${s.description}`)
+    if (serverNotes.length) lines.push(`Servers:\n${serverNotes.join('\n')}`)
+
+    // Spec-level tags carry group descriptions; show endpoint counts per tag
+    const byTag = this.endpointsByTag
+    const tagDocs = new Map<string, string>(
+      (this._spec?.tags || []).map((t: any) => [t.name, t.description || '']),
+    )
+    const tagLines = Object.entries(byTag).map(([tag, eps]) => {
+      const doc = tagDocs.get(tag)
+      return `- ${tag} (${eps.length} endpoint${eps.length === 1 ? '' : 's'})${doc ? `: ${doc}` : ''}`
+    })
+    if (tagLines.length > 1 || tagDocs.size) {
+      lines.push(`Endpoint groups:\n${tagLines.join('\n')}`)
+    }
+
+    if (this._spec?.externalDocs?.url) {
+      const ext = this._spec.externalDocs
+      lines.push(`More docs: ${ext.url}${ext.description ? ` (${ext.description})` : ''}`)
+    }
+
+    return lines.join('\n\n')
   }
 
   /**
