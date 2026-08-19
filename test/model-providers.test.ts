@@ -596,3 +596,98 @@ describe('ModelProviders default provider selection', () => {
     })
   })
 })
+
+describe('ModelProviders discover()', () => {
+  function fakeProbe(live: Record<string, string[]>) {
+    return async (url: string, _init: { signal: AbortSignal }) => {
+      const models = live[url]
+      if (!models) throw new Error(`ECONNREFUSED ${url}`)
+      return { ok: true, json: async () => ({ object: 'list', data: models.map(id => ({ id, object: 'model' })) }) }
+    }
+  }
+
+  it('finds live servers on known localhost ports and skips dead ones', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const found = await providers.discover({
+      tailscale: false,
+      probe: fakeProbe({
+        'http://127.0.0.1:1234/v1/models': ['qwen2.5-32b'],
+        'http://127.0.0.1:11434/v1/models': ['llama3.2'],
+      }),
+    })
+
+    expect(found.length).toBe(2)
+    const lmstudio = found.find(s => s.port === 1234)!
+    expect(lmstudio.baseURL).toBe('http://127.0.0.1:1234/v1')
+    expect(lmstudio.hint).toBe('LM Studio')
+    expect(lmstudio.source).toBe('localhost')
+    expect(lmstudio.models).toEqual(['qwen2.5-32b'])
+    // localhost:1234 is the builtin lmstudio profile — matched, not duplicated
+    expect(lmstudio.profileId).toBe('lmstudio')
+    expect(found.find(s => s.port === 11434)!.profileId).toBe('ollama')
+  })
+
+  it('rejects responses that are not an OpenAI models list', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const found = await providers.discover({
+      tailscale: false,
+      probe: async () => ({ ok: true, json: async () => ({ hello: 'world' }) }),
+    })
+    expect(found).toEqual([])
+  })
+
+  it('never throws when nothing is listening', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const found = await providers.discover({
+      tailscale: false,
+      probe: async () => { throw new Error('ECONNREFUSED') },
+    })
+    expect(found).toEqual([])
+  })
+
+  it('register: true creates provider profiles for unknown servers', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const found = await providers.discover({
+      tailscale: false,
+      hosts: ['192.168.1.50'],
+      ports: [8000],
+      localhost: false,
+      register: true,
+      probe: fakeProbe({ 'http://192.168.1.50:8000/v1/models': ['llama-3.3-70b'] }),
+    })
+
+    expect(found.length).toBe(1)
+    expect(found[0]!.profileId).toBe('192-168-1-50-8000')
+    const profile = providers.get('192-168-1-50-8000')!
+    expect(profile.baseURL).toBe('http://192.168.1.50:8000/v1')
+    expect(profile.defaultModel).toBe('llama-3.3-70b')
+    expect(profile.auth).toBe('none')
+    expect(profile.apiMode).toBe('openai-chat-completions')
+
+    // Discovering again matches the now-registered profile instead of duplicating
+    const again = await providers.discover({
+      tailscale: false,
+      hosts: ['192.168.1.50'],
+      ports: [8000],
+      localhost: false,
+      register: true,
+      probe: fakeProbe({ 'http://192.168.1.50:8000/v1/models': ['llama-3.3-70b'] }),
+    })
+    expect(again[0]!.profileId).toBe('192-168-1-50-8000')
+    expect(providers.profileIds.filter(id => id.startsWith('192-168-1-50')).length).toBe(1)
+  })
+
+  it('probes custom ports and hosts', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const found = await providers.discover({
+      tailscale: false,
+      localhost: false,
+      hosts: ['gpubox'],
+      ports: [9999],
+      probe: fakeProbe({ 'http://gpubox:9999/v1/models': ['mixtral'] }),
+    })
+    expect(found.length).toBe(1)
+    expect(found[0]!.baseURL).toBe('http://gpubox:9999/v1')
+    expect(found[0]!.hint).toBeUndefined()
+  })
+})

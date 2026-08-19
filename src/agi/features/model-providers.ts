@@ -72,6 +72,60 @@ export interface LocalProviderOptions {
   auth?: ModelProviderAuth
 }
 
+/**
+ * Ports commonly used by local OpenAI-compatible LLM servers, probed by
+ * `discover()`. The hint is a human-readable guess at what usually listens there.
+ */
+export const KNOWN_LLM_PORTS: Array<{ port: number; hint: string }> = [
+  { port: 1234, hint: 'LM Studio' },
+  { port: 11434, hint: 'Ollama' },
+  { port: 8080, hint: 'llama.cpp llama-server' },
+  { port: 8000, hint: 'vLLM' },
+  { port: 8143, hint: 'luca local llama-server' },
+  { port: 8888, hint: 'OpenAI-compatible server' },
+  { port: 5000, hint: 'text-generation-webui' },
+  { port: 4891, hint: 'GPT4All' },
+]
+
+/** A live OpenAI-compatible LLM server found by `discover()`. */
+export interface DiscoveredModelServer {
+  /** OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1 */
+  baseURL: string
+  /** Host or IP the server was reached at. */
+  host: string
+  port: number
+  /** Where the host came from: the local machine or a tailscale peer. */
+  source: 'localhost' | 'tailscale'
+  /** Tailscale node hostname, when the host is a tailscale peer. */
+  hostname?: string
+  /** Best guess at which server usually listens on this port. */
+  hint?: string
+  /** Model ids reported by GET /v1/models. */
+  models: string[]
+  /** Round-trip time of the /v1/models probe. */
+  latencyMs: number
+  /** Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`. */
+  profileId?: string
+}
+
+/** Options for `discover()`. */
+export interface ModelProviderDiscoverOptions {
+  /** Ports to probe on every host. Defaults to KNOWN_LLM_PORTS. */
+  ports?: number[]
+  /** Extra hosts to probe in addition to localhost (IPs or hostnames). */
+  hosts?: string[]
+  /** Probe localhost. Default true. */
+  localhost?: boolean
+  /** Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running. */
+  tailscale?: boolean
+  /** Per-probe timeout in milliseconds. Default 1500. */
+  timeoutMs?: number
+  /** Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false. */
+  register?: boolean
+  /** Injectable fetch used for probes — for tests. Defaults to global fetch. */
+  probe?: (url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>
+}
+
 export interface ModelProviderResolveOptions {
   provider?: ModelProviderInput
   model?: string
@@ -1088,6 +1142,126 @@ export class ModelProviders extends Feature {
     } catch {
       return false
     }
+  }
+
+  /**
+   * Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on
+   * well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000,
+   * and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any
+   * extra `hosts` you pass, plus every online tailscale peer when the
+   * `tailscale` CLI is installed and running. Everything fails gracefully: a
+   * host that isn't listening, times out, or answers with something that isn't
+   * a models list is simply omitted, and a missing tailscale is skipped
+   * silently — discover() never throws for an unreachable target.
+   *
+   * Pass `register: true` to turn each hit into a provider profile
+   * (via registerLocal) so assistants can use it immediately; servers whose
+   * baseURL already matches a registered profile are reported with that
+   * profileId instead of creating a duplicate.
+   *
+   * @example
+   * // What's running on this machine?
+   * const found = await container.feature('modelProviders').discover()
+   * // [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]
+   *
+   * @example
+   * // Sweep the tailnet and register everything found as usable providers
+   * const servers = await container.feature('modelProviders').discover({ register: true })
+   * for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
+   */
+  async discover(options: ModelProviderDiscoverOptions = {}): Promise<DiscoveredModelServer[]> {
+    const ports = options.ports ?? KNOWN_LLM_PORTS.map(entry => entry.port)
+    const timeoutMs = options.timeoutMs ?? 1500
+    const probe = options.probe ?? ((url: string, init: { signal: AbortSignal }) => fetch(url, init))
+    const hints = new Map(KNOWN_LLM_PORTS.map(entry => [entry.port, entry.hint]))
+
+    const targets: Array<{ host: string; source: 'localhost' | 'tailscale'; hostname?: string }> = []
+    if (options.localhost !== false) targets.push({ host: '127.0.0.1', source: 'localhost' })
+    for (const host of options.hosts ?? []) targets.push({ host, source: 'localhost' })
+    if (options.tailscale !== false) {
+      for (const peer of await this.tailscalePeers()) {
+        targets.push({ host: peer.host, source: 'tailscale', hostname: peer.hostname })
+      }
+    }
+
+    const probes = targets.flatMap(target => ports.map(async (port): Promise<DiscoveredModelServer | null> => {
+      const baseURL = `http://${target.host}:${port}/v1`
+      const started = Date.now()
+      try {
+        const response = await probe(`${baseURL}/models`, { signal: AbortSignal.timeout(timeoutMs) })
+        if (!response.ok) return null
+        const body = await response.json()
+        // Require the OpenAI models-list shape so a random HTTP server on a
+        // known port doesn't read as an LLM endpoint.
+        if (!body || !Array.isArray(body.data)) return null
+        return {
+          baseURL,
+          host: target.host,
+          port,
+          source: target.source,
+          hostname: target.hostname,
+          hint: hints.get(port),
+          models: body.data.map((model: any) => model?.id).filter((id: any) => typeof id === 'string'),
+          latencyMs: Date.now() - started,
+        }
+      } catch {
+        return null
+      }
+    }))
+
+    const found = (await Promise.all(probes)).filter((server): server is DiscoveredModelServer => server !== null)
+
+    const byBaseURL = new Map(this.list().filter(profile => profile.baseURL).map(profile => [this.normalizeBaseURL(profile.baseURL!), profile.id]))
+    for (const server of found) {
+      const existing = byBaseURL.get(this.normalizeBaseURL(server.baseURL))
+      if (existing) {
+        server.profileId = existing
+        continue
+      }
+      if (options.register) {
+        const name = (server.hostname ?? server.host).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
+        const id = `${name}-${server.port}`
+        this.registerLocal(id, server.baseURL, server.models[0] ?? 'local-model', {
+          label: server.hint ? `${server.hint} @ ${server.hostname ?? server.host}` : id,
+        })
+        byBaseURL.set(this.normalizeBaseURL(server.baseURL), id)
+        server.profileId = id
+      }
+    }
+
+    return found
+  }
+
+  /** localhost/loopback aliases and trailing slashes all describe the same server. */
+  private normalizeBaseURL(baseURL: string): string {
+    return baseURL.replace(/\/+$/, '').replace('://localhost:', '://127.0.0.1:').replace('://0.0.0.0:', '://127.0.0.1:')
+  }
+
+  /**
+   * Online tailscale peers as probe targets, or [] when tailscale isn't
+   * installed, isn't running, or its output can't be parsed. Never throws.
+   */
+  private async tailscalePeers(): Promise<Array<{ host: string; hostname?: string }>> {
+    // The mac app doesn't put `tailscale` on PATH — fall back to its bundled binary.
+    const binaries = ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/Tailscale']
+    for (const bin of binaries) {
+      try {
+        const proc = this.container.feature('proc') as any
+        const result = await proc.spawnAndCapture(bin, ['status', '--json'])
+        if (result.exitCode !== 0 || !result.stdout) continue
+        const status = JSON.parse(result.stdout)
+        return Object.values((status?.Peer ?? {}) as Record<string, any>)
+          .filter(peer => peer?.Online)
+          .map(peer => ({
+            host: (peer.TailscaleIPs ?? []).find((ip: string) => ip.includes('.')) ?? peer.TailscaleIPs?.[0],
+            hostname: peer.HostName ?? peer.DNSName?.replace(/\.$/, ''),
+          }))
+          .filter(peer => !!peer.host)
+      } catch {
+        // tailscale missing or misbehaving — try the next binary, else skip
+      }
+    }
+    return []
   }
 
   async resolve(options: ModelProviderResolveOptions = {}): Promise<ResolvedModelProvider> {
