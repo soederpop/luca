@@ -31,6 +31,7 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
 	hookFired: z.tuple([z.string().describe('Hook/event name')]).describe('Emitted when a hook function is called'),
+	visionDescription: z.tuple([z.object({ index: z.number(), description: z.string(), model: z.string() })]).describe('Emitted when visionSupport delegates an image to the vision model and receives a description'),
 	reloaded: z.tuple([]).describe('Emitted after tools, hooks, and system prompt are reloaded from disk'),
 	systemPromptExtensionsChanged: z.tuple([]).describe('Emitted when system prompt extensions are added or removed'),
 })
@@ -129,6 +130,26 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** Options passed through to the underlying OpenAI client (e.g. baseURL, apiKey). */
 	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client, passed through to the conversation'),
+
+	/**
+	 * Delegate image understanding to a separate vision-capable model. Set this when the
+	 * assistant's own model has no vision: any image parts passed to ask() are described
+	 * (in parallel) by the configured vision model, and the descriptions replace the images
+	 * before the question reaches the assistant's model. Pass `true` to enable with pure
+	 * defaults, or an object with `prompt`, `model`, `url`, and `apiKey` overrides.
+	 * Defaults: model from LUCA_VISION_SUPPORT_MODEL (else 'gpt-5.2'), url from
+	 * LUCA_VISION_SUPPORT_URL (else OPENAI_BASE_URL), apiKey from LUCA_VISION_SUPPORT_API_KEY
+	 * (else OPENAI_API_KEY).
+	 */
+	visionSupport: z.union([
+		z.boolean(),
+		z.object({
+			prompt: z.string().optional().describe('Instruction sent to the vision model alongside each image'),
+			model: z.string().optional().describe('Vision model name (default: LUCA_VISION_SUPPORT_MODEL or gpt-5.2)'),
+			url: z.string().optional().describe('OpenAI-compatible base URL for the vision model (default: LUCA_VISION_SUPPORT_URL or OPENAI_BASE_URL)'),
+			apiKey: z.string().optional().describe('API key for the vision endpoint (default: LUCA_VISION_SUPPORT_API_KEY or OPENAI_API_KEY)'),
+		}),
+	]).optional().describe("Delegate images to a vision model when the assistant's own model has no vision. true for defaults, or { prompt, model, url, apiKey }"),
 
 	/**
 	 * Free-form, assistant-specific settings that the framework never interprets.
@@ -1567,6 +1588,83 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Resolved vision delegation config, or undefined when visionSupport is not enabled.
+	 * Merges the option (constructor or CORE.md frontmatter) with env-var defaults:
+	 * LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY,
+	 * falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.
+	 */
+	get visionSupport(): { prompt: string; model: string; url?: string; apiKey?: string } | undefined {
+		const raw = this.effectiveOptions.visionSupport
+		if (!raw) return undefined
+		const opts = raw === true ? {} : raw as { prompt?: string; model?: string; url?: string; apiKey?: string }
+		return {
+			prompt: opts.prompt || Assistant.defaultVisionPrompt,
+			model: opts.model || process.env.LUCA_VISION_SUPPORT_MODEL || 'gpt-5.2',
+			url: opts.url || process.env.LUCA_VISION_SUPPORT_URL || process.env.OPENAI_BASE_URL,
+			apiKey: opts.apiKey || process.env.LUCA_VISION_SUPPORT_API_KEY || process.env.OPENAI_API_KEY,
+		}
+	}
+
+	/** The default instruction sent to the vision model alongside each delegated image. */
+	static readonly defaultVisionPrompt = [
+		'You are the eyes for a text-only AI assistant. Describe this image in comprehensive detail',
+		'so the assistant can reason about it without seeing it.',
+		'Transcribe ALL visible text, code, numbers, and labels exactly as written.',
+		'Describe the layout and spatial relationships, objects, people, colors, and setting.',
+		'For charts, diagrams, or UI screenshots, explain their structure and the data or state they convey.',
+		'Note anything unusual, ambiguous, or potentially important. Be thorough but organized — do not speculate beyond what is visible.',
+	].join(' ')
+
+	/**
+	 * Replace image parts in a content array with text descriptions produced by the
+	 * configured vision model. Each image is described in parallel. Used by ask()
+	 * when visionSupport is enabled; also callable directly.
+	 *
+	 * @param parts - Content parts possibly containing image_url entries
+	 * @returns The parts with images replaced by descriptive text parts
+	 */
+	async describeImages(parts: ContentPart[]): Promise<ContentPart[]> {
+		const config = this.visionSupport
+		if (!config) return parts
+
+		const imageIndexes = parts
+			.map((part, index) => (part.type === 'image_url' ? index : -1))
+			.filter(index => index !== -1)
+		if (!imageIndexes.length) return parts
+
+		const client = (this.container as any).client('openai', {
+			defaultModel: config.model,
+			...(config.url ? { baseURL: config.url } : {}),
+			...(config.apiKey ? { apiKey: config.apiKey } : {}),
+		}) as import('../../clients/openai').OpenAIClient
+
+		const descriptions = await Promise.all(imageIndexes.map(async (partIndex, imageNumber) => {
+			const part = parts[partIndex] as Extract<ContentPart, { type: 'image_url' }>
+			try {
+				const response = await client.createChatCompletion([
+					{ role: 'user', content: [{ type: 'text', text: config.prompt }, part] },
+				], { model: config.model })
+				const description = response.choices[0]?.message?.content || ''
+				await this.triggerHook('visionDescription', { index: imageNumber, description, model: config.model })
+				this.emit('visionDescription', { index: imageNumber, description, model: config.model })
+				return description
+			} catch (err: any) {
+				return `(The image could not be analyzed: ${err?.message || err})`
+			}
+		}))
+
+		return parts.map((part, index) => {
+			if (part.type !== 'image_url') return part
+			const imageNumber = imageIndexes.indexOf(index)
+			const description = descriptions[imageNumber] || '(no description produced)'
+			return {
+				type: 'text' as const,
+				text: `[Image ${imageNumber + 1} of ${imageIndexes.length} — described by a vision model on the user's behalf]\n${description}`,
+			}
+		})
+	}
+
+	/**
 	 * Ask the assistant a question. It will use its tools to produce
 	 * a streamed response. The assistant auto-starts if needed.
 	 *
@@ -1612,6 +1710,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			if (ctx.result !== undefined) return ctx.result
 			question = ctx.question
 			options = ctx.options
+		}
+
+		// Vision delegation: when the assistant's model has no vision, describe
+		// image parts via the configured vision model and substitute the text.
+		if (Array.isArray(question) && this.visionSupport) {
+			question = await this.describeImages(question)
 		}
 
 		let result = await this.conversation.ask(question, options)
