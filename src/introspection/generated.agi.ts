@@ -2377,6 +2377,19 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "Promise<this>"
     },
+    "describeImages": {
+      "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Each image is described in parallel. Used by ask() when visionSupport is enabled; also callable directly.",
+      "parameters": {
+        "parts": {
+          "type": "ContentPart[]",
+          "description": "Content parts possibly containing image_url entries"
+        }
+      },
+      "required": [
+        "parts"
+      ],
+      "returns": "Promise<ContentPart[]>"
+    },
     "ask": {
       "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
       "parameters": {
@@ -2638,6 +2651,10 @@ setBuildTimeData('features.assistant', {
       "description": "The active thread ID (undefined in lifecycle mode).",
       "returns": "string | undefined"
     },
+    "visionSupport": {
+      "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
+      "returns": "{ prompt: string; model: string; url?: string; apiKey?: string } | undefined"
+    },
     "availableSubagents": {
       "description": "Names of assistants available as subagents, discovered via the assistantsManager.",
       "returns": "string[]"
@@ -2721,6 +2738,11 @@ setBuildTimeData('features.assistant', {
     },
     "started": {
       "name": "started",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "visionDescription": {
+      "name": "visionDescription",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -15763,6 +15785,57 @@ setBuildTimeData('features.modelProviders', {
       "required": [],
       "returns": "string"
     },
+    "discover": {
+      "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
+      "parameters": {
+        "options": {
+          "type": "ModelProviderDiscoverOptions",
+          "description": "Parameter options",
+          "properties": {
+            "ports": {
+              "type": "number[]",
+              "description": "Ports to probe on every host. Defaults to KNOWN_LLM_PORTS."
+            },
+            "hosts": {
+              "type": "string[]",
+              "description": "Extra hosts to probe in addition to localhost (IPs or hostnames)."
+            },
+            "localhost": {
+              "type": "boolean",
+              "description": "Probe localhost. Default true."
+            },
+            "tailscale": {
+              "type": "boolean",
+              "description": "Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running."
+            },
+            "timeoutMs": {
+              "type": "number",
+              "description": "Per-probe timeout in milliseconds. Default 1500."
+            },
+            "register": {
+              "type": "boolean",
+              "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false."
+            },
+            "probe": {
+              "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
+              "description": "Injectable fetch used for probes — for tests. Defaults to global fetch."
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<DiscoveredModelServer[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// What's running on this machine?\nconst found = await container.feature('modelProviders').discover()\n// [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]"
+        },
+        {
+          "language": "ts",
+          "code": "// Sweep the tailnet and register everything found as usable providers\nconst servers = await container.feature('modelProviders').discover({ register: true })\nfor (const s of servers) console.log(s.profileId, s.baseURL, s.models)"
+        }
+      ]
+    },
     "resolve": {
       "description": "",
       "parameters": {
@@ -15969,6 +16042,90 @@ setBuildTimeData('features.modelProviders', {
         "transportAvailable": {
           "type": "boolean",
           "description": ""
+        }
+      }
+    },
+    "ModelProviderDiscoverOptions": {
+      "description": "Options for `discover()`.",
+      "properties": {
+        "ports": {
+          "type": "number[]",
+          "description": "Ports to probe on every host. Defaults to KNOWN_LLM_PORTS.",
+          "optional": true
+        },
+        "hosts": {
+          "type": "string[]",
+          "description": "Extra hosts to probe in addition to localhost (IPs or hostnames).",
+          "optional": true
+        },
+        "localhost": {
+          "type": "boolean",
+          "description": "Probe localhost. Default true.",
+          "optional": true
+        },
+        "tailscale": {
+          "type": "boolean",
+          "description": "Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running.",
+          "optional": true
+        },
+        "timeoutMs": {
+          "type": "number",
+          "description": "Per-probe timeout in milliseconds. Default 1500.",
+          "optional": true
+        },
+        "register": {
+          "type": "boolean",
+          "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false.",
+          "optional": true
+        },
+        "probe": {
+          "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
+          "description": "Injectable fetch used for probes — for tests. Defaults to global fetch.",
+          "optional": true
+        }
+      }
+    },
+    "DiscoveredModelServer": {
+      "description": "A live OpenAI-compatible LLM server found by `discover()`.",
+      "properties": {
+        "baseURL": {
+          "type": "string",
+          "description": "OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1"
+        },
+        "host": {
+          "type": "string",
+          "description": "Host or IP the server was reached at."
+        },
+        "port": {
+          "type": "number",
+          "description": ""
+        },
+        "source": {
+          "type": "'localhost' | 'tailscale'",
+          "description": "Where the host came from: the local machine or a tailscale peer."
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Tailscale node hostname, when the host is a tailscale peer.",
+          "optional": true
+        },
+        "hint": {
+          "type": "string",
+          "description": "Best guess at which server usually listens on this port.",
+          "optional": true
+        },
+        "models": {
+          "type": "string[]",
+          "description": "Model ids reported by GET /v1/models."
+        },
+        "latencyMs": {
+          "type": "number",
+          "description": "Round-trip time of the /v1/models probe."
+        },
+        "profileId": {
+          "type": "string",
+          "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`.",
+          "optional": true
         }
       }
     },
@@ -28391,6 +28548,19 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<this>"
       },
+      "describeImages": {
+        "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Each image is described in parallel. Used by ask() when visionSupport is enabled; also callable directly.",
+        "parameters": {
+          "parts": {
+            "type": "ContentPart[]",
+            "description": "Content parts possibly containing image_url entries"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "returns": "Promise<ContentPart[]>"
+      },
       "ask": {
         "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
         "parameters": {
@@ -28652,6 +28822,10 @@ export const introspectionData: Record<string, any>[] = [
         "description": "The active thread ID (undefined in lifecycle mode).",
         "returns": "string | undefined"
       },
+      "visionSupport": {
+        "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
+        "returns": "{ prompt: string; model: string; url?: string; apiKey?: string } | undefined"
+      },
       "availableSubagents": {
         "description": "Names of assistants available as subagents, discovered via the assistantsManager.",
         "returns": "string[]"
@@ -28735,6 +28909,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "started": {
         "name": "started",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "visionDescription": {
+        "name": "visionDescription",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },
@@ -41742,6 +41921,57 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "string"
       },
+      "discover": {
+        "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
+        "parameters": {
+          "options": {
+            "type": "ModelProviderDiscoverOptions",
+            "description": "Parameter options",
+            "properties": {
+              "ports": {
+                "type": "number[]",
+                "description": "Ports to probe on every host. Defaults to KNOWN_LLM_PORTS."
+              },
+              "hosts": {
+                "type": "string[]",
+                "description": "Extra hosts to probe in addition to localhost (IPs or hostnames)."
+              },
+              "localhost": {
+                "type": "boolean",
+                "description": "Probe localhost. Default true."
+              },
+              "tailscale": {
+                "type": "boolean",
+                "description": "Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running."
+              },
+              "timeoutMs": {
+                "type": "number",
+                "description": "Per-probe timeout in milliseconds. Default 1500."
+              },
+              "register": {
+                "type": "boolean",
+                "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false."
+              },
+              "probe": {
+                "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
+                "description": "Injectable fetch used for probes — for tests. Defaults to global fetch."
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<DiscoveredModelServer[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// What's running on this machine?\nconst found = await container.feature('modelProviders').discover()\n// [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]"
+          },
+          {
+            "language": "ts",
+            "code": "// Sweep the tailnet and register everything found as usable providers\nconst servers = await container.feature('modelProviders').discover({ register: true })\nfor (const s of servers) console.log(s.profileId, s.baseURL, s.models)"
+          }
+        ]
+      },
       "resolve": {
         "description": "",
         "parameters": {
@@ -41948,6 +42178,90 @@ export const introspectionData: Record<string, any>[] = [
           "transportAvailable": {
             "type": "boolean",
             "description": ""
+          }
+        }
+      },
+      "ModelProviderDiscoverOptions": {
+        "description": "Options for `discover()`.",
+        "properties": {
+          "ports": {
+            "type": "number[]",
+            "description": "Ports to probe on every host. Defaults to KNOWN_LLM_PORTS.",
+            "optional": true
+          },
+          "hosts": {
+            "type": "string[]",
+            "description": "Extra hosts to probe in addition to localhost (IPs or hostnames).",
+            "optional": true
+          },
+          "localhost": {
+            "type": "boolean",
+            "description": "Probe localhost. Default true.",
+            "optional": true
+          },
+          "tailscale": {
+            "type": "boolean",
+            "description": "Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running.",
+            "optional": true
+          },
+          "timeoutMs": {
+            "type": "number",
+            "description": "Per-probe timeout in milliseconds. Default 1500.",
+            "optional": true
+          },
+          "register": {
+            "type": "boolean",
+            "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false.",
+            "optional": true
+          },
+          "probe": {
+            "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
+            "description": "Injectable fetch used for probes — for tests. Defaults to global fetch.",
+            "optional": true
+          }
+        }
+      },
+      "DiscoveredModelServer": {
+        "description": "A live OpenAI-compatible LLM server found by `discover()`.",
+        "properties": {
+          "baseURL": {
+            "type": "string",
+            "description": "OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1"
+          },
+          "host": {
+            "type": "string",
+            "description": "Host or IP the server was reached at."
+          },
+          "port": {
+            "type": "number",
+            "description": ""
+          },
+          "source": {
+            "type": "'localhost' | 'tailscale'",
+            "description": "Where the host came from: the local machine or a tailscale peer."
+          },
+          "hostname": {
+            "type": "string",
+            "description": "Tailscale node hostname, when the host is a tailscale peer.",
+            "optional": true
+          },
+          "hint": {
+            "type": "string",
+            "description": "Best guess at which server usually listens on this port.",
+            "optional": true
+          },
+          "models": {
+            "type": "string[]",
+            "description": "Model ids reported by GET /v1/models."
+          },
+          "latencyMs": {
+            "type": "number",
+            "description": "Round-trip time of the /v1/models probe."
+          },
+          "profileId": {
+            "type": "string",
+            "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`.",
+            "optional": true
           }
         }
       },

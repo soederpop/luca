@@ -11676,7 +11676,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
 | \`jsonTree\` | feature | content-nlp | stable | JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. |
 | \`llamaServer\` | feature | ai-assistants | experimental | Downloads, supervises, and health-checks local \`llama-server\` processes — luca's local inference substrate. |
-| \`mcpBridge\` | feature | ai-assistants | stable | Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
+| \`mcpBridge\` | feature | ai-assistants | stable | Bridges MCP servers (local stdio or remote Streamable HTTP) to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
 | \`memory\` | feature | ai-assistants | stable | Semantic memory storage and retrieval for AI agents. |
 | \`modelProviders\` | feature | ai-assistants | core | Resolve model provider profiles and route requests to provider transports. |
 | \`networking\` | feature | networking | stable | The Networking feature provides utilities for network-related operations. |

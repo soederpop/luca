@@ -53,7 +53,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";

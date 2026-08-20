@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.8.0"
+export const typesBundleVersion = "3.8.3"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -115,7 +115,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -584,6 +584,11 @@ export declare const AssistantEventsSchema: z.ZodObject<{
     toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     hookFired: z.ZodTuple<[z.ZodString], null>;
+    visionDescription: z.ZodTuple<[z.ZodObject<{
+        index: z.ZodNumber;
+        description: z.ZodString;
+        model: z.ZodString;
+    }, z.core.$strip>], null>;
     reloaded: z.ZodTuple<[], null>;
     systemPromptExtensionsChanged: z.ZodTuple<[], null>;
 }, z.core.$strip>;
@@ -643,6 +648,12 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
     skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
     clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+    visionSupport: z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodObject<{
+        prompt: z.ZodOptional<z.ZodString>;
+        model: z.ZodOptional<z.ZodString>;
+        url: z.ZodOptional<z.ZodString>;
+        apiKey: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>]>>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$strip>;
 export type AssistantState = z.infer<typeof AssistantStateSchema>;
@@ -755,6 +766,12 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         toolNames: z.ZodOptional<z.ZodArray<z.ZodString>>;
         skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
         clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+        visionSupport: z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodObject<{
+            prompt: z.ZodOptional<z.ZodString>;
+            model: z.ZodOptional<z.ZodString>;
+            url: z.ZodOptional<z.ZodString>;
+            apiKey: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>]>>;
         config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
@@ -779,6 +796,11 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         hookFired: z.ZodTuple<[z.ZodString], null>;
+        visionDescription: z.ZodTuple<[z.ZodObject<{
+            index: z.ZodNumber;
+            description: z.ZodString;
+            model: z.ZodString;
+        }, z.core.$strip>], null>;
         reloaded: z.ZodTuple<[], null>;
         systemPromptExtensionsChanged: z.ZodTuple<[], null>;
     }, z.core.$strip>;
@@ -1189,6 +1211,29 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * @returns {Promise<this>} The initialized assistant
      */
     start(): Promise<this>;
+    /**
+     * Resolved vision delegation config, or undefined when visionSupport is not enabled.
+     * Merges the option (constructor or CORE.md frontmatter) with env-var defaults:
+     * LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY,
+     * falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.
+     */
+    get visionSupport(): {
+        prompt: string;
+        model: string;
+        url?: string;
+        apiKey?: string;
+    } | undefined;
+    /** The default instruction sent to the vision model alongside each delegated image. */
+    static readonly defaultVisionPrompt: string;
+    /**
+     * Replace image parts in a content array with text descriptions produced by the
+     * configured vision model. Each image is described in parallel. Used by ask()
+     * when visionSupport is enabled; also callable directly.
+     *
+     * @param parts - Content parts possibly containing image_url entries
+     * @returns The parts with images replaced by descriptive text parts
+     */
+    describeImages(parts: ContentPart[]): Promise<ContentPart[]>;
     /**
      * Ask the assistant a question. It will use its tools to produce
      * a streamed response. The assistant auto-starts if needed.
@@ -5375,9 +5420,11 @@ import { Feature } from '../../feature';
 import type { Helper } from '../../helper';
 import type { FeatureOptions } from '../../feature';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 declare const McpServerConfigSchema: z.ZodObject<{
-    command: z.ZodString;
+    command: z.ZodOptional<z.ZodString>;
+    url: z.ZodOptional<z.ZodString>;
+    headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
     args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
     cwd: z.ZodOptional<z.ZodString>;
@@ -5387,7 +5434,9 @@ declare const McpServerConfigSchema: z.ZodObject<{
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 declare const McpBridgeOptionsSchema: z.ZodObject<{
     servers: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
-        command: z.ZodString;
+        command: z.ZodOptional<z.ZodString>;
+        url: z.ZodOptional<z.ZodString>;
+        headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
         args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
         env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
         cwd: z.ZodOptional<z.ZodString>;
@@ -5421,7 +5470,7 @@ interface McpToolInfo {
 }
 interface ConnectedServer {
     client: Client;
-    transport: StdioClientTransport;
+    transport: Transport;
     tools: McpToolInfo[];
     resources: Array<{
         uri: string;
@@ -5439,9 +5488,12 @@ interface ConnectedServer {
     }>;
 }
 /**
- * Bridges local stdio MCP servers to Luca assistants by connecting to them,
+ * Bridges MCP servers to Luca assistants by connecting to them,
  * discovering their tools/resources/prompts, and exposing them as first-class
  * assistant tool calls. To the model, MCP tools look like ordinary tools.
+ *
+ * Servers with a \`command\` are spawned locally over stdio; servers with a
+ * \`url\` are reached over the Streamable HTTP transport.
  *
  * @example
  * \`\`\`ts
@@ -5451,6 +5503,10 @@ interface ConnectedServer {
  *       command: 'npx',
  *       args: ['-y', '@modelcontextprotocol/server-github'],
  *       env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
+ *     },
+ *     remote: {
+ *       url: 'https://mcp.example.com/mcp',
+ *       headers: { Authorization: \`Bearer \${token}\` },
  *     },
  *   },
  * })
@@ -5462,7 +5518,9 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
     static category: "ai-assistants";
     static optionsSchema: z.ZodObject<{
         servers: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
-            command: z.ZodString;
+            command: z.ZodOptional<z.ZodString>;
+            url: z.ZodOptional<z.ZodString>;
+            headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
             args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
             env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
             cwd: z.ZodOptional<z.ZodString>;
@@ -5656,6 +5714,56 @@ export interface LocalProviderOptions {
     apiMode?: ModelProviderApiMode;
     /** Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'. */
     auth?: ModelProviderAuth;
+}
+/**
+ * Ports commonly used by local OpenAI-compatible LLM servers, probed by
+ * \`discover()\`. The hint is a human-readable guess at what usually listens there.
+ */
+export declare const KNOWN_LLM_PORTS: Array<{
+    port: number;
+    hint: string;
+}>;
+/** A live OpenAI-compatible LLM server found by \`discover()\`. */
+export interface DiscoveredModelServer {
+    /** OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1 */
+    baseURL: string;
+    /** Host or IP the server was reached at. */
+    host: string;
+    port: number;
+    /** Where the host came from: the local machine or a tailscale peer. */
+    source: 'localhost' | 'tailscale';
+    /** Tailscale node hostname, when the host is a tailscale peer. */
+    hostname?: string;
+    /** Best guess at which server usually listens on this port. */
+    hint?: string;
+    /** Model ids reported by GET /v1/models. */
+    models: string[];
+    /** Round-trip time of the /v1/models probe. */
+    latencyMs: number;
+    /** Provider profile id serving this baseURL — an existing profile that matched, or the one created by \`register: true\`. */
+    profileId?: string;
+}
+/** Options for \`discover()\`. */
+export interface ModelProviderDiscoverOptions {
+    /** Ports to probe on every host. Defaults to KNOWN_LLM_PORTS. */
+    ports?: number[];
+    /** Extra hosts to probe in addition to localhost (IPs or hostnames). */
+    hosts?: string[];
+    /** Probe localhost. Default true. */
+    localhost?: boolean;
+    /** Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running. */
+    tailscale?: boolean;
+    /** Per-probe timeout in milliseconds. Default 1500. */
+    timeoutMs?: number;
+    /** Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false. */
+    register?: boolean;
+    /** Injectable fetch used for probes — for tests. Defaults to global fetch. */
+    probe?: (url: string, init: {
+        signal: AbortSignal;
+    }) => Promise<{
+        ok: boolean;
+        json(): Promise<any>;
+    }>;
 }
 export interface ModelProviderResolveOptions {
     provider?: ModelProviderInput;
@@ -5913,6 +6021,39 @@ export declare class ModelProviders extends Feature {
     requireDefaultId(): string;
     /** Whether the local llama-server stack (binary + chat model weights) is installed on this machine. */
     get localChatReady(): boolean;
+    /**
+     * Scan for live OpenAI-compatible LLM servers by probing \`GET /v1/models\` on
+     * well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000,
+     * and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any
+     * extra \`hosts\` you pass, plus every online tailscale peer when the
+     * \`tailscale\` CLI is installed and running. Everything fails gracefully: a
+     * host that isn't listening, times out, or answers with something that isn't
+     * a models list is simply omitted, and a missing tailscale is skipped
+     * silently — discover() never throws for an unreachable target.
+     *
+     * Pass \`register: true\` to turn each hit into a provider profile
+     * (via registerLocal) so assistants can use it immediately; servers whose
+     * baseURL already matches a registered profile are reported with that
+     * profileId instead of creating a duplicate.
+     *
+     * @example
+     * // What's running on this machine?
+     * const found = await container.feature('modelProviders').discover()
+     * // [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]
+     *
+     * @example
+     * // Sweep the tailnet and register everything found as usable providers
+     * const servers = await container.feature('modelProviders').discover({ register: true })
+     * for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
+     */
+    discover(options?: ModelProviderDiscoverOptions): Promise<DiscoveredModelServer[]>;
+    /** localhost/loopback aliases and trailing slashes all describe the same server. */
+    private normalizeBaseURL;
+    /**
+     * Online tailscale peers as probe targets, or [] when tailscale isn't
+     * installed, isn't running, or its output can't be parsed. Never throws.
+     */
+    private tailscalePeers;
     resolve(options?: ModelProviderResolveOptions): Promise<ResolvedModelProvider>;
     private profileFromInput;
     private resolveApiKey;
@@ -30336,7 +30477,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.3";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -38192,7 +38333,7 @@ export declare class Collection {
 }
 //# sourceMappingURL=collection.d.ts.map`,
   "deps/contentbase/dist/define-model.d.ts": `import { z } from "zod";
-import type { ModelDefinition, SectionDefinition, RelationshipDefinition, DocumentRef } from "./types";
+import type { ModelDefinition, ModelHooks, SectionDefinition, RelationshipDefinition, DocumentRef } from "./types";
 /**
  * Configuration input for defineModel. This is what the user writes.
  */
@@ -38213,6 +38354,8 @@ export interface DefineModelConfig<TMeta extends z.ZodType, TSections extends Re
     exclude?: (string | RegExp)[];
     /** When true, documents are not required to have an H1 title */
     titleOptional?: boolean;
+    /** Lifecycle hooks — see ModelHooks in types.ts. */
+    hooks?: ModelHooks<any>;
 }
 /**
  * defineModel creates a ModelDefinition with full type inference.
@@ -41225,8 +41368,25 @@ export interface ModelDefinition<TName extends string = string, TMeta extends z.
     exclude?: (string | RegExp)[];
     /** When true, documents are not required to have an H1 title */
     titleOptional?: boolean;
+    /** Lifecycle hooks — see ModelHooks. */
+    hooks?: ModelHooks<ModelDefinition<TName, TMeta, TSections, TRelationships, TComputed>>;
     /** The inferred Zod schema for convenience (same as meta) */
     schema: TMeta;
+}
+/**
+ * Lifecycle hooks defined on a model. All hooks are optional and may be async;
+ * mutating \`instance.document.meta\` inside a hook is picked up when frontmatter
+ * is re-serialized on save, and on the next validate() call.
+ *
+ *   - \`beforeSave\`  — runs before instance.save() writes to disk. Throw to cancel.
+ *   - \`afterSave\`   — runs after a successful write. Errors propagate to the caller.
+ *   - \`onValidationError\` — runs when validate() finds errors. Mutate meta to fix;
+ *                     validate() re-runs once after the hook returns.
+ */
+export interface ModelHooks<TDef extends ModelDefinition<any, any, any, any, any> = any> {
+    beforeSave?: (instance: InferModelInstance<TDef>) => void | Promise<void>;
+    afterSave?: (instance: InferModelInstance<TDef>) => void | Promise<void>;
+    onValidationError?: (instance: InferModelInstance<TDef>, errors: import("zod").ZodIssue[]) => void | Promise<void>;
 }
 /**
  * InferModelInstance takes a ModelDefinition and produces the shape
@@ -41380,19 +41540,59 @@ export declare function validateDocument(document: Document, definition: ModelDe
 // see gray-matter's \`matter()\`: it only reads/writes \`matter.cache\` when no
 // options argument is given at all. Declared here so call sites can opt out
 // of that shared cache explicitly instead of passing an empty \`{}\`.
+//
+// gray-matter is an \`export = matter\` module whose function and namespace are
+// merged, so the augmented interface goes directly in the module body. Nesting
+// it in \`namespace matter { ... }\` declares an unrelated namespace and the
+// \`cache\` property never reaches the real \`GrayMatterOption\`.
 import "gray-matter";
 
 declare module "gray-matter" {
-  namespace matter {
-    interface GrayMatterOption<I extends Input, O extends GrayMatterOption<I, O>> {
-      cache?: boolean;
-    }
+  interface GrayMatterOption<I extends Input, O extends GrayMatterOption<I, O>> {
+    cache?: boolean;
   }
 }
 `,
+  "deps/contentbase/test/fixtures/sdlc/models.d.ts": `import { z, type ModelDefinition, type HasManyDefinition, type BelongsToDefinition, type SectionDefinition } from "../../../src/index";
+declare const epicMeta: z.ZodObject<{
+    priority: z.ZodOptional<z.ZodEnum<{
+        low: "low";
+        medium: "medium";
+        high: "high";
+    }>>;
+    status: z.ZodDefault<z.ZodEnum<{
+        created: "created";
+        "in-progress": "in-progress";
+        complete: "complete";
+    }>>;
+}, z.core.$strip>;
+declare const storyMeta: z.ZodObject<{
+    status: z.ZodDefault<z.ZodEnum<{
+        created: "created";
+        "in-progress": "in-progress";
+        complete: "complete";
+    }>>;
+    epic: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+/** Explicit type for Epic so circular Epic↔Story inference doesn’t collapse to never */
+export type EpicDef = ModelDefinition<"Epic", typeof epicMeta, Record<string, never>, {
+    stories: HasManyDefinition<StoryDef>;
+}, {
+    isComplete: (self: any) => boolean;
+}>;
+/** Explicit type for Story so circular Epic↔Story inference doesn’t collapse to never */
+export type StoryDef = ModelDefinition<"Story", typeof storyMeta, Record<string, SectionDefinition<any>>, {
+    epic: BelongsToDefinition<EpicDef>;
+}, {
+    isComplete: (self: any) => boolean;
+}>;
+export declare const Epic: EpicDef;
+export declare const Story: StoryDef;
+export {};
+//# sourceMappingURL=models.d.ts.map`,
   "deps/contentbase/package.json": `{
   "name": "contentbase",
-  "version": "0.6.1",
+  "version": "0.7.1",
   "repository": "https://github.com/soederpop/contentbase",
   "website": "https://contentbase.soederpop.com",
   "type": "module",
