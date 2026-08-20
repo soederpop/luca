@@ -73,6 +73,27 @@ describe('Assistant', () => {
 			expect(Object.keys(convTools)).toContain('rg')
 			expect(Object.keys(convTools)).toContain('ls')
 		})
+
+		it('tools from `use` reach a conversation that already existed before start', async () => {
+			const assistant = container.feature('assistant', {
+				folder: 'assistants/codingAssistant',
+				model: 'qwen/qwen3-8b',
+			})
+
+			// Touching .conversation before start() builds it from the tool set as it
+			// stands right then — before `export const use = [...]` has contributed
+			// anything. Callers do this legitimately (e.g. to rebuild the conversation
+			// with session-specific options), and the tools added during start() must
+			// still reach it, or the model is offered an empty toolbox.
+			const conversation = assistant.conversation
+			expect(Object.keys(conversation.options.tools || {})).not.toContain('rg')
+
+			await assistant.start()
+
+			expect(assistant.conversation).toBe(conversation)
+			expect(Object.keys(conversation.tools)).toContain('rg')
+			expect(Object.keys(conversation.tools)).toContain('ls')
+		})
 	})
 
 	describe('provider override vs frontmatter model', () => {

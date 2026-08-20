@@ -1448,6 +1448,21 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Prevent duplicate listener registration if already started
 		if (this.isStarted) return this
 
+		// Keep the conversation's tool set in sync with the assistant's. This must
+		// be registered BEFORE anything below can add a tool: `use()` entries and
+		// pending plugins (mcpBridge materializes its tools there) call addTool(),
+		// which emits `toolsChanged`. Usually the conversation doesn't exist yet and
+		// its lazy getter picks up the final tool set — but a caller that touched
+		// `assistant.conversation` before start() already froze a snapshot of the
+		// tools, and without this listener in place those later additions would
+		// live on the assistant and never reach the model.
+		this.on('toolsChanged', () => {
+			const conv = this.state.get('conversation') as Conversation | null
+			if (conv) {
+				conv.updateTools(this.tools)
+			}
+		})
+
 		// Process deferred `use` entries from tools.ts (stashed during loadTools
 		// because the assistant isn't fully constructed at that point)
 		const deferredUse = this.state.get('deferredUse') as any[] | undefined
@@ -1569,13 +1584,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (mode === 'daily' || mode === 'persistent') {
 			(this.conversation.options as any).autoCompact = true
 		}
-		
-		this.on('toolsChanged', () => {
-			const conv = this.state.get('conversation') as Conversation | null
-			if (conv) {
-				conv.updateTools(this.tools)
-			}
-		})
 
 		this.state.set('started', true)
 		await this.triggerHook('started')
