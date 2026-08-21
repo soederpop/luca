@@ -2378,17 +2378,27 @@ setBuildTimeData('features.assistant', {
       "returns": "Promise<this>"
     },
     "describeImages": {
-      "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Each image is described in parallel. Used by ask() when visionSupport is enabled; also callable directly.",
+      "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Used by ask() when visionSupport is enabled; also callable directly, and `overrides` lets a single call opt into batch mode without reconfiguring the assistant. Two modes: - default: one vision call per image, run `concurrency` at a time. Each image is described in isolation, so the model cannot compare them. - batch: ONE call containing every image, described as an ordered sequence. Use this for video frames or before/after pairs — it is the only mode that can report what changed between images. All image parts collapse into a single text part where the first image was, so the returned array is shorter than the input.",
       "parameters": {
         "parts": {
           "type": "ContentPart[]",
           "description": "Content parts possibly containing image_url entries"
+        },
+        "overrides": {
+          "type": "Partial<Pick<VisionSupportConfig, 'batch' | 'prompt' | 'batchPrompt' | 'concurrency'>>",
+          "description": "Per-call overrides for batch, prompt, batchPrompt, concurrency"
         }
       },
       "required": [
         "parts"
       ],
-      "returns": "Promise<ContentPart[]>"
+      "returns": "Promise<ContentPart[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Describe video frames as one sequence, so motion survives the hand-off\nconst described = await assistant.describeImages(frames, { batch: true })"
+        }
+      ]
     },
     "ask": {
       "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
@@ -2653,7 +2663,7 @@ setBuildTimeData('features.assistant', {
     },
     "visionSupport": {
       "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
-      "returns": "{ prompt: string; model: string; url?: string; apiKey?: string } | undefined"
+      "returns": "VisionSupportConfig | undefined"
     },
     "availableSubagents": {
       "description": "Names of assistants available as subagents, discovered via the assistantsManager.",
@@ -2762,7 +2772,44 @@ setBuildTimeData('features.assistant', {
       "language": "ts",
       "code": "const assistant = container.feature('assistant', {\n folder: 'assistants/my-helper'\n})\nconst answer = await assistant.ask('What capabilities do you have?')"
     }
-  ]
+  ],
+  "types": {
+    "VisionSupportConfig": {
+      "description": "Fully resolved vision delegation settings, as returned by `assistant.visionSupport`.",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": ""
+        },
+        "batchPrompt": {
+          "type": "string",
+          "description": ""
+        },
+        "model": {
+          "type": "string",
+          "description": ""
+        },
+        "url": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "batch": {
+          "type": "boolean",
+          "description": ""
+        },
+        "concurrency": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.assistantsManager', {
@@ -28549,17 +28596,27 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<this>"
       },
       "describeImages": {
-        "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Each image is described in parallel. Used by ask() when visionSupport is enabled; also callable directly.",
+        "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Used by ask() when visionSupport is enabled; also callable directly, and `overrides` lets a single call opt into batch mode without reconfiguring the assistant. Two modes: - default: one vision call per image, run `concurrency` at a time. Each image is described in isolation, so the model cannot compare them. - batch: ONE call containing every image, described as an ordered sequence. Use this for video frames or before/after pairs — it is the only mode that can report what changed between images. All image parts collapse into a single text part where the first image was, so the returned array is shorter than the input.",
         "parameters": {
           "parts": {
             "type": "ContentPart[]",
             "description": "Content parts possibly containing image_url entries"
+          },
+          "overrides": {
+            "type": "Partial<Pick<VisionSupportConfig, 'batch' | 'prompt' | 'batchPrompt' | 'concurrency'>>",
+            "description": "Per-call overrides for batch, prompt, batchPrompt, concurrency"
           }
         },
         "required": [
           "parts"
         ],
-        "returns": "Promise<ContentPart[]>"
+        "returns": "Promise<ContentPart[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Describe video frames as one sequence, so motion survives the hand-off\nconst described = await assistant.describeImages(frames, { batch: true })"
+          }
+        ]
       },
       "ask": {
         "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
@@ -28824,7 +28881,7 @@ export const introspectionData: Record<string, any>[] = [
       },
       "visionSupport": {
         "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
-        "returns": "{ prompt: string; model: string; url?: string; apiKey?: string } | undefined"
+        "returns": "VisionSupportConfig | undefined"
       },
       "availableSubagents": {
         "description": "Names of assistants available as subagents, discovered via the assistantsManager.",
@@ -28933,7 +28990,44 @@ export const introspectionData: Record<string, any>[] = [
         "language": "ts",
         "code": "const assistant = container.feature('assistant', {\n folder: 'assistants/my-helper'\n})\nconst answer = await assistant.ask('What capabilities do you have?')"
       }
-    ]
+    ],
+    "types": {
+      "VisionSupportConfig": {
+        "description": "Fully resolved vision delegation settings, as returned by `assistant.visionSupport`.",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": ""
+          },
+          "batchPrompt": {
+            "type": "string",
+            "description": ""
+          },
+          "model": {
+            "type": "string",
+            "description": ""
+          },
+          "url": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "batch": {
+            "type": "boolean",
+            "description": ""
+          },
+          "concurrency": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.assistantsManager",

@@ -192,3 +192,206 @@ describe('Assistant visionSupport', () => {
 		expect(JSON.stringify(requests[0].messages)).toContain('image_url')
 	})
 })
+
+describe('Assistant visionSupport batch mode', () => {
+	it('defaults to per-image mode with a concurrency cap of 4', () => {
+		const c = new AGIContainer()
+		const assistant = c.feature('assistant', { systemPrompt: 'test', visionSupport: true } as any)
+		expect(assistant.visionSupport).toMatchObject({ batch: false, concurrency: 4 })
+	})
+
+	it('reads concurrency from LUCA_VISION_SUPPORT_CONCURRENCY and ignores garbage values', () => {
+		const c = new AGIContainer()
+		process.env.LUCA_VISION_SUPPORT_CONCURRENCY = '2'
+		expect(c.feature('assistant', { systemPrompt: 'a', visionSupport: true } as any).visionSupport)
+			.toMatchObject({ concurrency: 2 })
+
+		process.env.LUCA_VISION_SUPPORT_CONCURRENCY = 'not-a-number'
+		expect(c.feature('assistant', { systemPrompt: 'b', visionSupport: true } as any).visionSupport)
+			.toMatchObject({ concurrency: 4 })
+
+		delete process.env.LUCA_VISION_SUPPORT_CONCURRENCY
+	})
+
+	it('sends every image in ONE call and collapses them into one text part', async () => {
+		const c = new AGIContainer()
+		const calls = stubVisionClient(c, () => 'Ball moves left to right across three frames.')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true },
+		} as any)
+
+		const result = await assistant.describeImages([
+			{ type: 'text', text: 'What happens?' },
+			imagePart(), imagePart(), imagePart(),
+		])
+
+		// One call carrying the prompt plus all three images
+		expect(calls.length).toBe(1)
+		const content = calls[0].messages[0].content
+		expect(content.filter((p: any) => p.type === 'image_url').length).toBe(3)
+		expect(content[0].text).toContain('ONE ordered sequence')
+
+		// Three image parts collapse to a single description, so the array shrinks
+		expect(result.length).toBe(2)
+		expect((result[0] as any).text).toBe('What happens?')
+		expect((result[1] as any).text).toContain('3 images')
+		expect((result[1] as any).text).toContain('one sequence')
+		expect((result[1] as any).text).toContain('Ball moves left to right')
+		expect(result.some(p => p.type === 'image_url')).toBe(false)
+	})
+
+	it('places the collapsed description where the first image was', async () => {
+		const c = new AGIContainer()
+		stubVisionClient(c, () => 'sequence summary')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true },
+		} as any)
+
+		const result = await assistant.describeImages([
+			imagePart(),
+			{ type: 'text', text: 'middle' },
+			imagePart(),
+			{ type: 'text', text: 'tail' },
+		])
+
+		expect(result.map(p => (p as any).text)).toEqual([
+			expect.stringContaining('sequence summary'),
+			'middle',
+			'tail',
+		])
+	})
+
+	it('uses the single-image prompt when batch mode gets only one image', async () => {
+		const c = new AGIContainer()
+		const calls = stubVisionClient(c, () => 'a red pixel')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true },
+		} as any)
+
+		const result = await assistant.describeImages([imagePart()])
+
+		expect(calls.length).toBe(1)
+		expect(calls[0].messages[0].content[0].text).not.toContain('ONE ordered sequence')
+		expect((result[0] as any).text).toContain('Image 1 of 1')
+	})
+
+	it('accepts batch as a per-call override on a non-batch assistant', async () => {
+		const c = new AGIContainer()
+		const calls = stubVisionClient(c, () => 'compared')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl' },
+		} as any)
+
+		await assistant.describeImages([imagePart(), imagePart()], { batch: true })
+		expect(calls.length).toBe(1)
+
+		// The assistant's own config is untouched
+		expect(assistant.visionSupport).toMatchObject({ batch: false })
+		await assistant.describeImages([imagePart(), imagePart()])
+		expect(calls.length).toBe(3)
+	})
+
+	it('honors a custom batchPrompt', async () => {
+		const c = new AGIContainer()
+		const calls = stubVisionClient(c, () => 'ok')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true, batchPrompt: 'These are video frames. Report motion only.' },
+		} as any)
+
+		await assistant.describeImages([imagePart(), imagePart()])
+		expect(calls[0].messages[0].content[0].text).toBe('These are video frames. Report motion only.')
+	})
+
+	it('fires visionDescription once with batch metadata', async () => {
+		const c = new AGIContainer()
+		stubVisionClient(c, () => 'the sequence')
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true },
+		} as any)
+
+		const events: any[] = []
+		assistant.on('visionDescription', (payload: any) => events.push(payload))
+		await assistant.describeImages([imagePart(), imagePart(), imagePart()])
+
+		expect(events.length).toBe(1)
+		expect(events[0]).toMatchObject({ index: 0, batch: true, count: 3, model: 'fake-vl', description: 'the sequence' })
+	})
+
+	it('degrades to explanatory text when the batch call fails', async () => {
+		const c = new AGIContainer()
+		stubVisionClient(c, () => { throw new Error('vl endpoint down') })
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', batch: true },
+		} as any)
+
+		const result = await assistant.describeImages([imagePart(), imagePart()])
+		expect(result.length).toBe(1)
+		expect((result[0] as any).text).toContain('could not be analyzed')
+		expect((result[0] as any).text).toContain('vl endpoint down')
+	})
+
+	it('caps in-flight calls to concurrency in per-image mode', async () => {
+		const c = new AGIContainer()
+		let inFlight = 0
+		let peak = 0
+		const originalClient = c.client.bind(c)
+		;(c as any).client = (id: string, opts: any = {}) => {
+			if (id !== 'openai') return originalClient(id as any, opts)
+			return {
+				async createChatCompletion() {
+					inFlight++
+					peak = Math.max(peak, inFlight)
+					await new Promise(resolve => setTimeout(resolve, 5))
+					inFlight--
+					return { choices: [{ message: { content: 'described' } }] }
+				},
+			}
+		}
+
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', concurrency: 2 },
+		} as any)
+
+		const result = await assistant.describeImages(Array.from({ length: 7 }, () => imagePart()))
+
+		expect(peak).toBe(2)
+		expect(result.length).toBe(7)
+		expect((result[6] as any).text).toContain('Image 7 of 7')
+	})
+
+	it('keeps descriptions in image order across concurrency windows', async () => {
+		const c = new AGIContainer()
+		let seen = 0
+		const originalClient = c.client.bind(c)
+		;(c as any).client = (id: string, opts: any = {}) => {
+			if (id !== 'openai') return originalClient(id as any, opts)
+			return {
+				async createChatCompletion() {
+					const n = seen++
+					// Later images resolve sooner — order must still hold
+					await new Promise(resolve => setTimeout(resolve, 10 - n))
+					return { choices: [{ message: { content: `desc-${n}` } }] }
+				},
+			}
+		}
+
+		const assistant = c.feature('assistant', {
+			systemPrompt: 'test',
+			visionSupport: { model: 'fake-vl', concurrency: 5 },
+		} as any)
+
+		const result = await assistant.describeImages(Array.from({ length: 5 }, () => imagePart()))
+		result.forEach((part, index) => {
+			expect((part as any).text).toContain(`Image ${index + 1} of 5`)
+			expect((part as any).text).toContain(`desc-${index}`)
+		})
+	})
+})

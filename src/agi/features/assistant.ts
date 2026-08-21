@@ -31,7 +31,7 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
 	hookFired: z.tuple([z.string().describe('Hook/event name')]).describe('Emitted when a hook function is called'),
-	visionDescription: z.tuple([z.object({ index: z.number(), description: z.string(), model: z.string() })]).describe('Emitted when visionSupport delegates an image to the vision model and receives a description'),
+	visionDescription: z.tuple([z.object({ index: z.number(), description: z.string(), model: z.string(), batch: z.boolean().optional(), count: z.number().optional() })]).describe('Emitted when visionSupport delegates an image to the vision model and receives a description. In batch mode it fires once with batch: true and count set to the number of images described together'),
 	reloaded: z.tuple([]).describe('Emitted after tools, hooks, and system prompt are reloaded from disk'),
 	systemPromptExtensionsChanged: z.tuple([]).describe('Emitted when system prompt extensions are added or removed'),
 })
@@ -148,8 +148,11 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 			model: z.string().optional().describe('Vision model name (default: LUCA_VISION_SUPPORT_MODEL or gpt-5.2)'),
 			url: z.string().optional().describe('OpenAI-compatible base URL for the vision model (default: LUCA_VISION_SUPPORT_URL or OPENAI_BASE_URL)'),
 			apiKey: z.string().optional().describe('API key for the vision endpoint (default: LUCA_VISION_SUPPORT_API_KEY or OPENAI_API_KEY)'),
+			batch: z.boolean().optional().describe('Send every image in ONE vision call so the model can compare them — required for video frames and before/after screenshots (default: false, one call per image)'),
+			batchPrompt: z.string().optional().describe('Instruction used instead of `prompt` when batch is on, framing the images as one ordered sequence'),
+			concurrency: z.number().optional().describe('Max simultaneous vision calls in per-image mode (default: LUCA_VISION_SUPPORT_CONCURRENCY or 4). Ignored when batch is on'),
 		}),
-	]).optional().describe("Delegate images to a vision model when the assistant's own model has no vision. true for defaults, or { prompt, model, url, apiKey }"),
+	]).optional().describe("Delegate images to a vision model when the assistant's own model has no vision. true for defaults, or { prompt, model, url, apiKey, batch, batchPrompt, concurrency }"),
 
 	/**
 	 * Free-form, assistant-specific settings that the framework never interprets.
@@ -159,6 +162,17 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	 */
 	config: z.record(z.string(), z.any()).optional().describe('Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config'),
 })
+
+/** Fully resolved vision delegation settings, as returned by `assistant.visionSupport`. */
+export interface VisionSupportConfig {
+	prompt: string
+	batchPrompt: string
+	model: string
+	url?: string
+	apiKey?: string
+	batch: boolean
+	concurrency: number
+}
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
@@ -1601,15 +1615,20 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY,
 	 * falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.
 	 */
-	get visionSupport(): { prompt: string; model: string; url?: string; apiKey?: string } | undefined {
+	get visionSupport(): VisionSupportConfig | undefined {
 		const raw = this.effectiveOptions.visionSupport
 		if (!raw) return undefined
-		const opts = raw === true ? {} : raw as { prompt?: string; model?: string; url?: string; apiKey?: string }
+		const opts = raw === true ? {} : raw as Partial<VisionSupportConfig>
+		const envConcurrency = Number(process.env.LUCA_VISION_SUPPORT_CONCURRENCY)
 		return {
 			prompt: opts.prompt || Assistant.defaultVisionPrompt,
+			batchPrompt: opts.batchPrompt || Assistant.defaultBatchVisionPrompt,
 			model: opts.model || process.env.LUCA_VISION_SUPPORT_MODEL || 'gpt-5.2',
 			url: opts.url || process.env.LUCA_VISION_SUPPORT_URL || process.env.OPENAI_BASE_URL,
 			apiKey: opts.apiKey || process.env.LUCA_VISION_SUPPORT_API_KEY || process.env.OPENAI_API_KEY,
+			batch: opts.batch ?? false,
+			// Guard against a bad env value silently serializing every call
+			concurrency: opts.concurrency ?? (Number.isFinite(envConcurrency) && envConcurrency > 0 ? envConcurrency : 4),
 		}
 	}
 
@@ -1623,17 +1642,48 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		'Note anything unusual, ambiguous, or potentially important. Be thorough but organized — do not speculate beyond what is visible.',
 	].join(' ')
 
+	/** The default instruction used when batch mode sends every image in a single call. */
+	static readonly defaultBatchVisionPrompt = [
+		'You are the eyes for a text-only AI assistant. The following images are ONE ordered sequence —',
+		'they may be video frames, a before/after pair, or steps in a flow. Describe them together, not in isolation.',
+		'First give a short account of the sequence as a whole: what it depicts and what changes across it.',
+		'Then, for each image in order, label it "Image N:" and describe its contents,',
+		'transcribing ALL visible text, code, numbers, and labels exactly as written.',
+		'Call out explicitly what moved, appeared, disappeared, or changed value between consecutive images,',
+		'and note anything unusual or ambiguous. Be thorough but organized — do not speculate beyond what is visible.',
+	].join(' ')
+
 	/**
 	 * Replace image parts in a content array with text descriptions produced by the
-	 * configured vision model. Each image is described in parallel. Used by ask()
-	 * when visionSupport is enabled; also callable directly.
+	 * configured vision model. Used by ask() when visionSupport is enabled; also
+	 * callable directly, and `overrides` lets a single call opt into batch mode
+	 * without reconfiguring the assistant.
+	 *
+	 * Two modes:
+	 * - default: one vision call per image, run `concurrency` at a time. Each image is
+	 *   described in isolation, so the model cannot compare them.
+	 * - batch: ONE call containing every image, described as an ordered sequence. Use this
+	 *   for video frames or before/after pairs — it is the only mode that can report what
+	 *   changed between images. All image parts collapse into a single text part where the
+	 *   first image was, so the returned array is shorter than the input.
 	 *
 	 * @param parts - Content parts possibly containing image_url entries
+	 * @param overrides - Per-call overrides for batch, prompt, batchPrompt, concurrency
 	 * @returns The parts with images replaced by descriptive text parts
+	 *
+	 * @example
+	 * ```typescript
+	 * // Describe video frames as one sequence, so motion survives the hand-off
+	 * const described = await assistant.describeImages(frames, { batch: true })
+	 * ```
 	 */
-	async describeImages(parts: ContentPart[]): Promise<ContentPart[]> {
-		const config = this.visionSupport
-		if (!config) return parts
+	async describeImages(
+		parts: ContentPart[],
+		overrides?: Partial<Pick<VisionSupportConfig, 'batch' | 'prompt' | 'batchPrompt' | 'concurrency'>>,
+	): Promise<ContentPart[]> {
+		const resolved = this.visionSupport
+		if (!resolved) return parts
+		const config = { ...resolved, ...overrides }
 
 		const imageIndexes = parts
 			.map((part, index) => (part.type === 'image_url' ? index : -1))
@@ -1646,20 +1696,57 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			...(config.apiKey ? { apiKey: config.apiKey } : {}),
 		}) as import('../../clients/openai').OpenAIClient
 
-		const descriptions = await Promise.all(imageIndexes.map(async (partIndex, imageNumber) => {
-			const part = parts[partIndex] as Extract<ContentPart, { type: 'image_url' }>
+		const images = imageIndexes.map(index => parts[index] as Extract<ContentPart, { type: 'image_url' }>)
+
+		const describe = async (prompt: string, batchOf: typeof images) => {
+			const response = await client.createChatCompletion([
+				{ role: 'user', content: [{ type: 'text', text: prompt }, ...batchOf] },
+			], { model: config.model })
+			return response.choices[0]?.message?.content || ''
+		}
+
+		const announce = async (payload: { index: number; description: string; model: string; batch?: boolean; count?: number }) => {
+			await this.triggerHook('visionDescription', payload)
+			this.emit('visionDescription', payload)
+		}
+
+		// Batch mode: every image in one call so the model can see change across them.
+		// A lone image gets the single-image prompt — the sequence framing would only mislead.
+		if (config.batch && images.length > 1) {
+			let description: string
 			try {
-				const response = await client.createChatCompletion([
-					{ role: 'user', content: [{ type: 'text', text: config.prompt }, part] },
-				], { model: config.model })
-				const description = response.choices[0]?.message?.content || ''
-				await this.triggerHook('visionDescription', { index: imageNumber, description, model: config.model })
-				this.emit('visionDescription', { index: imageNumber, description, model: config.model })
-				return description
+				description = await describe(config.batchPrompt, images)
+				await announce({ index: 0, description, model: config.model, batch: true, count: images.length })
 			} catch (err: any) {
-				return `(The image could not be analyzed: ${err?.message || err})`
+				description = `(The images could not be analyzed: ${err?.message || err})`
 			}
-		}))
+
+			const collapsed = `[${images.length} images — described together as one sequence by a vision model on the user's behalf]\n${description || '(no description produced)'}`
+			const firstImage = imageIndexes[0]
+			return parts.flatMap((part, index) => {
+				if (part.type !== 'image_url') return [part]
+				return index === firstImage ? [{ type: 'text' as const, text: collapsed }] : []
+			})
+		}
+
+		// Per-image mode: describe in windows of `concurrency` so a 50-frame ask
+		// doesn't open 50 sockets at once.
+		const descriptions: string[] = []
+		const window = Math.max(1, Math.floor(config.concurrency))
+		for (let offset = 0; offset < images.length; offset += window) {
+			const slice = images.slice(offset, offset + window)
+			const settled = await Promise.all(slice.map(async (part, sliceIndex) => {
+				const imageNumber = offset + sliceIndex
+				try {
+					const description = await describe(config.prompt, [part])
+					await announce({ index: imageNumber, description, model: config.model })
+					return description
+				} catch (err: any) {
+					return `(The image could not be analyzed: ${err?.message || err})`
+				}
+			}))
+			descriptions.push(...settled)
+		}
 
 		return parts.map((part, index) => {
 			if (part.type !== 'image_url') return part
