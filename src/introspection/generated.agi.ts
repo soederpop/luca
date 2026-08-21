@@ -2200,11 +2200,24 @@ setBuildTimeData('features.assistant', {
       ],
       "returns": "this"
     },
+    "toolFilterDecision": {
+      "description": "Resolve whether one tool survives the assistant's current filters.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "ToolFilterDecision"
+    },
     "use": {
       "description": "Apply a setup function or a Helper instance to this assistant. When passed a function, it receives the assistant and can configure tools, hooks, event listeners, etc. When passed a Helper instance that exposes tools via toTools(), those tools are automatically added to this assistant.",
       "parameters": {
         "fnOrHelper": {
-          "type": "((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }",
+          "type": "((assistant: this) => void | Promise<void>) | { toTools: () => ToolsBundle } | ToolsBundle",
           "description": "Setup function or Helper instance"
         }
       },
@@ -2364,6 +2377,12 @@ setBuildTimeData('features.assistant', {
       "parameters": {},
       "required": [],
       "returns": "Promise<number>"
+    },
+    "resolveConfiguredUse": {
+      "description": "Materialize the `export const use = [...]` entries loaded from tools.ts. Safe to call before start(); entries are consumed once while configuredUse remains available for runtime introspection.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
     },
     "reload": {
       "description": "Reload tools, hooks, and system prompt from disk. Useful during development or when tool/hook files have been modified and you want the assistant to pick up changes without restarting.",
@@ -2615,6 +2634,22 @@ setBuildTimeData('features.assistant', {
       "description": "The tools registered with this assistant.",
       "returns": "Record<string, ConversationTool>"
     },
+    "allTools": {
+      "description": "Every known tool before allow/forbid/toolNames filters are applied.",
+      "returns": "Record<string, ConversationTool>"
+    },
+    "schemas": {
+      "description": "Live Zod schemas keyed by tool name.",
+      "returns": "Record<string, z.ZodType>"
+    },
+    "toolSources": {
+      "description": "Provenance for every live tool: feature id, tools.ts, or runtime.",
+      "returns": "Record<string, string>"
+    },
+    "configuredUse": {
+      "description": "Resolved entries exported by tools.ts as `use`, retained after startup.",
+      "returns": "any[]"
+    },
     "meta": {
       "description": "Parsed YAML frontmatter from CORE.md, or empty object if none.",
       "returns": "Record<string, any>"
@@ -2774,6 +2809,19 @@ setBuildTimeData('features.assistant', {
     }
   ],
   "types": {
+    "ToolFilterDecision": {
+      "description": "",
+      "properties": {
+        "included": {
+          "type": "boolean",
+          "description": ""
+        },
+        "excludedBy": {
+          "type": "string | null",
+          "description": ""
+        }
+      }
+    },
     "VisionSupportConfig": {
       "description": "Fully resolved vision delegation settings, as returned by `assistant.visionSupport`.",
       "properties": {
@@ -28418,11 +28466,24 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "this"
       },
+      "toolFilterDecision": {
+        "description": "Resolve whether one tool survives the assistant's current filters.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "ToolFilterDecision"
+      },
       "use": {
         "description": "Apply a setup function or a Helper instance to this assistant. When passed a function, it receives the assistant and can configure tools, hooks, event listeners, etc. When passed a Helper instance that exposes tools via toTools(), those tools are automatically added to this assistant.",
         "parameters": {
           "fnOrHelper": {
-            "type": "((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }",
+            "type": "((assistant: this) => void | Promise<void>) | { toTools: () => ToolsBundle } | ToolsBundle",
             "description": "Setup function or Helper instance"
           }
         },
@@ -28582,6 +28643,12 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "Promise<number>"
+      },
+      "resolveConfiguredUse": {
+        "description": "Materialize the `export const use = [...]` entries loaded from tools.ts. Safe to call before start(); entries are consumed once while configuredUse remains available for runtime introspection.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
       },
       "reload": {
         "description": "Reload tools, hooks, and system prompt from disk. Useful during development or when tool/hook files have been modified and you want the assistant to pick up changes without restarting.",
@@ -28833,6 +28900,22 @@ export const introspectionData: Record<string, any>[] = [
         "description": "The tools registered with this assistant.",
         "returns": "Record<string, ConversationTool>"
       },
+      "allTools": {
+        "description": "Every known tool before allow/forbid/toolNames filters are applied.",
+        "returns": "Record<string, ConversationTool>"
+      },
+      "schemas": {
+        "description": "Live Zod schemas keyed by tool name.",
+        "returns": "Record<string, z.ZodType>"
+      },
+      "toolSources": {
+        "description": "Provenance for every live tool: feature id, tools.ts, or runtime.",
+        "returns": "Record<string, string>"
+      },
+      "configuredUse": {
+        "description": "Resolved entries exported by tools.ts as `use`, retained after startup.",
+        "returns": "any[]"
+      },
       "meta": {
         "description": "Parsed YAML frontmatter from CORE.md, or empty object if none.",
         "returns": "Record<string, any>"
@@ -28992,6 +29075,19 @@ export const introspectionData: Record<string, any>[] = [
       }
     ],
     "types": {
+      "ToolFilterDecision": {
+        "description": "",
+        "properties": {
+          "included": {
+            "type": "boolean",
+            "description": ""
+          },
+          "excludedBy": {
+            "type": "string | null",
+            "description": ""
+          }
+        }
+      },
       "VisionSupportConfig": {
         "description": "Fully resolved vision delegation settings, as returned by `assistant.visionSupport`.",
         "properties": {

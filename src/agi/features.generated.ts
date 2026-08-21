@@ -31,7 +31,7 @@ import { VoiceMode } from "./features/voice-mode";
 export { Memory } from "./features/agent-memory";
 export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } from "./features/agent-memory";
 export { Assistant } from "./features/assistant";
-export type { VisionSupportConfig, AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
+export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
 export type { AssistantEntry, AssistantsManagerHooksModule, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
 export { BrowserUse } from "./features/browser-use";

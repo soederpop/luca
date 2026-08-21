@@ -28,6 +28,23 @@ export {
 export type HelperState = z.infer<typeof HelperStateSchema>
 export type HelperOptions = z.infer<typeof HelperOptionsSchema>
 
+export type ToolsProviderMetadata = {
+  name: string
+  category?: HelperCategory
+  stability?: HelperStability
+  options: Record<string, any>
+  only?: string[]
+  except?: string[]
+  totalToolCount: number
+}
+
+export type ToolsBundle = {
+  schemas: Record<string, z.ZodType>
+  handlers: Record<string, Function>
+  setup?: (consumer: Helper) => void
+  provider?: ToolsProviderMetadata
+}
+
 /**
  * Helpers are used to represent types of modules.
  *
@@ -323,7 +340,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * If a tool has no explicit handler but this instance has a method with
    * the same name, a handler is auto-generated that delegates to that method.
    */
-  toTools(options?: { only?: string[], except?: string[] }): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function>, setup?: (consumer: Helper) => void } {
+  toTools(options?: { only?: string[], except?: string[] }): ToolsBundle {
     // Walk the prototype chain collecting static tools (parent-first, child overwrites)
     const merged: Record<string, { schema: z.ZodType, description?: string, handler?: Function }> = {}
     const chain: Function[] = []
@@ -345,6 +362,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
     // Filter tools by only/except before building schemas and handlers
     let names = Object.keys(merged)
+    const totalToolCount = names.length
     if (options?.only) names = names.filter(n => options.only!.includes(n))
     if (options?.except) names = names.filter(n => !options.except!.includes(n))
 
@@ -365,7 +383,21 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
       }
     }
 
-    const result: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function>, setup?: (consumer: Helper) => void } = { schemas, handlers }
+    const Constructor = this.constructor as typeof Helper
+    const shortcut = String(Constructor.shortcut || this.options.name || Constructor.name)
+    const result: ToolsBundle = {
+      schemas,
+      handlers,
+      provider: {
+        name: shortcut.replace(/^features\./, ''),
+        category: Constructor.category,
+        stability: Constructor.stability,
+        options: { ...(this.options as Record<string, any>) },
+        ...(options?.only ? { only: [...options.only] } : {}),
+        ...(options?.except ? { except: [...options.except] } : {}),
+        totalToolCount,
+      },
+    }
 
     // If this helper has a setupToolsConsumer override, package it as a setup
     // function so consumers of toTools() can call it without needing the helper ref

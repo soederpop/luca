@@ -10,6 +10,7 @@ import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type Inte
 import { deepMergeOptions } from '../lib/merge-options.js'
 import type { Entity } from '../../entity.js'
 import { State } from '../../state.js'
+import type { ToolsBundle } from '../../helper.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -177,6 +178,45 @@ export interface VisionSupportConfig {
 export type AssistantState = z.infer<typeof AssistantStateSchema>
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
 
+export type ToolFilterDecision = {
+	included: boolean
+	excludedBy: string | null
+}
+
+/**
+ * Resolve the assistant tool-filter precedence for one tool name.
+ * This pure helper is shared by the runtime tool getter and introspection APIs.
+ */
+export function resolveToolFilterDecision(
+	name: string,
+	filters: Pick<AssistantOptions, 'allowTools' | 'forbidTools' | 'toolNames'>,
+): ToolFilterDecision {
+	const { allowTools, forbidTools, toolNames } = filters
+
+	if (toolNames && !toolNames.includes(name)) {
+		return { included: false, excludedBy: `toolNames: ${toolNames.join(', ')}` }
+	}
+
+	if (allowTools && !allowTools.some((pattern) => matchToolPattern(pattern, name))) {
+		return { included: false, excludedBy: `allowTools: ${allowTools.join(', ')}` }
+	}
+
+	const forbiddenPattern = forbidTools?.find((pattern) => matchToolPattern(pattern, name))
+	if (forbiddenPattern) {
+		return { included: false, excludedBy: `forbidTools: ${forbiddenPattern}` }
+	}
+
+	return { included: true, excludedBy: null }
+}
+
+/** Match a tool name against the assistant's `*` glob syntax. */
+export function matchToolPattern(pattern: string, name: string): boolean {
+	if (pattern === '*') return true
+	if (!pattern.includes('*')) return pattern === name
+	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+	return new RegExp(`^${escaped}$`).test(name)
+}
+
 /** Fork options extended with assistant-specific tool filtering and lifecycle hooks. */
 export type AssistantForkOptions = ForkOptions & {
 	/** Denylist of tool name patterns to exclude from the fork. Supports "*" glob matching. */
@@ -266,6 +306,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * or anything else. Fully observable so UI or other systems can react.
 	 */
 	readonly mentalState = new State<Record<string, any>>()
+
+	private _configuredUse: any[] = []
+	private _toolSchemas: Record<string, z.ZodType> = {}
+	private _toolSources: Record<string, string> = {}
 
 	/**
 	 * Register an interceptor at a given point in the pipeline.
@@ -661,8 +705,32 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The tools registered with this assistant. */
 	get tools(): Record<string, ConversationTool> {
-		const all = (this.state.get('tools') || {}) as Record<string, ConversationTool>
-		return this.applyToolFilters(all)
+		return this.applyToolFilters(this.allTools)
+	}
+
+	/** Every known tool before allow/forbid/toolNames filters are applied. */
+	get allTools(): Record<string, ConversationTool> {
+		return (this.state.get('tools') || {}) as Record<string, ConversationTool>
+	}
+
+	/** Live Zod schemas keyed by tool name. */
+	get schemas(): Record<string, z.ZodType> {
+		return { ...this._toolSchemas }
+	}
+
+	/** Provenance for every live tool: feature id, tools.ts, or runtime. */
+	get toolSources(): Record<string, string> {
+		return { ...this._toolSources }
+	}
+
+	/** Resolved entries exported by tools.ts as `use`, retained after startup. */
+	get configuredUse(): any[] {
+		return [...this._configuredUse]
+	}
+
+	/** Resolve whether one tool survives the assistant's current filters. */
+	toolFilterDecision(name: string): ToolFilterDecision {
+		return resolveToolFilterDecision(name, this.effectiveOptions)
 	}
 
 	/**
@@ -674,23 +742,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const { allowTools, forbidTools, toolNames } = this.effectiveOptions
 		if (!allowTools && !forbidTools && !toolNames) return tools
 
-		let names = Object.keys(tools)
-
-		// toolNames is a strict exact-match allowlist
-		if (toolNames) {
-			const allowed = new Set(toolNames)
-			names = names.filter(n => allowed.has(n))
-		}
-
-		// allowTools: only keep names matching at least one pattern
-		if (allowTools) {
-			names = names.filter(n => allowTools.some(pattern => this.matchToolPattern(pattern, n)))
-		}
-
-		// forbidTools: remove names matching any pattern
-		if (forbidTools) {
-			names = names.filter(n => !forbidTools.some(pattern => this.matchToolPattern(pattern, n)))
-		}
+		const names = Object.keys(tools).filter((name) => this.toolFilterDecision(name).included)
 
 		const result: Record<string, ConversationTool> = {}
 		for (const n of names) {
@@ -698,23 +750,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			if (tool) result[n] = tool
 		}
 		return result
-	}
-
-	/**
-	 * Match a tool name against a pattern that supports "*" as a wildcard.
-	 * - "*" matches everything
-	 * - "prefix*" matches names starting with prefix
-	 * - "*suffix" matches names ending with suffix
-	 * - "pre*suf" matches names starting with pre and ending with suf
-	 * - exact string matches exactly
-	 */
-	private matchToolPattern(pattern: string, name: string): boolean {
-		if (pattern === '*') return true
-		if (!pattern.includes('*')) return pattern === name
-
-		// Convert glob pattern to regex: escape regex chars, replace * with .*
-		const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
-		return new RegExp(`^${escaped}$`).test(name)
 	}
 
 	/**
@@ -736,7 +771,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 *   .use(container.feature('git'))
 	 * ```
 	 */
-	use(fnOrHelper: ((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }): this {
+	use(fnOrHelper: ((assistant: this) => void | Promise<void>) | { toTools: () => ToolsBundle } | ToolsBundle): this {
 		if (typeof fnOrHelper === 'function') {
 			const result = fnOrHelper(this)
 			if (result && typeof (result as any).then === 'function') {
@@ -744,19 +779,20 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				this.state.set('pendingPlugins', [...pending, result as Promise<void>])
 			}
 		} else if (fnOrHelper && typeof (fnOrHelper as any).toTools === 'function') {
-			const source = this.describeToolsProvider(fnOrHelper)
 			try {
-				this._registerTools((fnOrHelper as any).toTools(), source)
+				const provided = (fnOrHelper as any).toTools() as ToolsBundle
+				const source = provided.provider?.name || this.describeToolsProvider(fnOrHelper)
+				this._registerTools(provided, source)
 				if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
 					(fnOrHelper as any).setupToolsConsumer(this)
 				}
 			} catch (err: any) {
-				this.reportToolsProviderFailure(source, err)
+				this.reportToolsProviderFailure(this.describeToolsProvider(fnOrHelper), err)
 			}
 		} else if (fnOrHelper && 'schemas' in fnOrHelper && 'handlers' in fnOrHelper) {
-			const source = this.describeToolsProvider(fnOrHelper)
+			const source = (fnOrHelper as ToolsBundle).provider?.name || this.describeToolsProvider(fnOrHelper)
 			try {
-				this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }, source)
+				this._registerTools(fnOrHelper as ToolsBundle, source)
 				if (typeof (fnOrHelper as any).setup === 'function') {
 					(fnOrHelper as any).setup(this)
 				}
@@ -787,7 +823,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/** Register tools from a `{ schemas, handlers }` object. */
-	private _registerTools(provided: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }, source = 'a tools provider') {
+	private _registerTools(provided: ToolsBundle, source = 'a tools provider') {
 		const expected = '{ schemas: Record<string, ZodType>, handlers: Record<string, Function> }'
 		const isPlainObject = (value: any) => !!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -807,6 +843,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		for (const name of Object.keys(schemas)) {
 			if (typeof handlers[name] === 'function') {
 				this.addTool(name, handlers[name] as any, schemas[name])
+				this._runtimeToolNames?.delete(name)
+				this._toolSources[name] = source.replace(/^features\./, '')
 			}
 		}
 	}
@@ -849,10 +887,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (!this._runtimeToolNames) this._runtimeToolNames = new Set()
 		this._runtimeToolNames.add(name)
 
-		const current = { ...this.tools }
+		const current = { ...this.allTools }
 
 		if (schema) {
 			const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
+			this._toolSchemas[name] = schema
 			// OpenAI requires `required` to list ALL property keys — optional params
 			// must still appear in `required` but use a default value in the schema.
 			const properties = jsonSchema.properties || {}
@@ -867,12 +906,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				},
 			}
 		} else {
+			delete this._toolSchemas[name]
 			current[name] = {
 				handler: handler as ConversationTool['handler'],
 				description: name,
 				parameters: { type: 'object', properties: {} },
 			}
 		}
+		this._toolSources[name] = 'runtime'
 
 		this.state.set('tools', current)
 		this.emit('toolsChanged')
@@ -887,16 +928,20 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	removeTool(nameOrHandler: string | ((...args: any[]) => any)): this {
-		const current = { ...this.tools }
+		const current = { ...this.allTools }
 
 		if (typeof nameOrHandler === 'string') {
 			delete current[nameOrHandler]
 			this._runtimeToolNames?.delete(nameOrHandler)
+			delete this._toolSchemas[nameOrHandler]
+			delete this._toolSources[nameOrHandler]
 		} else {
 			for (const [name, tool] of Object.entries(current)) {
 				if (tool.handler === nameOrHandler) {
 					delete current[name]
 					this._runtimeToolNames?.delete(name)
+					delete this._toolSchemas[name]
+					delete this._toolSources[name]
 					break
 				}
 			}
@@ -1099,6 +1144,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	loadTools(): Record<string, ConversationTool> {
 		const tools: Record<string, ConversationTool> = {}
+		this._configuredUse = []
+		this._toolSchemas = {}
+		this._toolSources = {}
 
 		// Skip loading if no tools file exists (runtime-created assistants)
 		if (!this.container.fs.exists(this.toolsModulePath)) {
@@ -1142,6 +1190,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Stash `export const use = [...]` for deferred processing during start(),
 		// since the assistant isn't fully constructed yet when loadTools() runs
 		if (Array.isArray(moduleExports.use)) {
+			this._configuredUse = [...moduleExports.use]
 			this.state.set('deferredUse', moduleExports.use)
 		}
 
@@ -1152,7 +1201,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				if (name === 'schemas' || name === 'default' || name === 'use' || typeof fn !== 'function') continue
 
 				const schema = schemas[name]
+				this._toolSources[name] = 'tools.ts'
 				if (schema) {
+					this._toolSchemas[name] = schema
 					const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
 					tools[name] = {
 						handler: fn as ConversationTool['handler'],
@@ -1188,7 +1239,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				if (typeof fn !== 'function') continue
 
 				const schema = optionSchemas[name]
+				this._toolSources[name] = 'runtime'
 				if (schema) {
+					this._toolSchemas[name] = schema
 					const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
 					tools[name] = {
 						handler: fn as ConversationTool['handler'],
@@ -1404,8 +1457,22 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 	}
 
-	/** Tool names added at runtime via addTool()/use(), so reload() can preserve them. */
+	/** Tool names added at runtime via addTool(), so reload() can preserve them. */
 	private _runtimeToolNames!: Set<string>
+
+	/**
+	 * Materialize the `export const use = [...]` entries loaded from tools.ts.
+	 * Safe to call before start(); entries are consumed once while configuredUse
+	 * remains available for runtime introspection.
+	 */
+	resolveConfiguredUse(): this {
+		const deferredUse = this.state.get('deferredUse') as any[] | undefined
+		if (deferredUse?.length) {
+			for (const entry of deferredUse) this.use(entry)
+			this.state.set('deferredUse', undefined)
+		}
+		return this
+	}
 
 	/**
 	 * Reload tools, hooks, and system prompt from disk. Useful during development
@@ -1417,10 +1484,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	reload(): this {
 		// Snapshot runtime-added tools before reloading from disk
 		const runtimeTools: Record<string, ConversationTool> = {}
+		const runtimeSchemas: Record<string, z.ZodType> = {}
 		if (this._runtimeToolNames?.size) {
-			const current = this.tools
+			const current = this.allTools
 			for (const name of this._runtimeToolNames) {
 				if (current[name]) runtimeTools[name] = current[name]
+				if (this._toolSchemas[name]) runtimeSchemas[name] = this._toolSchemas[name]!
 			}
 		}
 
@@ -1430,16 +1499,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Reload tools from disk (merges with option tools), then restore runtime tools
 		const diskTools = this.loadTools()
 		this.state.set('tools', { ...diskTools, ...runtimeTools })
+		for (const [name, schema] of Object.entries(runtimeSchemas)) this._toolSchemas[name] = schema
+		for (const name of Object.keys(runtimeTools)) this._toolSources[name] = 'runtime'
 
 		// Re-process deferred `use` entries (export const use = [...] in tools.ts).
 		// These replace tools from the same features, which is a no-op when unchanged.
-		const deferredUse = this.state.get('deferredUse') as any[] | undefined
-		if (deferredUse?.length) {
-			for (const entry of deferredUse) {
-				this.use(entry)
-			}
-			this.state.set('deferredUse', undefined)
-		}
+		this.resolveConfiguredUse()
 
 		this.emit('toolsChanged')
 
@@ -1479,13 +1544,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		// Process deferred `use` entries from tools.ts (stashed during loadTools
 		// because the assistant isn't fully constructed at that point)
-		const deferredUse = this.state.get('deferredUse') as any[] | undefined
-		if (deferredUse?.length) {
-			for (const entry of deferredUse) {
-				this.use(entry)
-			}
-			this.state.set('deferredUse', undefined)
-		}
+		this.resolveConfiguredUse()
 
 		// Allow hooks to run before the assistant starts (blocks until complete)
 		await this.triggerHook('beforeStart')

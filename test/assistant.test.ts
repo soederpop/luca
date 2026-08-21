@@ -28,6 +28,26 @@ describe('Assistant', () => {
 			expect(tools.length).toBeGreaterThan(0)
 		})
 
+		it('retains resolved use metadata after startup', async () => {
+			const assistant = container.feature('assistant', {
+				folder: 'assistants/codingAssistant',
+				model: 'qwen/qwen3-8b',
+				cached: false,
+			})
+			await assistant.start()
+
+			const providers = assistant.configuredUse.map((entry: any) =>
+				typeof entry?.toTools === 'function' ? entry.toTools().provider : entry.provider,
+			)
+			expect(providers.map((provider: any) => provider.name)).toEqual([
+				'codingTools', 'fileTools', 'processManager', 'skillsLibrary',
+			])
+			expect(providers[1]).toMatchObject({
+				only: ['editFile', 'writeFile', 'deleteFile'],
+				totalToolCount: 11,
+			})
+		})
+
 		it('tools have descriptions and parameter schemas', async () => {
 			const assistant = container.feature('assistant', {
 				folder: 'assistants/codingAssistant',
@@ -93,6 +113,31 @@ describe('Assistant', () => {
 			expect(assistant.conversation).toBe(conversation)
 			expect(Object.keys(conversation.tools)).toContain('rg')
 			expect(Object.keys(conversation.tools)).toContain('ls')
+		})
+	})
+
+	describe('tool filters', () => {
+		it('shares filter decisions with the effective tool getter without dropping excluded tools', () => {
+			const assistant = container.feature('assistant', {
+				name: 'filter-test',
+				cached: false,
+				forbidTools: ['delete*'],
+				tools: {
+					readFile: () => 'read',
+					deleteFile: () => 'deleted',
+				},
+			})
+
+			expect(Object.keys(assistant.allTools).sort()).toEqual(['deleteFile', 'readFile'])
+			expect(Object.keys(assistant.tools)).toEqual(['readFile'])
+			expect(assistant.toolFilterDecision('deleteFile')).toEqual({
+				included: false,
+				excludedBy: 'forbidTools: delete*',
+			})
+
+			assistant.addTool('runtimeTool', () => 'runtime')
+			expect(Object.keys(assistant.allTools).sort()).toEqual(['deleteFile', 'readFile', 'runtimeTool'])
+			expect(assistant.toolSources.runtimeTool).toBe('runtime')
 		})
 	})
 
