@@ -250,9 +250,20 @@ export class Endpoint<
             return
           }
 
-          const parameters = { ...req.query, ...req.body, ...req.params }
+          const routeParams = req.params || {}
+          const parameters = { ...req.query, ...req.body, ...routeParams }
           const currentSchema = endpoint.schema(method)
-          const validated = currentSchema ? currentSchema.parse(parameters) : parameters
+          // Route params are merged in for convenience, but a .strict() schema would reject the
+          // ones it never declared. Hide those from parse, then put them back on the result so
+          // handlers reading validated.id keep working either way.
+          const shape = (currentSchema as any)?.shape
+          const parseInput = { ...parameters }
+          if (shape) {
+            for (const key of Object.keys(routeParams)) {
+              if (!(key in shape)) delete parseInput[key]
+            }
+          }
+          const validated = currentSchema ? { ...(currentSchema.parse(parseInput) as Record<string, any>), ...routeParams } : parameters
 
           const ctx: EndpointContext = {
             container: endpoint.container,
