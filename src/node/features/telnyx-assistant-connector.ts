@@ -69,7 +69,6 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   private _telnyxClient: any = null
   private _previousConnectionId: string | null = null
   private _messagingProfileId: string | null = null
-  private _activeCallSid: string | null = null
 
   get assistant() {
     return this.options.assistant
@@ -648,6 +647,72 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   }
 
   /**
+   * Place an outbound call from the assistant to a phone number, with an
+   * optional per-call greeting and purpose delivered as dynamic variables.
+   * The deployed assistant templates its greeting as `{{greeting_line}}` and
+   * carries a `{{call_context}}` section in its instructions, so both can be
+   * set per call without touching the deployment.
+   *
+   * Works standalone (assistant: null) as long as the `from` number is wired
+   * to a Telnyx AI assistant — the assistant is resolved from the number.
+   *
+   * @example
+   * ```ts
+   * await connector.dial('+13125550000', {
+   *   greeting: 'Hey Jon, calling with your morning brief.',
+   *   context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',
+   * })
+   * ```
+   */
+  async dial(to: string, opts: {
+    /** Calling number in E.164; defaults to options.phoneNumber. */
+    from?: string
+    /** First thing the assistant says on answer. */
+    greeting?: string
+    /** Why the assistant is calling — injected into its instructions. */
+    context?: string
+    /** Extra dynamic variables for custom templates. */
+    variables?: Record<string, string>
+    /** Telnyx assistant ID; defaults to state, then the number's wiring. */
+    assistantId?: string
+  } = {}) {
+    if (!/^\+\d{10,15}$/.test(to)) {
+      throw new Error(`dial() needs an E.164 number, got "${to}"`)
+    }
+    const from = opts.from || this.options.phoneNumber
+    if (!from) throw new Error('dial() needs opts.from or options.phoneNumber')
+
+    const record = await this.getPhoneNumber(from)
+    if (!record) throw new Error(`Phone number ${from} not found on this Telnyx account`)
+
+    let assistantId = opts.assistantId || this.state.get('telnyxAssistantId')
+    if (!assistantId) {
+      // TeXML apps auto-created by assistants are named "ai-assistant-<uuid>"
+      const connName = String(record.connection_name || '')
+      if (connName.startsWith('ai-assistant-')) assistantId = connName.slice('ai-'.length)
+    }
+    if (!assistantId) {
+      throw new Error(`Cannot resolve a Telnyx assistant for ${from} — deploy one or pass opts.assistantId`)
+    }
+
+    const dynamicVariables: Record<string, string> = { ...(opts.variables || {}) }
+    if (opts.greeting) dynamicVariables.greeting_line = opts.greeting
+    if (opts.context) dynamicVariables.call_context = opts.context
+
+    const params: any = { AIAssistantId: assistantId, To: to, From: from }
+    if (Object.keys(dynamicVariables).length > 0) {
+      params.AIAssistantDynamicVariables = dynamicVariables
+    }
+
+    this._log('[telnyx] Dialing:', JSON.stringify({ to, from, assistantId, dynamicVariables }))
+    const client = await this._getClient()
+    const resp = await client.texml.initiateAICall(record.connection_id, params)
+    const data = resp?.data || resp
+    this._log('[telnyx] Call initiated:', JSON.stringify(data))
+    return data
+  }
+
+  /**
    * Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant,
    * and optionally wire a phone number to it.
    *
@@ -691,7 +756,6 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     const server = this.container.server('express', { port, cors: true })
 
     this._mountToolEndpoints(server)
-    this._mountHangupTool(server)
     this._mountCallEventsEndpoint(server)
     this._mountInboundSmsEndpoint(server)
 
@@ -809,35 +873,6 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     })
   }
 
-  private _mountHangupTool(server: any) {
-    server.app.post('/tools/hangup', async (_req: any, res: any) => {
-      const callSid = this._activeCallSid
-      this._log(`[telnyx] Hangup tool called (callSid: ${callSid})`)
-      this.emit('toolCall', 'hangup', {})
-
-      if (!callSid) {
-        res.json({ result: 'No active call to hang up' })
-        return
-      }
-
-      try {
-        await fetch(`https://api.telnyx.com/v2/calls/${encodeURIComponent(callSid)}/actions/hangup`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.TELNYX_API_KEY!}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        })
-        this._activeCallSid = null
-        res.json({ result: 'Call ended' })
-      } catch (err: any) {
-        this.emit('toolError', 'hangup', err instanceof Error ? err : new Error(String(err)))
-        res.json({ result: `Failed to hang up: ${err.message}` })
-      }
-    })
-  }
-
   private _mountCallEventsEndpoint(server: any) {
     server.app.post('/call/events', async (req: any, res: any) => {
       try {
@@ -847,15 +882,6 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         const conversationId = body?.ConversationId || ''
 
         this._log(`[telnyx] Call event: ${status} (${callSid})`)
-
-        const terminalStatuses = ['completed', 'failed', 'busy', 'no-answer', 'canceled', 'conversation_ended', 'analyzed']
-        if (callSid && callSid !== 'unknown') {
-          if (terminalStatuses.includes(status)) {
-            if (this._activeCallSid === callSid) this._activeCallSid = null
-          } else {
-            this._activeCallSid = callSid
-          }
-        }
 
         let insights: string | null = null
         try {
@@ -1094,24 +1120,32 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         })
       }
 
-      webhookTools.push({
-        type: 'webhook' as const,
-        webhook: {
-          name: 'hangup',
-          description: 'End the current phone call. Call this when the conversation is complete or the caller should be disconnected.',
-          url: `${publicUrl}/tools/hangup`,
-          method: 'POST' as const,
-          body_parameters: { type: 'object', properties: {} },
-          timeout_ms: 5000,
-        },
-      })
     }
 
+    // Telnyx executes this natively — works even when our tool server is down.
+    const nativeTools: any[] = [{
+      type: 'hangup' as const,
+      hangup: {
+        description: 'End the current phone call. Use this when the conversation is complete or the caller should be disconnected.',
+      },
+    }]
+
+    // Greeting and instructions are templated with dynamic variables so
+    // dial() can customize them per outbound call. The defaults reproduce
+    // the plain inbound behavior exactly.
     const params: any = {
       name: `luca-${this.assistantName}`,
-      instructions: this.assistant.effectiveSystemPrompt,
+      instructions: this.assistant.effectiveSystemPrompt
+        + '\n\n## Outbound Call Context\n\n'
+        + 'If the section below is non-empty, YOU placed this call for the stated reason. '
+        + 'Lead with that purpose and stay on it.\n\n{{call_context}}',
       model: this.options.model,
       enabled_features: ['telephony', 'messaging'],
+      greeting: '{{greeting_line}}',
+      dynamic_variables: {
+        greeting_line: this.options.greeting || '',
+        call_context: '',
+      },
     }
 
     const voiceConfig = this.assistant.voiceConfig
@@ -1162,13 +1196,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       }
     }
 
-    if (webhookTools.length > 0) {
-      params.tools = webhookTools
-    }
-
-    if (this.options.greeting) {
-      params.greeting = this.options.greeting
-    }
+    params.tools = [...webhookTools, ...nativeTools]
 
     this._log('[telnyx] Creating assistant with params:', JSON.stringify(params, null, 2))
     const result = await this._telnyxClient.ai.assistants.create(params)
