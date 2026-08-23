@@ -177,14 +177,172 @@ setBuildTimeData('features.esbuild', {
           "description": "Parameter code"
         },
         "options": {
-          "type": "esbuild.TransformOptions",
-          "description": "Parameter options"
+          "type": "EsbuildTransformOptions",
+          "description": "Parameter options",
+          "properties": {
+            "loader": {
+              "type": "EsbuildLoader",
+              "description": "Which syntax to parse the input as. Defaults to `'ts'`."
+            },
+            "sourcefile": {
+              "type": "string",
+              "description": "Name reported in error messages and source maps."
+            },
+            "banner": {
+              "type": "string",
+              "description": ""
+            },
+            "footer": {
+              "type": "string",
+              "description": ""
+            },
+            "tsconfigRaw": {
+              "type": "string | {\n    compilerOptions?: {\n      alwaysStrict?: boolean\n      importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'\n      jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve'\n      jsxFactory?: string\n      jsxFragmentFactory?: string\n      jsxImportSource?: string\n      preserveValueImports?: boolean\n      target?: string\n      useDefineForClassFields?: boolean\n    }\n  }",
+              "description": ""
+            },
+            "sourcemap": {
+              "type": "boolean | 'linked' | 'inline' | 'external' | 'both'",
+              "description": ""
+            },
+            "sourceRoot": {
+              "type": "string",
+              "description": ""
+            },
+            "sourcesContent": {
+              "type": "boolean",
+              "description": ""
+            },
+            "legalComments": {
+              "type": "'none' | 'inline' | 'eof' | 'linked' | 'external'",
+              "description": ""
+            },
+            "format": {
+              "type": "EsbuildFormat",
+              "description": ""
+            },
+            "globalName": {
+              "type": "string",
+              "description": ""
+            },
+            "target": {
+              "type": "string | string[]",
+              "description": "Language level to downlevel to, e.g. `'es2015'`."
+            },
+            "supported": {
+              "type": "Record<string, boolean>",
+              "description": ""
+            },
+            "platform": {
+              "type": "EsbuildPlatform",
+              "description": ""
+            },
+            "minify": {
+              "type": "boolean",
+              "description": ""
+            },
+            "minifyWhitespace": {
+              "type": "boolean",
+              "description": ""
+            },
+            "minifyIdentifiers": {
+              "type": "boolean",
+              "description": ""
+            },
+            "minifySyntax": {
+              "type": "boolean",
+              "description": ""
+            },
+            "mangleProps": {
+              "type": "RegExp",
+              "description": ""
+            },
+            "reserveProps": {
+              "type": "RegExp",
+              "description": ""
+            },
+            "mangleQuoted": {
+              "type": "boolean",
+              "description": ""
+            },
+            "mangleCache": {
+              "type": "Record<string, string | false>",
+              "description": ""
+            },
+            "drop": {
+              "type": "EsbuildDrop[]",
+              "description": ""
+            },
+            "charset": {
+              "type": "EsbuildCharset",
+              "description": ""
+            },
+            "treeShaking": {
+              "type": "boolean",
+              "description": ""
+            },
+            "ignoreAnnotations": {
+              "type": "boolean",
+              "description": ""
+            },
+            "jsx": {
+              "type": "'transform' | 'preserve' | 'automatic'",
+              "description": ""
+            },
+            "jsxFactory": {
+              "type": "string",
+              "description": ""
+            },
+            "jsxFragment": {
+              "type": "string",
+              "description": ""
+            },
+            "jsxImportSource": {
+              "type": "string",
+              "description": ""
+            },
+            "jsxDev": {
+              "type": "boolean",
+              "description": ""
+            },
+            "jsxSideEffects": {
+              "type": "boolean",
+              "description": ""
+            },
+            "define": {
+              "type": "{ [key: string]: string }",
+              "description": ""
+            },
+            "pure": {
+              "type": "string[]",
+              "description": ""
+            },
+            "keepNames": {
+              "type": "boolean",
+              "description": ""
+            },
+            "color": {
+              "type": "boolean",
+              "description": ""
+            },
+            "logLevel": {
+              "type": "EsbuildLogLevel",
+              "description": ""
+            },
+            "logLimit": {
+              "type": "number",
+              "description": ""
+            },
+            "logOverride": {
+              "type": "Record<string, EsbuildLogLevel>",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
         "code"
       ],
-      "returns": "void"
+      "returns": "Promise<EsbuildTransformResult>"
     },
     "clearCache": {
       "description": "",
@@ -216,7 +374,265 @@ setBuildTimeData('features.esbuild', {
       "language": "ts",
       "code": "const esbuild = container.feature('esbuild')\nawait esbuild.start()\nconst result = await esbuild.compile('const x: number = 1')\nconsole.log(result.code)"
     }
-  ]
+  ],
+  "types": {
+    "EsbuildTransformOptions": {
+      "description": "Options accepted by `compile()`, passed straight through to esbuild's transform API.",
+      "properties": {
+        "loader": {
+          "type": "EsbuildLoader",
+          "description": "Which syntax to parse the input as. Defaults to `'ts'`.",
+          "optional": true
+        },
+        "sourcefile": {
+          "type": "string",
+          "description": "Name reported in error messages and source maps.",
+          "optional": true
+        },
+        "banner": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "footer": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "tsconfigRaw": {
+          "type": "string | {\n    compilerOptions?: {\n      alwaysStrict?: boolean\n      importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'\n      jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve'\n      jsxFactory?: string\n      jsxFragmentFactory?: string\n      jsxImportSource?: string\n      preserveValueImports?: boolean\n      target?: string\n      useDefineForClassFields?: boolean\n    }\n  }",
+          "description": "",
+          "optional": true
+        },
+        "sourcemap": {
+          "type": "boolean | 'linked' | 'inline' | 'external' | 'both'",
+          "description": "",
+          "optional": true
+        },
+        "sourceRoot": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "sourcesContent": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "legalComments": {
+          "type": "'none' | 'inline' | 'eof' | 'linked' | 'external'",
+          "description": "",
+          "optional": true
+        },
+        "format": {
+          "type": "EsbuildFormat",
+          "description": "",
+          "optional": true
+        },
+        "globalName": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "target": {
+          "type": "string | string[]",
+          "description": "Language level to downlevel to, e.g. `'es2015'`.",
+          "optional": true
+        },
+        "supported": {
+          "type": "Record<string, boolean>",
+          "description": "",
+          "optional": true
+        },
+        "platform": {
+          "type": "EsbuildPlatform",
+          "description": "",
+          "optional": true
+        },
+        "minify": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "minifyWhitespace": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "minifyIdentifiers": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "minifySyntax": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "mangleProps": {
+          "type": "RegExp",
+          "description": "",
+          "optional": true
+        },
+        "reserveProps": {
+          "type": "RegExp",
+          "description": "",
+          "optional": true
+        },
+        "mangleQuoted": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "mangleCache": {
+          "type": "Record<string, string | false>",
+          "description": "",
+          "optional": true
+        },
+        "drop": {
+          "type": "EsbuildDrop[]",
+          "description": "",
+          "optional": true
+        },
+        "charset": {
+          "type": "EsbuildCharset",
+          "description": "",
+          "optional": true
+        },
+        "treeShaking": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "ignoreAnnotations": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "jsx": {
+          "type": "'transform' | 'preserve' | 'automatic'",
+          "description": "",
+          "optional": true
+        },
+        "jsxFactory": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "jsxFragment": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "jsxImportSource": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "jsxDev": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "jsxSideEffects": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "define": {
+          "type": "{ [key: string]: string }",
+          "description": "",
+          "optional": true
+        },
+        "pure": {
+          "type": "string[]",
+          "description": "",
+          "optional": true
+        },
+        "keepNames": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "color": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "logLevel": {
+          "type": "EsbuildLogLevel",
+          "description": "",
+          "optional": true
+        },
+        "logLimit": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "logOverride": {
+          "type": "Record<string, EsbuildLogLevel>",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "EsbuildTransformResult": {
+      "description": "What `compile()` resolves to.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": ""
+        },
+        "map": {
+          "type": "string",
+          "description": ""
+        },
+        "warnings": {
+          "type": "EsbuildMessage[]",
+          "description": ""
+        },
+        "mangleCache": {
+          "type": "Record<string, string | false>",
+          "description": "Only set when `mangleCache` was passed.",
+          "optional": true
+        },
+        "legalComments": {
+          "type": "string",
+          "description": "Only set when `legalComments` is `'external'`.",
+          "optional": true
+        }
+      }
+    },
+    "EsbuildMessage": {
+      "description": "A warning or error emitted by a transform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "pluginName": {
+          "type": "string",
+          "description": ""
+        },
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "location": {
+          "type": "{\n    file: string\n    namespace: string\n    /** 1-based */\n    line: number\n    /** 0-based, in bytes */\n    column: number\n    /** in bytes */\n    length: number\n    lineText: string\n    suggestion: string\n  } | null",
+          "description": ""
+        },
+        "notes": {
+          "type": "Array<{ text: string; location: EsbuildMessage['location'] }>",
+          "description": ""
+        },
+        "detail": {
+          "type": "any",
+          "description": ""
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.helpers', {
@@ -1345,14 +1761,172 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter code"
           },
           "options": {
-            "type": "esbuild.TransformOptions",
-            "description": "Parameter options"
+            "type": "EsbuildTransformOptions",
+            "description": "Parameter options",
+            "properties": {
+              "loader": {
+                "type": "EsbuildLoader",
+                "description": "Which syntax to parse the input as. Defaults to `'ts'`."
+              },
+              "sourcefile": {
+                "type": "string",
+                "description": "Name reported in error messages and source maps."
+              },
+              "banner": {
+                "type": "string",
+                "description": ""
+              },
+              "footer": {
+                "type": "string",
+                "description": ""
+              },
+              "tsconfigRaw": {
+                "type": "string | {\n    compilerOptions?: {\n      alwaysStrict?: boolean\n      importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'\n      jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve'\n      jsxFactory?: string\n      jsxFragmentFactory?: string\n      jsxImportSource?: string\n      preserveValueImports?: boolean\n      target?: string\n      useDefineForClassFields?: boolean\n    }\n  }",
+                "description": ""
+              },
+              "sourcemap": {
+                "type": "boolean | 'linked' | 'inline' | 'external' | 'both'",
+                "description": ""
+              },
+              "sourceRoot": {
+                "type": "string",
+                "description": ""
+              },
+              "sourcesContent": {
+                "type": "boolean",
+                "description": ""
+              },
+              "legalComments": {
+                "type": "'none' | 'inline' | 'eof' | 'linked' | 'external'",
+                "description": ""
+              },
+              "format": {
+                "type": "EsbuildFormat",
+                "description": ""
+              },
+              "globalName": {
+                "type": "string",
+                "description": ""
+              },
+              "target": {
+                "type": "string | string[]",
+                "description": "Language level to downlevel to, e.g. `'es2015'`."
+              },
+              "supported": {
+                "type": "Record<string, boolean>",
+                "description": ""
+              },
+              "platform": {
+                "type": "EsbuildPlatform",
+                "description": ""
+              },
+              "minify": {
+                "type": "boolean",
+                "description": ""
+              },
+              "minifyWhitespace": {
+                "type": "boolean",
+                "description": ""
+              },
+              "minifyIdentifiers": {
+                "type": "boolean",
+                "description": ""
+              },
+              "minifySyntax": {
+                "type": "boolean",
+                "description": ""
+              },
+              "mangleProps": {
+                "type": "RegExp",
+                "description": ""
+              },
+              "reserveProps": {
+                "type": "RegExp",
+                "description": ""
+              },
+              "mangleQuoted": {
+                "type": "boolean",
+                "description": ""
+              },
+              "mangleCache": {
+                "type": "Record<string, string | false>",
+                "description": ""
+              },
+              "drop": {
+                "type": "EsbuildDrop[]",
+                "description": ""
+              },
+              "charset": {
+                "type": "EsbuildCharset",
+                "description": ""
+              },
+              "treeShaking": {
+                "type": "boolean",
+                "description": ""
+              },
+              "ignoreAnnotations": {
+                "type": "boolean",
+                "description": ""
+              },
+              "jsx": {
+                "type": "'transform' | 'preserve' | 'automatic'",
+                "description": ""
+              },
+              "jsxFactory": {
+                "type": "string",
+                "description": ""
+              },
+              "jsxFragment": {
+                "type": "string",
+                "description": ""
+              },
+              "jsxImportSource": {
+                "type": "string",
+                "description": ""
+              },
+              "jsxDev": {
+                "type": "boolean",
+                "description": ""
+              },
+              "jsxSideEffects": {
+                "type": "boolean",
+                "description": ""
+              },
+              "define": {
+                "type": "{ [key: string]: string }",
+                "description": ""
+              },
+              "pure": {
+                "type": "string[]",
+                "description": ""
+              },
+              "keepNames": {
+                "type": "boolean",
+                "description": ""
+              },
+              "color": {
+                "type": "boolean",
+                "description": ""
+              },
+              "logLevel": {
+                "type": "EsbuildLogLevel",
+                "description": ""
+              },
+              "logLimit": {
+                "type": "number",
+                "description": ""
+              },
+              "logOverride": {
+                "type": "Record<string, EsbuildLogLevel>",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
           "code"
         ],
-        "returns": "void"
+        "returns": "Promise<EsbuildTransformResult>"
       },
       "clearCache": {
         "description": "",
@@ -1384,7 +1958,265 @@ export const introspectionData: Record<string, any>[] = [
         "language": "ts",
         "code": "const esbuild = container.feature('esbuild')\nawait esbuild.start()\nconst result = await esbuild.compile('const x: number = 1')\nconsole.log(result.code)"
       }
-    ]
+    ],
+    "types": {
+      "EsbuildTransformOptions": {
+        "description": "Options accepted by `compile()`, passed straight through to esbuild's transform API.",
+        "properties": {
+          "loader": {
+            "type": "EsbuildLoader",
+            "description": "Which syntax to parse the input as. Defaults to `'ts'`.",
+            "optional": true
+          },
+          "sourcefile": {
+            "type": "string",
+            "description": "Name reported in error messages and source maps.",
+            "optional": true
+          },
+          "banner": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "footer": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "tsconfigRaw": {
+            "type": "string | {\n    compilerOptions?: {\n      alwaysStrict?: boolean\n      importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'\n      jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve'\n      jsxFactory?: string\n      jsxFragmentFactory?: string\n      jsxImportSource?: string\n      preserveValueImports?: boolean\n      target?: string\n      useDefineForClassFields?: boolean\n    }\n  }",
+            "description": "",
+            "optional": true
+          },
+          "sourcemap": {
+            "type": "boolean | 'linked' | 'inline' | 'external' | 'both'",
+            "description": "",
+            "optional": true
+          },
+          "sourceRoot": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "sourcesContent": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "legalComments": {
+            "type": "'none' | 'inline' | 'eof' | 'linked' | 'external'",
+            "description": "",
+            "optional": true
+          },
+          "format": {
+            "type": "EsbuildFormat",
+            "description": "",
+            "optional": true
+          },
+          "globalName": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "target": {
+            "type": "string | string[]",
+            "description": "Language level to downlevel to, e.g. `'es2015'`.",
+            "optional": true
+          },
+          "supported": {
+            "type": "Record<string, boolean>",
+            "description": "",
+            "optional": true
+          },
+          "platform": {
+            "type": "EsbuildPlatform",
+            "description": "",
+            "optional": true
+          },
+          "minify": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "minifyWhitespace": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "minifyIdentifiers": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "minifySyntax": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "mangleProps": {
+            "type": "RegExp",
+            "description": "",
+            "optional": true
+          },
+          "reserveProps": {
+            "type": "RegExp",
+            "description": "",
+            "optional": true
+          },
+          "mangleQuoted": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "mangleCache": {
+            "type": "Record<string, string | false>",
+            "description": "",
+            "optional": true
+          },
+          "drop": {
+            "type": "EsbuildDrop[]",
+            "description": "",
+            "optional": true
+          },
+          "charset": {
+            "type": "EsbuildCharset",
+            "description": "",
+            "optional": true
+          },
+          "treeShaking": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "ignoreAnnotations": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "jsx": {
+            "type": "'transform' | 'preserve' | 'automatic'",
+            "description": "",
+            "optional": true
+          },
+          "jsxFactory": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "jsxFragment": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "jsxImportSource": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "jsxDev": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "jsxSideEffects": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "define": {
+            "type": "{ [key: string]: string }",
+            "description": "",
+            "optional": true
+          },
+          "pure": {
+            "type": "string[]",
+            "description": "",
+            "optional": true
+          },
+          "keepNames": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "color": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "logLevel": {
+            "type": "EsbuildLogLevel",
+            "description": "",
+            "optional": true
+          },
+          "logLimit": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "logOverride": {
+            "type": "Record<string, EsbuildLogLevel>",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "EsbuildTransformResult": {
+        "description": "What `compile()` resolves to.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": ""
+          },
+          "map": {
+            "type": "string",
+            "description": ""
+          },
+          "warnings": {
+            "type": "EsbuildMessage[]",
+            "description": ""
+          },
+          "mangleCache": {
+            "type": "Record<string, string | false>",
+            "description": "Only set when `mangleCache` was passed.",
+            "optional": true
+          },
+          "legalComments": {
+            "type": "string",
+            "description": "Only set when `legalComments` is `'external'`.",
+            "optional": true
+          }
+        }
+      },
+      "EsbuildMessage": {
+        "description": "A warning or error emitted by a transform.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "pluginName": {
+            "type": "string",
+            "description": ""
+          },
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "location": {
+            "type": "{\n    file: string\n    namespace: string\n    /** 1-based */\n    line: number\n    /** 0-based, in bytes */\n    column: number\n    /** in bytes */\n    length: number\n    lineText: string\n    suggestion: string\n  } | null",
+            "description": ""
+          },
+          "notes": {
+            "type": "Array<{ text: string; location: EsbuildMessage['location'] }>",
+            "description": ""
+          },
+          "detail": {
+            "type": "any",
+            "description": ""
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.helpers",

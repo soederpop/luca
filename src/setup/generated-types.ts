@@ -30537,7 +30537,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.4";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.5";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -30950,7 +30950,114 @@ export default ContainerLink;
 //# sourceMappingURL=container-link.d.ts.map`,
   "web/features/esbuild.d.ts": `import { z } from 'zod';
 import { Feature, type FeatureState } from "../feature.js";
-import type * as esbuild from 'esbuild-wasm';
+export type EsbuildLoader = 'base64' | 'binary' | 'copy' | 'css' | 'dataurl' | 'default' | 'empty' | 'file' | 'js' | 'json' | 'jsx' | 'text' | 'ts' | 'tsx';
+export type EsbuildFormat = 'iife' | 'cjs' | 'esm';
+export type EsbuildPlatform = 'browser' | 'node' | 'neutral';
+export type EsbuildCharset = 'ascii' | 'utf8';
+export type EsbuildDrop = 'console' | 'debugger';
+export type EsbuildLogLevel = 'verbose' | 'debug' | 'info' | 'warning' | 'error' | 'silent';
+/** A warning or error emitted by a transform. */
+export interface EsbuildMessage {
+    id: string;
+    pluginName: string;
+    text: string;
+    location: {
+        file: string;
+        namespace: string;
+        /** 1-based */
+        line: number;
+        /** 0-based, in bytes */
+        column: number;
+        /** in bytes */
+        length: number;
+        lineText: string;
+        suggestion: string;
+    } | null;
+    notes: Array<{
+        text: string;
+        location: EsbuildMessage['location'];
+    }>;
+    detail: any;
+}
+/** Options accepted by \`compile()\`, passed straight through to esbuild's transform API. */
+export interface EsbuildTransformOptions {
+    /** Which syntax to parse the input as. Defaults to \`'ts'\`. */
+    loader?: EsbuildLoader;
+    /** Name reported in error messages and source maps. */
+    sourcefile?: string;
+    banner?: string;
+    footer?: string;
+    tsconfigRaw?: string | {
+        compilerOptions?: {
+            alwaysStrict?: boolean;
+            importsNotUsedAsValues?: 'remove' | 'preserve' | 'error';
+            jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve';
+            jsxFactory?: string;
+            jsxFragmentFactory?: string;
+            jsxImportSource?: string;
+            preserveValueImports?: boolean;
+            target?: string;
+            useDefineForClassFields?: boolean;
+        };
+    };
+    sourcemap?: boolean | 'linked' | 'inline' | 'external' | 'both';
+    sourceRoot?: string;
+    sourcesContent?: boolean;
+    legalComments?: 'none' | 'inline' | 'eof' | 'linked' | 'external';
+    format?: EsbuildFormat;
+    globalName?: string;
+    /** Language level to downlevel to, e.g. \`'es2015'\`. */
+    target?: string | string[];
+    supported?: Record<string, boolean>;
+    platform?: EsbuildPlatform;
+    minify?: boolean;
+    minifyWhitespace?: boolean;
+    minifyIdentifiers?: boolean;
+    minifySyntax?: boolean;
+    mangleProps?: RegExp;
+    reserveProps?: RegExp;
+    mangleQuoted?: boolean;
+    mangleCache?: Record<string, string | false>;
+    drop?: EsbuildDrop[];
+    charset?: EsbuildCharset;
+    treeShaking?: boolean;
+    ignoreAnnotations?: boolean;
+    jsx?: 'transform' | 'preserve' | 'automatic';
+    jsxFactory?: string;
+    jsxFragment?: string;
+    jsxImportSource?: string;
+    jsxDev?: boolean;
+    jsxSideEffects?: boolean;
+    define?: {
+        [key: string]: string;
+    };
+    pure?: string[];
+    keepNames?: boolean;
+    color?: boolean;
+    logLevel?: EsbuildLogLevel;
+    logLimit?: number;
+    logOverride?: Record<string, EsbuildLogLevel>;
+}
+/** What \`compile()\` resolves to. */
+export interface EsbuildTransformResult {
+    code: string;
+    map: string;
+    warnings: EsbuildMessage[];
+    /** Only set when \`mangleCache\` was passed. */
+    mangleCache?: Record<string, string | false>;
+    /** Only set when \`legalComments\` is \`'external'\`. */
+    legalComments?: string;
+}
+/** The subset of the esbuild-wasm module that this feature calls. */
+export interface EsbuildWasmModule {
+    initialize(options: {
+        wasmURL?: string | URL;
+        wasmModule?: WebAssembly.Module;
+        worker?: boolean;
+    }): Promise<void>;
+    transform(code: string, options?: EsbuildTransformOptions): Promise<EsbuildTransformResult>;
+    version: string;
+}
 export declare const EsbuildWebOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
     _cacheKey: z.ZodOptional<z.ZodString>;
@@ -30994,8 +31101,8 @@ export declare class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
     static category: "dev-tools";
     /** Returns the assetLoader feature for loading external libraries from unpkg. */
     get assetLoader(): import("./asset-loader.js").AssetLoader;
-    compiler: typeof esbuild;
-    compile(code: string, options?: esbuild.TransformOptions): Promise<any>;
+    compiler: EsbuildWasmModule;
+    compile(code: string, options?: EsbuildTransformOptions): Promise<EsbuildTransformResult>;
     clearCache(): this;
     start(): Promise<this>;
 }
