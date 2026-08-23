@@ -15360,6 +15360,11 @@ setBuildTimeData('features.telnyxConnector', {
       "description": "Event emitted by TelnyxConnector",
       "arguments": {}
     },
+    "toolDenied": {
+      "name": "toolDenied",
+      "description": "Event emitted by TelnyxConnector",
+      "arguments": {}
+    },
     "toolCall": {
       "name": "toolCall",
       "description": "Event emitted by TelnyxConnector",
@@ -33237,6 +33242,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "stopped": {
         "name": "stopped",
+        "description": "Event emitted by TelnyxConnector",
+        "arguments": {}
+      },
+      "toolDenied": {
+        "name": "toolDenied",
         "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       },

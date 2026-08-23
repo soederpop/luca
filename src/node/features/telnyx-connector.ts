@@ -23,6 +23,8 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   voice: z.string().optional().describe('TTS voice ID (e.g. Telnyx.Ultra.<id> or an ElevenLabs voice ID). If omitted, uses Telnyx default.'),
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
+  toolSecret: z.string().optional().describe('Shared secret Telnyx must present on tool webhook calls. Auto-generated per deploy if omitted.'),
+  allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed to trigger tool calls. When set, tool requests from any other caller are refused (the call itself still connects).'),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
@@ -34,6 +36,7 @@ export const TelnyxConnectorEventsSchema = FeatureEventsSchema.extend({
   })]).describe('Emitted when the connector is fully running'),
   toolCall: z.tuple([z.string(), z.any()]).describe('Emitted when a tool is called via webhook'),
   toolError: z.tuple([z.string(), z.instanceof(Error)]).describe('Emitted when a tool call throws'),
+  toolDenied: z.tuple([z.string(), z.string()]).describe('Emitted when a tool call is refused: (toolName, reason)'),
   stopped: z.tuple([]).describe('Emitted when the connector is torn down'),
 })
 
@@ -69,6 +72,8 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   private _telnyxClient: any = null
   private _previousConnectionId: string | null = null
   private _messagingProfileId: string | null = null
+  private _toolSecret: string | null = null
+  private _toolSecretId: string | null = null
 
   get assistant() {
     return this.options.assistant
@@ -799,6 +804,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       await this._waitForTunnelReady(publicUrl)
     }
 
+    await this._ensureToolSecret()
     await this._ensureMessagingProfile(publicUrl)
     const telnyxAssistant = await this._createTelnyxAssistant(publicUrl)
 
@@ -866,6 +872,8 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       }
     }
 
+    await this._deleteToolSecret()
+
     if (this._tunnelProcess) {
       try { this._tunnelProcess.kill() } catch {}
       this._tunnelProcess = null
@@ -888,6 +896,23 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
 
     for (const [name, tool] of Object.entries(tools) as [string, any][]) {
       server.app.post(`/tools/${name}`, async (req: any, res: any) => {
+        // Shared secret: only Telnyx (holding our integration secret) may call
+        // tool endpoints. Blocks anyone who discovers the public tunnel URL.
+        if (this._toolSecret && req.headers['authorization'] !== `Bearer ${this._toolSecret}`) {
+          this.emit('toolDenied', name, 'bad or missing tool secret')
+          return res.status(401).json({ error: 'unauthorized' })
+        }
+
+        // Caller allowlist: identity comes from a Telnyx-injected header, so a
+        // caller can't prompt the assistant into bypassing it. Return a spoken
+        // refusal (not an error) so the assistant relays it gracefully.
+        const allowed = this.options.allowedCallers
+        const caller = String(req.headers['x-telnyx-caller'] || '')
+        if (allowed?.length && !allowed.includes(caller)) {
+          this.emit('toolDenied', name, `caller ${caller || 'unknown'} not in allowedCallers`)
+          return res.json({ result: 'This action is restricted and not available for this caller. Do not retry it.' })
+        }
+
         try {
           this.emit('toolCall', name, req.body)
           const result = await tool.handler(req.body)
@@ -979,11 +1004,18 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
 
         this._log(`[telnyx] 💬 Inbound SMS from ${from}: "${text}"`)
 
-        // Get or create a local assistant instance for this phone number
+        // Get or create a local assistant instance for this phone number.
+        // SMS tools run locally (not via Telnyx webhooks), so the caller
+        // allowlist is enforced here: unlisted senders get a tool-less instance.
+        const allowed = this.options.allowedCallers
+        const callerAllowed = !allowed?.length || allowed.includes(from)
         let smsAssistant = assistantsByPhone.get(from)
         if (!smsAssistant) {
           const mgr = this.container.feature('assistantsManager')
-          smsAssistant = mgr.create(this.assistantName, { historyMode: 'lifecycle' })
+          smsAssistant = mgr.create(this.assistantName, {
+            historyMode: 'lifecycle',
+            ...(callerAllowed ? {} : { allowTools: [] }),
+          })
           await smsAssistant.start()
           assistantsByPhone.set(from, smsAssistant)
           this._log(`[telnyx] 💬 Created local assistant for ${from}`)
@@ -1127,12 +1159,87 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   }
 
   /**
+   * Integration secret identifier for this assistant's tool webhook auth.
+   */
+  private get _toolSecretIdentifier() {
+    return `luca_tool_secret_${this.assistantName}`
+  }
+
+  private _telnyxHeaders() {
+    return {
+      Authorization: `Bearer ${process.env.TELNYX_API_KEY}`,
+      'Content-Type': 'application/json',
+    }
+  }
+
+  /**
+   * Register a per-deploy shared secret as a Telnyx integration secret.
+   * Telnyx injects it into tool webhook Authorization headers via mustache
+   * templating; the local server rejects requests that don't carry it.
+   * Secret values can't be read back from Telnyx, so any stale secret with
+   * our identifier is deleted and replaced.
+   */
+  private async _ensureToolSecret() {
+    this._toolSecret = this.options.toolSecret || globalThis.crypto.randomUUID()
+
+    const listResp = await fetch('https://api.telnyx.com/v2/integration_secrets?page[size]=250', {
+      headers: this._telnyxHeaders(),
+    })
+    const listBody: any = await listResp.json().catch(() => ({}))
+    const stale = (listBody?.data || []).filter((s: any) => s.identifier === this._toolSecretIdentifier)
+    for (const s of stale) {
+      await fetch(`https://api.telnyx.com/v2/integration_secrets/${s.id}`, {
+        method: 'DELETE',
+        headers: this._telnyxHeaders(),
+      })
+    }
+
+    const createResp = await fetch('https://api.telnyx.com/v2/integration_secrets', {
+      method: 'POST',
+      headers: this._telnyxHeaders(),
+      body: JSON.stringify({
+        identifier: this._toolSecretIdentifier,
+        type: 'bearer',
+        token: this._toolSecret,
+      }),
+    })
+    if (!createResp.ok) {
+      const text = await createResp.text().catch(() => '')
+      throw new Error(`Failed to register tool secret with Telnyx (${createResp.status}): ${text}`)
+    }
+    const created: any = await createResp.json()
+    this._toolSecretId = created?.data?.id || null
+    this._log(`[telnyx] 🔐 Tool secret registered as ${this._toolSecretIdentifier}`)
+  }
+
+  private async _deleteToolSecret() {
+    if (!this._toolSecretId) return
+    try {
+      await fetch(`https://api.telnyx.com/v2/integration_secrets/${this._toolSecretId}`, {
+        method: 'DELETE',
+        headers: this._telnyxHeaders(),
+      })
+    } catch {}
+    this._toolSecretId = null
+    this._toolSecret = null
+  }
+
+  /**
    * Create a Telnyx assistant that mirrors the local assistant's prompt and tools.
    */
   private async _createTelnyxAssistant(publicUrl: string | null) {
     const webhookTools = []
 
     if (publicUrl) {
+      // Telnyx fills these headers, not the model: the integration secret via
+      // mustache templating, the caller identity via built-in dynamic
+      // variables. A caller can't talk the assistant into forging them.
+      const authHeaders = [
+        { name: 'Authorization', value: `Bearer {{#integration_secret}}${this._toolSecretIdentifier}{{/integration_secret}}` },
+        { name: 'X-Telnyx-Caller', value: '{{telnyx_end_user_target}}' },
+        { name: 'X-Telnyx-Caller-Verified', value: '{{telnyx_end_user_target_verified}}' },
+      ]
+
       const tools = this.assistant.tools
       for (const [name, tool] of Object.entries(tools) as [string, any][]) {
         webhookTools.push({
@@ -1142,6 +1249,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
             description: tool.description || name,
             url: `${publicUrl}/tools/${name}`,
             method: 'POST' as const,
+            headers: authHeaders,
             body_parameters: tool.parameters || { type: 'object', properties: {} },
             timeout_ms: 10000,
           },

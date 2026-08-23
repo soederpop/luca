@@ -26860,6 +26860,8 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     voice: z.ZodOptional<z.ZodString>;
     ttsProvider: z.ZodOptional<z.ZodString>;
     apiKeyRef: z.ZodOptional<z.ZodString>;
+    toolSecret: z.ZodOptional<z.ZodString>;
+    allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
 export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
@@ -26872,6 +26874,7 @@ export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
     }, z.core.$strip>], null>;
     toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+    toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
     stopped: z.ZodTuple<[], null>;
 }, z.core.$strip>;
 /**
@@ -26916,6 +26919,8 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         voice: z.ZodOptional<z.ZodString>;
         ttsProvider: z.ZodOptional<z.ZodString>;
         apiKeyRef: z.ZodOptional<z.ZodString>;
+        toolSecret: z.ZodOptional<z.ZodString>;
+        allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -26927,6 +26932,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         }, z.core.$strip>], null>;
         toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+        toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
         stopped: z.ZodTuple<[], null>;
     }, z.core.$strip>;
     private _log;
@@ -26935,6 +26941,8 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
     private _telnyxClient;
     private _previousConnectionId;
     private _messagingProfileId;
+    private _toolSecret;
+    private _toolSecretId;
     get assistant(): any;
     /**
      * Canonical name derived from the assistant folder (e.g. \`receptionist\`),
@@ -27303,6 +27311,20 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * and concurrent deploys don't collide.
      */
     private _startTunnel;
+    /**
+     * Integration secret identifier for this assistant's tool webhook auth.
+     */
+    private get _toolSecretIdentifier();
+    private _telnyxHeaders;
+    /**
+     * Register a per-deploy shared secret as a Telnyx integration secret.
+     * Telnyx injects it into tool webhook Authorization headers via mustache
+     * templating; the local server rejects requests that don't carry it.
+     * Secret values can't be read back from Telnyx, so any stale secret with
+     * our identifier is deleted and replaced.
+     */
+    private _ensureToolSecret;
+    private _deleteToolSecret;
     /**
      * Create a Telnyx assistant that mirrors the local assistant's prompt and tools.
      */
