@@ -24,7 +24,8 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
   toolSecret: z.string().optional().describe('Shared secret Telnyx must present on tool webhook calls. Auto-generated per deploy if omitted.'),
-  allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed to trigger tool calls. When set, tool requests from any other caller are refused (the call itself still connects).'),
+  allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed to reach the assistant. When set, other callers hear rejectMessage and the call ends before the assistant ever answers; tool webhooks are also gated as defense-in-depth.'),
+  rejectMessage: z.string().default("Hey, sorry, can't talk right now.").describe('What unlisted callers hear before the call hangs up (only used with allowedCallers).'),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
@@ -37,6 +38,7 @@ export const TelnyxConnectorEventsSchema = FeatureEventsSchema.extend({
   toolCall: z.tuple([z.string(), z.any()]).describe('Emitted when a tool is called via webhook'),
   toolError: z.tuple([z.string(), z.instanceof(Error)]).describe('Emitted when a tool call throws'),
   toolDenied: z.tuple([z.string(), z.string()]).describe('Emitted when a tool call is refused: (toolName, reason)'),
+  callScreened: z.tuple([z.string()]).describe('Emitted when an unlisted caller is turned away before reaching the assistant: (callerNumber)'),
   stopped: z.tuple([]).describe('Emitted when the connector is torn down'),
 })
 
@@ -74,6 +76,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   private _messagingProfileId: string | null = null
   private _toolSecret: string | null = null
   private _toolSecretId: string | null = null
+  private _screeningAppId: string | null = null
 
   get assistant() {
     return this.options.assistant
@@ -789,6 +792,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     this._mountToolEndpoints(server)
     this._mountCallEventsEndpoint(server)
     this._mountInboundSmsEndpoint(server)
+    this._mountVoiceScreeningEndpoint(server)
 
     await server.start()
     this._server = server
@@ -808,12 +812,15 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     await this._ensureMessagingProfile(publicUrl)
     const telnyxAssistant = await this._createTelnyxAssistant(publicUrl)
 
-    if (this.options.phoneNumber) {
-      await this._wirePhoneNumber(telnyxAssistant)
-    }
-
+    // The screening webhook reads the assistant id from state, so it must be
+    // set before the number is wired and calls can start arriving.
     this.state.set('publicUrl', publicUrl)
     this.state.set('telnyxAssistantId', telnyxAssistant.id)
+
+    if (this.options.phoneNumber) {
+      await this._wirePhoneNumber(telnyxAssistant, publicUrl)
+    }
+
     this.state.set('port', port)
     this.state.set('running', true)
 
@@ -870,6 +877,13 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       } catch (e) {
         // best effort cleanup
       }
+    }
+
+    if (this._screeningAppId && this._telnyxClient) {
+      try {
+        await this._telnyxClient.texmlApplications.delete(this._screeningAppId)
+      } catch {}
+      this._screeningAppId = null
     }
 
     await this._deleteToolSecret()
@@ -931,6 +945,34 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
         assistant: this.assistantName,
         tools: Object.keys(tools),
       })
+    })
+  }
+
+  /**
+   * Mount the inbound-call screening webhook. When allowedCallers is set, the
+   * phone number is wired to our own TeXML app instead of the assistant's, and
+   * this endpoint decides per call: unlisted callers hear rejectMessage and the
+   * call ends without the assistant ever answering; allowed callers are handed
+   * off to the AI assistant via <Connect><AIAssistant>.
+   */
+  private _mountVoiceScreeningEndpoint(server: any) {
+    server.app.post('/voice/inbound', (req: any, res: any) => {
+      const from = String(req.body?.From || '')
+      const allowed = this.options.allowedCallers
+      const assistantId = this.state.get('telnyxAssistantId')
+
+      res.type('text/xml')
+
+      if (allowed?.length && !allowed.includes(from)) {
+        this._log(`[telnyx] 🚫 Screened call from ${from || 'unknown'}`)
+        this.emit('callScreened', from)
+        const message = this.options.rejectMessage
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>${message}</Say><Hangup/></Response>`)
+      }
+
+      this._log(`[telnyx] 📞 Screening passed for ${from || 'unknown'} → assistant ${assistantId}`)
+      res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Connect><AIAssistant id="${assistantId}"/></Connect></Response>`)
     })
   }
 
@@ -1431,7 +1473,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
    * the persistent messaging profile.
    * Saves the previous connection_id so stop() can restore it.
    */
-  private async _wirePhoneNumber(telnyxAssistant: any) {
+  private async _wirePhoneNumber(telnyxAssistant: any, publicUrl: string | null = null) {
     const phoneNumber = this.options.phoneNumber!
     const client = this._telnyxClient
 
@@ -1466,9 +1508,27 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       throw new Error('Telnyx assistant did not create a TeXML app — is telephony enabled?')
     }
 
-    this._log('[telnyx] Wiring voice connection_id:', texmlAppId)
+    // With allowedCallers, the number points at our screening TeXML app, not
+    // the assistant's — unlisted callers are turned away before it answers.
+    let voiceConnectionId = texmlAppId
+    if (this.options.allowedCallers?.length) {
+      if (publicUrl) {
+        const app = await client.texmlApplications.create({
+          friendly_name: `luca-screen-${this.assistantName}`,
+          voice_url: `${publicUrl}/voice/inbound`,
+          voice_method: 'post',
+        })
+        this._screeningAppId = app?.id || app?.data?.id || null
+        voiceConnectionId = this._screeningAppId || texmlAppId
+        this._log('[telnyx] 🚧 Caller screening app:', this._screeningAppId)
+      } else {
+        console.warn('[telnyx] WARNING: allowedCallers is set but there is no public URL (noTools mode) — calls will NOT be screened')
+      }
+    }
+
+    this._log('[telnyx] Wiring voice connection_id:', voiceConnectionId)
     await client.phoneNumbers.update(phoneRecord.id, {
-      connection_id: texmlAppId,
+      connection_id: voiceConnectionId,
     })
 
     // Wire the persistent messaging profile

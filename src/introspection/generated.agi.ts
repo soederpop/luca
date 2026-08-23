@@ -23429,6 +23429,11 @@ setBuildTimeData('features.telnyxConnector', {
       "name": "toolError",
       "description": "Event emitted by TelnyxConnector",
       "arguments": {}
+    },
+    "callScreened": {
+      "name": "callScreened",
+      "description": "Event emitted by TelnyxConnector",
+      "arguments": {}
     }
   },
   "state": {},
@@ -49713,6 +49718,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "toolError": {
         "name": "toolError",
+        "description": "Event emitted by TelnyxConnector",
+        "arguments": {}
+      },
+      "callScreened": {
+        "name": "callScreened",
         "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       }

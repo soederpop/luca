@@ -26862,6 +26862,7 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     apiKeyRef: z.ZodOptional<z.ZodString>;
     toolSecret: z.ZodOptional<z.ZodString>;
     allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    rejectMessage: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
 export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
@@ -26875,6 +26876,7 @@ export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
     toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
     toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
+    callScreened: z.ZodTuple<[z.ZodString], null>;
     stopped: z.ZodTuple<[], null>;
 }, z.core.$strip>;
 /**
@@ -26921,6 +26923,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         apiKeyRef: z.ZodOptional<z.ZodString>;
         toolSecret: z.ZodOptional<z.ZodString>;
         allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        rejectMessage: z.ZodDefault<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -26933,6 +26936,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
         toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
+        callScreened: z.ZodTuple<[z.ZodString], null>;
         stopped: z.ZodTuple<[], null>;
     }, z.core.$strip>;
     private _log;
@@ -26943,6 +26947,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
     private _messagingProfileId;
     private _toolSecret;
     private _toolSecretId;
+    private _screeningAppId;
     get assistant(): any;
     /**
      * Canonical name derived from the assistant folder (e.g. \`receptionist\`),
@@ -27283,6 +27288,14 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * Mount a POST endpoint for each tool on the assistant.
      */
     private _mountToolEndpoints;
+    /**
+     * Mount the inbound-call screening webhook. When allowedCallers is set, the
+     * phone number is wired to our own TeXML app instead of the assistant's, and
+     * this endpoint decides per call: unlisted callers hear rejectMessage and the
+     * call ends without the assistant ever answering; allowed callers are handed
+     * off to the AI assistant via <Connect><AIAssistant>.
+     */
+    private _mountVoiceScreeningEndpoint;
     /**
      * Mount a POST endpoint to receive call event webhooks (status callbacks from TeXML app).
      */
