@@ -147,6 +147,8 @@ export type OpenAICodexState = z.infer<typeof OpenAICodexStateSchema>
 export type OpenAICodexOptions = z.infer<typeof OpenAICodexOptionsSchema>
 
 export interface CodexRunOptions {
+  /** Abort the spawned Codex process. */
+  signal?: AbortSignal
   model?: string
   cwd?: string
   sandbox?: 'read-only' | 'workspace-write' | 'danger-full-access'
@@ -452,6 +454,11 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    * ```
    */
   async run(prompt: string, options: CodexRunOptions = {}): Promise<CodexSession> {
+    if (options.signal?.aborted) {
+      const error = new Error('The operation was aborted')
+      error.name = 'AbortError'
+      throw error
+    }
     const id = this.createSessionId()
     const args = this.buildArgs(options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
@@ -481,7 +488,18 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     })
 
     this.updateSession(id, { process: proc })
-    await this.consumeStream(id, proc)
+    const onAbort = () => proc.kill()
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+    try {
+      await this.consumeStream(id, proc)
+    } finally {
+      options.signal?.removeEventListener('abort', onAbort)
+    }
+    if (options.signal?.aborted) {
+      const error = new Error('The operation was aborted')
+      error.name = 'AbortError'
+      throw error
+    }
 
     return this.state.current.sessions[id]!
   }

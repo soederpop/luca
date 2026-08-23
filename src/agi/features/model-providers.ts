@@ -448,6 +448,22 @@ function withRequestInstructions(messages: ModelMessage[], instructions?: string
   ]
 }
 
+function abortError(): Error {
+  const error = new Error('The operation was aborted')
+  error.name = 'AbortError'
+  return error
+}
+
+async function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) throw abortError()
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
+
 class NotImplementedTransport implements ModelTransport {
   constructor(public apiMode: ModelProviderApiMode) {}
   async *stream(): AsyncIterable<ModelStreamEvent> {
@@ -491,6 +507,7 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
       ...(request.presencePenalty != null ? { presence_penalty: request.presencePenalty } : {}),
       ...(request.stop ? { stop: request.stop } : {}),
       ...(request.responseFormat ? { response_format: { type: 'json_schema', json_schema: request.responseFormat } } : {}),
+      ...(request.stream && providerOptions.includeUsage !== false ? { stream_options: { include_usage: true } } : {}),
     }
   }
 
@@ -737,13 +754,14 @@ export class OpenAICodexTransport implements ModelTransport {
       ...(providerOptions.config ?? {}),
       ...(developerInstructions ? { developer_instructions: developerInstructions } : {}),
     }
-    const result = await codex.run(prompt, {
+    const result = await withAbort<any>(codex.run(prompt, {
       ...providerOptions,
       previousProviderData: undefined,
       config: Object.keys(config).length ? config : undefined,
       model: request.model ?? provider.model,
       ...(previousThreadId ? { resumeSessionId: previousThreadId } : {}),
-    })
+      ...(request.signal ? { signal: request.signal } : {}),
+    }), request.signal)
     const content = typeof result === 'string' ? result : (result?.result ?? result?.content ?? '')
     const status = typeof result === 'object' ? result?.status : undefined
     if (status === 'error') {
@@ -751,7 +769,6 @@ export class OpenAICodexTransport implements ModelTransport {
       throw new Error(`codex session failed: ${typeof errorPayload === 'string' ? errorPayload : JSON.stringify(errorPayload)}`)
     }
     const threadId = typeof result === 'object' ? result?.threadId : undefined
-    const baseProviderData = typeof result === 'object' ? { ...result, result: undefined, content: undefined, usage: undefined } : undefined
     if (content) yield { type: 'chunk', text: content }
     yield {
       type: 'response',
@@ -760,7 +777,6 @@ export class OpenAICodexTransport implements ModelTransport {
         toolCalls: [],
         usage: typeof result === 'object' ? result?.usage : undefined,
         providerData: {
-          ...(baseProviderData ?? {}),
           ...(threadId ? { codexThreadId: threadId } : {}),
         },
       },
@@ -841,7 +857,10 @@ export class ClaudeSessionTransport implements ModelTransport {
       ...(providerOptions.runOptions ?? {}),
     }
 
-    const session = await claudeCode.run(prompt, runOptions)
+    const session = await withAbort<any>(claudeCode.run(prompt, {
+      ...runOptions,
+      ...(request.signal ? { signal: request.signal } : {}),
+    }), request.signal)
 
     if (session?.status === 'error') {
       throw new Error(`claude session failed: ${session.error ?? session.result ?? 'unknown error'}`)
@@ -874,6 +893,10 @@ export class ClaudeSessionTransport implements ModelTransport {
       const lucaBin = providerOptions.lucaBin ?? 'luca'
       const mcpArgs = ['mcp', '--assistant', assistant, '--transport', 'stdio']
       if (providerOptions.askOnly) mcpArgs.push('--ask-only')
+      const filters = providerOptions.assistantToolFilters ?? {}
+      for (const pattern of filters.allowTools ?? []) mcpArgs.push('--allow-tool', pattern)
+      for (const pattern of filters.forbidTools ?? []) mcpArgs.push('--forbid-tool', pattern)
+      for (const name of filters.toolNames ?? []) mcpArgs.push('--tool-name', name)
       const serverName = providerOptions.mcpServerName ?? `luca-${assistant}`
       servers[serverName] = { command: lucaBin, args: mcpArgs }
     }

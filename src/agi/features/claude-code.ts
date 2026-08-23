@@ -215,6 +215,8 @@ export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
 export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>
 
 export interface RunOptions {
+  /** Abort the spawned Claude process. */
+  signal?: AbortSignal
   /** Override model for this session. */
   model?: string
   /** Override working directory. */
@@ -831,6 +833,11 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    * ```
    */
   async run(prompt: string, options: RunOptions = {}): Promise<ClaudeSession> {
+    if (options.signal?.aborted) {
+      const error = new Error('The operation was aborted')
+      error.name = 'AbortError'
+      throw error
+    }
     const id = this.createSessionId()
     const args = await this.buildArgs(prompt, options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
@@ -867,7 +874,18 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     })
 
     this.updateSession(id, { process: proc })
-    await this.consumeStream(id, proc)
+    const onAbort = () => proc.kill()
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+    try {
+      await this.consumeStream(id, proc)
+    } finally {
+      options.signal?.removeEventListener('abort', onAbort)
+    }
+    if (options.signal?.aborted) {
+      const error = new Error('The operation was aborted')
+      error.name = 'AbortError'
+      throw error
+    }
 
     return this.state.current.sessions[id]!
   }

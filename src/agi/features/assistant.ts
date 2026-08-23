@@ -482,6 +482,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (!conv) {
 			const provider = this.effectiveOptions.provider
 			const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
+			const assistantToolFilters = this.providerToolFilters
 			// With no provider configured, the conversation resolves the container's
 			// default provider (openai when OPENAI_API_KEY is set, else a local
 			// llama-server, else a registered custom endpoint). Only force the
@@ -513,6 +514,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 					providerOptions: {
 						...callerProviderOptions,
 						assistant: callerProviderOptions.assistant ?? this.name,
+						...(assistantToolFilters ? { assistantToolFilters } : {}),
 					},
 				} : {}),
 				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
@@ -587,12 +589,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// one from CORE.md frontmatter) must not follow the switch unless named here.
 		opts.provider = provider ?? undefined
 		opts.model = options.model
-		if (options.providerOptions !== undefined) opts.providerOptions = options.providerOptions
+		const replacementProviderOptions = provider ? {
+			...(options.providerOptions ?? {}),
+			assistant: options.providerOptions?.assistant ?? this.name,
+			...(this.providerToolFilters ? { assistantToolFilters: this.providerToolFilters } : {}),
+		} : undefined
+		opts.providerOptions = replacementProviderOptions
 
 		const existing = this.state.get('conversation') as Conversation | null
 		try {
 			if (existing) {
-				existing.setProvider(provider, options)
+				existing.setProvider(provider, { ...options, providerOptions: replacementProviderOptions })
 			} else if (typeof provider === 'string') {
 				// No conversation yet, so nobody else will validate the id until the
 				// first ask() — check it here so the caller learns now.
@@ -706,6 +713,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/** The tools registered with this assistant. */
 	get tools(): Record<string, ConversationTool> {
 		return this.applyToolFilters(this.allTools)
+	}
+
+	/** Filter policy forwarded to assistant-backed MCP subprocesses. */
+	private get providerToolFilters(): Pick<AssistantOptions, 'allowTools' | 'forbidTools' | 'toolNames'> | undefined {
+		const { allowTools, forbidTools, toolNames } = this.effectiveOptions
+		if (!allowTools && !forbidTools && !toolNames) return undefined
+		return {
+			...(allowTools ? { allowTools: [...allowTools] } : {}),
+			...(forbidTools ? { forbidTools: [...forbidTools] } : {}),
+			...(toolNames ? { toolNames: [...toolNames] } : {}),
+		}
 	}
 
 	/** Every known tool before allow/forbid/toolNames filters are applied. */
@@ -1449,7 +1467,24 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			// Restore lastResponseId so the Responses API can continue the chain
 			if (existing.metadata?.lastResponseId) {
 				this.conversation.state.set('lastResponseId', existing.metadata.lastResponseId)
+				this.conversation.state.set(
+					'lastResponseMessageCount',
+					existing.metadata.lastResponseMessageCount ?? messages.length,
+				)
 			}
+			if (existing.metadata?.lastProviderData) {
+				this.conversation.state.set('lastProviderData', existing.metadata.lastProviderData)
+			}
+			if (existing.tokenUsage) {
+				this.conversation.state.set('tokenUsage', {
+					prompt: existing.tokenUsage.prompt,
+					completion: existing.tokenUsage.completion,
+					total: existing.tokenUsage.total,
+					cachedTokens: existing.tokenUsage.cachedTokens ?? 0,
+					reasoningTokens: existing.tokenUsage.reasoningTokens ?? 0,
+				})
+			}
+			if (existing.cost) this.conversation.state.set('cost', { ...existing.cost })
 		} else {
 			// Fresh conversation — just set thread
 			this.conversation.state.set('thread', threadId)
@@ -1968,9 +2003,21 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			...(allowTools ? { allowTools } : {}),
 			...(toolNames ? { toolNames } : {}),
 		}) as Assistant
+		// Preserve runtime-added tools as part of the assistant identity. The new
+		// assistant was constructed from disk/options and would otherwise know only
+		// its statically declared tools.
+		forkedAssistant.state.set('tools', { ...this.allTools })
 
 		// Inject the forked conversation directly, bypassing the lazy getter
 		forkedAssistant.state.set('conversation', forkedConv)
+		// The conversation was forked before assistant-level filters were applied.
+		// Synchronize the filtered map so native transports cannot offer excluded tools.
+		forkedConv.state.set('tools', { ...forkedAssistant.tools })
+		if (forkedConv.options.provider) {
+			const providerOptions = { ...(forkedConv.options.providerOptions ?? {}) }
+			if (forkedAssistant.providerToolFilters) providerOptions.assistantToolFilters = forkedAssistant.providerToolFilters
+			;(forkedConv.options as any).providerOptions = providerOptions
+		}
 
 		// Track fork depth so forks know they are forks
 		forkedAssistant.state.set('forkDepth', this.forkDepth + 1)

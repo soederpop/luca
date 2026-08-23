@@ -26,6 +26,9 @@ export const argsSchema = CommandOptionsSchema.extend({
 		.describe('Stdio framing compatibility profile. Defaults to standard. Can also be set via MCP_STDIO_COMPAT.'),
 	assistant: z.string().optional().describe('Name of a local assistant whose tools to expose as MCP tools'),
 	askOnly: z.boolean().default(false).describe('Expose only a README and Ask_<name> tool for stateless one-shot queries (requires --assistant)'),
+	allowTool: z.union([z.string(), z.array(z.string())]).optional().describe('Assistant tool allowlist pattern; repeat the flag for multiple patterns'),
+	forbidTool: z.union([z.string(), z.array(z.string())]).optional().describe('Assistant tool denylist pattern; repeat the flag for multiple patterns'),
+	toolName: z.union([z.string(), z.array(z.string())]).optional().describe('Exact assistant tool name to expose; repeat the flag for multiple names'),
 })
 
 export default async function mcp(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -61,6 +64,19 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 			process.exit(1)
 		}
 
+		const asList = (value?: string | string[]) => value
+			? (Array.isArray(value) ? value : [value])
+			: undefined
+		const allowTools = asList(options.allowTool)
+		const forbidTools = asList(options.forbidTool)
+		const toolNames = asList(options.toolName)
+		const assistantOptions = {
+			historyMode: 'lifecycle' as const,
+			...(allowTools?.length ? { allowTools } : {}),
+			...(forbidTools?.length ? { forbidTools } : {}),
+			...(toolNames?.length ? { toolNames } : {}),
+		}
+
 		// Shared helper: build the README content from an assistant instance
 		async function buildReadme(asst: any): Promise<string> {
 			const tools: Record<string, any> = asst.tools
@@ -78,9 +94,16 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 			return content
 		}
 
+		async function executeAssistantTool(asst: any, toolName: string, tool: any, args: any): Promise<string> {
+			const executor = asst.conversation?.toolExecutor
+			if (executor) return executor(toolName, args, tool.handler)
+			const result = await tool.handler(args)
+			return typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+		}
+
 		if (options.askOnly) {
 			// Spin up one instance just to resolve the README (system prompt + any README tool output)
-			const probe = manager.create(options.assistant, { historyMode: 'lifecycle' })
+			const probe = manager.create(options.assistant, assistantOptions)
 			await probe.start()
 			const readmeContent = await buildReadme(probe)
 
@@ -97,13 +120,13 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 				}),
 				description: `Ask the ${options.assistant} assistant a question. Each call is stateless — no history is shared between requests.`,
 				handler: async ({ question }: { question: string }) => {
-					const asst = manager.create(options.assistant!, { historyMode: 'lifecycle' })
+					const asst = manager.create(options.assistant!, assistantOptions)
 					await asst.start()
 					return await asst.ask(question)
 				},
 			})
 		} else {
-			const asst = manager.create(options.assistant, { historyMode: 'lifecycle' })
+			const asst = manager.create(options.assistant, assistantOptions)
 			await asst.start()
 
 			const tools: Record<string, any> = asst.tools
@@ -120,8 +143,7 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 					schema: bridgeSchema((tool as any).parameters),
 					description: (tool as any).description,
 					handler: async (args: any) => {
-						const result = await (tool as any).handler(args)
-						return typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+						return executeAssistantTool(asst, toolName, tool, args)
 					},
 				})
 			}

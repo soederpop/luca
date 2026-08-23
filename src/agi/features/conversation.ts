@@ -125,6 +125,7 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	toolCalls: z.number().describe('Total number of tool calls made in this conversation'),
 	api: z.enum(['responses', 'chat']).describe('Which completion API is active for this conversation'),
 	lastResponseId: z.string().nullable().describe('Most recent OpenAI Responses API response ID for continuing conversation state'),
+	lastResponseMessageCount: z.number().nullable().describe('Local message count represented by lastResponseId, used to detect stale continuation chains'),
 	lastProviderData: z.any().optional().describe('Provider-specific continuation data from the most recent response (e.g. codex/claude-session ids for resume)'),
 	tokenUsage: z.object({
 		prompt: z.number().describe('Total prompt tokens consumed'),
@@ -305,7 +306,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 */
 	toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null = null
 
-	/** The active structured output schema for the current ask() call, if any. */
+	/** The active structured output schema for the serialized ask() currently running. */
 	private _activeSchema: z.ZodType | null = null
 
 	/** Additional model instructions for the current ask() call only. */
@@ -313,6 +314,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** AbortController for the current ask() call, if any. */
 	private _abortController: AbortController | null = null
+
+	/** FIFO tail used to serialize ask() calls against this mutable conversation. */
+	private _askQueue: Promise<void> = Promise.resolve()
 
 	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
 	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
@@ -335,6 +339,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			toolCalls: 0,
 			api: this.apiMode,
 			lastResponseId: null,
+			lastResponseMessageCount: null,
 			lastProviderData: undefined,
 			tokenUsage: { prompt: 0, completion: 0, total: 0, cachedTokens: 0, reasoningTokens: 0 },
 			cost: { inputCost: 0, outputCost: 0, totalCost: 0 },
@@ -635,7 +640,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		if (change.providerGiven) {
 			opts.provider = change.provider ?? undefined
-			if (change.providerOptions !== undefined) opts.providerOptions = change.providerOptions
+			// Provider options belong to one backend. Omitting replacements must
+			// clear old credentials, permissions, clients, and transport knobs.
+			opts.providerOptions = change.providerOptions
 			try {
 				this.assertConfiguredProviderResolvable()
 			} catch (error) {
@@ -657,6 +664,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.state.set('contextWindow', this.options.contextWindow || getContextWindow(model))
 		this.state.set('api', this.apiMode)
 		this.state.set('lastResponseId', null)
+		this.state.set('lastResponseMessageCount', null)
 		this.state.set('lastProviderData', undefined)
 
 		const current = this.routing
@@ -803,6 +811,33 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this._abortController?.abort()
 	}
 
+	/** Race arbitrary provider/tool work against the active turn's abort signal. */
+	private async abortable<T>(promise: Promise<T>, partial = ''): Promise<T> {
+		const signal = this._abortController?.signal
+		if (!signal) return promise
+		if (signal.aborted) throw new ConversationAbortError(partial)
+		return new Promise<T>((resolve, reject) => {
+			const onAbort = () => reject(new ConversationAbortError(partial))
+			signal.addEventListener('abort', onAbort, { once: true })
+			promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+		})
+	}
+
+	/** Make custom async transports abortable even when they ignore request.signal. */
+	private async *abortableStream<T>(stream: AsyncIterable<T>, partial: () => string): AsyncIterable<T> {
+		const iterator = stream[Symbol.asyncIterator]()
+		try {
+			while (true) {
+				const next = await this.abortable(iterator.next(), partial())
+				if (next.done) return
+				yield next.value
+			}
+		} finally {
+			if (this._abortController?.signal.aborted) void iterator.return?.()
+			else await iterator.return?.()
+		}
+	}
+
 	/**
 	 * Returns the correct parameter name for limiting output tokens.
 	 * Local models (LM Studio, Ollama) and legacy OpenAI models use max_tokens.
@@ -929,6 +964,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		// Clear server-side continuation chains since the message history changed.
 		if (this.apiMode === 'responses') {
 			this.state.set('lastResponseId', null)
+			this.state.set('lastResponseMessageCount', null)
 		}
 		if (this.usesGenericTransportLoop) {
 			this.state.set('lastProviderData', undefined)
@@ -968,27 +1004,41 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * ])
 	 */
 	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
+		let release!: () => void
+		const previous = this._askQueue
+		this._askQueue = new Promise<void>((resolve) => { release = resolve })
+
+		await previous
+		try {
+			return await this.runAsk(content, options)
+		} finally {
+			release()
+		}
+	}
+
+	/** Execute one queued ask() with exclusive access to per-turn mutable state. */
+	private async runAsk(content: string | ContentPart[], options?: AskOptions): Promise<string> {
 		this.state.set('callMaxTokens', options?.maxTokens ?? null)
 		this._activeSchema = options?.schema ?? null
 		this._activeInstructions = options?.instructions?.trim() || null
 		this._abortController = new AbortController()
 
-		// Auto-compact before adding the new message
-		if (this.options.autoCompact) {
-			const threshold = this.options.compactThreshold ?? 0.8
-			const estimated = this.estimateTokens()
-			const limit = this.contextWindow * threshold
-			if (estimated >= limit) {
-				this.emit('autoCompactTriggered', { estimated, limit, contextWindow: this.contextWindow })
-				await this.compact()
-			}
-		}
-
-		const userMessage: Message = { role: 'user', content: content as any }
-		this.pushMessage(userMessage)
-		this.emit('userMessage', content)
-
 		try {
+			// Auto-compact before adding the new message
+			if (this.options.autoCompact) {
+				const threshold = this.options.compactThreshold ?? 0.8
+				const estimated = this.estimateTokens()
+				const limit = this.contextWindow * threshold
+				if (estimated >= limit) {
+					this.emit('autoCompactTriggered', { estimated, limit, contextWindow: this.contextWindow })
+					await this.compact()
+				}
+			}
+
+			const userMessage: Message = { role: 'user', content: content as any }
+			this.pushMessage(userMessage)
+			this.emit('userMessage', content)
+
 			const stubText = this._matchStub(typeof content === 'string' ? content : '')
 			if (stubText !== null) {
 				return await this._streamStub(stubText)
@@ -1017,12 +1067,21 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			if (this.usesGenericTransportLoop) {
 				// Non-OpenAI providers (codex, claude-code) run through the
 				// provider-agnostic turn loop driven by ModelStreamEvents.
-				raw = await this.runGenericTransportLoop()
+				const beforeTransportMessages = this.messages.length
+				try {
+					raw = await this.runGenericTransportLoop()
+				} catch (error) {
+					if (!this.shouldRetryWithoutContinuation(error, 'lastProviderData', beforeTransportMessages)) throw error
+					this.state.set('lastProviderData', undefined)
+					raw = await this.runGenericTransportLoop()
+				}
 			} else if (this.apiMode === 'responses') {
-				// When maxInputTokens is set, skip previous_response_id continuation
-				// so we control exactly how many tokens the API processes (server-side
-				// context from previous_response_id would accumulate unbounded).
-				const canChain = !this.options.maxInputTokens
+				const budgetedMessages = this.getMessagesWithinBudget()
+				const representedCount = this.state.get('lastResponseMessageCount')
+				const chainIsCurrent = representedCount != null && representedCount === this.messages.length - 1
+				// Continue server-side only while the continuation represents the exact
+				// local prefix and no history had to be trimmed for the input budget.
+				const canChain = chainIsCurrent && budgetedMessages.length === this.messages.length
 				const previousResponseId = canChain ? (this.state.get('lastResponseId') || undefined) : undefined
 				let input: OpenAI.Responses.ResponseInput
 
@@ -1032,28 +1091,30 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				} else {
 					// No previous response ID (first call, resumed from disk, or maxInputTokens active).
 					// Convert (possibly trimmed) message history to Responses API input.
-					input = messagesToResponsesInput(this.getMessagesWithinBudget() as any)
+					input = messagesToResponsesInput(budgetedMessages as any)
 				}
 
-				raw = await this.runResponsesLoop({
-					turn: 1,
-					accumulated: '',
-					input,
-					previousResponseId,
-				})
+				const beforeTransportMessages = this.messages.length
+				try {
+					raw = await this.runResponsesLoop({ turn: 1, accumulated: '', input, previousResponseId })
+				} catch (error) {
+					if (!previousResponseId || !this.shouldRetryWithoutContinuation(error, 'lastResponseId', beforeTransportMessages)) throw error
+					this.state.set('lastResponseId', null)
+					this.state.set('lastResponseMessageCount', null)
+					raw = await this.runResponsesLoop({
+						turn: 1,
+						accumulated: '',
+						input: messagesToResponsesInput(this.getMessagesWithinBudget() as any),
+					})
+				}
 			} else {
 				raw = await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
 			}
 
 			// When a structured output schema is active, parse the JSON response
 			if (this._activeSchema) {
-				try {
-					const parsed = JSON.parse(raw)
-					return parsed
-				} catch {
-					// Model returned something that isn't valid JSON — return raw
-					return raw
-				}
+				const parsed = JSON.parse(raw)
+				return this._activeSchema.parse(parsed) as any
 			}
 
 			return raw
@@ -1075,6 +1136,22 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this._activeInstructions = null
 			this._abortController = null
 		}
+	}
+
+	/** Retry only failures that explicitly identify an invalid/expired continuation handle. */
+	private shouldRetryWithoutContinuation(
+		error: unknown,
+		stateKey: 'lastResponseId' | 'lastProviderData',
+		messageCountBeforeTransport: number,
+	): boolean {
+		if (!this.state.get(stateKey as any)) return false
+		if (this.messages.length !== messageCountBeforeTransport) return false
+		const value = error as any
+		const status = value?.status ?? value?.statusCode ?? value?.response?.status
+		const message = String(value?.message ?? value ?? '').toLowerCase()
+		const namesContinuation = /previous[_ ]response|continuation|resume|session|thread/.test(message)
+		const saysInvalid = /invalid|expired|not found|unknown|does not exist|no longer exists/.test(message)
+		return namesContinuation && saysInvalid && (status == null || status === 400 || status === 404)
 	}
 
 	/**
@@ -1200,16 +1277,17 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					// provider.model already honors options.model ?? profile default,
 					// so codex/claude-code fall back to their own default model.
 					model: provider.model,
-					messages: this.messages as any,
+					messages: this.sanitizeMessages(this.getMessagesWithinBudget()) as any,
 					tools: tools.length ? tools : undefined,
 					maxTokens: this.maxTokens,
 					instructions: this._activeInstructions ?? undefined,
+					responseFormat: this.structuredOutputConfig,
 					temperature: this.state.get('temperature') ?? undefined,
 					signal: this._abortController?.signal,
 					providerOptions: provider.providerOptions,
 				}, provider)
 
-				for await (const event of stream) {
+				for await (const event of this.abortableStream(stream, () => accumulated)) {
 					if (event.type === 'chunk') {
 						turnContent += event.text
 						accumulated += event.text
@@ -1286,15 +1364,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const total = usage.total_tokens ?? (prompt + completion)
 		const cached = usage.prompt_tokens_details?.cached_tokens ?? usage.input_tokens_details?.cached_tokens ?? 0
 		const reasoning = usage.completion_tokens_details?.reasoning_tokens ?? usage.output_tokens_details?.reasoning_tokens ?? 0
-		const prev = this.state.get('tokenUsage')!
-		this.state.set('tokenUsage', {
-			prompt: prev.prompt + prompt,
-			completion: prev.completion + completion,
-			total: prev.total + total,
-			cachedTokens: prev.cachedTokens + cached,
-			reasoningTokens: prev.reasoningTokens + reasoning,
-		})
-		this.updateCost()
+		this.applyUsageDelta({ prompt, completion, total, cached, reasoning, costUsd: usage.costUsd })
 	}
 
 	/** Returns the conversationHistory feature for persistence. */
@@ -1320,6 +1390,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const lastProviderData = this.state.get('lastProviderData')
 		const responseMeta = {
 			...(lastResponseId ? { lastResponseId } : {}),
+			...(lastResponseId ? { lastResponseMessageCount: this.state.get('lastResponseMessageCount') } : {}),
 			...(lastProviderData ? { lastProviderData } : {}),
 		}
 
@@ -1378,16 +1449,19 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}
 
 		if (this.toolExecutor) {
-			return this.toolExecutor(toolName, args, tool.handler)
+			return this.abortable(this.toolExecutor(toolName, args, tool.handler), this.state.get('lastResponse') || '')
 		}
 
 		try {
 			this.emit('toolCall', toolName, args)
-			const output = await tool.handler(args)
+			const output = await this.abortable(Promise.resolve(tool.handler(args)), this.state.get('lastResponse') || '')
 			const result = typeof output === 'string' ? output : JSON.stringify(output)
 			this.emit('toolResult', toolName, result)
 			return result
 		} catch (err: any) {
+			if (err instanceof ConversationAbortError || err?.name === 'AbortError' || this._abortController?.signal.aborted) {
+				throw err
+			}
 			const result = JSON.stringify({ error: err.message || String(err) })
 			this.emit('toolError', toolName, err)
 			return result
@@ -1420,6 +1494,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		try {
 			for (const chunk of chunks) {
+				if (this._abortController?.signal.aborted) throw new ConversationAbortError(accumulated)
 				accumulated += chunk
 				this.emit('chunk', chunk)
 				this.emit('preview', accumulated)
@@ -1484,7 +1559,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				},
 			}, provider)
 
-			for await (const transportEvent of stream) {
+			for await (const transportEvent of this.abortableStream(stream, () => accumulated)) {
 				if (transportEvent.type === 'rawEvent') {
 					const event = transportEvent.event
 					this.emit('rawEvent', event)
@@ -1572,6 +1647,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const finalText = turnContent || finalResponse.output_text || ''
 		const assistantMessage: Message = { role: 'assistant', content: finalText }
 		this.pushMessage(assistantMessage)
+		this.state.set('lastResponseMessageCount', this.messages.length)
 		this.state.set('lastResponse', accumulated || finalText)
 
 		this.emit('turnEnd', { turn, hasToolCalls: false })
@@ -1580,28 +1656,47 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return accumulated || finalText
 	}
 
-	/** Recalculate the running cost estimate from current token usage and update state. */
-	private updateCost() {
-		const tokenUsage = this.state.get('tokenUsage')!
-		const { inputCost, outputCost, totalCost } = calculateCost(this.model, tokenUsage.prompt, tokenUsage.completion, {
-			cachedTokens: tokenUsage.cachedTokens,
-			reasoningTokens: tokenUsage.reasoningTokens,
+	/** Apply one response's usage without repricing earlier turns after a model switch. */
+	private applyUsageDelta(delta: {
+		prompt: number
+		completion: number
+		total: number
+		cached: number
+		reasoning: number
+		costUsd?: number
+	}) {
+		const prevUsage = this.state.get('tokenUsage')!
+		this.state.set('tokenUsage', {
+			prompt: prevUsage.prompt + delta.prompt,
+			completion: prevUsage.completion + delta.completion,
+			total: prevUsage.total + delta.total,
+			cachedTokens: prevUsage.cachedTokens + delta.cached,
+			reasoningTokens: prevUsage.reasoningTokens + delta.reasoning,
 		})
-		this.state.set('cost', { inputCost, outputCost, totalCost })
+
+		const prevCost = this.state.get('cost')!
+		const estimated = calculateCost(this.model, delta.prompt, delta.completion, {
+			cachedTokens: delta.cached,
+			reasoningTokens: delta.reasoning,
+		})
+		const providerTotal = Number.isFinite(delta.costUsd) ? Number(delta.costUsd) : estimated.totalCost
+		this.state.set('cost', {
+			inputCost: prevCost.inputCost + estimated.inputCost,
+			outputCost: prevCost.outputCost + estimated.outputCost,
+			totalCost: prevCost.totalCost + providerTotal,
+		})
 	}
 
 	/** Apply Responses API usage stats to this conversation's token usage counters. */
 	private applyResponsesUsage(usage?: OpenAI.Responses.ResponseUsage) {
 		if (!usage) return
-		const prev = this.state.get('tokenUsage')!
-		this.state.set('tokenUsage', {
-			prompt: prev.prompt + (usage.input_tokens || 0),
-			completion: prev.completion + (usage.output_tokens || 0),
-			total: prev.total + (usage.total_tokens || 0),
-			cachedTokens: prev.cachedTokens + (usage.input_tokens_details?.cached_tokens || 0),
-			reasoningTokens: prev.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens || 0),
+		this.applyUsageDelta({
+			prompt: usage.input_tokens || 0,
+			completion: usage.output_tokens || 0,
+			total: usage.total_tokens || 0,
+			cached: usage.input_tokens_details?.cached_tokens || 0,
+			reasoning: usage.output_tokens_details?.reasoning_tokens || 0,
 		})
-		this.updateCost()
 	}
 
 	/**
@@ -1649,7 +1744,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				stream: true,
 			}, provider)
 
-			for await (const transportEvent of stream) {
+			for await (const transportEvent of this.abortableStream(stream, () => accumulated)) {
 				if (transportEvent.type === 'chunk') {
 					const delta = transportEvent.text
 					turnContent += delta
@@ -1682,15 +1777,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 					if (response.usage) {
 						const usage = response.usage
-						const prev = this.state.get('tokenUsage')!
-						this.state.set('tokenUsage', {
-							prompt: prev.prompt + (usage.prompt_tokens || 0),
-							completion: prev.completion + (usage.completion_tokens || 0),
-							total: prev.total + (usage.total_tokens || 0),
-							cachedTokens: prev.cachedTokens + (usage.prompt_tokens_details?.cached_tokens || 0),
-							reasoningTokens: prev.reasoningTokens + (usage.completion_tokens_details?.reasoning_tokens || 0),
+						this.applyUsageDelta({
+							prompt: usage.prompt_tokens || 0,
+							completion: usage.completion_tokens || 0,
+							total: usage.total_tokens || 0,
+							cached: usage.prompt_tokens_details?.cached_tokens || 0,
+							reasoning: usage.completion_tokens_details?.reasoning_tokens || 0,
 						})
-						this.updateCost()
 					}
 				}
 			}
@@ -1801,6 +1894,14 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		for (let g = groups.length - 1; g >= 0; g--) {
 			const groupTokens = countMessageTokens(groups[g]!, this.model)
+			// The newest atomic group contains the active request (or the latest
+			// tool-call/result pair). It must survive even when it alone exceeds the
+			// configured budget; dropping it would send an unintended empty request.
+			if (g === groups.length - 1) {
+				running += groupTokens
+				cutoff = g
+				continue
+			}
 			if (running + groupTokens > budget) break
 			running += groupTokens
 			cutoff = g
@@ -1855,6 +1956,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * @param {Message} message - The message to append
 	 */
 	pushMessage(message: Message) {
+		// Explicit message injection outside ask() invalidates provider-side state:
+		// those handles represent the old local prefix and cannot see this mutation.
+		if (!this._abortController) {
+			this.state.set('lastResponseId', null)
+			this.state.set('lastResponseMessageCount', null)
+			this.state.set('lastProviderData', undefined)
+		}
 		this.state.set('messages', [...this.messages, message])
 	}
 }

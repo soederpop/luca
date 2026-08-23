@@ -4348,6 +4348,10 @@ setBuildTimeData('features.claudeCode', {
           "type": "RunOptions",
           "description": "Per-session options, merged over the feature defaults",
           "properties": {
+            "signal": {
+              "type": "AbortSignal",
+              "description": "Abort the spawned Claude process."
+            },
             "model": {
               "type": "string",
               "description": "Override model for this session."
@@ -4519,6 +4523,10 @@ setBuildTimeData('features.claudeCode', {
           "type": "RunOptions",
           "description": "Session configuration overrides",
           "properties": {
+            "signal": {
+              "type": "AbortSignal",
+              "description": "Abort the spawned Claude process."
+            },
             "model": {
               "type": "string",
               "description": "Override model for this session."
@@ -4692,6 +4700,10 @@ setBuildTimeData('features.claudeCode', {
           "type": "RunOptions",
           "description": "Session configuration overrides",
           "properties": {
+            "signal": {
+              "type": "AbortSignal",
+              "description": "Abort the spawned Claude process."
+            },
             "model": {
               "type": "string",
               "description": "Override model for this session."
@@ -5131,6 +5143,11 @@ setBuildTimeData('features.claudeCode', {
     "RunOptions": {
       "description": "",
       "properties": {
+        "signal": {
+          "type": "AbortSignal",
+          "description": "Abort the spawned Claude process.",
+          "optional": true
+        },
         "model": {
           "type": "string",
           "description": "Override model for this session.",
@@ -16791,6 +16808,10 @@ setBuildTimeData('features.openaiCodex', {
           "type": "CodexRunOptions",
           "description": "Optional overrides for model, cwd, sandbox policy, etc.",
           "properties": {
+            "signal": {
+              "type": "AbortSignal",
+              "description": "Abort the spawned Codex process."
+            },
             "model": {
               "type": "string",
               "description": ""
@@ -16876,6 +16897,10 @@ setBuildTimeData('features.openaiCodex', {
           "type": "CodexRunOptions",
           "description": "Optional overrides for model, cwd, sandbox policy, etc.",
           "properties": {
+            "signal": {
+              "type": "AbortSignal",
+              "description": "Abort the spawned Codex process."
+            },
             "model": {
               "type": "string",
               "description": ""
@@ -17175,6 +17200,11 @@ setBuildTimeData('features.openaiCodex', {
     "CodexRunOptions": {
       "description": "",
       "properties": {
+        "signal": {
+          "type": "AbortSignal",
+          "description": "Abort the spawned Codex process.",
+          "optional": true
+        },
         "model": {
           "type": "string",
           "description": "",
@@ -30610,6 +30640,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "RunOptions",
             "description": "Per-session options, merged over the feature defaults",
             "properties": {
+              "signal": {
+                "type": "AbortSignal",
+                "description": "Abort the spawned Claude process."
+              },
               "model": {
                 "type": "string",
                 "description": "Override model for this session."
@@ -30781,6 +30815,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "RunOptions",
             "description": "Session configuration overrides",
             "properties": {
+              "signal": {
+                "type": "AbortSignal",
+                "description": "Abort the spawned Claude process."
+              },
               "model": {
                 "type": "string",
                 "description": "Override model for this session."
@@ -30954,6 +30992,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "RunOptions",
             "description": "Session configuration overrides",
             "properties": {
+              "signal": {
+                "type": "AbortSignal",
+                "description": "Abort the spawned Claude process."
+              },
               "model": {
                 "type": "string",
                 "description": "Override model for this session."
@@ -31393,6 +31435,11 @@ export const introspectionData: Record<string, any>[] = [
       "RunOptions": {
         "description": "",
         "properties": {
+          "signal": {
+            "type": "AbortSignal",
+            "description": "Abort the spawned Claude process.",
+            "optional": true
+          },
           "model": {
             "type": "string",
             "description": "Override model for this session.",
@@ -43019,6 +43066,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "CodexRunOptions",
             "description": "Optional overrides for model, cwd, sandbox policy, etc.",
             "properties": {
+              "signal": {
+                "type": "AbortSignal",
+                "description": "Abort the spawned Codex process."
+              },
               "model": {
                 "type": "string",
                 "description": ""
@@ -43104,6 +43155,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "CodexRunOptions",
             "description": "Optional overrides for model, cwd, sandbox policy, etc.",
             "properties": {
+              "signal": {
+                "type": "AbortSignal",
+                "description": "Abort the spawned Codex process."
+              },
               "model": {
                 "type": "string",
                 "description": ""
@@ -43403,6 +43458,11 @@ export const introspectionData: Record<string, any>[] = [
       "CodexRunOptions": {
         "description": "",
         "properties": {
+          "signal": {
+            "type": "AbortSignal",
+            "description": "Abort the spawned Codex process.",
+            "optional": true
+          },
           "model": {
             "type": "string",
             "description": "",
