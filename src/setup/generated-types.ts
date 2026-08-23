@@ -93,7 +93,7 @@ import { VoiceMode } from "./features/voice-mode";
 export { Memory } from "./features/agent-memory";
 export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } from "./features/agent-memory";
 export { Assistant } from "./features/assistant";
-export type { AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
+export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
 export type { AssistantEntry, AssistantsManagerHooksModule, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
 export { BrowserUse } from "./features/browser-use";
@@ -557,6 +557,7 @@ import type { ConversationHistory, ConversationMeta } from './conversation-histo
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js';
 import type { Entity } from '../../entity.js';
 import { State } from '../../state.js';
+import type { ToolsBundle } from '../../helper.js';
 declare module 'luca/feature' {
     interface AvailableFeatures {
         assistant: typeof Assistant;
@@ -588,6 +589,8 @@ export declare const AssistantEventsSchema: z.ZodObject<{
         index: z.ZodNumber;
         description: z.ZodString;
         model: z.ZodString;
+        batch: z.ZodOptional<z.ZodBoolean>;
+        count: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>], null>;
     reloaded: z.ZodTuple<[], null>;
     systemPromptExtensionsChanged: z.ZodTuple<[], null>;
@@ -653,11 +656,35 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
         model: z.ZodOptional<z.ZodString>;
         url: z.ZodOptional<z.ZodString>;
         apiKey: z.ZodOptional<z.ZodString>;
+        batch: z.ZodOptional<z.ZodBoolean>;
+        batchPrompt: z.ZodOptional<z.ZodString>;
+        concurrency: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>]>>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$strip>;
+/** Fully resolved vision delegation settings, as returned by \`assistant.visionSupport\`. */
+export interface VisionSupportConfig {
+    prompt: string;
+    batchPrompt: string;
+    model: string;
+    url?: string;
+    apiKey?: string;
+    batch: boolean;
+    concurrency: number;
+}
 export type AssistantState = z.infer<typeof AssistantStateSchema>;
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>;
+export type ToolFilterDecision = {
+    included: boolean;
+    excludedBy: string | null;
+};
+/**
+ * Resolve the assistant tool-filter precedence for one tool name.
+ * This pure helper is shared by the runtime tool getter and introspection APIs.
+ */
+export declare function resolveToolFilterDecision(name: string, filters: Pick<AssistantOptions, 'allowTools' | 'forbidTools' | 'toolNames'>): ToolFilterDecision;
+/** Match a tool name against the assistant's \`*\` glob syntax. */
+export declare function matchToolPattern(pattern: string, name: string): boolean;
 /** Fork options extended with assistant-specific tool filtering and lifecycle hooks. */
 export type AssistantForkOptions = ForkOptions & {
     /** Denylist of tool name patterns to exclude from the fork. Supports "*" glob matching. */
@@ -771,6 +798,9 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
             model: z.ZodOptional<z.ZodString>;
             url: z.ZodOptional<z.ZodString>;
             apiKey: z.ZodOptional<z.ZodString>;
+            batch: z.ZodOptional<z.ZodBoolean>;
+            batchPrompt: z.ZodOptional<z.ZodString>;
+            concurrency: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>]>>;
         config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     }, z.core.$strip>;
@@ -800,6 +830,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
             index: z.ZodNumber;
             description: z.ZodString;
             model: z.ZodString;
+            batch: z.ZodOptional<z.ZodBoolean>;
+            count: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>], null>;
         reloaded: z.ZodTuple<[], null>;
         systemPromptExtensionsChanged: z.ZodTuple<[], null>;
@@ -828,6 +860,9 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * or anything else. Fully observable so UI or other systems can react.
      */
     readonly mentalState: State<Record<string, any>>;
+    private _configuredUse;
+    private _toolSchemas;
+    private _toolSources;
     /**
      * Register an interceptor at a given point in the pipeline.
      *
@@ -960,21 +995,22 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     private syncSystemPromptToConversation;
     /** The tools registered with this assistant. */
     get tools(): Record<string, ConversationTool>;
+    /** Every known tool before allow/forbid/toolNames filters are applied. */
+    get allTools(): Record<string, ConversationTool>;
+    /** Live Zod schemas keyed by tool name. */
+    get schemas(): Record<string, z.ZodType>;
+    /** Provenance for every live tool: feature id, tools.ts, or runtime. */
+    get toolSources(): Record<string, string>;
+    /** Resolved entries exported by tools.ts as \`use\`, retained after startup. */
+    get configuredUse(): any[];
+    /** Resolve whether one tool survives the assistant's current filters. */
+    toolFilterDecision(name: string): ToolFilterDecision;
     /**
      * Apply allowTools, forbidTools, and toolNames filters from options.
      * toolNames is treated as an exact-match allowlist. allowTools/forbidTools support "*" glob patterns.
      * allowTools is applied first (strict allowlist), then forbidTools removes from whatever remains.
      */
     private applyToolFilters;
-    /**
-     * Match a tool name against a pattern that supports "*" as a wildcard.
-     * - "*" matches everything
-     * - "prefix*" matches names starting with prefix
-     * - "*suffix" matches names ending with suffix
-     * - "pre*suf" matches names starting with pre and ending with suf
-     * - exact string matches exactly
-     */
-    private matchToolPattern;
     /**
      * Apply a setup function or a Helper instance to this assistant.
      *
@@ -995,14 +1031,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * \`\`\`
      */
     use(fnOrHelper: ((assistant: this) => void | Promise<void>) | {
-        toTools: () => {
-            schemas: Record<string, z.ZodType>;
-            handlers: Record<string, Function>;
-        };
-    } | {
-        schemas: Record<string, z.ZodType>;
-        handlers: Record<string, Function>;
-    }): this;
+        toTools: () => ToolsBundle;
+    } | ToolsBundle): this;
     /**
      * Best-effort label for something passed to \`use()\`, so failures can name
      * the helper at fault instead of surfacing anonymously.
@@ -1193,8 +1223,14 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * Called from start() for non-lifecycle modes.
      */
     private loadConversationHistory;
-    /** Tool names added at runtime via addTool()/use(), so reload() can preserve them. */
+    /** Tool names added at runtime via addTool(), so reload() can preserve them. */
     private _runtimeToolNames;
+    /**
+     * Materialize the \`export const use = [...]\` entries loaded from tools.ts.
+     * Safe to call before start(); entries are consumed once while configuredUse
+     * remains available for runtime introspection.
+     */
+    resolveConfiguredUse(): this;
     /**
      * Reload tools, hooks, and system prompt from disk. Useful during development
      * or when tool/hook files have been modified and you want the assistant to
@@ -1217,23 +1253,36 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY,
      * falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.
      */
-    get visionSupport(): {
-        prompt: string;
-        model: string;
-        url?: string;
-        apiKey?: string;
-    } | undefined;
+    get visionSupport(): VisionSupportConfig | undefined;
     /** The default instruction sent to the vision model alongside each delegated image. */
     static readonly defaultVisionPrompt: string;
+    /** The default instruction used when batch mode sends every image in a single call. */
+    static readonly defaultBatchVisionPrompt: string;
     /**
      * Replace image parts in a content array with text descriptions produced by the
-     * configured vision model. Each image is described in parallel. Used by ask()
-     * when visionSupport is enabled; also callable directly.
+     * configured vision model. Used by ask() when visionSupport is enabled; also
+     * callable directly, and \`overrides\` lets a single call opt into batch mode
+     * without reconfiguring the assistant.
+     *
+     * Two modes:
+     * - default: one vision call per image, run \`concurrency\` at a time. Each image is
+     *   described in isolation, so the model cannot compare them.
+     * - batch: ONE call containing every image, described as an ordered sequence. Use this
+     *   for video frames or before/after pairs — it is the only mode that can report what
+     *   changed between images. All image parts collapse into a single text part where the
+     *   first image was, so the returned array is shorter than the input.
      *
      * @param parts - Content parts possibly containing image_url entries
+     * @param overrides - Per-call overrides for batch, prompt, batchPrompt, concurrency
      * @returns The parts with images replaced by descriptive text parts
+     *
+     * @example
+     * \`\`\`typescript
+     * // Describe video frames as one sequence, so motion survives the hand-off
+     * const described = await assistant.describeImages(frames, { batch: true })
+     * \`\`\`
      */
-    describeImages(parts: ContentPart[]): Promise<ContentPart[]>;
+    describeImages(parts: ContentPart[], overrides?: Partial<Pick<VisionSupportConfig, 'batch' | 'prompt' | 'batchPrompt' | 'concurrency'>>): Promise<ContentPart[]>;
     /**
      * Ask the assistant a question. It will use its tools to produce
      * a streamed response. The assistant auto-starts if needed.
@@ -12582,6 +12631,21 @@ import { HelperStateSchema, HelperOptionsSchema } from './schemas/base.js';
 export { presentIntrospectionAsMarkdown, presentIntrospectionAsTypeScript, renderTypeScriptParams, normalizeTypeString, isGenericObjectType, };
 export type HelperState = z.infer<typeof HelperStateSchema>;
 export type HelperOptions = z.infer<typeof HelperOptionsSchema>;
+export type ToolsProviderMetadata = {
+    name: string;
+    category?: HelperCategory;
+    stability?: HelperStability;
+    options: Record<string, any>;
+    only?: string[];
+    except?: string[];
+    totalToolCount: number;
+};
+export type ToolsBundle = {
+    schemas: Record<string, z.ZodType>;
+    handlers: Record<string, Function>;
+    setup?: (consumer: Helper) => void;
+    provider?: ToolsProviderMetadata;
+};
 /**
  * Helpers are used to represent types of modules.
  *
@@ -12766,11 +12830,7 @@ export declare abstract class Helper<T extends HelperState = HelperState, K exte
     toTools(options?: {
         only?: string[];
         except?: string[];
-    }): {
-        schemas: Record<string, z.ZodType>;
-        handlers: Record<string, Function>;
-        setup?: (consumer: Helper) => void;
-    };
+    }): ToolsBundle;
     /**
      * The options passed to the helper when it was created.
     */
@@ -30477,7 +30537,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.3";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.4";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
