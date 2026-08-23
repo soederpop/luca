@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.8.5"
+export const typesBundleVersion = "3.9.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -995,6 +995,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     private syncSystemPromptToConversation;
     /** The tools registered with this assistant. */
     get tools(): Record<string, ConversationTool>;
+    /** Filter policy forwarded to assistant-backed MCP subprocesses. */
+    private get providerToolFilters();
     /** Every known tool before allow/forbid/toolNames filters are applied. */
     get allTools(): Record<string, ConversationTool>;
     /** Live Zod schemas keyed by tool name. */
@@ -2635,6 +2637,8 @@ export declare const ClaudeCodeEventsSchema: z.ZodObject<{
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>;
 export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>;
 export interface RunOptions {
+    /** Abort the spawned Claude process. */
+    signal?: AbortSignal;
     /** Override model for this session. */
     model?: string;
     /** Override working directory. */
@@ -4043,6 +4047,7 @@ export declare const ConversationStateSchema: z.ZodObject<{
         chat: "chat";
     }>;
     lastResponseId: z.ZodNullable<z.ZodString>;
+    lastResponseMessageCount: z.ZodNullable<z.ZodNumber>;
     lastProviderData: z.ZodOptional<z.ZodAny>;
     tokenUsage: z.ZodObject<{
         prompt: z.ZodNumber;
@@ -4194,6 +4199,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
             chat: "chat";
         }>;
         lastResponseId: z.ZodNullable<z.ZodString>;
+        lastResponseMessageCount: z.ZodNullable<z.ZodNumber>;
         lastProviderData: z.ZodOptional<z.ZodAny>;
         tokenUsage: z.ZodObject<{
             prompt: z.ZodNumber;
@@ -4317,12 +4323,14 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * The Assistant replaces this to wire in beforeToolCall/afterToolCall interceptors.
      */
     toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null;
-    /** The active structured output schema for the current ask() call, if any. */
+    /** The active structured output schema for the serialized ask() currently running. */
     private _activeSchema;
     /** Additional model instructions for the current ask() call only. */
     private _activeInstructions;
     /** AbortController for the current ask() call, if any. */
     private _abortController;
+    /** FIFO tail used to serialize ask() calls against this mutable conversation. */
+    private _askQueue;
     /** Registered stubs: matched against user input to short-circuit the API with a canned response. */
     private _stubs;
     /** Resolved max tokens: per-call override > state-level. Undefined means no limit (model default). */
@@ -4535,6 +4543,10 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * accumulated before the abort.
      */
     abort(): void;
+    /** Race arbitrary provider/tool work against the active turn's abort signal. */
+    private abortable;
+    /** Make custom async transports abortable even when they ignore request.signal. */
+    private abortableStream;
     /**
      * Returns the correct parameter name for limiting output tokens.
      * Local models (LM Studio, Ollama) and legacy OpenAI models use max_tokens.
@@ -4586,6 +4598,10 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * ])
      */
     ask(content: string | ContentPart[], options?: AskOptions): Promise<string>;
+    /** Execute one queued ask() with exclusive access to per-turn mutable state. */
+    private runAsk;
+    /** Retry only failures that explicitly identify an invalid/expired continuation handle. */
+    private shouldRetryWithoutContinuation;
     /**
      * Build the OpenAI response_format / text.format config from the active Zod schema.
      * Returns undefined when no schema is active.
@@ -4659,8 +4675,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * the model produces a final text response.
      */
     private runResponsesLoop;
-    /** Recalculate the running cost estimate from current token usage and update state. */
-    private updateCost;
+    /** Apply one response's usage without repricing earlier turns after a model switch. */
+    private applyUsageDelta;
     /** Apply Responses API usage stats to this conversation's token usage counters. */
     private applyResponsesUsage;
     /**
@@ -6296,6 +6312,8 @@ export declare const OpenAICodexEventsSchema: z.ZodObject<{
 export type OpenAICodexState = z.infer<typeof OpenAICodexStateSchema>;
 export type OpenAICodexOptions = z.infer<typeof OpenAICodexOptionsSchema>;
 export interface CodexRunOptions {
+    /** Abort the spawned Codex process. */
+    signal?: AbortSignal;
     model?: string;
     cwd?: string;
     sandbox?: 'read-only' | 'workspace-write' | 'danger-full-access';
@@ -11143,6 +11161,9 @@ export declare const argsSchema: z.ZodObject<{
     }>>;
     assistant: z.ZodOptional<z.ZodString>;
     askOnly: z.ZodDefault<z.ZodBoolean>;
+    allowTool: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
+    forbidTool: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
+    toolName: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
 }, z.core.$strip>;
 export default function mcp(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 //# sourceMappingURL=mcp.d.ts.map`,
