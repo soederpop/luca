@@ -27,7 +27,7 @@ const DEFAULT_SKIP = new Set([
 	'assistant', 'assistantsManager', 'claudeCode', 'openaiCodex',
 	'conversation', 'conversationHistory', 'conversationv2', 'memory', 'semanticSearch', 'mcpBridge',
 	'mcp', 'containerLink', 'dns', 'skillsLibrary', 'docsReader', 'codingTools', 'fileTools', 'openapi',
-	'browserUse', 'cipherSocial', 'claudeController', 'modelProviders', 'telnyxAssistantConnector', 'voiceMode', 'socketRepl',
+	'browserUse', 'cipherSocial', 'claudeController', 'modelProviders', 'telnyxConnector', 'voiceMode', 'socketRepl',
 ])
 
 type BlockResult = {

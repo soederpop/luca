@@ -13579,7 +13579,7 @@ import "./features/socket-repl";
 import "./features/sqlite";
 import "./features/store";
 import "./features/telegram";
-import "./features/telnyx-assistant-connector";
+import "./features/telnyx-connector";
 import "./features/tmux";
 import "./features/transpiler";
 import "./features/tts";
@@ -13629,7 +13629,7 @@ import type { SocketRepl } from "./features/socket-repl";
 import type { Sqlite } from "./features/sqlite";
 import type { Store } from "./features/store";
 import type { Telegram } from "./features/telegram";
-import type { TelnyxAssistantConnector } from "./features/telnyx-assistant-connector";
+import type { TelnyxConnector } from "./features/telnyx-connector";
 import type { Tmux } from "./features/tmux";
 import type { Transpiler } from "./features/transpiler";
 import type { TTS } from "./features/tts";
@@ -13679,7 +13679,7 @@ export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
 export type { StoreScope, StoreHandleOptions, StoreHandle, Store } from "./features/store";
 export type { TelegramState, TelegramOptions, Telegram } from "./features/telegram";
-export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxAssistantConnector } from "./features/telnyx-assistant-connector";
+export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxConnector } from "./features/telnyx-connector";
 export type { TmuxState, TmuxOptions, CaptureOptions, SessionInfo, TmuxPane, TmuxSession, Tmux } from "./features/tmux";
 export type { TransformOptions, TransformResult, Transpiler } from "./features/transpiler";
 export type { TTSOptions, TTSState, TTS } from "./features/tts";
@@ -13730,7 +13730,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     sqlite: typeof Sqlite;
     store: typeof Store;
     telegram: typeof Telegram;
-    telnyxAssistantConnector: typeof TelnyxAssistantConnector;
+    telnyxConnector: typeof TelnyxConnector;
     tmux: typeof Tmux;
     transpiler: typeof Transpiler;
     tts: typeof TTS;
@@ -26467,7 +26467,6 @@ export declare class TelnyxAssistantConnector extends Feature<TelnyxConnectorSta
     private _telnyxClient;
     private _previousConnectionId;
     private _messagingProfileId;
-    private _activeCallSid;
     get assistant(): any;
     /**
      * Canonical name derived from the assistant folder (e.g. \`receptionist\`),
@@ -26744,6 +26743,36 @@ export declare class TelnyxAssistantConnector extends Feature<TelnyxConnectorSta
      */
     inspect(phoneNumber?: string): Promise<any>;
     /**
+     * Place an outbound call from the assistant to a phone number, with an
+     * optional per-call greeting and purpose delivered as dynamic variables.
+     * The deployed assistant templates its greeting as \`{{greeting_line}}\` and
+     * carries a \`{{call_context}}\` section in its instructions, so both can be
+     * set per call without touching the deployment.
+     *
+     * Works standalone (assistant: null) as long as the \`from\` number is wired
+     * to a Telnyx AI assistant — the assistant is resolved from the number.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.dial('+13125550000', {
+     *   greeting: 'Hey Jon, calling with your morning brief.',
+     *   context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',
+     * })
+     * \`\`\`
+     */
+    dial(to: string, opts?: {
+        /** Calling number in E.164; defaults to options.phoneNumber. */
+        from?: string;
+        /** First thing the assistant says on answer. */
+        greeting?: string;
+        /** Why the assistant is calling — injected into its instructions. */
+        context?: string;
+        /** Extra dynamic variables for custom templates. */
+        variables?: Record<string, string>;
+        /** Telnyx assistant ID; defaults to state, then the number's wiring. */
+        assistantId?: string;
+    }): Promise<any>;
+    /**
      * Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant,
      * and optionally wire a phone number to it.
      *
@@ -26772,7 +26801,6 @@ export declare class TelnyxAssistantConnector extends Feature<TelnyxConnectorSta
      */
     stop(): Promise<void>;
     private _mountToolEndpoints;
-    private _mountHangupTool;
     private _mountCallEventsEndpoint;
     private _mountInboundSmsEndpoint;
     /**
@@ -26805,6 +26833,495 @@ export declare class TelnyxAssistantConnector extends Feature<TelnyxConnectorSta
 }
 export default TelnyxAssistantConnector;
 //# sourceMappingURL=telnyx-assistant-connector.d.ts.map`,
+  "node/features/telnyx-connector.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+export declare const TelnyxConnectorStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    publicUrl: z.ZodOptional<z.ZodString>;
+    telnyxAssistantId: z.ZodOptional<z.ZodString>;
+    phoneNumberId: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    running: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export type TelnyxConnectorState = z.infer<typeof TelnyxConnectorStateSchema>;
+export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    assistant: z.ZodAny;
+    port: z.ZodDefault<z.ZodNumber>;
+    model: z.ZodDefault<z.ZodString>;
+    greeting: z.ZodOptional<z.ZodString>;
+    phoneNumber: z.ZodOptional<z.ZodString>;
+    noTools: z.ZodDefault<z.ZodBoolean>;
+    debug: z.ZodDefault<z.ZodBoolean>;
+    domain: z.ZodOptional<z.ZodString>;
+    voice: z.ZodOptional<z.ZodString>;
+    ttsProvider: z.ZodOptional<z.ZodString>;
+    apiKeyRef: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
+export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    started: z.ZodTuple<[z.ZodObject<{
+        publicUrl: z.ZodString;
+        telnyxAssistantId: z.ZodString;
+        port: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+    toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+    stopped: z.ZodTuple<[], null>;
+}, z.core.$strip>;
+/**
+ * Bridges a local Luca assistant to Telnyx AI by exposing tool handlers
+ * as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings.
+ *
+ * @example
+ * \`\`\`typescript
+ * const mgr = container.feature('assistantsManager')
+ * const chief = mgr.create('chiefOfStaff')
+ * const connector = container.feature('telnyxConnector', { assistant: chief })
+ * await connector.start()
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
+    static shortcut: "features.telnyxConnector";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        publicUrl: z.ZodOptional<z.ZodString>;
+        telnyxAssistantId: z.ZodOptional<z.ZodString>;
+        phoneNumberId: z.ZodOptional<z.ZodString>;
+        port: z.ZodOptional<z.ZodNumber>;
+        running: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        assistant: z.ZodAny;
+        port: z.ZodDefault<z.ZodNumber>;
+        model: z.ZodDefault<z.ZodString>;
+        greeting: z.ZodOptional<z.ZodString>;
+        phoneNumber: z.ZodOptional<z.ZodString>;
+        noTools: z.ZodDefault<z.ZodBoolean>;
+        debug: z.ZodDefault<z.ZodBoolean>;
+        domain: z.ZodOptional<z.ZodString>;
+        voice: z.ZodOptional<z.ZodString>;
+        ttsProvider: z.ZodOptional<z.ZodString>;
+        apiKeyRef: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        started: z.ZodTuple<[z.ZodObject<{
+            publicUrl: z.ZodString;
+            telnyxAssistantId: z.ZodString;
+            port: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+        toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+        stopped: z.ZodTuple<[], null>;
+    }, z.core.$strip>;
+    private _log;
+    private _server;
+    private _tunnelProcess;
+    private _telnyxClient;
+    private _previousConnectionId;
+    private _messagingProfileId;
+    get assistant(): any;
+    /**
+     * Canonical name derived from the assistant folder (e.g. \`receptionist\`),
+     * used for both the Telnyx assistant and its messaging profile.
+     */
+    get assistantName(): string;
+    /**
+     * Get a Telnyx client (uses existing one if running, otherwise creates a fresh one).
+     */
+    private _getClient;
+    /**
+     * List all messaging profiles on the account.
+     */
+    listMessagingProfiles(): Promise<any[]>;
+    /**
+     * Get full details of a messaging profile by ID.
+     */
+    getMessagingProfile(profileId: string): Promise<any>;
+    /**
+     * List all AI assistants on the account.
+     */
+    listAssistants(): Promise<any>;
+    /**
+     * Get full details of a Telnyx AI assistant by ID.
+     */
+    getAssistant(assistantId: string): Promise<any>;
+    /**
+     * List recent AI conversations (phone calls) newest-first.
+     *
+     * Each conversation's \`metadata\` carries \`from\`, \`to\`, \`call_session_id\`,
+     * \`call_control_id\`, and \`assistant_id\` — everything needed to join to
+     * recordings and detail records.
+     *
+     * @example
+     * \`\`\`ts
+     * const convos = await connector.listConversations({ limit: 50 })
+     * \`\`\`
+     */
+    listConversations(opts?: {
+        limit?: number;
+        assistantId?: string;
+        order?: string;
+    }): Promise<any>;
+    /**
+     * Retrieve a single conversation by id, or null if not found.
+     */
+    getConversation(conversationId: string): Promise<any>;
+    /**
+     * Full transcript for a conversation, oldest message first.
+     * Telnyx message \`text\` may contain inline \`<emotion .../>\` control tags —
+     * callers that display transcripts should strip them.
+     */
+    getConversationMessages(conversationId: string): Promise<any>;
+    /**
+     * Post-call AI insights (summary) for a conversation. Returns the raw insight
+     * records; the human-readable summary is \`result\` on each.
+     */
+    getConversationInsights(conversationId: string): Promise<any>;
+    /**
+     * The \`ai-voice-assistant\` detail record for a single conversation — one row
+     * carrying \`cost\`, \`currency\`, \`duration_sec\`, \`billed_sec\`, \`llm_model\`,
+     * \`tts_provider\`, \`tts_voice_id\`, and \`stt_model\`. Returns null if no CDR has
+     * been generated yet (billing can lag a completed call by a few minutes).
+     */
+    getConversationCost(conversationId: string): Promise<any>;
+    /**
+     * A fresh, signed MP3 download URL for a call's recording, or null if none.
+     * Telnyx signs these URLs with a short expiry, so fetch on demand rather than
+     * persisting the link.
+     */
+    getRecordingUrl(callSessionId: string): Promise<string | null>;
+    /**
+     * Manually inject a message into a conversation. Useful for adding context
+     * or system messages outside of a live call.
+     */
+    addConversationMessage(conversationId: string, message: {
+        role: string;
+        content?: string;
+        name?: string;
+        sent_at?: string;
+        tool_call_id?: string;
+        tool_calls?: Array<Record<string, unknown>>;
+    }): Promise<void>;
+    /**
+     * Disable AI responses on a conversation so a human agent can take over.
+     * While disabled, calls to the Telnyx chat endpoint return 400. Re-enable
+     * with \`handoffToAI()\`.
+     */
+    handoffToHuman(conversationId: string): Promise<void>;
+    /**
+     * Re-enable AI responses on a conversation after a human handoff.
+     */
+    handoffToAI(conversationId: string): Promise<void>;
+    /**
+     * Create an insight template — a reusable instruction applied to conversations
+     * to extract structured data (summaries, action items, sentiment, etc.).
+     * Optionally provide a \`json_schema\` to enforce structured output.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.createInsight({
+     *   name: 'action-items',
+     *   instructions: 'Extract any action items promised during the call.',
+     *   json_schema: { type: 'array', items: { type: 'string' } },
+     * })
+     * \`\`\`
+     */
+    createInsight(params: {
+        name: string;
+        instructions: string;
+        json_schema?: unknown;
+        webhook?: string;
+    }): Promise<any>;
+    /**
+     * List all insight templates on the account.
+     */
+    listInsights(): Promise<any[]>;
+    /**
+     * Delete an insight template by ID.
+     */
+    deleteInsight(insightId: string): Promise<void>;
+    /**
+     * List voices available to your Telnyx account. Optionally pass an
+     * integration secret ref for ElevenLabs — Telnyx will then include your
+     * personal ElevenLabs voices in the response.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.listVoices()                               // Telnyx defaults
+     * await connector.listVoices({ provider: 'ElevenLabs',       // your custom voices
+     *                              apiKeyRef: 'elevenlabs_api_key' })
+     * \`\`\`
+     */
+    listVoices(opts?: {
+        provider?: string;
+        apiKeyRef?: string;
+        filter?: string;
+    }): Promise<{
+        voice: any;
+        name: any;
+        provider: any;
+        model_id: any;
+        language: any;
+        gender: any;
+    }[]>;
+    /**
+     * Patch voice_settings on an existing Telnyx AI assistant. Useful for
+     * iterating on the voice string without redeploying.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.updateAssistantVoice('assistant-abc', {
+     *   voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',
+     *   api_key_ref: 'elevenlabs_api_key',
+     *   voice_speed: 1.05,
+     * })
+     * \`\`\`
+     */
+    updateAssistantVoice(assistantId: string, voiceSettings: any): Promise<any>;
+    /**
+     * Convert text to speech and return the full audio as a Buffer.
+     * Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning.
+     * For lower latency on longer text, use \`streamSpeak()\` instead.
+     *
+     * @example
+     * \`\`\`ts
+     * const audio = await connector.speak('Hello world', { voice: 'Telnyx.Ultra.Aurora' })
+     * await fs.writeFile('/tmp/out.mp3', audio)
+     * \`\`\`
+     */
+    speak(text: string, opts?: {
+        voice?: string;
+        apiKeyRef?: string;
+        voiceSettings?: any;
+    }): Promise<Buffer>;
+    /**
+     * Stream text-to-speech audio over a WebSocket, yielding \`Buffer\` chunks as
+     * they arrive. First audio chunk typically arrives in <500ms. You can pipe
+     * chunks directly to a speaker or file stream.
+     *
+     * @example
+     * \`\`\`ts
+     * const chunks: Buffer[] = []
+     * for await (const chunk of connector.streamSpeak('Hello world')) {
+     *   chunks.push(chunk)
+     * }
+     * const audio = Buffer.concat(chunks)
+     * \`\`\`
+     */
+    streamSpeak(text: string, opts?: {
+        voice?: string;
+        voiceSettings?: any;
+    }): AsyncGenerator<Buffer>;
+    /**
+     * Try a voice_settings object on the standalone TTS command endpoint and
+     * save the MP3 locally so you can listen. Fastest way to confirm a voice
+     * string is valid without deploying an assistant.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.testVoice({
+     *   voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',
+     *   apiKeyRef: 'elevenlabs_api_key',
+     *   text: 'Top of the morning.',
+     *   outputPath: 'docs/calls/voice-test.mp3',
+     * })
+     * \`\`\`
+     */
+    testVoice(opts: {
+        voice: string;
+        apiKeyRef?: string;
+        text: string;
+        outputPath?: string;
+        voiceSettings?: any;
+    }): Promise<{
+        ok: boolean;
+        status: number;
+        error: string;
+        path?: undefined;
+        bytes?: undefined;
+    } | {
+        ok: boolean;
+        path: string;
+        bytes: number;
+        status?: undefined;
+        error?: undefined;
+    }>;
+    /**
+     * Pretty-print the voice-related config of an assistant. Shows the raw
+     * voice_settings that Telnyx has stored, so you can compare against what
+     * the UI displays.
+     */
+    inspectVoice(assistantId: string): Promise<any>;
+    /**
+     * List all phone numbers on the Telnyx account with their status and connection info.
+     */
+    listPhoneNumbers(): Promise<any[]>;
+    /**
+     * Get the phone number record (voice + messaging config) for an E.164 number.
+     */
+    getPhoneNumber(phoneNumber: string): Promise<{
+        id: any;
+        phone_number: any;
+        connection_id: any;
+        connection_name: any;
+        messaging_profile_id: any;
+        messaging: any;
+        tags: any;
+        status: any;
+    } | null>;
+    /**
+     * Get a TeXML application by ID.
+     */
+    getTexmlApp(appId: string): Promise<any>;
+    /**
+     * List all TeXML applications on the account.
+     */
+    listTexmlApps(): Promise<any[]>;
+    /**
+     * Delete all TeXML applications on the account.
+     * Returns a summary of what was deleted and any failures.
+     */
+    deleteAllTexmlApps(): Promise<{
+        total: number;
+        deleted: number;
+        results: {
+            id: string;
+            friendly_name: string;
+            status: "deleted" | "failed";
+            error?: string;
+        }[];
+    }>;
+    /**
+     * Inspect the full live config: the current assistant, its messaging profile,
+     * the phone number wiring, and the TeXML app. Pass a phone number to include
+     * phone config, or omit to just show assistant + profile.
+     */
+    inspect(phoneNumber?: string): Promise<any>;
+    /**
+     * Place an outbound call from the assistant to a phone number, with an
+     * optional per-call greeting and purpose delivered as dynamic variables.
+     * Deployed assistants template their greeting as \`{{greeting_line}}\` and
+     * carry a \`{{call_context}}\` section in their instructions, so both can be
+     * set per call without touching the deployment.
+     *
+     * Works standalone (assistant: null) as long as the \`from\` number is wired
+     * to a Telnyx AI assistant — the assistant is resolved from the number.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.dial('+13125550000', {
+     *   greeting: 'Hey Jon, calling with your morning brief.',
+     *   context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',
+     * })
+     * \`\`\`
+     */
+    dial(to: string, opts?: {
+        /** Calling number in E.164; defaults to options.phoneNumber. */
+        from?: string;
+        /** First thing the assistant says on answer. */
+        greeting?: string;
+        /** Why the assistant is calling — injected into its instructions. */
+        context?: string;
+        /** Extra dynamic variables for custom templates. */
+        variables?: Record<string, string>;
+        /** Telnyx assistant ID; defaults to state, then the number's wiring. */
+        assistantId?: string;
+    }): Promise<any>;
+    /**
+     * Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant,
+     * and optionally wire a phone number to it.
+     *
+     * @returns The session info including public URL and Telnyx assistant ID
+     *
+     * @example
+     * \`\`\`typescript
+     * const info = await connector.start()
+     * console.log(info.publicUrl, info.telnyxAssistantId)
+     * \`\`\`
+     */
+    start(): Promise<{
+        publicUrl: string | null;
+        telnyxAssistantId: any;
+        port: number | null;
+        phoneNumber: string | undefined;
+    }>;
+    /**
+     * Stop the connector: restore the phone number's previous connection,
+     * delete the Telnyx assistant, kill tunnel (if ephemeral), stop the server.
+     *
+     * @example
+     * \`\`\`typescript
+     * await connector.stop()
+     * \`\`\`
+     */
+    stop(): Promise<void>;
+    /**
+     * Mount a POST endpoint for each tool on the assistant.
+     */
+    private _mountToolEndpoints;
+    /**
+     * Mount a POST endpoint to receive call event webhooks (status callbacks from TeXML app).
+     */
+    private _mountCallEventsEndpoint;
+    /**
+     * Mount a POST endpoint to handle inbound SMS via the Telnyx AI assistant's chat API.
+     * Receives the inbound message, chats with the AI assistant to get a reply,
+     * then sends the reply back as an SMS.
+     */
+    private _mountInboundSmsEndpoint;
+    /**
+     * Check if a port is available by attempting to listen on it briefly.
+     * If the preferred port is taken, scan upward until a free one is found.
+     */
+    private _findAvailablePort;
+    /**
+     * Wait until the public tunnel URL responds to /health before handing it
+     * off to Telnyx. Telnyx validates webhook URLs by pinging them, and
+     * cloudflared edges can take a few seconds to propagate after the URL is
+     * announced.
+     */
+    private _waitForTunnelReady;
+    /**
+     * Start a cloudflared quick tunnel and capture the public trycloudflare.com URL.
+     * Each invocation gets a fresh ephemeral hostname — no config or login required,
+     * and concurrent deploys don't collide.
+     */
+    private _startTunnel;
+    /**
+     * Create a Telnyx assistant that mirrors the local assistant's prompt and tools.
+     */
+    private _createTelnyxAssistant;
+    /**
+     * Find or create a single persistent messaging profile named after the assistant.
+     * Sets webhook_url to our inbound SMS handler so we can route messages through
+     * the Telnyx AI assistant's chat API.
+     */
+    private _ensureMessagingProfile;
+    /**
+     * Wire a phone number to the assistant's auto-created TeXML app and
+     * the persistent messaging profile.
+     * Saves the previous connection_id so stop() can restore it.
+     */
+    private _wirePhoneNumber;
+}
+export default TelnyxConnector;
+//# sourceMappingURL=telnyx-connector.d.ts.map`,
   "node/features/tmux.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 export declare const TmuxStateSchema: z.ZodObject<{
@@ -30558,7 +31075,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.8.5";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

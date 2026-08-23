@@ -14909,11 +14909,11 @@ setBuildTimeData('features.telegram', {
   ]
 });
 
-setBuildTimeData('features.telnyxAssistantConnector', {
-  "id": "features.telnyxAssistantConnector",
+setBuildTimeData('features.telnyxConnector', {
+  "id": "features.telnyxConnector",
   "description": "Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings.",
-  "shortcut": "features.telnyxAssistantConnector",
-  "className": "TelnyxAssistantConnector",
+  "shortcut": "features.telnyxConnector",
+  "className": "TelnyxConnector",
   "methods": {
     "listMessagingProfiles": {
       "description": "List all messaging profiles on the account.",
@@ -14950,6 +14950,170 @@ setBuildTimeData('features.telnyxAssistantConnector', {
       },
       "required": [
         "assistantId"
+      ],
+      "returns": "void"
+    },
+    "listConversations": {
+      "description": "List recent AI conversations (phone calls) newest-first. Each conversation's `metadata` carries `from`, `to`, `call_session_id`, `call_control_id`, and `assistant_id` — everything needed to join to recordings and detail records.",
+      "parameters": {
+        "opts": {
+          "type": "{ limit?: number; assistantId?: string; order?: string }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const convos = await connector.listConversations({ limit: 50 })"
+        }
+      ]
+    },
+    "getConversation": {
+      "description": "Retrieve a single conversation by id, or null if not found.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getConversationMessages": {
+      "description": "Full transcript for a conversation, oldest message first. Telnyx message `text` may contain inline `<emotion .../>` control tags — callers that display transcripts should strip them.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getConversationInsights": {
+      "description": "Post-call AI insights (summary) for a conversation. Returns the raw insight records; the human-readable summary is `result` on each.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getConversationCost": {
+      "description": "The `ai-voice-assistant` detail record for a single conversation — one row carrying `cost`, `currency`, `duration_sec`, `billed_sec`, `llm_model`, `tts_provider`, `tts_voice_id`, and `stt_model`. Returns null if no CDR has been generated yet (billing can lag a completed call by a few minutes).",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getRecordingUrl": {
+      "description": "A fresh, signed MP3 download URL for a call's recording, or null if none. Telnyx signs these URLs with a short expiry, so fetch on demand rather than persisting the link.",
+      "parameters": {
+        "callSessionId": {
+          "type": "string",
+          "description": "Parameter callSessionId"
+        }
+      },
+      "required": [
+        "callSessionId"
+      ],
+      "returns": "Promise<string | null>"
+    },
+    "addConversationMessage": {
+      "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        },
+        "message": {
+          "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "conversationId",
+        "message"
+      ],
+      "returns": "void"
+    },
+    "handoffToHuman": {
+      "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "handoffToAI": {
+      "description": "Re-enable AI responses on a conversation after a human handoff.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "createInsight": {
+      "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
+      "parameters": {
+        "params": {
+          "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "params"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
+        }
+      ]
+    },
+    "listInsights": {
+      "description": "List all insight templates on the account.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "deleteInsight": {
+      "description": "Delete an insight template by ID.",
+      "parameters": {
+        "insightId": {
+          "type": "string",
+          "description": "Parameter insightId"
+        }
+      },
+      "required": [
+        "insightId"
       ],
       "returns": "void"
     },
@@ -15036,7 +15200,7 @@ setBuildTimeData('features.telnyxAssistantConnector', {
       "examples": [
         {
           "language": "ts",
-          "code": "// collect all chunks (still faster than speak() for long text)\nconst chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)\n\n// or pipe to a write stream as chunks arrive\nconst out = fs.createWriteStream('/tmp/out.pcm')\nfor await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {\n out.write(chunk)\n}\nout.end()"
+          "code": "const chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)"
         }
       ]
     },
@@ -15069,150 +15233,6 @@ setBuildTimeData('features.telnyxAssistantConnector', {
       },
       "required": [
         "assistantId"
-      ],
-      "returns": "void"
-    },
-    "listConversations": {
-      "description": "List conversations for this assistant. Automatically filters by the assistant ID stored in state when available, so you only see conversations that belong to the current deployment.",
-      "parameters": {
-        "query": {
-          "type": "Record<string, any>",
-          "description": "Parameter query"
-        }
-      },
-      "required": [],
-      "returns": "void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const convos = await connector.listConversations()\nconst recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })"
-        }
-      ]
-    },
-    "getConversation": {
-      "description": "Retrieve a specific conversation by ID.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        }
-      },
-      "required": [
-        "conversationId"
-      ],
-      "returns": "void"
-    },
-    "getConversationMessages": {
-      "description": "List all messages in a conversation, including assistant tool calls.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        }
-      },
-      "required": [
-        "conversationId"
-      ],
-      "returns": "void"
-    },
-    "getConversationInsights": {
-      "description": "Retrieve post-call insights for a conversation (summaries, extracted data, etc.). Insights are generated asynchronously after the call ends — check `status` field.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        }
-      },
-      "required": [
-        "conversationId"
-      ],
-      "returns": "void"
-    },
-    "addConversationMessage": {
-      "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        },
-        "message": {
-          "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
-          "description": "Parameter message"
-        }
-      },
-      "required": [
-        "conversationId",
-        "message"
-      ],
-      "returns": "void"
-    },
-    "handoffToHuman": {
-      "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        }
-      },
-      "required": [
-        "conversationId"
-      ],
-      "returns": "void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await connector.handoffToHuman(conversationId)"
-        }
-      ]
-    },
-    "handoffToAI": {
-      "description": "Re-enable AI responses on a conversation after a human handoff.",
-      "parameters": {
-        "conversationId": {
-          "type": "string",
-          "description": "Parameter conversationId"
-        }
-      },
-      "required": [
-        "conversationId"
-      ],
-      "returns": "void"
-    },
-    "createInsight": {
-      "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
-      "parameters": {
-        "params": {
-          "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
-          "description": "Parameter params"
-        }
-      },
-      "required": [
-        "params"
-      ],
-      "returns": "void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await connector.createInsight({\n name: 'call-summary',\n instructions: 'Summarize this call in 2-3 sentences.',\n})\nawait connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
-        }
-      ]
-    },
-    "listInsights": {
-      "description": "List all insight templates on the account.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "deleteInsight": {
-      "description": "Delete an insight template by ID.",
-      "parameters": {
-        "insightId": {
-          "type": "string",
-          "description": "Parameter insightId"
-        }
-      },
-      "required": [
-        "insightId"
       ],
       "returns": "void"
     },
@@ -15271,6 +15291,29 @@ setBuildTimeData('features.telnyxAssistantConnector', {
       "required": [],
       "returns": "void"
     },
+    "dial": {
+      "description": "Place an outbound call from the assistant to a phone number, with an optional per-call greeting and purpose delivered as dynamic variables. Deployed assistants template their greeting as `{{greeting_line}}` and carry a `{{call_context}}` section in their instructions, so both can be set per call without touching the deployment. Works standalone (assistant: null) as long as the `from` number is wired to a Telnyx AI assistant — the assistant is resolved from the number.",
+      "parameters": {
+        "to": {
+          "type": "string",
+          "description": "Parameter to"
+        },
+        "opts": {
+          "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n  }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n})"
+        }
+      ]
+    },
     "start": {
       "description": "Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant, and optionally wire a phone number to it.",
       "parameters": {},
@@ -15309,22 +15352,22 @@ setBuildTimeData('features.telnyxAssistantConnector', {
   "events": {
     "started": {
       "name": "started",
-      "description": "Event emitted by TelnyxAssistantConnector",
+      "description": "Event emitted by TelnyxConnector",
       "arguments": {}
     },
     "stopped": {
       "name": "stopped",
-      "description": "Event emitted by TelnyxAssistantConnector",
+      "description": "Event emitted by TelnyxConnector",
       "arguments": {}
     },
     "toolCall": {
       "name": "toolCall",
-      "description": "Event emitted by TelnyxAssistantConnector",
+      "description": "Event emitted by TelnyxConnector",
       "arguments": {}
     },
     "toolError": {
       "name": "toolError",
-      "description": "Event emitted by TelnyxAssistantConnector",
+      "description": "Event emitted by TelnyxConnector",
       "arguments": {}
     }
   },
@@ -15336,7 +15379,7 @@ setBuildTimeData('features.telnyxAssistantConnector', {
   "examples": [
     {
       "language": "ts",
-      "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxAssistantConnector', { assistant: chief })\nawait connector.start()"
+      "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxConnector', { assistant: chief })\nawait connector.start()"
     }
   ]
 });
@@ -32747,10 +32790,10 @@ export const introspectionData: Record<string, any>[] = [
     ]
   },
   {
-    "id": "features.telnyxAssistantConnector",
+    "id": "features.telnyxConnector",
     "description": "Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings.",
-    "shortcut": "features.telnyxAssistantConnector",
-    "className": "TelnyxAssistantConnector",
+    "shortcut": "features.telnyxConnector",
+    "className": "TelnyxConnector",
     "methods": {
       "listMessagingProfiles": {
         "description": "List all messaging profiles on the account.",
@@ -32787,6 +32830,170 @@ export const introspectionData: Record<string, any>[] = [
         },
         "required": [
           "assistantId"
+        ],
+        "returns": "void"
+      },
+      "listConversations": {
+        "description": "List recent AI conversations (phone calls) newest-first. Each conversation's `metadata` carries `from`, `to`, `call_session_id`, `call_control_id`, and `assistant_id` — everything needed to join to recordings and detail records.",
+        "parameters": {
+          "opts": {
+            "type": "{ limit?: number; assistantId?: string; order?: string }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const convos = await connector.listConversations({ limit: 50 })"
+          }
+        ]
+      },
+      "getConversation": {
+        "description": "Retrieve a single conversation by id, or null if not found.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getConversationMessages": {
+        "description": "Full transcript for a conversation, oldest message first. Telnyx message `text` may contain inline `<emotion .../>` control tags — callers that display transcripts should strip them.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getConversationInsights": {
+        "description": "Post-call AI insights (summary) for a conversation. Returns the raw insight records; the human-readable summary is `result` on each.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getConversationCost": {
+        "description": "The `ai-voice-assistant` detail record for a single conversation — one row carrying `cost`, `currency`, `duration_sec`, `billed_sec`, `llm_model`, `tts_provider`, `tts_voice_id`, and `stt_model`. Returns null if no CDR has been generated yet (billing can lag a completed call by a few minutes).",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getRecordingUrl": {
+        "description": "A fresh, signed MP3 download URL for a call's recording, or null if none. Telnyx signs these URLs with a short expiry, so fetch on demand rather than persisting the link.",
+        "parameters": {
+          "callSessionId": {
+            "type": "string",
+            "description": "Parameter callSessionId"
+          }
+        },
+        "required": [
+          "callSessionId"
+        ],
+        "returns": "Promise<string | null>"
+      },
+      "addConversationMessage": {
+        "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          },
+          "message": {
+            "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "conversationId",
+          "message"
+        ],
+        "returns": "void"
+      },
+      "handoffToHuman": {
+        "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "handoffToAI": {
+        "description": "Re-enable AI responses on a conversation after a human handoff.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "createInsight": {
+        "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
+        "parameters": {
+          "params": {
+            "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "params"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
+          }
+        ]
+      },
+      "listInsights": {
+        "description": "List all insight templates on the account.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "deleteInsight": {
+        "description": "Delete an insight template by ID.",
+        "parameters": {
+          "insightId": {
+            "type": "string",
+            "description": "Parameter insightId"
+          }
+        },
+        "required": [
+          "insightId"
         ],
         "returns": "void"
       },
@@ -32873,7 +33080,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "// collect all chunks (still faster than speak() for long text)\nconst chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)\n\n// or pipe to a write stream as chunks arrive\nconst out = fs.createWriteStream('/tmp/out.pcm')\nfor await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {\n out.write(chunk)\n}\nout.end()"
+            "code": "const chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)"
           }
         ]
       },
@@ -32906,150 +33113,6 @@ export const introspectionData: Record<string, any>[] = [
         },
         "required": [
           "assistantId"
-        ],
-        "returns": "void"
-      },
-      "listConversations": {
-        "description": "List conversations for this assistant. Automatically filters by the assistant ID stored in state when available, so you only see conversations that belong to the current deployment.",
-        "parameters": {
-          "query": {
-            "type": "Record<string, any>",
-            "description": "Parameter query"
-          }
-        },
-        "required": [],
-        "returns": "void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const convos = await connector.listConversations()\nconst recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })"
-          }
-        ]
-      },
-      "getConversation": {
-        "description": "Retrieve a specific conversation by ID.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          }
-        },
-        "required": [
-          "conversationId"
-        ],
-        "returns": "void"
-      },
-      "getConversationMessages": {
-        "description": "List all messages in a conversation, including assistant tool calls.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          }
-        },
-        "required": [
-          "conversationId"
-        ],
-        "returns": "void"
-      },
-      "getConversationInsights": {
-        "description": "Retrieve post-call insights for a conversation (summaries, extracted data, etc.). Insights are generated asynchronously after the call ends — check `status` field.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          }
-        },
-        "required": [
-          "conversationId"
-        ],
-        "returns": "void"
-      },
-      "addConversationMessage": {
-        "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          },
-          "message": {
-            "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
-            "description": "Parameter message"
-          }
-        },
-        "required": [
-          "conversationId",
-          "message"
-        ],
-        "returns": "void"
-      },
-      "handoffToHuman": {
-        "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          }
-        },
-        "required": [
-          "conversationId"
-        ],
-        "returns": "void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await connector.handoffToHuman(conversationId)"
-          }
-        ]
-      },
-      "handoffToAI": {
-        "description": "Re-enable AI responses on a conversation after a human handoff.",
-        "parameters": {
-          "conversationId": {
-            "type": "string",
-            "description": "Parameter conversationId"
-          }
-        },
-        "required": [
-          "conversationId"
-        ],
-        "returns": "void"
-      },
-      "createInsight": {
-        "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
-        "parameters": {
-          "params": {
-            "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
-            "description": "Parameter params"
-          }
-        },
-        "required": [
-          "params"
-        ],
-        "returns": "void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await connector.createInsight({\n name: 'call-summary',\n instructions: 'Summarize this call in 2-3 sentences.',\n})\nawait connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
-          }
-        ]
-      },
-      "listInsights": {
-        "description": "List all insight templates on the account.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "deleteInsight": {
-        "description": "Delete an insight template by ID.",
-        "parameters": {
-          "insightId": {
-            "type": "string",
-            "description": "Parameter insightId"
-          }
-        },
-        "required": [
-          "insightId"
         ],
         "returns": "void"
       },
@@ -33108,6 +33171,29 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "void"
       },
+      "dial": {
+        "description": "Place an outbound call from the assistant to a phone number, with an optional per-call greeting and purpose delivered as dynamic variables. Deployed assistants template their greeting as `{{greeting_line}}` and carry a `{{call_context}}` section in their instructions, so both can be set per call without touching the deployment. Works standalone (assistant: null) as long as the `from` number is wired to a Telnyx AI assistant — the assistant is resolved from the number.",
+        "parameters": {
+          "to": {
+            "type": "string",
+            "description": "Parameter to"
+          },
+          "opts": {
+            "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n  }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n})"
+          }
+        ]
+      },
       "start": {
         "description": "Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant, and optionally wire a phone number to it.",
         "parameters": {},
@@ -33146,22 +33232,22 @@ export const introspectionData: Record<string, any>[] = [
     "events": {
       "started": {
         "name": "started",
-        "description": "Event emitted by TelnyxAssistantConnector",
+        "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       },
       "stopped": {
         "name": "stopped",
-        "description": "Event emitted by TelnyxAssistantConnector",
+        "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       },
       "toolCall": {
         "name": "toolCall",
-        "description": "Event emitted by TelnyxAssistantConnector",
+        "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       },
       "toolError": {
         "name": "toolError",
-        "description": "Event emitted by TelnyxAssistantConnector",
+        "description": "Event emitted by TelnyxConnector",
         "arguments": {}
       }
     },
@@ -33173,7 +33259,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxAssistantConnector', { assistant: chief })\nawait connector.start()"
+        "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxConnector', { assistant: chief })\nawait connector.start()"
       }
     ]
   },

@@ -454,7 +454,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 |----------|----------|--------------|
 | **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
 | **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
 | **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`hermesAgent\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
@@ -11701,7 +11701,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`sqlite\` | feature | data-storage | core | SQLite feature for safe SQL execution through Bun's native sqlite binding. |
 | \`store\` | feature | data-storage | stable | Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to "two luca processes need to share state." Every \`luca <command>\` invocation is a separate process: a server and its \`--stats\` sibling, a fleet manager and its \`stop\` command, a watcher and a reporter — none of them share memory. |
 | \`telegram\` | feature | media-browser | stable | Telegram bot feature powered by grammY. |
-| \`telnyxAssistantConnector\` | feature | ai-assistants | experimental | Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings. |
+| \`telnyxConnector\` | feature | ai-assistants | experimental | Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings. |
 | \`tmux\` | feature | process | stable | Tmux session manager for controlling coding assistants and long-running CLI tools. |
 | \`transpiler\` | feature | dev-tools | core | Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. |
 | \`tts\` | feature | media-browser | experimental | TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. |

@@ -2,16 +2,16 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
 
-export const TelnyxAssistantConnectorStateSchema = FeatureStateSchema.extend({
+export const TelnyxConnectorStateSchema = FeatureStateSchema.extend({
   publicUrl: z.string().optional().describe('The public URL for tool webhooks (tunnel or pre-configured domain)'),
   telnyxAssistantId: z.string().optional().describe('The Telnyx assistant ID created for this session'),
   phoneNumberId: z.string().optional().describe('The Telnyx phone number ID wired to the assistant'),
   port: z.number().optional().describe('The port the express server is listening on'),
   running: z.boolean().default(false).describe('Whether the connector is actively running'),
 })
-export type TelnyxConnectorState = z.infer<typeof TelnyxAssistantConnectorStateSchema>
+export type TelnyxConnectorState = z.infer<typeof TelnyxConnectorStateSchema>
 
-export const TelnyxAssistantConnectorOptionsSchema = FeatureOptionsSchema.extend({
+export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   assistant: z.any().describe('The Luca assistant instance to bridge to Telnyx'),
   port: z.number().default(4567).describe('Port for the local express server'),
   model: z.string().default('meta-llama/Meta-Llama-3.1-70B-Instruct').describe('Telnyx model ID'),
@@ -24,9 +24,9 @@ export const TelnyxAssistantConnectorOptionsSchema = FeatureOptionsSchema.extend
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
 })
-export type TelnyxConnectorOptions = z.infer<typeof TelnyxAssistantConnectorOptionsSchema>
+export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
-export const TelnyxAssistantConnectorEventsSchema = FeatureEventsSchema.extend({
+export const TelnyxConnectorEventsSchema = FeatureEventsSchema.extend({
   started: z.tuple([z.object({
     publicUrl: z.string(),
     telnyxAssistantId: z.string(),
@@ -45,20 +45,20 @@ export const TelnyxAssistantConnectorEventsSchema = FeatureEventsSchema.extend({
  * ```typescript
  * const mgr = container.feature('assistantsManager')
  * const chief = mgr.create('chiefOfStaff')
- * const connector = container.feature('telnyxAssistantConnector', { assistant: chief })
+ * const connector = container.feature('telnyxConnector', { assistant: chief })
  * await connector.start()
  * ```
  *
  * @extends Feature
  */
-export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
-  static override shortcut = 'features.telnyxAssistantConnector' as const
+export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
+  static override shortcut = 'features.telnyxConnector' as const
   static override stability = 'experimental' as const
   static override category = 'ai-assistants' as const
-  static override stateSchema = TelnyxAssistantConnectorStateSchema
-  static override optionsSchema = TelnyxAssistantConnectorOptionsSchema
-  static override eventsSchema = TelnyxAssistantConnectorEventsSchema
-  static { Feature.register(this, 'telnyxAssistantConnector') }
+  static override stateSchema = TelnyxConnectorStateSchema
+  static override optionsSchema = TelnyxConnectorOptionsSchema
+  static override eventsSchema = TelnyxConnectorEventsSchema
+  static { Feature.register(this, 'telnyxConnector') }
 
   private _log(...args: any[]) {
     if (this.options.debug) console.log(...args)
@@ -148,6 +148,182 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     return resp?.data || resp
   }
 
+  // ── Conversation history (read API — source of truth for call history) ──────
+  //
+  // Telnyx AI Conversations are the canonical record of every phone call the
+  // assistant has handled. Rather than reconstructing calls from webhook events
+  // saved to disk, these methods read straight from the account:
+  //
+  //   - listConversations()       → the call list (metadata carries from/to/session)
+  //   - getConversationMessages() → the transcript
+  //   - getConversationInsights() → the post-call AI summary
+  //   - getConversationCost()     → cost + duration + model metadata (from the CDR)
+  //   - listAssistantCosts()      → batch of CDRs, indexed by conversation_id
+  //   - getRecordingUrl()         → a fresh signed MP3 URL for playback
+
+  /**
+   * List recent AI conversations (phone calls) newest-first.
+   *
+   * Each conversation's `metadata` carries `from`, `to`, `call_session_id`,
+   * `call_control_id`, and `assistant_id` — everything needed to join to
+   * recordings and detail records.
+   *
+   * @example
+   * ```ts
+   * const convos = await connector.listConversations({ limit: 50 })
+   * ```
+   */
+  async listConversations(opts: { limit?: number; assistantId?: string; order?: string } = {}) {
+    const client = await this._getClient()
+    const params: any = {
+      limit: opts.limit ?? 50,
+      order: opts.order ?? 'last_message_at.desc',
+    }
+    if (opts.assistantId) params['metadata->assistant_id'] = `eq.${opts.assistantId}`
+    const page = await client.ai.conversations.list(params)
+    return page?.data ?? []
+  }
+
+  /**
+   * Retrieve a single conversation by id, or null if not found.
+   */
+  async getConversation(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.retrieve(conversationId)
+    return resp?.data ?? resp ?? null
+  }
+
+  /**
+   * Full transcript for a conversation, oldest message first.
+   * Telnyx message `text` may contain inline `<emotion .../>` control tags —
+   * callers that display transcripts should strip them.
+   */
+  async getConversationMessages(conversationId: string) {
+    const client = await this._getClient()
+    const page = await client.ai.conversations.messages.list(conversationId)
+    return page?.data ?? []
+  }
+
+  /**
+   * Post-call AI insights (summary) for a conversation. Returns the raw insight
+   * records; the human-readable summary is `result` on each.
+   */
+  async getConversationInsights(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.retrieveConversationsInsights(conversationId)
+    return resp?.data ?? []
+  }
+
+  /**
+   * The `ai-voice-assistant` detail record for a single conversation — one row
+   * carrying `cost`, `currency`, `duration_sec`, `billed_sec`, `llm_model`,
+   * `tts_provider`, `tts_voice_id`, and `stt_model`. Returns null if no CDR has
+   * been generated yet (billing can lag a completed call by a few minutes).
+   */
+  async getConversationCost(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.detailRecords.list({
+      'filter[record_type]': 'ai-voice-assistant',
+      'filter[conversation_id]': conversationId,
+    } as any)
+    return (resp?.data ?? [])[0] ?? null
+  }
+
+  /**
+   * A fresh, signed MP3 download URL for a call's recording, or null if none.
+   * Telnyx signs these URLs with a short expiry, so fetch on demand rather than
+   * persisting the link.
+   */
+  async getRecordingUrl(callSessionId: string): Promise<string | null> {
+    if (!callSessionId) return null
+    const client = await this._getClient()
+    const resp = await client.recordings.list({ call_session_id: callSessionId } as any)
+    const rec = (resp?.data ?? [])[0]
+    return rec?.download_urls?.mp3 ?? null
+  }
+
+  /**
+   * Manually inject a message into a conversation. Useful for adding context
+   * or system messages outside of a live call.
+   */
+  async addConversationMessage(conversationId: string, message: {
+    role: string
+    content?: string
+    name?: string
+    sent_at?: string
+    tool_call_id?: string
+    tool_calls?: Array<Record<string, unknown>>
+  }) {
+    const client = await this._getClient()
+    await client.ai.conversations.addMessage(conversationId, message)
+  }
+
+  /**
+   * Disable AI responses on a conversation so a human agent can take over.
+   * While disabled, calls to the Telnyx chat endpoint return 400. Re-enable
+   * with `handoffToAI()`.
+   */
+  async handoffToHuman(conversationId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.update(conversationId, {
+      metadata: { ai_disabled: 'true' },
+    })
+    this._log(`[telnyx] Conversation ${conversationId} handed off to human (AI disabled)`)
+  }
+
+  /**
+   * Re-enable AI responses on a conversation after a human handoff.
+   */
+  async handoffToAI(conversationId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.update(conversationId, {
+      metadata: { ai_disabled: 'false' },
+    })
+    this._log(`[telnyx] Conversation ${conversationId} handed back to AI`)
+  }
+
+  // ── Insight templates ─────────────────────────────────────────────────────
+
+  /**
+   * Create an insight template — a reusable instruction applied to conversations
+   * to extract structured data (summaries, action items, sentiment, etc.).
+   * Optionally provide a `json_schema` to enforce structured output.
+   *
+   * @example
+   * ```ts
+   * await connector.createInsight({
+   *   name: 'action-items',
+   *   instructions: 'Extract any action items promised during the call.',
+   *   json_schema: { type: 'array', items: { type: 'string' } },
+   * })
+   * ```
+   */
+  async createInsight(params: { name: string; instructions: string; json_schema?: unknown; webhook?: string }) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.insights.create(params as any)
+    return resp?.data || resp
+  }
+
+  /**
+   * List all insight templates on the account.
+   */
+  async listInsights() {
+    const client = await this._getClient()
+    const results: any[] = []
+    for await (const insight of client.ai.conversations.insights.list()) {
+      results.push(insight)
+    }
+    return results
+  }
+
+  /**
+   * Delete an insight template by ID.
+   */
+  async deleteInsight(insightId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.insights.delete(insightId)
+  }
+
   /**
    * List voices available to your Telnyx account. Optionally pass an
    * integration secret ref for ElevenLabs — Telnyx will then include your
@@ -208,10 +384,10 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
    */
   async updateAssistantVoice(assistantId: string, voiceSettings: any) {
     const client = await this._getClient()
-    this._log('[telnyx] Updating assistant voice_settings:', JSON.stringify(voiceSettings, null, 2))
+    this._log('[telnyx] 🎙️  Updating assistant voice_settings:', JSON.stringify(voiceSettings, null, 2))
     const resp = await client.ai.assistants.update(assistantId, { voice_settings: voiceSettings })
     const updated = resp?.data || resp
-    this._log('[telnyx] Assistant now has voice_settings:', JSON.stringify(updated?.voice_settings, null, 2))
+    this._log('[telnyx] 🎙️  Assistant now has voice_settings:', JSON.stringify(updated?.voice_settings, null, 2))
     return updated
   }
 
@@ -234,7 +410,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     if (opts.apiKeyRef) params.elevenlabs = { api_key: opts.apiKeyRef }
     if (opts.voiceSettings) params.voice_settings = opts.voiceSettings
 
-    this._log('[telnyx] TTS generate:', JSON.stringify({ voice, text: text.slice(0, 60) }))
+    this._log('[telnyx] 🎙️  TTS generate:', JSON.stringify({ voice, text: text.slice(0, 60) }))
     const resp = await client.textToSpeech.generate(params) as any
     return Buffer.from(resp.base64_audio, 'base64')
   }
@@ -246,19 +422,11 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
    *
    * @example
    * ```ts
-   * // collect all chunks (still faster than speak() for long text)
    * const chunks: Buffer[] = []
    * for await (const chunk of connector.streamSpeak('Hello world')) {
    *   chunks.push(chunk)
    * }
    * const audio = Buffer.concat(chunks)
-   *
-   * // or pipe to a write stream as chunks arrive
-   * const out = fs.createWriteStream('/tmp/out.pcm')
-   * for await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {
-   *   out.write(chunk)
-   * }
-   * out.end()
    * ```
    */
   async *streamSpeak(text: string, opts: { voice?: string; voiceSettings?: any } = {}): AsyncGenerator<Buffer> {
@@ -270,7 +438,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     const { TextToSpeechWS } = await import('telnyx/resources/text-to-speech') as any
     const ws = new TextToSpeechWS(client, query)
 
-    this._log('[telnyx] TTS stream start:', JSON.stringify({ voice, text: text.slice(0, 60) }))
+    this._log('[telnyx] 🎙️  TTS stream start:', JSON.stringify({ voice, text: text.slice(0, 60) }))
 
     let opened = false
     for await (const msg of ws.stream()) {
@@ -318,7 +486,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     if (opts.apiKeyRef) body.api_key_ref = opts.apiKeyRef
     if (opts.voiceSettings) body.voice_settings = opts.voiceSettings
 
-    this._log('[telnyx] Test TTS request:', JSON.stringify(body, null, 2))
+    this._log('[telnyx] 🎙️  Test TTS request:', JSON.stringify(body, null, 2))
 
     const resp = await fetch('https://api.telnyx.com/v2/text-to-speech/speak', {
       method: 'POST',
@@ -331,7 +499,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
 
     if (!resp.ok) {
       const errText = await resp.text()
-      this._log('[telnyx] Test TTS failed:', resp.status, errText)
+      this._log('[telnyx] 🎙️  Test TTS failed:', resp.status, errText)
       return { ok: false, status: resp.status, error: errText }
     }
 
@@ -340,7 +508,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     const absPath = this.container.paths.resolve(outputPath)
     const buffer = Buffer.from(await resp.arrayBuffer())
     await fs.writeFile(absPath, buffer)
-    this._log(`[telnyx] Saved TTS output → ${absPath} (${buffer.length} bytes)`)
+    this._log(`[telnyx] 🎙️  Saved TTS output → ${absPath} (${buffer.length} bytes)`)
     return { ok: true, path: absPath, bytes: buffer.length }
   }
 
@@ -352,154 +520,9 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   async inspectVoice(assistantId: string) {
     const assistant = await this.getAssistant(assistantId)
     const voice = assistant?.voice_settings
-    this._log('[telnyx] Current voice_settings on assistant:', JSON.stringify(voice, null, 2))
+    this._log('[telnyx] 🎙️  Current voice_settings on assistant:', JSON.stringify(voice, null, 2))
     return voice
   }
-
-  // ── Conversations ────────────────────────────────────────────────────────
-
-  /**
-   * List conversations for this assistant. Automatically filters by the
-   * assistant ID stored in state when available, so you only see conversations
-   * that belong to the current deployment.
-   *
-   * @example
-   * ```ts
-   * const convos = await connector.listConversations()
-   * const recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })
-   * ```
-   */
-  async listConversations(query: Record<string, any> = {}) {
-    const client = await this._getClient()
-    const assistantId = this.state.get('telnyxAssistantId')
-    const params: any = { ...query }
-    if (assistantId && !params['metadata->assistant_id']) {
-      params['metadata->assistant_id'] = `eq.${assistantId}`
-    }
-    const resp = await client.ai.conversations.list(params)
-    return resp?.data || resp
-  }
-
-  /**
-   * Retrieve a specific conversation by ID.
-   */
-  async getConversation(conversationId: string) {
-    const client = await this._getClient()
-    const resp = await client.ai.conversations.retrieve(conversationId)
-    return resp?.data || resp
-  }
-
-  /**
-   * List all messages in a conversation, including assistant tool calls.
-   */
-  async getConversationMessages(conversationId: string) {
-    const client = await this._getClient()
-    const resp = await client.ai.conversations.messages.list(conversationId)
-    return resp?.data || resp
-  }
-
-  /**
-   * Retrieve post-call insights for a conversation (summaries, extracted data, etc.).
-   * Insights are generated asynchronously after the call ends — check `status` field.
-   */
-  async getConversationInsights(conversationId: string) {
-    const client = await this._getClient()
-    const resp = await client.ai.conversations.retrieveConversationsInsights(conversationId)
-    return resp?.data || resp
-  }
-
-  /**
-   * Manually inject a message into a conversation. Useful for adding context
-   * or system messages outside of a live call.
-   */
-  async addConversationMessage(conversationId: string, message: {
-    role: string
-    content?: string
-    name?: string
-    sent_at?: string
-    tool_call_id?: string
-    tool_calls?: Array<Record<string, unknown>>
-  }) {
-    const client = await this._getClient()
-    await client.ai.conversations.addMessage(conversationId, message)
-  }
-
-  /**
-   * Disable AI responses on a conversation so a human agent can take over.
-   * While disabled, calls to the Telnyx chat endpoint return 400. Re-enable
-   * with `handoffToAI()`.
-   *
-   * @example
-   * ```ts
-   * await connector.handoffToHuman(conversationId)
-   * ```
-   */
-  async handoffToHuman(conversationId: string) {
-    const client = await this._getClient()
-    await client.ai.conversations.update(conversationId, {
-      metadata: { ai_disabled: 'true' },
-    })
-    this._log(`[telnyx] Conversation ${conversationId} handed off to human (AI disabled)`)
-  }
-
-  /**
-   * Re-enable AI responses on a conversation after a human handoff.
-   */
-  async handoffToAI(conversationId: string) {
-    const client = await this._getClient()
-    await client.ai.conversations.update(conversationId, {
-      metadata: { ai_disabled: 'false' },
-    })
-    this._log(`[telnyx] Conversation ${conversationId} handed back to AI`)
-  }
-
-  // ── Insight templates ─────────────────────────────────────────────────────
-
-  /**
-   * Create an insight template — a reusable instruction applied to conversations
-   * to extract structured data (summaries, action items, sentiment, etc.).
-   * Optionally provide a `json_schema` to enforce structured output.
-   *
-   * @example
-   * ```ts
-   * await connector.createInsight({
-   *   name: 'call-summary',
-   *   instructions: 'Summarize this call in 2-3 sentences.',
-   * })
-   * await connector.createInsight({
-   *   name: 'action-items',
-   *   instructions: 'Extract any action items promised during the call.',
-   *   json_schema: { type: 'array', items: { type: 'string' } },
-   * })
-   * ```
-   */
-  async createInsight(params: { name: string; instructions: string; json_schema?: unknown; webhook?: string }) {
-    const client = await this._getClient()
-    const resp = await client.ai.conversations.insights.create(params as any)
-    return resp?.data || resp
-  }
-
-  /**
-   * List all insight templates on the account.
-   */
-  async listInsights() {
-    const client = await this._getClient()
-    const results: any[] = []
-    for await (const insight of client.ai.conversations.insights.list()) {
-      results.push(insight)
-    }
-    return results
-  }
-
-  /**
-   * Delete an insight template by ID.
-   */
-  async deleteInsight(insightId: string) {
-    const client = await this._getClient()
-    await client.ai.conversations.insights.delete(insightId)
-  }
-
-  // ── Phone numbers ─────────────────────────────────────────────────────────
 
   /**
    * List all phone numbers on the Telnyx account with their status and connection info.
@@ -535,6 +558,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     }
     if (!record) return null
 
+    // Also grab messaging-specific config
     let messagingConfig: any = null
     try {
       const msgResp = await client.phoneNumbers.messaging.retrieve(record.id)
@@ -649,8 +673,8 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   /**
    * Place an outbound call from the assistant to a phone number, with an
    * optional per-call greeting and purpose delivered as dynamic variables.
-   * The deployed assistant templates its greeting as `{{greeting_line}}` and
-   * carries a `{{call_context}}` section in its instructions, so both can be
+   * Deployed assistants template their greeting as `{{greeting_line}}` and
+   * carry a `{{call_context}}` section in their instructions, so both can be
    * set per call without touching the deployment.
    *
    * Works standalone (assistant: null) as long as the `from` number is wired
@@ -704,11 +728,11 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       params.AIAssistantDynamicVariables = dynamicVariables
     }
 
-    this._log('[telnyx] Dialing:', JSON.stringify({ to, from, assistantId, dynamicVariables }))
+    this._log('[telnyx] 📞 Dialing:', JSON.stringify({ to, from, assistantId, dynamicVariables }))
     const client = await this._getClient()
     const resp = await client.texml.initiateAICall(record.connection_id, params)
     const data = resp?.data || resp
-    this._log('[telnyx] Call initiated:', JSON.stringify(data))
+    this._log('[telnyx] 📞 Call initiated:', JSON.stringify(data))
     return data
   }
 
@@ -732,6 +756,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     let port: number | null = null
 
     if (this.options.noTools) {
+      // No-tools path: just create the Telnyx assistant directly, no server or tunnel
       await this._ensureMessagingProfile(null)
       const telnyxAssistant = await this._createTelnyxAssistant(null)
 
@@ -752,6 +777,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       return info
     }
 
+    // Full path: local server + tunnel + tools
     port = await this._findAvailablePort(this.options.port)
     const server = this.container.server('express', { port, cors: true })
 
@@ -763,10 +789,12 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     this._server = server
 
     if (this.options.domain) {
+      // Pre-configured cloudflared tunnel — just use the domain directly
       publicUrl = `https://${this.options.domain}`
       this._log(`[telnyx] Using pre-configured domain: ${publicUrl}`)
       await this._waitForTunnelReady(publicUrl)
     } else {
+      // Ephemeral cloudflared tunnel
       publicUrl = await this._startTunnel(port)
       await this._waitForTunnelReady(publicUrl)
     }
@@ -807,11 +835,15 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     const phoneNumberId = this.state.get('phoneNumberId')
     if (phoneNumberId && this._telnyxClient) {
       try {
+        // Restore voice connection to previous value
         if (this._previousConnectionId) {
           await this._telnyxClient.phoneNumbers.update(phoneNumberId, {
             connection_id: this._previousConnectionId,
           })
         }
+        // Keep the persistent messaging profile on the phone number —
+        // it survives across deploys and is named after the assistant.
+        // Only clear it if we don't have a persistent profile.
         if (!this._messagingProfileId) {
           await this._telnyxClient.phoneNumbers.messaging.update(phoneNumberId, {
             messaging_profile_id: '',
@@ -848,6 +880,9 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     this.emit('stopped')
   }
 
+  /**
+   * Mount a POST endpoint for each tool on the assistant.
+   */
   private _mountToolEndpoints(server: any) {
     const tools = this.assistant.tools
 
@@ -864,6 +899,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       })
     }
 
+    // health check
     server.app.get('/health', (_req: any, res: any) => {
       res.json({
         status: 'ok',
@@ -873,16 +909,19 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     })
   }
 
+  /**
+   * Mount a POST endpoint to receive call event webhooks (status callbacks from TeXML app).
+   */
   private _mountCallEventsEndpoint(server: any) {
     server.app.post('/call/events', async (req: any, res: any) => {
       try {
         const body = req.body
         const status = body?.CallStatus || body?.DialCallStatus || 'unknown'
         const callSid = body?.CallSid || 'unknown'
-        const conversationId = body?.ConversationId || ''
 
-        this._log(`[telnyx] Call event: ${status} (${callSid})`)
+        this._log(`[telnyx] 📞 Call event: ${status} (${callSid})`)
 
+        // Parse insights if present
         let insights: string | null = null
         try {
           const parsed = JSON.parse(body?.ConversationInsights || '[]')
@@ -890,18 +929,19 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         } catch {}
 
         if (insights) {
-          this._log(`[telnyx] Summary: ${insights.slice(0, 200)}${insights.length > 200 ? '...' : ''}`)
+          this._log(`[telnyx] 📞 Summary: ${insights.slice(0, 200)}${insights.length > 200 ? '...' : ''}`)
         }
 
+        // Parse cost
         let cost: any = null
         try { cost = JSON.parse(body?.Cost || '{}') } catch {}
         if (cost?.total) {
-          this._log(`[telnyx] Cost: $${cost.total}`)
+          this._log(`[telnyx] 📞 Cost: $${cost.total}`)
         }
 
-        this._saveCallEvent(body, conversationId, status).catch((err: any) =>
-          console.error('[telnyx] Failed to save call event:', err.message)
-        )
+        // Nothing to persist — the Telnyx AI Conversations API is the source of
+        // truth for call history (see features/call-history.ts). This endpoint
+        // now exists only to surface progress in the logs above.
 
         res.status(200).json({ status: 'ok' })
       } catch (err: any) {
@@ -911,10 +951,17 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     })
   }
 
+  /**
+   * Mount a POST endpoint to handle inbound SMS via the Telnyx AI assistant's chat API.
+   * Receives the inbound message, chats with the AI assistant to get a reply,
+   * then sends the reply back as an SMS.
+   */
   private _mountInboundSmsEndpoint(server: any) {
+    // Per-phone-number assistant instances for threaded SMS conversations
     const assistantsByPhone = new Map<string, any>()
 
     server.app.post('/messaging/inbound', async (req: any, res: any) => {
+      // Respond immediately so Telnyx doesn't retry
       res.status(200).json({ status: 'ok' })
 
       try {
@@ -922,6 +969,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         const eventType = req.body?.data?.event_type || ''
         const direction = payload?.direction || ''
 
+        // Only handle inbound messages
         if (!eventType.includes('inbound') && direction !== 'inbound') return
 
         const from = payload?.from?.phone_number || payload?.from || ''
@@ -929,27 +977,30 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         const text = payload?.text || ''
         if (!text || !from) return
 
-        this._log(`[telnyx] Inbound SMS from ${from}: "${text}"`)
+        this._log(`[telnyx] 💬 Inbound SMS from ${from}: "${text}"`)
 
+        // Get or create a local assistant instance for this phone number
         let smsAssistant = assistantsByPhone.get(from)
         if (!smsAssistant) {
           const mgr = this.container.feature('assistantsManager')
           smsAssistant = mgr.create(this.assistantName, { historyMode: 'lifecycle' })
           await smsAssistant.start()
           assistantsByPhone.set(from, smsAssistant)
-          this._log(`[telnyx] Created local assistant for ${from}`)
+          this._log(`[telnyx] 💬 Created local assistant for ${from}`)
         }
 
+        // Ask the local assistant
         const reply = await smsAssistant.ask(text)
 
         if (!reply) {
-          this._log('[telnyx] Assistant returned empty reply')
+          this._log('[telnyx] 💬 Assistant returned empty reply')
           return
         }
 
-        this._log(`[telnyx] Reply to ${from}: "${reply.slice(0, 120)}${reply.length > 120 ? '...' : ''}"`)
-        this._log(`[telnyx] Sending SMS: from=${to}, to=${from}, profile=${this._messagingProfileId}`)
+        this._log(`[telnyx] 💬 Reply to ${from}: "${reply.slice(0, 120)}${reply.length > 120 ? '...' : ''}"`)
 
+        // Send the reply via Telnyx messaging
+        this._log(`[telnyx] 💬 Sending SMS: from=${to}, to=${from}, profile=${this._messagingProfileId}`)
         const sendResult = await this._telnyxClient.messages.send({
           from: to,
           to: from,
@@ -957,65 +1008,34 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
           messaging_profile_id: this._messagingProfileId,
         })
         const sendData = sendResult?.data || sendResult
-        this._log(`[telnyx] SMS send response:`, JSON.stringify({
+        this._log(`[telnyx] 💬 SMS send response:`, JSON.stringify({
           id: sendData?.id,
           status: sendData?.to?.[0]?.status,
           from: sendData?.from?.phone_number,
           to: sendData?.to?.[0]?.phone_number,
           errors: sendData?.errors,
         }, null, 2))
-        this._log(`[telnyx] SMS sent to ${from}`)
+        this._log(`[telnyx] 💬 SMS sent to ${from}`)
       } catch (err: any) {
-        console.error('[telnyx] SMS handler error:', err.message)
+        console.error('[telnyx] 💬 SMS handler error:', err.message)
       }
     })
   }
 
   /**
-   * Save a call event to docs/calls/{slug}/{status}-{timestamp}.json.
-   * Each call gets its own folder (keyed by CallSid). MP3 recordings are
-   * downloaded when status is "analyzed".
+   * Check if a port is available by attempting to listen on it briefly.
+   * If the preferred port is taken, scan upward until a free one is found.
    */
-  private async _saveCallEvent(body: any, conversationId: string, status: string) {
-    const fs = this.container.feature('fs')
-    const slug = body?.CallSid || conversationId || new Date().toISOString().replace(/[:.]/g, '-')
-    const callDir = this.container.paths.resolve(`docs/calls/${slug}`)
-    await fs.ensureFolder(callDir)
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const jsonPath = this.container.paths.join(callDir, `${status}-${timestamp}.json`)
-    await fs.writeFile(jsonPath, JSON.stringify(body, null, 2))
-    this._log(`[telnyx] Saved call event → ${jsonPath}`)
-
-    if (status !== 'analyzed') return
-
-    let recordings: any[] = []
-    try { recordings = JSON.parse(body?.Recordings || '[]') } catch {}
-
-    for (const rec of recordings) {
-      const mp3Url = rec?.download_urls?.mp3
-      if (!mp3Url) continue
-
-      try {
-        const resp = await fetch(mp3Url)
-        if (!resp.ok) {
-          this._log(`[telnyx] Failed to download recording: ${resp.status}`)
-          continue
-        }
-        const buffer = Buffer.from(await resp.arrayBuffer())
-        const mp3Path = this.container.paths.join(callDir, `recording.mp3`)
-        await fs.writeFile(mp3Path, buffer)
-        this._log(`[telnyx] Saved recording → ${mp3Path}`)
-      } catch (err: any) {
-        this._log(`[telnyx] Failed to download recording: ${err.message}`)
-      }
-    }
-  }
-
   private async _findAvailablePort(preferred: number): Promise<number> {
     return this.container.feature('networking').findOpenPort(preferred)
   }
 
+  /**
+   * Wait until the public tunnel URL responds to /health before handing it
+   * off to Telnyx. Telnyx validates webhook URLs by pinging them, and
+   * cloudflared edges can take a few seconds to propagate after the URL is
+   * announced.
+   */
   private async _waitForTunnelReady(url: string): Promise<void> {
     const timeoutMs = 120000
     const start = Date.now()
@@ -1045,19 +1065,27 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
 
   /**
    * Start a cloudflared quick tunnel and capture the public trycloudflare.com URL.
-   * Each invocation gets a fresh ephemeral hostname — no config or login required.
+   * Each invocation gets a fresh ephemeral hostname — no config or login required,
+   * and concurrent deploys don't collide.
    */
   private async _startTunnel(port: number): Promise<string> {
     const proc = this.container.feature('proc')
+    const os = this.container.feature('os')
+    const emptyConfigPath = os.isWindows ? 'NUL' : '/dev/null'
 
     const child = proc.spawn('cloudflared', [
       'tunnel',
+      '--config', emptyConfigPath,
       '--no-autoupdate',
       '--url', `http://localhost:${port}`,
     ])
     this._tunnelProcess = child
     this._log(`[telnyx] cloudflared tunneling :${port}`)
 
+    // We need both the public URL (logged early in a banner) AND a sign that
+    // the edge connection is actually live ("Registered tunnel connection").
+    // Resolving on URL alone hands Telnyx a hostname that won't be routable
+    // for ~30-60s, so it rejects the webhook.
     return await new Promise<string>((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Failed to start cloudflared tunnel for :${port} within 90s`))
@@ -1148,24 +1176,36 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       },
     }
 
+    // Resolve voice settings: explicit options override, then fall back to assistant's voice.yml
     const voiceConfig = this.assistant.voiceConfig
     const isElevenLabs = this.options.ttsProvider === 'elevenlabs' || voiceConfig?.provider === 'elevenlabs'
     const voiceId = this.options.voice || voiceConfig?.voiceId
     const apiKeyRef = this.options.apiKeyRef
 
-    this._log('[telnyx] Voice resolution:', JSON.stringify({
+    this._log('[telnyx] 🎙️  Voice resolution:', JSON.stringify({
       sources: {
         'options.voice': this.options.voice,
         'options.ttsProvider': this.options.ttsProvider,
         'options.apiKeyRef': this.options.apiKeyRef,
         'assistant.voiceConfig': voiceConfig,
       },
-      resolved: { voiceId, isElevenLabs, apiKeyRef },
+      resolved: {
+        voiceId,
+        isElevenLabs,
+        apiKeyRef,
+      },
     }, null, 2))
 
     if (voiceId) {
+      // Telnyx requires provider-prefixed voice strings: "ElevenLabs.<model>.<voice_id>"
+      // or "Telnyx.<model>.<voice_id>". If the caller passed a raw UUID with provider=elevenlabs,
+      // prefix it here using modelId from voice.yml (defaulting to eleven_v3).
       let resolvedVoice = voiceId
       if (isElevenLabs && !/^ElevenLabs\./i.test(voiceId)) {
+        // Telnyx expects "ElevenLabs.<voice_id>" (Default model) or
+        // "ElevenLabs.<model_id>.<voice_id>" for a specific model. Only the
+        // model-less form populates the UI dropdown correctly. Include the
+        // model segment only if explicitly provided and known-supported.
         const supported = new Set([
           'eleven_flash_v2', 'eleven_flash_v2_5', 'eleven_multilingual_v1',
           'eleven_multilingual_v2', 'eleven_turbo_v2', 'eleven_turbo_v2_5',
@@ -1185,11 +1225,18 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
         voiceSettings.voice_speed = voiceConfig.voiceSettings.speed
       }
       params.voice_settings = voiceSettings
-      this._log('[telnyx] Sending voice_settings:', JSON.stringify(voiceSettings, null, 2))
+      this._log('[telnyx] 🎙️  Sending voice_settings:', JSON.stringify(voiceSettings, null, 2))
+      if (isElevenLabs && voiceConfig?.voiceSettings) {
+        const unsupported = Object.keys(voiceConfig.voiceSettings).filter(k => k !== 'speed')
+        if (unsupported.length) {
+          this._log(`[telnyx] 🎙️  Note: voice.yml tuning params ${unsupported.join(', ')} are not supported on ai.assistants.create — only "speed" maps to voice_speed. Tune these in the ElevenLabs voice itself.`)
+        }
+      }
     } else {
-      this._log('[telnyx] No voiceId resolved — using Telnyx default voice')
+      this._log('[telnyx] 🎙️  No voiceId resolved — using Telnyx default voice')
     }
 
+    // Use our persistent messaging profile instead of letting the assistant auto-create one
     if (this._messagingProfileId) {
       params.messaging_settings = {
         default_messaging_profile_id: this._messagingProfileId,
@@ -1208,6 +1255,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       messaging_settings: result.messaging_settings,
     }, null, 2))
 
+    // Update the auto-created TeXML app's status callback so we get call events
     if (publicUrl) {
       const texmlAppId = result.telephony_settings?.default_texml_app_id
       if (texmlAppId) {
@@ -1227,11 +1275,17 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
 
   /**
    * Find or create a single persistent messaging profile named after the assistant.
+   * Sets webhook_url to our inbound SMS handler so we can route messages through
+   * the Telnyx AI assistant's chat API.
    */
   private async _ensureMessagingProfile(publicUrl: string | null): Promise<string> {
     const client = this._telnyxClient
     const profileName = `luca-${this.assistantName}`
+    // Don't set a webhook URL — let the Telnyx AI assistant handle messaging
+    // natively on their network. Manual messages.send() gets carrier-filtered (10DLC).
+    const webhookUrl = ''
 
+    // Search for an existing profile with this name
     const profiles = await client.messagingProfiles.list()
     let existing: any = null
 
@@ -1255,7 +1309,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     this._log(`[telnyx] Creating messaging profile "${profileName}"`)
     const created = await client.messagingProfiles.create({
       name: profileName,
-      webhook_url: '',
+      webhook_url: webhookUrl,
       whitelisted_destinations: ['US'],
     })
     const profileId = created?.data?.id || created?.id
@@ -1266,13 +1320,14 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
 
   /**
    * Wire a phone number to the assistant's auto-created TeXML app and
-   * the persistent messaging profile. Saves the previous connection_id
-   * so stop() can restore it.
+   * the persistent messaging profile.
+   * Saves the previous connection_id so stop() can restore it.
    */
   private async _wirePhoneNumber(telnyxAssistant: any) {
     const phoneNumber = this.options.phoneNumber!
     const client = this._telnyxClient
 
+    // Find the phone number by its E.164 value
     const numbers = await client.phoneNumbers.list({ 'filter[phone_number]': phoneNumber })
     let phoneRecord: any = null
 
@@ -1292,9 +1347,12 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       messaging_profile_id: phoneRecord.messaging_profile_id,
     }, null, 2))
 
+    // Save previous connection so we can restore on teardown
     this._previousConnectionId = phoneRecord.connection_id || null
+
     this.state.set('phoneNumberId', phoneRecord.id)
 
+    // The assistant auto-creates a TeXML app when telephony is enabled
     const texmlAppId = telnyxAssistant.telephony_settings?.default_texml_app_id
     if (!texmlAppId) {
       throw new Error('Telnyx assistant did not create a TeXML app — is telephony enabled?')
@@ -1305,6 +1363,7 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
       connection_id: texmlAppId,
     })
 
+    // Wire the persistent messaging profile
     if (this._messagingProfileId) {
       this._log('[telnyx] Wiring messaging_profile_id:', this._messagingProfileId)
       await client.phoneNumbers.messaging.update(phoneRecord.id, {
@@ -1316,4 +1375,4 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   }
 }
 
-export default TelnyxAssistantConnector
+export default TelnyxConnector
