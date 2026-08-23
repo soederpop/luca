@@ -26862,6 +26862,10 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     apiKeyRef: z.ZodOptional<z.ZodString>;
     toolSecret: z.ZodOptional<z.ZodString>;
     allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    callerPolicy: z.ZodDefault<z.ZodEnum<{
+        tools: "tools";
+        screen: "screen";
+    }>>;
     rejectMessage: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
@@ -26923,6 +26927,10 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         apiKeyRef: z.ZodOptional<z.ZodString>;
         toolSecret: z.ZodOptional<z.ZodString>;
         allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        callerPolicy: z.ZodDefault<z.ZodEnum<{
+            tools: "tools";
+            screen: "screen";
+        }>>;
         rejectMessage: z.ZodDefault<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{

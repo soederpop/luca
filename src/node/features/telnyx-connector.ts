@@ -24,8 +24,9 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
   toolSecret: z.string().optional().describe('Shared secret Telnyx must present on tool webhook calls. Auto-generated per deploy if omitted.'),
-  allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed to reach the assistant. When set, other callers hear rejectMessage and the call ends before the assistant ever answers; tool webhooks are also gated as defense-in-depth.'),
-  rejectMessage: z.string().default("Hey, sorry, can't talk right now.").describe('What unlisted callers hear before the call hangs up (only used with allowedCallers).'),
+  allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed past the caller restriction. Omit for a fully open line. How the restriction is enforced is set by callerPolicy.'),
+  callerPolicy: z.enum(['screen', 'tools']).default('screen').describe("How allowedCallers is enforced. 'screen': unlisted callers hear rejectMessage and the call ends before the assistant answers (SMS from unlisted senders gets rejectMessage back). 'tools': anyone can converse, but unlisted callers cannot trigger tool calls. Tool webhooks are secret-gated in both modes."),
+  rejectMessage: z.string().default("Hey, sorry, can't talk right now.").describe("What unlisted callers hear (or receive via SMS) under callerPolicy 'screen'."),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
@@ -1046,11 +1047,25 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
 
         this._log(`[telnyx] 💬 Inbound SMS from ${from}: "${text}"`)
 
-        // Get or create a local assistant instance for this phone number.
         // SMS tools run locally (not via Telnyx webhooks), so the caller
-        // allowlist is enforced here: unlisted senders get a tool-less instance.
+        // allowlist is enforced here. 'screen': unlisted senders get
+        // rejectMessage back and never reach the assistant. 'tools': they can
+        // converse with a tool-less instance.
         const allowed = this.options.allowedCallers
         const callerAllowed = !allowed?.length || allowed.includes(from)
+        if (!callerAllowed && this.options.callerPolicy === 'screen') {
+          this._log(`[telnyx] 🚫 Screened SMS from ${from}`)
+          this.emit('callScreened', from)
+          await this._telnyxClient.messages.send({
+            from: to,
+            to: from,
+            text: this.options.rejectMessage,
+            messaging_profile_id: this._messagingProfileId,
+          })
+          return
+        }
+
+        // Get or create a local assistant instance for this phone number.
         let smsAssistant = assistantsByPhone.get(from)
         if (!smsAssistant) {
           const mgr = this.container.feature('assistantsManager')
@@ -1511,7 +1526,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     // With allowedCallers, the number points at our screening TeXML app, not
     // the assistant's — unlisted callers are turned away before it answers.
     let voiceConnectionId = texmlAppId
-    if (this.options.allowedCallers?.length) {
+    if (this.options.allowedCallers?.length && this.options.callerPolicy === 'screen') {
       if (publicUrl) {
         const app = await client.texmlApplications.create({
           friendly_name: `luca-screen-${this.assistantName}`,
