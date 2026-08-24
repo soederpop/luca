@@ -761,6 +761,14 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     const { Telnyx } = await import('telnyx')
     this._telnyxClient = new Telnyx({ apiKey: process.env.TELNYX_API_KEY! })
 
+    // Tools contributed via tools.ts `use` entries (e.g. feature.toTools())
+    // only materialize on assistant.start(). Mirroring an unstarted assistant
+    // would silently drop them from the Telnyx deployment. start() is
+    // idempotent, so this is safe when the caller already started it.
+    if (typeof this.assistant?.start === 'function') {
+      await this.assistant.start()
+    }
+
     let publicUrl: string | null = null
     let port: number | null = null
 
