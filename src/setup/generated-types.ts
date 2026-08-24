@@ -26867,6 +26867,7 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
         screen: "screen";
     }>>;
     rejectMessage: z.ZodDefault<z.ZodString>;
+    persist: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
 export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
@@ -26932,6 +26933,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
             screen: "screen";
         }>>;
         rejectMessage: z.ZodDefault<z.ZodString>;
+        persist: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -27345,6 +27347,8 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * our identifier is deleted and replaced.
      */
     private _ensureToolSecret;
+    /** Short stable SHA-256 of a config object, for change detection. */
+    private _configHash;
     private _deleteToolSecret;
     /**
      * Create a Telnyx assistant that mirrors the local assistant's prompt and tools.

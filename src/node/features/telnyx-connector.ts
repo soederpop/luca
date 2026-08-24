@@ -27,6 +27,7 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed past the caller restriction. Omit for a fully open line. How the restriction is enforced is set by callerPolicy.'),
   callerPolicy: z.enum(['screen', 'tools']).default('screen').describe("How allowedCallers is enforced. 'screen': unlisted callers hear rejectMessage and the call ends before the assistant answers (SMS from unlisted senders gets rejectMessage back). 'tools': anyone can converse, but unlisted callers cannot trigger tool calls. Tool webhooks are secret-gated in both modes."),
   rejectMessage: z.string().default("Hey, sorry, can't talk right now.").describe("What unlisted callers hear (or receive via SMS) under callerPolicy 'screen'."),
+  persist: z.boolean().default(false).describe('Leave the Telnyx assistant, screening app, and number wiring in place on stop() so the next start() can reuse them. For supervised deployments that restart with the loop.'),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
@@ -854,6 +855,23 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
    * ```
    */
   async stop() {
+    // Supervised deployments restart with the loop: leave the Telnyx side
+    // (assistant, screening app, wiring, secret) in place so the next start()
+    // reuses it via the config fingerprint. Only local resources die.
+    if (this.options.persist) {
+      if (this._tunnelProcess) {
+        try { this._tunnelProcess.kill() } catch {}
+        this._tunnelProcess = null
+      }
+      if (this._server) {
+        await this._server.stop()
+        this._server = null
+      }
+      this.state.set('running', false)
+      this.emit('stopped')
+      return
+    }
+
     const phoneNumberId = this.state.get('phoneNumberId')
     if (phoneNumberId && this._telnyxClient) {
       try {
@@ -1282,6 +1300,13 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     this._log(`[telnyx] 🔐 Tool secret registered as ${this._toolSecretIdentifier}`)
   }
 
+  /** Short stable SHA-256 of a config object, for change detection. */
+  private async _configHash(input: any): Promise<string> {
+    const data = new TextEncoder().encode(JSON.stringify(input))
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', data)
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16)
+  }
+
   private async _deleteToolSecret() {
     if (!this._toolSecretId) return
     try {
@@ -1423,6 +1448,44 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
 
     params.tools = [...webhookTools, ...nativeTools]
 
+    // Fingerprint everything we would send (tool URLs include the public URL,
+    // so an ephemeral-tunnel deploy always differs) plus the wiring inputs.
+    // A same-name assistant carrying this fingerprint is byte-for-byte what we
+    // would create — reuse it instead of churning the Telnyx account.
+    const fingerprint = await this._configHash({
+      params,
+      phoneNumber: this.options.phoneNumber || null,
+      screening: !!(this.options.allowedCallers?.length && this.options.callerPolicy === 'screen'),
+    })
+    params.description = `luca-config:${fingerprint}`
+
+    let existingMatch: any = null
+    const staleIds: string[] = []
+    try {
+      const existing = await this._telnyxClient.ai.assistants.list()
+      for (const candidate of (existing?.data || existing || [])) {
+        if (candidate?.name !== params.name || !candidate?.id) continue
+        if (!existingMatch && candidate?.description === params.description) {
+          existingMatch = candidate
+        } else {
+          staleIds.push(candidate.id)
+        }
+      }
+    } catch {}
+
+    // Stale same-name assistants come from unclean exits (crash, SIGKILL,
+    // process.exit racing async cleanup) or config changes — always ours.
+    for (const id of staleIds) {
+      this._log(`[telnyx] 🧹 Deleting stale assistant ${id} (${params.name})`)
+      await this._telnyxClient.ai.assistants.delete(id).catch(() => {})
+    }
+
+    if (existingMatch) {
+      this._log(`[telnyx] ♻️  Reusing assistant ${existingMatch.id} (config unchanged: ${fingerprint})`)
+      const full = await this._telnyxClient.ai.assistants.retrieve(existingMatch.id)
+      return full?.data || full
+    }
+
     this._log('[telnyx] Creating assistant with params:', JSON.stringify(params, null, 2))
     const result = await this._telnyxClient.ai.assistants.create(params)
     this._log('[telnyx] Assistant created:', JSON.stringify({
@@ -1541,12 +1604,32 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     let voiceConnectionId = texmlAppId
     if (this.options.allowedCallers?.length && this.options.callerPolicy === 'screen') {
       if (publicUrl) {
-        const app = await client.texmlApplications.create({
-          friendly_name: `luca-screen-${this.assistantName}`,
-          voice_url: `${publicUrl}/voice/inbound`,
-          voice_method: 'post',
-        })
-        this._screeningAppId = app?.id || app?.data?.id || null
+        const friendlyName = `luca-screen-${this.assistantName}`
+        const voiceUrl = `${publicUrl}/voice/inbound`
+
+        // Reuse a screening app left by a previous (persist: true) deploy
+        let app: any = null
+        try {
+          const resp = await client.texmlApplications.list()
+          const items = resp?.data || resp
+          if (Array.isArray(items)) {
+            app = items.find((candidate: any) => candidate?.friendly_name === friendlyName) || null
+          }
+        } catch {}
+
+        if (app && app.voice_url !== voiceUrl) {
+          await client.texmlApplications.update(app.id, { voice_url: voiceUrl, voice_method: 'post' })
+          this._log('[telnyx] 🚧 Updated screening app voice_url:', app.id)
+        }
+        if (!app) {
+          const created = await client.texmlApplications.create({
+            friendly_name: friendlyName,
+            voice_url: voiceUrl,
+            voice_method: 'post',
+          })
+          app = created?.data || created
+        }
+        this._screeningAppId = app?.id || null
         voiceConnectionId = this._screeningAppId || texmlAppId
         this._log('[telnyx] 🚧 Caller screening app:', this._screeningAppId)
       } else {
@@ -1554,10 +1637,15 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       }
     }
 
-    this._log('[telnyx] Wiring voice connection_id:', voiceConnectionId)
-    await client.phoneNumbers.update(phoneRecord.id, {
-      connection_id: voiceConnectionId,
-    })
+    if (String(phoneRecord.connection_id || '') === String(voiceConnectionId)) {
+      this._log('[telnyx] Number already wired to', voiceConnectionId, '— skipping update')
+      this._previousConnectionId = null
+    } else {
+      this._log('[telnyx] Wiring voice connection_id:', voiceConnectionId)
+      await client.phoneNumbers.update(phoneRecord.id, {
+        connection_id: voiceConnectionId,
+      })
+    }
 
     // Wire the persistent messaging profile
     if (this._messagingProfileId) {
