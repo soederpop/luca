@@ -1219,7 +1219,12 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
    * Integration secret identifier for this assistant's tool webhook auth.
    */
   private get _toolSecretIdentifier() {
-    return `luca_tool_secret_${this.assistantName}`
+    // Telnyx only accepts lowercase letters, numbers, dashes, underscores here
+    const slug = this.assistantName
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_')
+    return `luca_tool_secret_${slug}`
   }
 
   private _telnyxHeaders() {
