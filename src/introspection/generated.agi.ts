@@ -6353,6 +6353,17 @@ setBuildTimeData('features.contentDb', {
       ],
       "returns": "void"
     },
+    "describeContentModel": {
+      "description": "Describe one content model's shape (or every model when none is given).",
+      "parameters": {
+        "args": {
+          "type": "{ model?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
     "queryDocuments": {
       "description": "Query documents by model with filters, sort, limit.",
       "parameters": {
@@ -32692,6 +32703,17 @@ export const introspectionData: Record<string, any>[] = [
         "required": [
           "args"
         ],
+        "returns": "void"
+      },
+      "describeContentModel": {
+        "description": "Describe one content model's shape (or every model when none is given).",
+        "parameters": {
+          "args": {
+            "type": "{ model?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [],
         "returns": "void"
       },
       "queryDocuments": {

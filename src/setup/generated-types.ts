@@ -14673,6 +14673,28 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
         exclude?: string[];
         meta?: boolean;
     }): Promise<string>;
+    /** Describe one content model's shape (or every model when none is given). */
+    describeContentModel(args?: {
+        model?: string;
+    }): Promise<{
+        name: string;
+        description: string;
+        pathPrefix: string;
+        documentCount: number;
+        metaFields: contentbaseExports.FieldInfo[];
+        sections: string[];
+        relationships: string[];
+    } | {
+        name: string;
+        description: string;
+        pathPrefix: string;
+        documentCount: number;
+        metaFields: contentbaseExports.FieldInfo[];
+        sections: string[];
+        relationships: string[];
+    }[] | {
+        error: string;
+    }>;
     /** Query documents by model with filters, sort, limit. */
     queryDocuments(args: {
         model: string;
@@ -31122,7 +31144,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
