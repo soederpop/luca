@@ -534,6 +534,23 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	insertChunk(chunk: Chunk, embedding: Float32Array): void {
+		// A broken embedding endpoint fails loudly here instead of silently
+		// rotting the index — a zero/NaN vector scores NaN against everything,
+		// and the staleness scan would never revisit it once stored.
+		if (this._dimensions && embedding.length !== this._dimensions) {
+			throw new Error(
+				`Refusing to store a ${embedding.length}d embedding in a ${this._dimensions}d index (${chunk.pathId}). ` +
+				`The embedding endpoint is returning malformed vectors.`
+			)
+		}
+		let normSq = 0
+		for (const v of embedding) normSq += v * v
+		if (!(normSq > 0)) {
+			throw new Error(
+				`Refusing to store a zero/NaN embedding for ${chunk.pathId}. ` +
+				`The embedding endpoint is returning malformed vectors.`
+			)
+		}
 		this.db.prepare(
 			`INSERT INTO chunks (path_id, section, heading_path, seq, content, content_hash, embedding)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`
