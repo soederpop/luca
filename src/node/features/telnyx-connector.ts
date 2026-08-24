@@ -32,6 +32,7 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
     name: z.string().describe('Label the assistant uses to pick this target (e.g. "Jon\'s cell")'),
     to: z.string().describe('Destination number (+E.164) or SIP URI'),
   })).optional().describe("Named targets for the native transfer tool. Telnyx executes transfers itself (works in noTools mode too), so any caller who reaches the assistant can request one — under callerPolicy 'tools' the only guard is prompt instructions. Requires phoneNumber: transfers originate from the deployed number."),
+  dtmf: z.boolean().default(false).describe("Attach the native send_dtmf tool so the assistant can press keypad digits — navigating phone trees and extension menus on outbound calls. Telnyx executes it natively (works in noTools mode too). Pair it with prompt instructions telling the assistant which extensions to use."),
   warmTransferInstructions: z.string().optional().describe('Natural-language instructions for how the assistant briefs the transfer recipient before connecting the caller. Omit for a cold transfer.'),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
@@ -738,6 +739,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
    * await connector.dial('+13125550000', {
    *   greeting: 'Hey Jon, calling with your morning brief.',
    *   context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',
+   *   machineDetection: 'DetectMessageEnd',
    * })
    * ```
    */
@@ -752,6 +754,19 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     variables?: Record<string, string>
     /** Telnyx assistant ID; defaults to state, then the number's wiring. */
     assistantId?: string
+    /**
+     * Answering-machine detection. 'Enable' classifies human vs machine as
+     * soon as possible; 'DetectMessageEnd' additionally waits for the
+     * voicemail beep, so the assistant starts talking after it and the
+     * greeting lands on the recording instead of being cut off.
+     */
+    machineDetection?: 'Enable' | 'Disable' | 'DetectMessageEnd'
+    /** AMD engine: 'Premium' (ML-based) or 'Regular'. */
+    detectionMode?: 'Premium' | 'Regular'
+    /** Overall AMD window in milliseconds. */
+    machineDetectionTimeout?: number
+    /** Seconds to wait for an answer before canceling (5–120, Telnyx default 30). */
+    timeoutSeconds?: number
   } = {}) {
     if (!/^\+\d{10,15}$/.test(to)) {
       throw new Error(`dial() needs an E.164 number, got "${to}"`)
@@ -780,6 +795,10 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     if (Object.keys(dynamicVariables).length > 0) {
       params.AIAssistantDynamicVariables = dynamicVariables
     }
+    if (opts.machineDetection) params.MachineDetection = opts.machineDetection
+    if (opts.detectionMode) params.DetectionMode = opts.detectionMode
+    if (opts.machineDetectionTimeout) params.MachineDetectionTimeout = opts.machineDetectionTimeout
+    if (opts.timeoutSeconds) params.timeout_seconds = opts.timeoutSeconds
 
     this._log('[telnyx] 📞 Dialing:', JSON.stringify({ to, from, assistantId, dynamicVariables }))
     const client = await this._getClient()
@@ -1425,6 +1444,10 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
         transfer.warm_transfer_instructions = this.options.warmTransferInstructions
       }
       nativeTools.push({ type: 'transfer' as const, transfer })
+    }
+
+    if (this.options.dtmf) {
+      nativeTools.push({ type: 'send_dtmf' as const, send_dtmf: {} })
     }
 
     // Greeting and instructions are templated with dynamic variables so

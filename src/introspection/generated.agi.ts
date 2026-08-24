@@ -23564,7 +23564,7 @@ setBuildTimeData('features.telnyxConnector', {
           "description": "Parameter to"
         },
         "opts": {
-          "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n  }",
+          "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n    /**\n     * Answering-machine detection. 'Enable' classifies human vs machine as\n     * soon as possible; 'DetectMessageEnd' additionally waits for the\n     * voicemail beep, so the assistant starts talking after it and the\n     * greeting lands on the recording instead of being cut off.\n     */\n    machineDetection?: 'Enable' | 'Disable' | 'DetectMessageEnd'\n    /** AMD engine: 'Premium' (ML-based) or 'Regular'. */\n    detectionMode?: 'Premium' | 'Regular'\n    /** Overall AMD window in milliseconds. */\n    machineDetectionTimeout?: number\n    /** Seconds to wait for an answer before canceling (5–120, Telnyx default 30). */\n    timeoutSeconds?: number\n  }",
           "description": "Parameter opts"
         }
       },
@@ -23575,7 +23575,7 @@ setBuildTimeData('features.telnyxConnector', {
       "examples": [
         {
           "language": "ts",
-          "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n})"
+          "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n machineDetection: 'DetectMessageEnd',\n})"
         }
       ]
     },
@@ -50065,7 +50065,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter to"
           },
           "opts": {
-            "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n  }",
+            "type": "{\n    /** Calling number in E.164; defaults to options.phoneNumber. */\n    from?: string\n    /** First thing the assistant says on answer. */\n    greeting?: string\n    /** Why the assistant is calling — injected into its instructions. */\n    context?: string\n    /** Extra dynamic variables for custom templates. */\n    variables?: Record<string, string>\n    /** Telnyx assistant ID; defaults to state, then the number's wiring. */\n    assistantId?: string\n    /**\n     * Answering-machine detection. 'Enable' classifies human vs machine as\n     * soon as possible; 'DetectMessageEnd' additionally waits for the\n     * voicemail beep, so the assistant starts talking after it and the\n     * greeting lands on the recording instead of being cut off.\n     */\n    machineDetection?: 'Enable' | 'Disable' | 'DetectMessageEnd'\n    /** AMD engine: 'Premium' (ML-based) or 'Regular'. */\n    detectionMode?: 'Premium' | 'Regular'\n    /** Overall AMD window in milliseconds. */\n    machineDetectionTimeout?: number\n    /** Seconds to wait for an answer before canceling (5–120, Telnyx default 30). */\n    timeoutSeconds?: number\n  }",
             "description": "Parameter opts"
           }
         },
@@ -50076,7 +50076,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n})"
+            "code": "await connector.dial('+13125550000', {\n greeting: 'Hey Jon, calling with your morning brief.',\n context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',\n machineDetection: 'DetectMessageEnd',\n})"
           }
         ]
       },
