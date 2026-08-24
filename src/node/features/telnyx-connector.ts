@@ -341,6 +341,32 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   }
 
   /**
+   * List the inference models available to your Telnyx account. Model IDs
+   * are `{source}/{model_name}` (e.g. `moonshotai/Kimi-K2.6`) — the same
+   * strings the `model` option accepts.
+   *
+   * @example
+   * ```ts
+   * await connector.listModels()                     // everything
+   * await connector.listModels({ filter: 'kimi' })   // just the Kimi family
+   * ```
+   */
+  async listModels(opts: { filter?: string } = {}) {
+    const client = await this._getClient()
+    const resp = await client.ai.retrieveModels()
+    let models: any[] = resp?.data || []
+    if (opts.filter) {
+      const needle = opts.filter.toLowerCase()
+      models = models.filter((m: any) => (m.id || '').toLowerCase().includes(needle))
+    }
+    return models.map((m: any) => ({
+      id: m.id,
+      ownedBy: m.owned_by,
+      created: m.created,
+    }))
+  }
+
+  /**
    * List voices available to your Telnyx account. Optionally pass an
    * integration secret ref for ElevenLabs — Telnyx will then include your
    * personal ElevenLabs voices in the response.

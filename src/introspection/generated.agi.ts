@@ -23359,6 +23359,23 @@ setBuildTimeData('features.telnyxConnector', {
       ],
       "returns": "void"
     },
+    "listModels": {
+      "description": "List the inference models available to your Telnyx account. Model IDs are `{source}/{model_name}` (e.g. `moonshotai/Kimi-K2.6`) — the same strings the `model` option accepts.",
+      "parameters": {
+        "opts": {
+          "type": "{ filter?: string }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.listModels()                     // everything\nawait connector.listModels({ filter: 'kimi' })   // just the Kimi family"
+        }
+      ]
+    },
     "listVoices": {
       "description": "List voices available to your Telnyx account. Optionally pass an integration secret ref for ElevenLabs — Telnyx will then include your personal ElevenLabs voices in the response.",
       "parameters": {
@@ -49859,6 +49876,23 @@ export const introspectionData: Record<string, any>[] = [
           "insightId"
         ],
         "returns": "void"
+      },
+      "listModels": {
+        "description": "List the inference models available to your Telnyx account. Model IDs are `{source}/{model_name}` (e.g. `moonshotai/Kimi-K2.6`) — the same strings the `model` option accepts.",
+        "parameters": {
+          "opts": {
+            "type": "{ filter?: string }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.listModels()                     // everything\nawait connector.listModels({ filter: 'kimi' })   // just the Kimi family"
+          }
+        ]
       },
       "listVoices": {
         "description": "List voices available to your Telnyx account. Optionally pass an integration secret ref for ElevenLabs — Telnyx will then include your personal ElevenLabs voices in the response.",
