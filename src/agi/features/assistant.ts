@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions } from './conversation'
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector } from './conversation'
 import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -636,6 +636,32 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.conversation.messages
 	}
 
+	/**
+	 * Wipe this assistant's transcript, keeping its system prompt — "start over".
+	 * Delegates to `Conversation#clearMessages`, so provider continuation handles
+	 * are invalidated and `messagesVersion` bumps.
+	 *
+	 * Note this only clears the live conversation. A persisted thread is replayed
+	 * on the next resume unless it is deleted too.
+	 *
+	 * @example
+	 * assistant.clearMessages()
+	 */
+	clearMessages(options?: ClearMessagesOptions): MessageEdit {
+		return this.conversation.clearMessages(options)
+	}
+
+	/**
+	 * Rewrite one message already in this assistant's history — the supported way
+	 * to redact it. Delegates to `Conversation#replaceMessage`.
+	 *
+	 * @example
+	 * assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))
+	 */
+	replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit {
+		return this.conversation.replaceMessage(selector, replacement)
+	}
+
 	/** Whether the assistant has been started and is ready to receive questions. */
 	get isStarted(): boolean {
 		return !!this.state.get('started')
@@ -706,7 +732,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const messages = [...conv.messages]
 		if (messages.length > 0 && (messages[0]!.role === 'system' || messages[0]!.role === 'developer')) {
 			messages[0] = { ...messages[0]!, content: this.effectiveSystemPrompt }
-			conv.state.set('messages', messages)
+			conv._setMessages(messages)
 		}
 	}
 
@@ -1461,7 +1487,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 			this.conversation.state.set('id', existing.id)
 			this.conversation.state.set('thread', threadId)
-			this.conversation.state.set('messages', messages)
+			this.conversation._setMessages(messages)
 			this.state.set('conversationId', existing.id)
 
 			// Restore lastResponseId so the Responses API can continue the chain

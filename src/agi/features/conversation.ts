@@ -144,6 +144,7 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	contextWindow: z.number().describe('The context window size for the current model'),
 	tools: z.record(z.string(), z.any()).describe('Active tools map including any runtime overrides'),
 	callMaxTokens: z.number().nullable().describe('Per-call max tokens override, cleared after each ask()'),
+	messagesVersion: z.number().describe('Increments on every change to the message list — lets observers detect out-of-band edits (clear, replace, compact) without diffing the array'),
 
 	/** Sampling parameters — state is the runtime source of truth, seeded from options at construction. */
 	temperature: z.number().nullable().describe('Sampling temperature (0-2). Null means use model default'),
@@ -191,6 +192,19 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 		previous: z.any().describe('The routing in effect before the change'),
 		current: z.any().describe('The routing the next turn will use'),
 	})]).describe('Fired when setModel() or setProvider() changes which backend or model the next turn uses'),
+	messagesCleared: z.tuple([z.object({
+		changed: z.number().describe('How many messages were removed'),
+		messageCount: z.number().describe('Messages remaining after the clear'),
+		continuationInvalidated: z.boolean().describe('Whether a provider continuation handle was dropped'),
+		version: z.number().describe('messagesVersion after the clear'),
+	})]).describe('Fired after clearMessages() rewrites the message list'),
+	messageReplaced: z.tuple([z.object({
+		index: z.number().describe('Index of the replaced message, or -1 when nothing matched'),
+		changed: z.number().describe('1 when a message was rewritten, 0 when the selector matched nothing'),
+		messageCount: z.number().describe('Messages in the conversation after the replacement'),
+		continuationInvalidated: z.boolean().describe('Whether a provider continuation handle was dropped'),
+		version: z.number().describe('messagesVersion after the replacement'),
+	})]).describe('Fired after replaceMessage() rewrites one message'),
 }).describe('Conversation events')
 
 /** Where the next turn goes: the resolved backend, model, dialect, and turn loop. */
@@ -215,6 +229,34 @@ export type SetProviderOptions = {
 
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
 export type ConversationState = z.infer<typeof ConversationStateSchema>
+
+/** Options for `Conversation#clearMessages`. */
+export type ClearMessagesOptions = {
+	/**
+	 * Keep the leading system/developer messages — the assistant's identity,
+	 * not its transcript. Defaults to true. Pass false to empty the list.
+	 */
+	keepSystemPrompt?: boolean
+}
+
+/** What an explicit message edit (`clearMessages` / `replaceMessage`) did. */
+export type MessageEdit = {
+	/** How many messages the edit removed or rewrote. 0 means nothing matched. */
+	changed: number
+	/** Messages in the conversation after the edit. */
+	messageCount: number
+	/**
+	 * Whether a provider continuation handle was actually dropped. False when
+	 * the edit could not have invalidated one — either none was held, or the
+	 * edited message sits after everything the provider has seen.
+	 */
+	continuationInvalidated: boolean
+	/** `state.messagesVersion` after the edit. */
+	version: number
+}
+
+/** Picks the message to replace: an index (negative counts from the end) or a predicate. */
+export type MessageSelector = number | ((message: Message, index: number) => boolean)
 
 export type AskOptions = {
 	maxTokens?: number
@@ -348,6 +390,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5.4-mini'),
 			tools: (this.options.tools || {}) as Record<string, ConversationTool>,
 			callMaxTokens: null,
+			messagesVersion: 0,
 			temperature: this.options.temperature ?? null,
 			topP: this.options.topP ?? null,
 			topK: this.options.topK ?? null,
@@ -958,7 +1001,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		newMessages.push(...recentMessages)
 
 		const removedCount = messages.length - newMessages.length
-		this.state.set('messages', newMessages)
+		this._setMessages(newMessages)
 		this.state.set('compactionCount', (this.state.get('compactionCount') || 0) + 1)
 
 		// Clear server-side continuation chains since the message history changed.
@@ -975,6 +1018,170 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('compactEnd', { summary, removedCount, estimatedTokens, compactionCount: this.state.get('compactionCount') })
 
 		return { summary, removedCount, estimatedTokens }
+	}
+
+	/**
+	 * Replace the message list and bump `messagesVersion`. Every write to
+	 * `state.messages` goes through here, so an observer that watches the version
+	 * sees every change — appends, compaction, and explicit edits alike.
+	 *
+	 * Always writes a *new* array and never mutates the old one, so a fork or a
+	 * saved snapshot taken beforehand keeps the history it captured.
+	 *
+	 * @internal Not part of the public API. Callers outside luca should use
+	 * `clearMessages()` / `replaceMessage()`, which also handle continuation
+	 * invalidation. Kept accessible so `Assistant` can install a loaded
+	 * transcript without the version silently falling behind.
+	 */
+	_setMessages(messages: Message[]): number {
+		const version = (this.state.get('messagesVersion') ?? 0) + 1
+		this.state.set('messages', messages)
+		this.state.set('messagesVersion', version)
+		return version
+	}
+
+	/**
+	 * How many messages the provider has already been shown. The Responses API
+	 * records the exact prefix its `previous_response_id` stands for; generic
+	 * backends (codex, claude-session) hold the whole transcript server-side, so
+	 * with one of their handles in hand every local message counts as sent.
+	 */
+	private get providerSeenMessageCount(): number {
+		const represented = this.state.get('lastResponseMessageCount')
+		if (typeof represented === 'number') return represented
+		const holdsHandle = !!this.state.get('lastResponseId') || this.state.get('lastProviderData') !== undefined
+		return holdsHandle ? this.messages.length : 0
+	}
+
+	/**
+	 * Drop every provider-side continuation handle. They describe a transcript
+	 * the provider holds; once local history is rewritten they point at a past
+	 * that no longer exists, and sending one replays the un-edited version.
+	 *
+	 * @returns whether a handle was actually dropped
+	 */
+	private invalidateContinuation(): boolean {
+		const held = !!this.state.get('lastResponseId')
+			|| this.state.get('lastResponseMessageCount') != null
+			|| this.state.get('lastProviderData') !== undefined
+		this.state.set('lastResponseId', null)
+		this.state.set('lastResponseMessageCount', null)
+		this.state.set('lastProviderData', undefined)
+		return held
+	}
+
+	/**
+	 * Wipe the transcript without changing the conversation's identity —
+	 * "start this discussion over". The leading system/developer messages are
+	 * kept by default because they are the assistant's identity, not transcript.
+	 *
+	 * Always invalidates provider continuation handles: a cleared conversation
+	 * that still sent `previous_response_id` would silently resume the
+	 * transcript the caller just deleted.
+	 *
+	 * Prefer this to mutating `conversation.messages` — that array is a live
+	 * projection, and splicing it leaves the continuation handles pointing at
+	 * history that is gone.
+	 *
+	 * @param options - `keepSystemPrompt` (default true) keeps the leading system/developer messages
+	 *
+	 * @example
+	 * ```typescript
+	 * const edit = conversation.clearMessages()
+	 * // => { changed: 6, messageCount: 1, continuationInvalidated: true, version: 8 }
+	 * ```
+	 */
+	clearMessages(options: ClearMessagesOptions = {}): MessageEdit {
+		const keepSystemPrompt = options.keepSystemPrompt ?? true
+		const messages = this.messages
+		const firstTurn = messages.findIndex(message => message.role !== 'system' && message.role !== 'developer')
+
+		let retained: Message[]
+		if (!keepSystemPrompt) retained = []
+		else if (firstTurn >= 0) retained = messages.slice(0, firstTurn)
+		else retained = [...messages]
+
+		const continuationInvalidated = this.invalidateContinuation()
+		const version = this._setMessages(retained)
+		const result: MessageEdit = {
+			changed: messages.length - retained.length,
+			messageCount: retained.length,
+			continuationInvalidated,
+			version,
+		}
+		this.emit('messagesCleared', result)
+		return result
+	}
+
+	/**
+	 * Rewrite one message that is already in the history — the supported way to
+	 * redact it. Use it to strip attachment pixels, secrets, or anything else
+	 * that was fine to send to the model but must not stay in the transcript.
+	 *
+	 * The replacement is deep-copied into a new array, so forks and saved
+	 * snapshots taken before the call keep the original message.
+	 *
+	 * Continuation handles are dropped only when the rewritten message is inside
+	 * the prefix the provider has already seen. Editing a message the provider
+	 * has never been shown leaves a live chain intact.
+	 *
+	 * @param selector - Index of the message (negative counts from the end) or a predicate
+	 * @param replacement - The new message, or a function receiving the current one
+	 * @returns What changed. `changed: 0` means a predicate matched nothing and state was untouched.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Redact the pixels from the most recent user message, keep its text
+	 * conversation.replaceMessage(
+	 *   message => message.role === 'user',
+	 *   message => ({ ...message, content: textPartsOf(message) }),
+	 * )
+	 * ```
+	 */
+	replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit {
+		const messages = this.messages
+
+		let index: number
+		if (typeof selector === 'number') {
+			index = selector < 0 ? messages.length + selector : selector
+			if (!Number.isInteger(index) || index < 0 || index >= messages.length) {
+				throw new Error(
+					`replaceMessage(${selector}) is out of range — this conversation has ${messages.length} message(s).`
+				)
+			}
+		} else {
+			// Search backwards: redaction almost always targets the most recent
+			// match, and callers otherwise have to hand-roll the reverse scan.
+			index = -1
+			for (let position = messages.length - 1; position >= 0; position--) {
+				if (selector(messages[position]!, position)) { index = position; break }
+			}
+			if (index < 0) {
+				const miss: MessageEdit = {
+					changed: 0,
+					messageCount: messages.length,
+					continuationInvalidated: false,
+					version: this.state.get('messagesVersion') ?? 0,
+				}
+				this.emit('messageReplaced', { index: -1, ...miss })
+				return miss
+			}
+		}
+
+		const current = messages[index]!
+		const next = typeof replacement === 'function' ? replacement(current, index) : replacement
+		if (!next || typeof next !== 'object' || Array.isArray(next)) {
+			throw new Error('replaceMessage(selector, replacement) requires a message object, e.g. { role, content }.')
+		}
+
+		const wasSent = index < this.providerSeenMessageCount
+		const revised = messages.map((message, position) => (position === index ? structuredClone(next) : message))
+		const continuationInvalidated = wasSent ? this.invalidateContinuation() : false
+		const version = this._setMessages(revised)
+
+		const result: MessageEdit = { changed: 1, messageCount: revised.length, continuationInvalidated, version }
+		this.emit('messageReplaced', { index, ...result })
+		return result
 	}
 
 	/** Returns the first system/developer text message to use as Responses instructions. */
@@ -1963,7 +2170,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.state.set('lastResponseMessageCount', null)
 			this.state.set('lastProviderData', undefined)
 		}
-		this.state.set('messages', [...this.messages, message])
+		this._setMessages([...this.messages, message])
 	}
 }
 

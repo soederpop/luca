@@ -270,6 +270,100 @@ describe('Conversation correctness boundaries', () => {
 		expect(assistant.conversation.state.get('cost')).toEqual(record.cost)
 	})
 
+	it('clears the transcript, keeps the system prompt, and invalidates continuation handles', async () => {
+		const { providers, conversation } = nativeConversation({
+			api: 'responses',
+			history: [{ role: 'system', content: 'You are helpful.' }],
+		})
+		providers.registerTransport('openai-responses', {
+			apiMode: 'openai-responses',
+			async *stream() {
+				const response = { id: 'resp_1', output: [], output_text: 'hi' }
+				yield { type: 'response', response: { content: 'hi', toolCalls: [], providerData: { responseId: 'resp_1', response } } } as const
+			},
+		})
+
+		await conversation.ask('hello')
+		expect(conversation.state.get('lastResponseId')).toBe('resp_1')
+		const versionBefore = conversation.state.get('messagesVersion')!
+
+		const edit = conversation.clearMessages()
+
+		expect(edit).toMatchObject({ changed: 2, messageCount: 1, continuationInvalidated: true })
+		expect(edit.version).toBeGreaterThan(versionBefore)
+		expect(conversation.state.get('messagesVersion')).toBe(edit.version)
+		expect(conversation.messages).toEqual([{ role: 'system', content: 'You are helpful.' }])
+		expect(conversation.state.get('lastResponseId')).toBeNull()
+		expect(conversation.state.get('lastResponseMessageCount')).toBeNull()
+		expect(conversation.state.get('lastProviderData')).toBeUndefined()
+
+		expect(conversation.clearMessages({ keepSystemPrompt: false })).toMatchObject({ changed: 1, messageCount: 0 })
+		expect(conversation.messages).toEqual([])
+	})
+
+	it('leaves forks and saved snapshots untouched when the source is cleared or redacted', async () => {
+		const { conversation } = nativeConversation({
+			history: [
+				{ role: 'system', content: 'system' },
+				{ role: 'user', content: [{ type: 'text', text: 'look' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } }] },
+				{ role: 'assistant', content: 'a cat' },
+			],
+		})
+		const snapshot = conversation.messages
+		const fork = conversation.fork()
+
+		conversation.replaceMessage(
+			message => message.role === 'user',
+			message => ({ ...message, content: 'look' }),
+		)
+		conversation.clearMessages()
+
+		expect(fork.messages).toHaveLength(3)
+		expect(Array.isArray(fork.messages[1]!.content)).toBe(true)
+		expect(snapshot).toHaveLength(3)
+		expect(Array.isArray(snapshot[1]!.content)).toBe(true)
+		expect(conversation.messages).toEqual([{ role: 'system', content: 'system' }])
+	})
+
+	it('invalidates continuation on redaction only inside the prefix the provider has seen', async () => {
+		const { providers, conversation } = nativeConversation({
+			api: 'responses',
+			history: [{ role: 'system', content: 'system' }],
+		})
+		providers.registerTransport('openai-responses', {
+			apiMode: 'openai-responses',
+			async *stream() {
+				const response = { id: 'resp_1', output: [], output_text: 'ok' }
+				yield { type: 'response', response: { content: 'ok', toolCalls: [], providerData: { responseId: 'resp_1', response } } } as const
+			},
+		})
+		await conversation.ask('secret please')
+
+		// A message the provider has never been shown: the chain stays alive.
+		const sentCount = conversation.state.get('lastResponseMessageCount')!
+		expect(sentCount).toBe(conversation.messages.length)
+		conversation.pushMessage({ role: 'user', content: 'unsent' })
+		conversation.state.set('lastResponseId', 'resp_1')
+		conversation.state.set('lastResponseMessageCount', sentCount)
+
+		const outside = conversation.replaceMessage(-1, { role: 'user', content: '[redacted]' })
+		expect(outside).toMatchObject({ changed: 1, continuationInvalidated: false })
+		expect(conversation.state.get('lastResponseId')).toBe('resp_1')
+
+		// A message inside the sent prefix: the chain must go.
+		const inside = conversation.replaceMessage(1, message => ({ ...message, content: '[redacted]' }))
+		expect(inside).toMatchObject({ changed: 1, continuationInvalidated: true })
+		expect(conversation.state.get('lastResponseId')).toBeNull()
+		expect(conversation.state.get('lastResponseMessageCount')).toBeNull()
+		expect(conversation.messages[1]).toEqual({ role: 'user', content: '[redacted]' })
+
+		// A predicate that matches nothing is a no-op, not a silent rewrite.
+		const version = conversation.state.get('messagesVersion')
+		expect(conversation.replaceMessage(() => false, { role: 'user', content: 'nope' })).toMatchObject({ changed: 0 })
+		expect(conversation.state.get('messagesVersion')).toBe(version)
+		expect(() => conversation.replaceMessage(99, { role: 'user', content: 'nope' })).toThrow(/out of range/)
+	})
+
 	it('applies fork tool filters to native tools and the Claude MCP bridge', async () => {
 		const container = new AGIContainer()
 		const assistant = container.feature('assistant', {
