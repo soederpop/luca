@@ -112,11 +112,16 @@ const DIMENSION_MAP: Record<string, number> = {
 	'text-embedding-3-large': 3072,
 }
 
-function getDimensions(provider: string, model: string): number {
-	if (provider === 'openai') {
-		return DIMENSION_MAP[model] ?? 1536
-	}
-	return DIMENSION_MAP[model] ?? 768
+/**
+ * Known dimensions, or null for a model we haven't seen — null means "probe
+ * the endpoint with a real embedding call before writing meta". Guessing here
+ * would bake a wrong dims value into search_meta for any OpenAI-compatible
+ * endpoint serving its own models (LM Studio, Ollama, vLLM, ...).
+ */
+function getDimensions(provider: string, model: string): number | null {
+	// Local models are validated against a fixed weight set, so unknown names
+	// never reach here with provider === 'local'
+	return DIMENSION_MAP[model] ?? (provider === 'local' ? 768 : null)
 }
 
 // ── Model path resolution ───────────────────────────────────────────
@@ -322,7 +327,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 	private _db: Database | null = null
 	private _daemonReady = false
-	private _dimensions: number
+	private _dimensions: number | null
 
 
 	override get initialState(): SemanticSearchState {
@@ -379,7 +384,8 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	get dimensions(): number {
-		return this._dimensions
+		// 0 = not yet known (unknown model, db not initialized/probed yet)
+		return this._dimensions ?? 0
 	}
 
 	// ── 2.2 Database Layer ──────────────────────────────────────────
@@ -396,6 +402,12 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		this._db.exec('PRAGMA foreign_keys = ON')
 
 		if (isNew) {
+			// Unknown model on an OpenAI-compatible endpoint: ask it for one
+			// embedding and take the real dimension before writing meta
+			if (this._dimensions === null) {
+				const [probe] = await this.embed(['dimension probe'])
+				this._dimensions = probe!.length
+			}
 			this._createTables()
 			this._writeMeta()
 		} else {
@@ -467,6 +479,12 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			provider: (getMeta.get('provider') as any)?.value,
 			model: (getMeta.get('model') as any)?.value,
 			dims: (getMeta.get('dims') as any)?.value,
+		}
+
+		// An unknown model's dims were probed when the db was created — the
+		// stored value is the truth, adopt it rather than comparing to a guess
+		if (this._dimensions === null && stored.dims) {
+			this._dimensions = Number(stored.dims)
 		}
 
 		const expected = {
@@ -552,7 +570,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			lastIndexedAt: lastDoc?.indexed_at ?? null,
 			provider: this.options.embeddingProvider,
 			model: this.embeddingModel,
-			dimensions: this._dimensions,
+			dimensions: this._dimensions ?? 0,
 			dbSizeBytes: dbSize,
 		}
 	}
@@ -592,6 +610,10 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 					? 'text-embedding-3-small'
 					: this.embeddingModel,
 				input: batch,
+				// The SDK defaults to base64 and decodes blindly — servers that
+				// ignore encoding_format (LM Studio) then get their float arrays
+				// "decoded" into garbage. Floats work everywhere; ask for them.
+				encoding_format: 'float',
 			})
 			for (const item of response.data) {
 				results.push(item.embedding)
@@ -645,7 +667,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	getDimensions(): number {
-		return this._dimensions
+		return this._dimensions ?? 0
 	}
 
 	// ── 2.4 Document Chunking ───────────────────────────────────────

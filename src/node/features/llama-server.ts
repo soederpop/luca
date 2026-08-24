@@ -169,7 +169,12 @@ export async function ensureServerProcess(opts: EnsureServerProcessOptions): Pro
 		'--port', String(opts.port),
 		// The idle watchdog reads request counters from /metrics to detect activity
 		'--metrics',
-		...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(opts.contextSize ?? 16384)]),
+		// Embedding servers must accept a whole chunk in one physical batch —
+		// llama-server's default ubatch of 512 rejects the ~900-token section
+		// chunks semanticSearch produces. 2048 matches embedding-gemma's context.
+		...(opts.embedding
+			? ['--embedding', '-c', '2048', '-b', '2048', '-ub', '2048']
+			: ['--jinja', '-c', String(opts.contextSize ?? 16384)]),
 	]
 	const child = spawn(binary, args, {
 		cwd: dirname(binary),
