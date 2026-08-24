@@ -76,6 +76,8 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options passed to the resolved provider'),
 	/** Maximum provider/tool turns before the generic (non-OpenAI) transport loop aborts. */
 	maxTurns: z.number().optional().describe('Maximum provider/tool turns for non-OpenAI providers (default 8)'),
+	/** Hard ceiling on native (Responses/Chat Completions) tool-calling turns per ask(). Default 75 — chosen from observed real-world depth (p99 was 24, deepest legitimate run 50). When the model still wants tools at the ceiling, the turn fails with ToolLoopLimitError instead of spinning. */
+	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
@@ -145,6 +147,17 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	tools: z.record(z.string(), z.any()).describe('Active tools map including any runtime overrides'),
 	callMaxTokens: z.number().nullable().describe('Per-call max tokens override, cleared after each ask()'),
 	messagesVersion: z.number().describe('Increments on every change to the message list — lets observers detect out-of-band edits (clear, replace, compact) without diffing the array'),
+	failedTurn: z.object({
+		id: z.string().describe('Retry identity for this failure — pass it to retryFailedTurn() to retry exactly this turn'),
+		userMessageIndex: z.number().describe('Index of the surviving user message that drove the failed turn'),
+		error: z.object({
+			name: z.string().describe('Error class name, e.g. ToolLoopLimitError'),
+			message: z.string().describe('Human-readable error message'),
+			status: z.number().optional().describe('HTTP status when the failure came from a provider response'),
+		}).describe('What went wrong'),
+		at: z.string().describe('ISO timestamp of the failure'),
+		retryable: z.boolean().describe('Whether retryFailedTurn() can retry this turn'),
+	}).nullable().describe('The most recent failed turn: its retry identity, the surviving input, and the error. Null when the last turn succeeded. The failed turn\'s input stays in history; its partial output is rolled back and never replayed as context'),
 
 	/** Sampling parameters — state is the runtime source of truth, seeded from options at construction. */
 	temperature: z.number().nullable().describe('Sampling temperature (0-2). Null means use model default'),
@@ -165,6 +178,39 @@ export class ConversationAbortError extends Error {
 		this.name = 'ConversationAbortError'
 		this.partial = partial
 	}
+}
+
+/**
+ * Thrown when a native (Responses / Chat Completions) tool loop still wants
+ * more tool calls at the configured `maxToolTurns` ceiling. Flows through the
+ * failed-turn contract: the turn's partial output is rolled back, the input
+ * survives with a retryable failed-turn record, and clients get a displayable
+ * terminal error instead of a runaway loop.
+ */
+export class ToolLoopLimitError extends Error {
+	/** The ceiling that was hit. */
+	readonly limit: number
+	/** Text accumulated across the turn before the ceiling stopped it. */
+	readonly partial: string
+
+	constructor(limit: number, partial: string) {
+		super(`Tool-call loop stopped at the ${limit}-turn ceiling without a final answer. Raise maxToolTurns on this conversation if the work is legitimate.`)
+		this.name = 'ToolLoopLimitError'
+		this.limit = limit
+		this.partial = partial
+	}
+}
+
+/** The record kept for the most recent failed turn — see `state.failedTurn`. */
+export type FailedTurnRecord = {
+	/** Retry identity — pass to `retryFailedTurn()` to retry exactly this turn. */
+	id: string
+	/** Index of the surviving user message that drove the failed turn. */
+	userMessageIndex: number
+	error: { name: string; message: string; status?: number }
+	/** ISO timestamp of the failure. */
+	at: string
+	retryable: boolean
 }
 
 export const ConversationEventsSchema = FeatureEventsSchema.extend({
@@ -198,6 +244,17 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 		continuationInvalidated: z.boolean().describe('Whether a provider continuation handle was dropped'),
 		version: z.number().describe('messagesVersion after the clear'),
 	})]).describe('Fired after clearMessages() rewrites the message list'),
+	turnFailed: z.tuple([z.object({
+		id: z.string().describe('Retry identity for the failure'),
+		userMessageIndex: z.number().describe('Index of the surviving user message'),
+		error: z.object({
+			name: z.string(),
+			message: z.string(),
+			status: z.number().optional(),
+		}).describe('What went wrong'),
+		at: z.string().describe('ISO timestamp of the failure'),
+		retryable: z.boolean(),
+	})]).describe('Fired when a turn fails: partial output has been rolled back, the input survives, and the record is retryable via retryFailedTurn()'),
 	messageReplaced: z.tuple([z.object({
 		index: z.number().describe('Index of the replaced message, or -1 when nothing matched'),
 		changed: z.number().describe('1 when a message was rewritten, 0 when the selector matched nothing'),
@@ -391,6 +448,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			tools: (this.options.tools || {}) as Record<string, ConversationTool>,
 			callMaxTokens: null,
 			messagesVersion: 0,
+			failedTurn: null,
 			temperature: this.options.temperature ?? null,
 			topP: this.options.topP ?? null,
 			topK: this.options.topK ?? null,
@@ -1184,6 +1242,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return result
 	}
 
+	/**
+	 * The native tool-loop ceiling. Default 75: measured across 358 real
+	 * tool-using turns, p99 depth was 24 and the deepest legitimate run
+	 * (a researcher deep-dive) reached 50 — 75 clears that with margin while
+	 * still stopping a genuine runaway within one conversation.
+	 */
+	get maxToolTurns(): number {
+		return this.options.maxToolTurns ?? 75
+	}
+
 	/** Returns the first system/developer text message to use as Responses instructions. */
 	private get responsesInstructions(): string | undefined {
 		for (const message of this.messages) {
@@ -1225,12 +1293,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Execute one queued ask() with exclusive access to per-turn mutable state. */
 	private async runAsk(content: string | ContentPart[], options?: AskOptions): Promise<string> {
-		this.state.set('callMaxTokens', options?.maxTokens ?? null)
-		this._activeSchema = options?.schema ?? null
-		this._activeInstructions = options?.instructions?.trim() || null
-		this._abortController = new AbortController()
-
-		try {
+		return this.executeTurn(options, async () => {
 			// Auto-compact before adding the new message
 			if (this.options.autoCompact) {
 				const threshold = this.options.compactThreshold ?? 0.8
@@ -1244,6 +1307,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			const userMessage: Message = { role: 'user', content: content as any }
 			this.pushMessage(userMessage)
+			// A new turn supersedes any failed one — the caller chose to move on.
+			this.state.set('failedTurn', null)
 			this.emit('userMessage', content)
 
 			const stubText = this._matchStub(typeof content === 'string' ? content : '')
@@ -1251,6 +1316,106 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				return await this._streamStub(stubText)
 			}
 
+			return await this.runProviderTurn()
+		})
+	}
+
+	/**
+	 * Retry the turn recorded in `state.failedTurn`. The surviving user message
+	 * is re-run against the provider without being duplicated in history, and
+	 * the failed turn's partial output — already rolled back when the failure
+	 * was recorded — is never replayed as context.
+	 *
+	 * Queued behind any in-flight ask() like every turn. On success the failed
+	 * record clears; another failure records a fresh one (new id, same input).
+	 *
+	 * @param options - AskOptions plus `expectId`: when set, the retry only runs
+	 * if it still targets that failed-turn record, so a client acting on a stale
+	 * notification errors instead of retrying a different failure.
+	 *
+	 * @example
+	 * ```typescript
+	 * try { await conversation.ask('do the thing') }
+	 * catch { await conversation.retryFailedTurn() }
+	 * ```
+	 */
+	async retryFailedTurn(options?: AskOptions & { expectId?: string }): Promise<string> {
+		let release!: () => void
+		const previous = this._askQueue
+		this._askQueue = new Promise<void>((resolve) => { release = resolve })
+
+		await previous
+		try {
+			return await this.executeTurn(options, async () => {
+				const failed = this.state.get('failedTurn') as FailedTurnRecord | null
+				if (!failed) throw new Error('retryFailedTurn(): there is no failed turn to retry')
+				if (options?.expectId && options.expectId !== failed.id) {
+					throw new Error(`retryFailedTurn(): expected failed turn ${options.expectId} but the current one is ${failed.id}`)
+				}
+				if (!failed.retryable) throw new Error(`retryFailedTurn(): failed turn ${failed.id} is not retryable`)
+				const input = this.messages[failed.userMessageIndex]
+				if (failed.userMessageIndex !== this.messages.length - 1 || input?.role !== 'user') {
+					this.state.set('failedTurn', null)
+					throw new Error('retryFailedTurn(): the conversation has moved past the failed turn')
+				}
+				this.state.set('failedTurn', null)
+				return await this.runProviderTurn()
+			})
+		} finally {
+			release()
+		}
+	}
+
+	/**
+	 * Per-call state bracket shared by ask() and retryFailedTurn(): seeds the
+	 * call-scoped schema/instructions/abort state, translates SDK aborts into
+	 * ConversationAbortError, and always clears the per-call state.
+	 */
+	private async executeTurn(options: AskOptions | undefined, body: () => Promise<string>): Promise<string> {
+		this.state.set('callMaxTokens', options?.maxTokens ?? null)
+		this._activeSchema = options?.schema ?? null
+		this._activeInstructions = options?.instructions?.trim() || null
+		this._abortController = new AbortController()
+
+		try {
+			return await body()
+		} catch (err: any) {
+			if (err instanceof ConversationAbortError) {
+				this.emit('aborted', err.partial)
+				throw err
+			}
+			// Re-throw abort errors from the OpenAI SDK / DOM AbortController
+			if (err.name === 'AbortError' || this._abortController?.signal.aborted) {
+				const partial = this.state.get('lastResponse') || ''
+				this.emit('aborted', partial)
+				throw new ConversationAbortError(partial)
+			}
+			throw err
+		} finally {
+			this.state.set('callMaxTokens', null)
+			this._activeSchema = null
+			this._activeInstructions = null
+			this._abortController = null
+		}
+	}
+
+	/**
+	 * Run the provider portion of one turn: the user message driving it is
+	 * already the last message in history. On a non-abort failure the turn's
+	 * partial output is rolled back and a retryable failed-turn record is
+	 * written before the error propagates — see `recordFailedTurn`.
+	 */
+	private async runProviderTurn(): Promise<string> {
+		const inputIndex = this.messages.length - 1
+		const content = this.messages[inputIndex]!.content as string | ContentPart[]
+		// Continuation handles as they stood before this turn ran. If the turn
+		// fails without minting new ones, the pre-turn chain is still valid.
+		const handlesBefore = {
+			lastResponseId: this.state.get('lastResponseId') ?? null,
+			lastProviderData: this.state.get('lastProviderData'),
+		}
+
+		try {
 			let raw: string
 
 			// A named `provider:` that isn't registered must fail loudly here
@@ -1326,23 +1491,54 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			return raw
 		} catch (err: any) {
-			if (err instanceof ConversationAbortError) {
-				this.emit('aborted', err.partial)
-				throw err
-			}
-			// Re-throw abort errors from the OpenAI SDK / DOM AbortController
-			if (err.name === 'AbortError' || this._abortController?.signal.aborted) {
-				const partial = this.state.get('lastResponse') || ''
-				this.emit('aborted', partial)
-				throw new ConversationAbortError(partial)
-			}
+			// An abort is the user's own action, not a failure — executeTurn
+			// translates it. Everything else becomes a retryable failed turn.
+			const aborted = err instanceof ConversationAbortError
+				|| err?.name === 'AbortError'
+				|| this._abortController?.signal.aborted
+			if (!aborted) this.recordFailedTurn(inputIndex, handlesBefore, err)
 			throw err
-		} finally {
-			this.state.set('callMaxTokens', null)
-			this._activeSchema = null
-			this._activeInstructions = null
-			this._abortController = null
 		}
+	}
+
+	/**
+	 * Roll a failed turn back to its input and record it as retryable.
+	 *
+	 * The contract (option 3 of the coordination note): the turn's input
+	 * survives in history with a failure marker and a retry identity, but any
+	 * partial output — assistant tool-call messages, tool results, half-streamed
+	 * text — is dropped so it can never be replayed as model context. A
+	 * continuation handle minted mid-turn describes a transcript that includes
+	 * that partial output, so it is dropped too; a handle untouched by the turn
+	 * still represents the pre-turn prefix and survives for the retry.
+	 */
+	private recordFailedTurn(
+		inputIndex: number,
+		handlesBefore: { lastResponseId: string | null; lastProviderData: any },
+		err: any,
+	): FailedTurnRecord {
+		if (this.messages.length > inputIndex + 1) {
+			this._setMessages(this.messages.slice(0, inputIndex + 1))
+		}
+		const mintedMidTurn = (this.state.get('lastResponseId') ?? null) !== handlesBefore.lastResponseId
+			|| this.state.get('lastProviderData') !== handlesBefore.lastProviderData
+		if (mintedMidTurn) this.invalidateContinuation()
+
+		const status = err?.status ?? err?.statusCode ?? err?.response?.status
+		const record: FailedTurnRecord = {
+			id: `ft_${crypto.randomUUID()}`,
+			userMessageIndex: inputIndex,
+			error: {
+				name: err?.name || 'Error',
+				message: err?.message || String(err),
+				...(typeof status === 'number' ? { status } : {}),
+			},
+			at: new Date().toISOString(),
+			retryable: true,
+		}
+		this.state.set('failedTurn', record)
+		this.emit('turnFailed', record)
+		return record
 	}
 
 	/** Retry only failures that explicitly identify an invalid/expired continuation handle. */
@@ -1595,10 +1791,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		// Responses API, lastProviderData for codex/claude-session backends.
 		const lastResponseId = this.state.get('lastResponseId')
 		const lastProviderData = this.state.get('lastProviderData')
+		const failedTurn = this.state.get('failedTurn')
 		const responseMeta = {
 			...(lastResponseId ? { lastResponseId } : {}),
 			...(lastResponseId ? { lastResponseMessageCount: this.state.get('lastResponseMessageCount') } : {}),
 			...(lastProviderData ? { lastProviderData } : {}),
+			...(failedTurn ? { failedTurn } : {}),
 		}
 
 		// Grab the live token usage and cost from state
@@ -1614,6 +1812,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			if (opts?.tags) existing.tags = opts.tags
 			if (opts?.thread) existing.thread = opts.thread
 			existing.metadata = { ...existing.metadata, ...responseMeta, ...(opts?.metadata || {}) }
+			// A cleared failure must clear from the record too, or a resume would
+			// resurrect a failed turn the user already retried past.
+			if (!failedTurn) delete existing.metadata.failedTurn
 			await this.history.save(existing)
 			return existing
 		}
@@ -1804,6 +2005,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		const functionCalls = (finalResponse.output || []).filter((item) => item.type === 'function_call') as OpenAI.Responses.ResponseFunctionToolCall[]
 		if (functionCalls.length > 0) {
+			// The model still wants tools at the ceiling: stop the recursion here,
+			// before executing them, so a tool-calls-tool loop cannot spin until a
+			// provider or budget kills it. Flows through the failed-turn contract.
+			if (turn >= this.maxToolTurns) {
+				throw new ToolLoopLimitError(this.maxToolTurns, accumulated)
+			}
 			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
 				role: 'assistant',
 				content: turnContent || null,
@@ -2000,6 +2207,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		// If the model produced tool calls, execute them and loop
 		if (toolCalls.length > 0) {
+			// Same ceiling as the Responses loop — stop before executing another
+			// round of tools once the model has had maxToolTurns chances to answer.
+			if (turn >= this.maxToolTurns) {
+				throw new ToolLoopLimitError(this.maxToolTurns, accumulated)
+			}
 			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
 				role: 'assistant',
 				content: turnContent || null,

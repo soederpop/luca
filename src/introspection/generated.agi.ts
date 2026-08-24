@@ -2210,6 +2210,23 @@ setBuildTimeData('features.assistant', {
         }
       ]
     },
+    "retryFailedTurn": {
+      "description": "Retry the recorded failed turn. Delegates to `Conversation#retryFailedTurn`: the surviving user input is re-run without duplication, and the failure's partial output is never replayed as context.",
+      "parameters": {
+        "options": {
+          "type": "AskOptions & { expectId?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })"
+        }
+      ]
+    },
     "addSystemPromptExtension": {
       "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
       "parameters": {
@@ -2646,6 +2663,10 @@ setBuildTimeData('features.assistant', {
     "messages": {
       "description": "",
       "returns": "any"
+    },
+    "failedTurn": {
+      "description": "The most recent failed turn, or null when the last turn succeeded. See `Conversation` state `failedTurn` for the contract.",
+      "returns": "FailedTurnRecord | null"
     },
     "isStarted": {
       "description": "Whether the assistant has been started and is ready to receive questions.",
@@ -6852,6 +6873,23 @@ setBuildTimeData('features.conversation', {
         }
       ]
     },
+    "retryFailedTurn": {
+      "description": "Retry the turn recorded in `state.failedTurn`. The surviving user message is re-run against the provider without being duplicated in history, and the failed turn's partial output — already rolled back when the failure was recorded — is never replayed as context. Queued behind any in-flight ask() like every turn. On success the failed record clears; another failure records a fresh one (new id, same input).",
+      "parameters": {
+        "options": {
+          "type": "AskOptions & { expectId?: string }",
+          "description": "AskOptions plus `expectId`: when set, the retry only runs"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "try { await conversation.ask('do the thing') }\ncatch { await conversation.retryFailedTurn() }"
+        }
+      ]
+    },
     "save": {
       "description": "Persist this conversation to disk via conversationHistory. Creates a new record if this conversation hasn't been saved before, or updates the existing one.",
       "parameters": {
@@ -6924,6 +6962,10 @@ setBuildTimeData('features.conversation', {
       "description": "Whether the conversation is approaching the context limit.",
       "returns": "boolean"
     },
+    "maxToolTurns": {
+      "description": "The native tool-loop ceiling. Default 75: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50 — 75 clears that with margin while still stopping a genuine runaway within one conversation.",
+      "returns": "number"
+    },
     "openai": {
       "description": "Returns the OpenAI client instance from the container.",
       "returns": "any"
@@ -6981,6 +7023,11 @@ setBuildTimeData('features.conversation', {
     },
     "aborted": {
       "name": "aborted",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "turnFailed": {
+      "name": "turnFailed",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -28699,6 +28746,23 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "retryFailedTurn": {
+        "description": "Retry the recorded failed turn. Delegates to `Conversation#retryFailedTurn`: the surviving user input is re-run without duplication, and the failure's partial output is never replayed as context.",
+        "parameters": {
+          "options": {
+            "type": "AskOptions & { expectId?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })"
+          }
+        ]
+      },
       "addSystemPromptExtension": {
         "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
         "parameters": {
@@ -29135,6 +29199,10 @@ export const introspectionData: Record<string, any>[] = [
       "messages": {
         "description": "",
         "returns": "any"
+      },
+      "failedTurn": {
+        "description": "The most recent failed turn, or null when the last turn succeeded. See `Conversation` state `failedTurn` for the contract.",
+        "returns": "FailedTurnRecord | null"
       },
       "isStarted": {
         "description": "Whether the assistant has been started and is ready to receive questions.",
@@ -33332,6 +33400,23 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "retryFailedTurn": {
+        "description": "Retry the turn recorded in `state.failedTurn`. The surviving user message is re-run against the provider without being duplicated in history, and the failed turn's partial output — already rolled back when the failure was recorded — is never replayed as context. Queued behind any in-flight ask() like every turn. On success the failed record clears; another failure records a fresh one (new id, same input).",
+        "parameters": {
+          "options": {
+            "type": "AskOptions & { expectId?: string }",
+            "description": "AskOptions plus `expectId`: when set, the retry only runs"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "try { await conversation.ask('do the thing') }\ncatch { await conversation.retryFailedTurn() }"
+          }
+        ]
+      },
       "save": {
         "description": "Persist this conversation to disk via conversationHistory. Creates a new record if this conversation hasn't been saved before, or updates the existing one.",
         "parameters": {
@@ -33404,6 +33489,10 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Whether the conversation is approaching the context limit.",
         "returns": "boolean"
       },
+      "maxToolTurns": {
+        "description": "The native tool-loop ceiling. Default 75: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50 — 75 clears that with margin while still stopping a genuine runaway within one conversation.",
+        "returns": "number"
+      },
       "openai": {
         "description": "Returns the OpenAI client instance from the container.",
         "returns": "any"
@@ -33461,6 +33550,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "aborted": {
         "name": "aborted",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "turnFailed": {
+        "name": "turnFailed",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },

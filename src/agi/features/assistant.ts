@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector } from './conversation'
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector, FailedTurnRecord } from './conversation'
 import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -95,6 +95,7 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper'),
 
 	/** The model's total context window in tokens. Drives auto-compaction thresholds — set this to your model's real limit (e.g. 16384 for the default local llama-server) so history compacts before the request overflows. Inferred from the model name when omitted. */
 	contextWindow: z.number().optional().describe("The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted."),
@@ -518,6 +519,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 					},
 				} : {}),
 				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+				...(this.effectiveOptions.maxToolTurns != null ? { maxToolTurns: this.effectiveOptions.maxToolTurns } : {}),
 				...(this.effectiveOptions.contextWindow ? { contextWindow: this.effectiveOptions.contextWindow } : {}),
 				...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
 				...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
@@ -660,6 +662,26 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit {
 		return this.conversation.replaceMessage(selector, replacement)
+	}
+
+	/**
+	 * The most recent failed turn, or null when the last turn succeeded.
+	 * See `Conversation` state `failedTurn` for the contract.
+	 */
+	get failedTurn(): FailedTurnRecord | null {
+		return (this.conversation?.state.get('failedTurn') as FailedTurnRecord | null) ?? null
+	}
+
+	/**
+	 * Retry the recorded failed turn. Delegates to
+	 * `Conversation#retryFailedTurn`: the surviving user input is re-run without
+	 * duplication, and the failure's partial output is never replayed as context.
+	 *
+	 * @example
+	 * if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })
+	 */
+	retryFailedTurn(options?: AskOptions & { expectId?: string }): Promise<string> {
+		return this.conversation.retryFailedTurn(options)
 	}
 
 	/** Whether the assistant has been started and is ready to receive questions. */
@@ -1500,6 +1522,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 			if (existing.metadata?.lastProviderData) {
 				this.conversation.state.set('lastProviderData', existing.metadata.lastProviderData)
+			}
+			// Restore a failed final turn so its retry identity survives a restart.
+			// Only when it still points at the last message and that message is the
+			// user input it describes — an older record edited out of band does not
+			// get to resurrect a stale failure.
+			const failedTurn = existing.metadata?.failedTurn
+			if (failedTurn
+				&& failedTurn.userMessageIndex === messages.length - 1
+				&& messages[failedTurn.userMessageIndex]?.role === 'user') {
+				this.conversation.state.set('failedTurn', failedTurn)
 			}
 			if (existing.tokenUsage) {
 				this.conversation.state.set('tokenUsage', {

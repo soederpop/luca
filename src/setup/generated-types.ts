@@ -106,7 +106,7 @@ export { CodingTools } from "./features/coding-tools";
 export { ConversationHistory } from "./features/conversation-history";
 export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
 export { Conversation } from "./features/conversation";
-export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
+export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ToolLoopLimitError, FailedTurnRecord, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
@@ -551,7 +551,7 @@ export default Memory;
 //# sourceMappingURL=agent-memory.d.ts.map`,
   "agi/features/assistant.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector } from './conversation';
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector, FailedTurnRecord } from './conversation';
 import type { ContentDb } from 'luca/node';
 import type { ConversationHistory, ConversationMeta } from './conversation-history';
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js';
@@ -632,6 +632,7 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     model: z.ZodOptional<z.ZodString>;
     maxTokens: z.ZodOptional<z.ZodNumber>;
+    maxToolTurns: z.ZodOptional<z.ZodNumber>;
     contextWindow: z.ZodOptional<z.ZodNumber>;
     temperature: z.ZodOptional<z.ZodNumber>;
     topP: z.ZodOptional<z.ZodNumber>;
@@ -774,6 +775,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         model: z.ZodOptional<z.ZodString>;
         maxTokens: z.ZodOptional<z.ZodNumber>;
+        maxToolTurns: z.ZodOptional<z.ZodNumber>;
         contextWindow: z.ZodOptional<z.ZodNumber>;
         temperature: z.ZodOptional<z.ZodNumber>;
         topP: z.ZodOptional<z.ZodNumber>;
@@ -983,6 +985,22 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))
      */
     replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit;
+    /**
+     * The most recent failed turn, or null when the last turn succeeded.
+     * See \`Conversation\` state \`failedTurn\` for the contract.
+     */
+    get failedTurn(): FailedTurnRecord | null;
+    /**
+     * Retry the recorded failed turn. Delegates to
+     * \`Conversation#retryFailedTurn\`: the surviving user input is re-run without
+     * duplication, and the failure's partial output is never replayed as context.
+     *
+     * @example
+     * if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })
+     */
+    retryFailedTurn(options?: AskOptions & {
+        expectId?: string;
+    }): Promise<string>;
     /** Whether the assistant has been started and is ready to receive questions. */
     get isStarted(): boolean;
     /** Whether this assistant was created via fork(). */
@@ -4039,6 +4057,7 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
     provider: z.ZodOptional<z.ZodAny>;
     providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     maxTurns: z.ZodOptional<z.ZodNumber>;
+    maxToolTurns: z.ZodOptional<z.ZodNumber>;
     tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
@@ -4095,6 +4114,17 @@ export declare const ConversationStateSchema: z.ZodObject<{
     tools: z.ZodRecord<z.ZodString, z.ZodAny>;
     callMaxTokens: z.ZodNullable<z.ZodNumber>;
     messagesVersion: z.ZodNumber;
+    failedTurn: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        userMessageIndex: z.ZodNumber;
+        error: z.ZodObject<{
+            name: z.ZodString;
+            message: z.ZodString;
+            status: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>;
+        at: z.ZodString;
+        retryable: z.ZodBoolean;
+    }, z.core.$strip>>;
     temperature: z.ZodNullable<z.ZodNumber>;
     topP: z.ZodNullable<z.ZodNumber>;
     topK: z.ZodNullable<z.ZodNumber>;
@@ -4108,6 +4138,35 @@ export declare class ConversationAbortError extends Error {
     readonly partial: string;
     constructor(partial: string);
 }
+/**
+ * Thrown when a native (Responses / Chat Completions) tool loop still wants
+ * more tool calls at the configured \`maxToolTurns\` ceiling. Flows through the
+ * failed-turn contract: the turn's partial output is rolled back, the input
+ * survives with a retryable failed-turn record, and clients get a displayable
+ * terminal error instead of a runaway loop.
+ */
+export declare class ToolLoopLimitError extends Error {
+    /** The ceiling that was hit. */
+    readonly limit: number;
+    /** Text accumulated across the turn before the ceiling stopped it. */
+    readonly partial: string;
+    constructor(limit: number, partial: string);
+}
+/** The record kept for the most recent failed turn — see \`state.failedTurn\`. */
+export type FailedTurnRecord = {
+    /** Retry identity — pass to \`retryFailedTurn()\` to retry exactly this turn. */
+    id: string;
+    /** Index of the surviving user message that drove the failed turn. */
+    userMessageIndex: number;
+    error: {
+        name: string;
+        message: string;
+        status?: number;
+    };
+    /** ISO timestamp of the failure. */
+    at: string;
+    retryable: boolean;
+};
 export declare const ConversationEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
     enabled: z.ZodTuple<[], null>;
@@ -4158,6 +4217,17 @@ export declare const ConversationEventsSchema: z.ZodObject<{
         messageCount: z.ZodNumber;
         continuationInvalidated: z.ZodBoolean;
         version: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    turnFailed: z.ZodTuple<[z.ZodObject<{
+        id: z.ZodString;
+        userMessageIndex: z.ZodNumber;
+        error: z.ZodObject<{
+            name: z.ZodString;
+            message: z.ZodString;
+            status: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>;
+        at: z.ZodString;
+        retryable: z.ZodBoolean;
     }, z.core.$strip>], null>;
     messageReplaced: z.ZodTuple<[z.ZodObject<{
         index: z.ZodNumber;
@@ -4286,6 +4356,17 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         tools: z.ZodRecord<z.ZodString, z.ZodAny>;
         callMaxTokens: z.ZodNullable<z.ZodNumber>;
         messagesVersion: z.ZodNumber;
+        failedTurn: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            userMessageIndex: z.ZodNumber;
+            error: z.ZodObject<{
+                name: z.ZodString;
+                message: z.ZodString;
+                status: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>;
+            at: z.ZodString;
+            retryable: z.ZodBoolean;
+        }, z.core.$strip>>;
         temperature: z.ZodNullable<z.ZodNumber>;
         topP: z.ZodNullable<z.ZodNumber>;
         topK: z.ZodNullable<z.ZodNumber>;
@@ -4314,6 +4395,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         provider: z.ZodOptional<z.ZodAny>;
         providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         maxTurns: z.ZodOptional<z.ZodNumber>;
+        maxToolTurns: z.ZodOptional<z.ZodNumber>;
         tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
@@ -4386,6 +4468,17 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
             messageCount: z.ZodNumber;
             continuationInvalidated: z.ZodBoolean;
             version: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        turnFailed: z.ZodTuple<[z.ZodObject<{
+            id: z.ZodString;
+            userMessageIndex: z.ZodNumber;
+            error: z.ZodObject<{
+                name: z.ZodString;
+                message: z.ZodString;
+                status: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>;
+            at: z.ZodString;
+            retryable: z.ZodBoolean;
         }, z.core.$strip>], null>;
         messageReplaced: z.ZodTuple<[z.ZodObject<{
             index: z.ZodNumber;
@@ -4737,6 +4830,13 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * \`\`\`
      */
     replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit;
+    /**
+     * The native tool-loop ceiling. Default 75: measured across 358 real
+     * tool-using turns, p99 depth was 24 and the deepest legitimate run
+     * (a researcher deep-dive) reached 50 — 75 clears that with margin while
+     * still stopping a genuine runaway within one conversation.
+     */
+    get maxToolTurns(): number;
     /** Returns the first system/developer text message to use as Responses instructions. */
     private get responsesInstructions();
     /**
@@ -4758,6 +4858,53 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     ask(content: string | ContentPart[], options?: AskOptions): Promise<string>;
     /** Execute one queued ask() with exclusive access to per-turn mutable state. */
     private runAsk;
+    /**
+     * Retry the turn recorded in \`state.failedTurn\`. The surviving user message
+     * is re-run against the provider without being duplicated in history, and
+     * the failed turn's partial output — already rolled back when the failure
+     * was recorded — is never replayed as context.
+     *
+     * Queued behind any in-flight ask() like every turn. On success the failed
+     * record clears; another failure records a fresh one (new id, same input).
+     *
+     * @param options - AskOptions plus \`expectId\`: when set, the retry only runs
+     * if it still targets that failed-turn record, so a client acting on a stale
+     * notification errors instead of retrying a different failure.
+     *
+     * @example
+     * \`\`\`typescript
+     * try { await conversation.ask('do the thing') }
+     * catch { await conversation.retryFailedTurn() }
+     * \`\`\`
+     */
+    retryFailedTurn(options?: AskOptions & {
+        expectId?: string;
+    }): Promise<string>;
+    /**
+     * Per-call state bracket shared by ask() and retryFailedTurn(): seeds the
+     * call-scoped schema/instructions/abort state, translates SDK aborts into
+     * ConversationAbortError, and always clears the per-call state.
+     */
+    private executeTurn;
+    /**
+     * Run the provider portion of one turn: the user message driving it is
+     * already the last message in history. On a non-abort failure the turn's
+     * partial output is rolled back and a retryable failed-turn record is
+     * written before the error propagates — see \`recordFailedTurn\`.
+     */
+    private runProviderTurn;
+    /**
+     * Roll a failed turn back to its input and record it as retryable.
+     *
+     * The contract (option 3 of the coordination note): the turn's input
+     * survives in history with a failure marker and a retry identity, but any
+     * partial output — assistant tool-call messages, tool results, half-streamed
+     * text — is dropped so it can never be replayed as model context. A
+     * continuation handle minted mid-turn describes a transcript that includes
+     * that partial output, so it is dropped too; a handle untouched by the turn
+     * still represents the pre-turn prefix and survives for the retry.
+     */
+    private recordFailedTurn;
     /** Retry only failures that explicitly identify an invalid/expired continuation handle. */
     private shouldRetryWithoutContinuation;
     /**

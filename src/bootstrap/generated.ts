@@ -15,7 +15,7 @@ The Luca framework \`luca\` ships a \`luca\` binary — a bun-based CLI for a de
 
 The \`luca\` cli loads typescript modules in through its VM which injects a \`container\` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 
-There are three things to learn, in this order:
+Read Phase 0 first — it is short, and it is the reason the rest of the workflow looks the way it does. Then there are four skills, in this order:
 
 1. **Discover** what the container can do — \`luca describe\`
 2. **Build** new helpers when your project needs them — \`luca scaffold\`
@@ -25,13 +25,46 @@ There are three things to learn, in this order:
 
 ## Phase 0: Understand the \`luca\` philosophy
 
-Luca is kind of Object oriented programming and Domain Driven Design.  The \`container\` is the root from which the entire system branches off.  It provides generic primitives that are universal to every JavaScript application and context ( scripts that end, webpages that render, persistent processes ( on the server ), persistent processes ( on the browser, e.g. react loops ).  These primitives are observable state, an event emitter, utils (especially for manipulating strings, re-shaping data, hashing), and registries of "Helpers" which are universal interfaces for common, very disparate things.  servers can start / stop.  clients can connect().  however they implement that is up to them, etc.  features are compositions of things, they're supported or not, they can be enabled.  We interact with features as things with names.  same with servers, clients.  They are generally single components we talk about and have names.  ( Multiple *instances* of these components can exist, mechanically.  They don't necessarily do architecturally.
+**Luca is a framework for building software components that can be talked to.** Object-oriented programming and domain-driven design, aimed at an era where the caller might be a person in a REPL, a React component, or an agent. Understand this section and the rest of the skill stops being ceremony and starts being obvious.
 
-Luca is a framework for building these things that can be "talked to".  Metaphorically, in the traditional pre LLM sense, this means UI code gets the benefit of these single service objects they can render with react and dispatch methods to.  The components are good for encapsulating the complexity, and having the glue code be simple, readable, conversational in style, which makes it easy to debug.  Literally, though, in the post-LLM era. 
+### The container is the spine
 
-Every important architectural component of an application built on luca, is potentially something an assistant can use as tools, responds to "describe()" to teach an assistant, or a developer in a REPL, how to use that thing, what state it is currently in, what state it COULD be in, what events it might emit, etc.  To do this, the Luca framework requires you to go through the ceremony of naming your thing, categorizing ( which kind of helper is it? but also literally, with metadata on the helper class itself ), being good about JSDOC comments and type signatures.  Zod schemas for all of the important interaction points between code and agent / developer.
+The \`container\` is the root that the whole system branches off of. It provides the primitives every JavaScript context needs, whether that context is a script that exits, a page that renders, a long-lived server process, or a long-lived browser loop: observable state, an event emitter, utils for reshaping strings and data and hashing them, and registries of **Helpers**.
 
-All of this metadata is parsed from the luca code itself, at runtime and with a little build time help.  Luca is for building any important architectural component in an application, with the philsoophy that the UI code is going to change ridiculously often and should be a cheap representation on top of something more solid and stable.   
+Helpers are universal interfaces over wildly different things. There are three kinds, and each kind is a lifecycle contract rather than a folder:
+
+- **Servers** can \`start()\` and \`stop()\`.
+- **Clients** can \`connect()\`.
+- **Features** are compositions. They can be \`enable()\`d, and they report \`isEnabled\`.
+
+*How* any given helper honors its contract is entirely its own business. That is the point. You can meet a helper you have never seen and already know how to hold it.
+
+### Helpers are things with names
+
+We interact with a feature, a server, or a client as a single named thing: \`container.feature('git')\`, \`container.server('express')\`. Multiple instances can exist mechanically, but architecturally we usually mean the one. That naming discipline is what makes glue code read like a sentence — \`container.feature('git').branch\` — and code that reads like a sentence is code you can debug.
+
+### "Talked to" lands twice
+
+**Metaphorically, pre-LLM:** UI code gets a single service object it can render with React and dispatch methods at. The helper encapsulates the complexity, so the glue code stays thin, readable, and conversational.
+
+**Literally, post-LLM:** that same object is a tool an assistant can call. Every architecturally important component responds to \`describe()\`, which teaches an assistant — or a developer in a REPL — what the thing does, what state it is in, what state it *could* be in, and what events it emits.
+
+One design, two audiences. This is why the metadata is not documentation about the interface. **The metadata is the interface.**
+
+### Which is why the ceremony matters
+
+To get that, Luca asks you to do the paperwork on every helper you build:
+
+- **Name it and register it**, so it is reachable by name.
+- **Categorize it** — which kind of helper is it, and literally, the \`static category\` and \`static stability\` metadata on the class.
+- **Write real JSDoc** on the class and every public method. The introspection system parses it, at runtime with a little build-time help. Sloppy JSDoc is not a style nit, it is a broken build artifact.
+- **Put zod schemas on every boundary** between your code and an agent or developer: options, state, events, tool arguments. Describe every field.
+
+The payoff for all of it is that the UI is going to change ridiculously often and should stay a cheap representation sitting on top of something solid and stable. The container is the stable part.
+
+### What this means for you, right now
+
+**A helper that \`luca describe\` cannot fully explain is unfinished work.** When you build something here, that is the acceptance test — scaffold it, fill in the logic, then run \`luca describe <name>\` and read it as if you were the next agent to arrive. Missing methods, empty descriptions, or an untyped option mean go back and finish.
 
 ## Phase 1: Discover with \`luca describe\`
 

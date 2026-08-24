@@ -44,7 +44,7 @@ export { CodingTools } from "./features/coding-tools";
 export { ConversationHistory } from "./features/conversation-history";
 export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
 export { Conversation } from "./features/conversation";
-export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
+export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ToolLoopLimitError, FailedTurnRecord, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
