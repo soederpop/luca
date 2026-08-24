@@ -797,6 +797,15 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
 
     // Full path: local server + tunnel + tools
     port = await this._findAvailablePort(this.options.port)
+    // A pre-configured domain means a tunnel ingress points at the configured
+    // port. Drifting to the next free port would silently strand it — the
+    // tunnel keeps forwarding to a port nothing listens on. Fail loud instead.
+    if (this.options.domain && port !== this.options.port) {
+      throw new Error(
+        `Port ${this.options.port} is busy — the tunnel ingress for ${this.options.domain} points at it, `
+        + `so falling back to :${port} would break webhook delivery. Free the port or update both the phone config and tunnel service.`,
+      )
+    }
     const server = this.container.server('express', { port, cors: true })
 
     this._mountToolEndpoints(server)
