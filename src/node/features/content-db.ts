@@ -1,6 +1,6 @@
 import { Feature } from '../feature.js'
 import * as contentbaseExports from 'contentbase'
-import { parse, Collection, Document, extractSections, parseWhereClause, type ModelDefinition } from 'contentbase'
+import { parse, Collection, Document, extractSections, parseWhereClause, introspectMetaSchema, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { realpathSync } from 'node:fs'
@@ -85,10 +85,17 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         'Read multiple documents in one call. More efficient than calling readDocument in a loop. Returns documents concatenated with dividers.'
       ),
     },
+    describeContentModel: {
+      schema: z.object({
+        model: z.string().optional().describe('The model name to describe (e.g. "Plan", "Task"). Omit to describe every model in the collection.'),
+      }).describe(
+        'Describe a content model\'s shape: its meta/frontmatter fields with types, required section headings, relationships, path prefix, and document count. Call this before queryDocuments to learn which fields you can filter on, or before writing a document to learn what structure it must have.'
+      ),
+    },
     queryDocuments: {
       schema: z.object({
         model: z.string().describe('The model name to query (e.g. "Plan", "Task", "Guide"). Must match a model defined in the collection — check getCollectionOverview.'),
-        where: z.string().optional().describe('MongoDB-style filter as a JSON string. Dot notation for nested fields. Examples: \'{"meta.status": "approved"}\', \'{"meta.priority": {"$gt": 3}}\', \'{"meta.tags": {"$in": ["urgent"]}}\''),
+        where: z.string().optional().describe('MongoDB-style filter as a JSON string. Dot notation for nested fields. A bare value means equals; wrap the value in an operator object for anything else. Full operator set: $eq, $neq, $in, $notIn, $gt, $lt, $gte, $lte, $contains, $startsWith, $endsWith, $regex, $exists. Examples: \'{"meta.status": "approved"}\', \'{"meta.priority": {"$gt": 3}}\', \'{"meta.tags": {"$in": ["urgent"]}}\', \'{"meta.title": {"$contains": "auth"}}\', \'{"meta.dueDate": {"$exists": true}}\''),
         sort: z.string().optional().describe('Sort as a JSON string. Example: \'{"meta.priority": "desc"}\', \'{"meta.createdAt": "asc"}\''),
         limit: z.number().optional().describe('Maximum number of results. Default: all matching documents.'),
         offset: z.number().optional().describe('Skip this many results (for pagination).'),
@@ -144,7 +151,15 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         '1. `getCollectionOverview` — start here. Shows models, document counts, and directory structure.',
         '2. `listDocuments` — browse document IDs, optionally filtered by model or glob.',
         '3. `readDocument` — read a specific document. Use `include`/`exclude` to skip irrelevant sections.',
-        '4. `queryDocuments` — filter documents by metadata (status, priority, tags, etc.) with MongoDB-style queries.',
+        '4. `describeContentModel` — inspect a model\'s shape: meta fields and types, required sections, relationships. Do this before filtering on metadata so you know which fields exist.',
+        '5. `queryDocuments` — filter documents by metadata (status, priority, tags, etc.) with MongoDB-style queries.',
+        '',
+        '**Query syntax (`queryDocuments.where`):** a JSON object (passed as a string) mapping dot-notation field paths to values. A bare value means equals. Wrap the value in an operator object for anything else — the full set is `$eq`, `$neq`, `$in`, `$notIn`, `$gt`, `$lt`, `$gte`, `$lte`, `$contains`, `$startsWith`, `$endsWith`, `$regex`, `$exists`. Example: `{"meta.status": {"$neq": "draft"}, "meta.tags": {"$in": ["urgent"]}, "meta.title": {"$contains": "auth"}}`.',
+        '',
+        '**Recipes:**',
+        '- Every document of a model: `listDocuments` with `{"model": "Plan"}` for just the IDs, or `queryDocuments` with `{"model": "Plan"}` for full documents.',
+        '- Documents matching a status: `queryDocuments` with `{"model": "Plan", "where": "{\\"meta.status\\": \\"approved\\"}", "select": ["id", "title", "meta.status"]}` — use `select` to keep the output small.',
+        '- One section from several documents: `readMultipleDocuments` with `{"ids": ["plans/q3", "plans/q4"], "include": ["Goals"]}` — reads just the `Goals` heading from each.',
         '',
         '**Searching:**',
         '- `semanticSearch` — best for natural language questions ("how does authentication work?")',
@@ -1022,6 +1037,29 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /** Read multiple documents with optional section filtering. */
   async readMultipleDocuments(args: { ids: string[]; include?: string[]; exclude?: string[]; meta?: boolean }) {
     return this.readMultiple(args.ids, args)
+  }
+
+  /** Describe one content model's shape (or every model when none is given). */
+  async describeContentModel(args: { model?: string } = {}) {
+    if (!this.isLoaded) await this.load()
+
+    const describe = async (def: ModelDefinition) => ({
+      name: def.name,
+      description: def.name === 'Base' ? 'Any markdown document not matched to a model' : def.description,
+      pathPrefix: def.prefix,
+      documentCount: await this.collection.query(def).count(),
+      metaFields: introspectMetaSchema(def.meta),
+      sections: Object.keys(def.sections ?? {}),
+      relationships: Object.keys(def.relationships ?? {}),
+    })
+
+    if (args.model) {
+      const def = this.models[args.model]
+      if (!def) return { error: `Unknown model "${args.model}". Available: ${this.modelNames.join(', ')}` }
+      return describe(def)
+    }
+
+    return Promise.all(this.collection.modelDefinitions.map(describe))
   }
 
   /** Query documents by model with filters, sort, limit. */
