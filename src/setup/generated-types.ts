@@ -106,7 +106,7 @@ export { CodingTools } from "./features/coding-tools";
 export { ConversationHistory } from "./features/conversation-history";
 export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
 export { Conversation } from "./features/conversation";
-export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, AskOptions, ForkOptions } from "./features/conversation";
+export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
@@ -551,7 +551,7 @@ export default Memory;
 //# sourceMappingURL=agent-memory.d.ts.map`,
   "agi/features/assistant.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
-import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, ConversationRouting, SetProviderOptions } from './conversation';
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector } from './conversation';
 import type { ContentDb } from 'luca/node';
 import type { ConversationHistory, ConversationMeta } from './conversation-history';
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js';
@@ -963,6 +963,26 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     private resolveDefaultProviderId;
     get availableTools(): string[];
     get messages(): import("openai/resources/index.mjs").ChatCompletionMessageParam[];
+    /**
+     * Wipe this assistant's transcript, keeping its system prompt — "start over".
+     * Delegates to \`Conversation#clearMessages\`, so provider continuation handles
+     * are invalidated and \`messagesVersion\` bumps.
+     *
+     * Note this only clears the live conversation. A persisted thread is replayed
+     * on the next resume unless it is deleted too.
+     *
+     * @example
+     * assistant.clearMessages()
+     */
+    clearMessages(options?: ClearMessagesOptions): MessageEdit;
+    /**
+     * Rewrite one message already in this assistant's history — the supported way
+     * to redact it. Delegates to \`Conversation#replaceMessage\`.
+     *
+     * @example
+     * assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))
+     */
+    replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit;
     /** Whether the assistant has been started and is ready to receive questions. */
     get isStarted(): boolean;
     /** Whether this assistant was created via fork(). */
@@ -4066,6 +4086,7 @@ export declare const ConversationStateSchema: z.ZodObject<{
     contextWindow: z.ZodNumber;
     tools: z.ZodRecord<z.ZodString, z.ZodAny>;
     callMaxTokens: z.ZodNullable<z.ZodNumber>;
+    messagesVersion: z.ZodNumber;
     temperature: z.ZodNullable<z.ZodNumber>;
     topP: z.ZodNullable<z.ZodNumber>;
     topK: z.ZodNullable<z.ZodNumber>;
@@ -4124,6 +4145,19 @@ export declare const ConversationEventsSchema: z.ZodObject<{
         previous: z.ZodAny;
         current: z.ZodAny;
     }, z.core.$strip>], null>;
+    messagesCleared: z.ZodTuple<[z.ZodObject<{
+        changed: z.ZodNumber;
+        messageCount: z.ZodNumber;
+        continuationInvalidated: z.ZodBoolean;
+        version: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    messageReplaced: z.ZodTuple<[z.ZodObject<{
+        index: z.ZodNumber;
+        changed: z.ZodNumber;
+        messageCount: z.ZodNumber;
+        continuationInvalidated: z.ZodBoolean;
+        version: z.ZodNumber;
+    }, z.core.$strip>], null>;
 }, z.core.$strip>;
 /** Where the next turn goes: the resolved backend, model, dialect, and turn loop. */
 export type ConversationRouting = {
@@ -4145,6 +4179,31 @@ export type SetProviderOptions = {
 };
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>;
 export type ConversationState = z.infer<typeof ConversationStateSchema>;
+/** Options for \`Conversation#clearMessages\`. */
+export type ClearMessagesOptions = {
+    /**
+     * Keep the leading system/developer messages — the assistant's identity,
+     * not its transcript. Defaults to true. Pass false to empty the list.
+     */
+    keepSystemPrompt?: boolean;
+};
+/** What an explicit message edit (\`clearMessages\` / \`replaceMessage\`) did. */
+export type MessageEdit = {
+    /** How many messages the edit removed or rewrote. 0 means nothing matched. */
+    changed: number;
+    /** Messages in the conversation after the edit. */
+    messageCount: number;
+    /**
+     * Whether a provider continuation handle was actually dropped. False when
+     * the edit could not have invalidated one — either none was held, or the
+     * edited message sits after everything the provider has seen.
+     */
+    continuationInvalidated: boolean;
+    /** \`state.messagesVersion\` after the edit. */
+    version: number;
+};
+/** Picks the message to replace: an index (negative counts from the end) or a predicate. */
+export type MessageSelector = number | ((message: Message, index: number) => boolean);
 export type AskOptions = {
     maxTokens?: number;
     /**
@@ -4218,6 +4277,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         contextWindow: z.ZodNumber;
         tools: z.ZodRecord<z.ZodString, z.ZodAny>;
         callMaxTokens: z.ZodNullable<z.ZodNumber>;
+        messagesVersion: z.ZodNumber;
         temperature: z.ZodNullable<z.ZodNumber>;
         topP: z.ZodNullable<z.ZodNumber>;
         topK: z.ZodNullable<z.ZodNumber>;
@@ -4312,6 +4372,19 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         routingChanged: z.ZodTuple<[z.ZodObject<{
             previous: z.ZodAny;
             current: z.ZodAny;
+        }, z.core.$strip>], null>;
+        messagesCleared: z.ZodTuple<[z.ZodObject<{
+            changed: z.ZodNumber;
+            messageCount: z.ZodNumber;
+            continuationInvalidated: z.ZodBoolean;
+            version: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        messageReplaced: z.ZodTuple<[z.ZodObject<{
+            index: z.ZodNumber;
+            changed: z.ZodNumber;
+            messageCount: z.ZodNumber;
+            continuationInvalidated: z.ZodBoolean;
+            version: z.ZodNumber;
         }, z.core.$strip>], null>;
     }, z.core.$strip>;
     static shortcut: "features.conversation";
@@ -4579,6 +4652,83 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         removedCount: number;
         estimatedTokens: number;
     }>;
+    /**
+     * Replace the message list and bump \`messagesVersion\`. Every write to
+     * \`state.messages\` goes through here, so an observer that watches the version
+     * sees every change — appends, compaction, and explicit edits alike.
+     *
+     * Always writes a *new* array and never mutates the old one, so a fork or a
+     * saved snapshot taken beforehand keeps the history it captured.
+     *
+     * @internal Not part of the public API. Callers outside luca should use
+     * \`clearMessages()\` / \`replaceMessage()\`, which also handle continuation
+     * invalidation. Kept accessible so \`Assistant\` can install a loaded
+     * transcript without the version silently falling behind.
+     */
+    _setMessages(messages: Message[]): number;
+    /**
+     * How many messages the provider has already been shown. The Responses API
+     * records the exact prefix its \`previous_response_id\` stands for; generic
+     * backends (codex, claude-session) hold the whole transcript server-side, so
+     * with one of their handles in hand every local message counts as sent.
+     */
+    private get providerSeenMessageCount();
+    /**
+     * Drop every provider-side continuation handle. They describe a transcript
+     * the provider holds; once local history is rewritten they point at a past
+     * that no longer exists, and sending one replays the un-edited version.
+     *
+     * @returns whether a handle was actually dropped
+     */
+    private invalidateContinuation;
+    /**
+     * Wipe the transcript without changing the conversation's identity —
+     * "start this discussion over". The leading system/developer messages are
+     * kept by default because they are the assistant's identity, not transcript.
+     *
+     * Always invalidates provider continuation handles: a cleared conversation
+     * that still sent \`previous_response_id\` would silently resume the
+     * transcript the caller just deleted.
+     *
+     * Prefer this to mutating \`conversation.messages\` — that array is a live
+     * projection, and splicing it leaves the continuation handles pointing at
+     * history that is gone.
+     *
+     * @param options - \`keepSystemPrompt\` (default true) keeps the leading system/developer messages
+     *
+     * @example
+     * \`\`\`typescript
+     * const edit = conversation.clearMessages()
+     * // => { changed: 6, messageCount: 1, continuationInvalidated: true, version: 8 }
+     * \`\`\`
+     */
+    clearMessages(options?: ClearMessagesOptions): MessageEdit;
+    /**
+     * Rewrite one message that is already in the history — the supported way to
+     * redact it. Use it to strip attachment pixels, secrets, or anything else
+     * that was fine to send to the model but must not stay in the transcript.
+     *
+     * The replacement is deep-copied into a new array, so forks and saved
+     * snapshots taken before the call keep the original message.
+     *
+     * Continuation handles are dropped only when the rewritten message is inside
+     * the prefix the provider has already seen. Editing a message the provider
+     * has never been shown leaves a live chain intact.
+     *
+     * @param selector - Index of the message (negative counts from the end) or a predicate
+     * @param replacement - The new message, or a function receiving the current one
+     * @returns What changed. \`changed: 0\` means a predicate matched nothing and state was untouched.
+     *
+     * @example
+     * \`\`\`typescript
+     * // Redact the pixels from the most recent user message, keep its text
+     * conversation.replaceMessage(
+     *   message => message.role === 'user',
+     *   message => ({ ...message, content: textPartsOf(message) }),
+     * )
+     * \`\`\`
+     */
+    replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit;
     /** Returns the first system/developer text message to use as Responses instructions. */
     private get responsesInstructions();
     /**
@@ -31144,7 +31294,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.3";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

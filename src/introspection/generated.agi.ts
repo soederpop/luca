@@ -2169,6 +2169,47 @@ setBuildTimeData('features.assistant', {
         }
       ]
     },
+    "clearMessages": {
+      "description": "Wipe this assistant's transcript, keeping its system prompt — \"start over\". Delegates to `Conversation#clearMessages`, so provider continuation handles are invalidated and `messagesVersion` bumps. Note this only clears the live conversation. A persisted thread is replayed on the next resume unless it is deleted too.",
+      "parameters": {
+        "options": {
+          "type": "ClearMessagesOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "MessageEdit",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.clearMessages()"
+        }
+      ]
+    },
+    "replaceMessage": {
+      "description": "Rewrite one message already in this assistant's history — the supported way to redact it. Delegates to `Conversation#replaceMessage`.",
+      "parameters": {
+        "selector": {
+          "type": "MessageSelector",
+          "description": "Parameter selector"
+        },
+        "replacement": {
+          "type": "Message | ((message: Message, index: number) => Message)",
+          "description": "Parameter replacement"
+        }
+      },
+      "required": [
+        "selector",
+        "replacement"
+      ],
+      "returns": "MessageEdit",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))"
+        }
+      ]
+    },
     "addSystemPromptExtension": {
       "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
       "parameters": {
@@ -6727,6 +6768,53 @@ setBuildTimeData('features.conversation', {
       "required": [],
       "returns": "Promise<{ summary: string; removedCount: number; estimatedTokens: number }>"
     },
+    "clearMessages": {
+      "description": "Wipe the transcript without changing the conversation's identity — \"start this discussion over\". The leading system/developer messages are kept by default because they are the assistant's identity, not transcript. Always invalidates provider continuation handles: a cleared conversation that still sent `previous_response_id` would silently resume the transcript the caller just deleted. Prefer this to mutating `conversation.messages` — that array is a live projection, and splicing it leaves the continuation handles pointing at history that is gone.",
+      "parameters": {
+        "options": {
+          "type": "ClearMessagesOptions",
+          "description": "`keepSystemPrompt` (default true) keeps the leading system/developer messages",
+          "properties": {
+            "keepSystemPrompt": {
+              "type": "boolean",
+              "description": "Keep the leading system/developer messages — the assistant's identity, not its transcript. Defaults to true. Pass false to empty the list."
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "MessageEdit",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const edit = conversation.clearMessages()\n// => { changed: 6, messageCount: 1, continuationInvalidated: true, version: 8 }"
+        }
+      ]
+    },
+    "replaceMessage": {
+      "description": "Rewrite one message that is already in the history — the supported way to redact it. Use it to strip attachment pixels, secrets, or anything else that was fine to send to the model but must not stay in the transcript. The replacement is deep-copied into a new array, so forks and saved snapshots taken before the call keep the original message. Continuation handles are dropped only when the rewritten message is inside the prefix the provider has already seen. Editing a message the provider has never been shown leaves a live chain intact.",
+      "parameters": {
+        "selector": {
+          "type": "MessageSelector",
+          "description": "Index of the message (negative counts from the end) or a predicate"
+        },
+        "replacement": {
+          "type": "Message | ((message: Message, index: number) => Message)",
+          "description": "The new message, or a function receiving the current one"
+        }
+      },
+      "required": [
+        "selector",
+        "replacement"
+      ],
+      "returns": "MessageEdit",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Redact the pixels from the most recent user message, keep its text\nconversation.replaceMessage(\n message => message.role === 'user',\n message => ({ ...message, content: textPartsOf(message) }),\n)"
+        }
+      ]
+    },
     "ask": {
       "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
       "parameters": {
@@ -6871,6 +6959,16 @@ setBuildTimeData('features.conversation', {
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
+    "messagesCleared": {
+      "name": "messagesCleared",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "messageReplaced": {
+      "name": "messageReplaced",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
     "autoCompactTriggered": {
       "name": "autoCompactTriggered",
       "description": "Event emitted by Conversation",
@@ -6993,6 +7091,37 @@ setBuildTimeData('features.conversation', {
           "type": "Record<string, any>",
           "description": "Provider-specific transport options, replacing any currently configured.",
           "optional": true
+        }
+      }
+    },
+    "ClearMessagesOptions": {
+      "description": "Options for `Conversation#clearMessages`.",
+      "properties": {
+        "keepSystemPrompt": {
+          "type": "boolean",
+          "description": "Keep the leading system/developer messages — the assistant's identity, not its transcript. Defaults to true. Pass false to empty the list.",
+          "optional": true
+        }
+      }
+    },
+    "MessageEdit": {
+      "description": "What an explicit message edit (`clearMessages` / `replaceMessage`) did.",
+      "properties": {
+        "changed": {
+          "type": "number",
+          "description": "How many messages the edit removed or rewrote. 0 means nothing matched."
+        },
+        "messageCount": {
+          "type": "number",
+          "description": "Messages in the conversation after the edit."
+        },
+        "continuationInvalidated": {
+          "type": "boolean",
+          "description": "Whether a provider continuation handle was actually dropped. False when the edit could not have invalidated one — either none was held, or the edited message sits after everything the provider has seen."
+        },
+        "version": {
+          "type": "number",
+          "description": "`state.messagesVersion` after the edit."
         }
       }
     },
@@ -28529,6 +28658,47 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "clearMessages": {
+        "description": "Wipe this assistant's transcript, keeping its system prompt — \"start over\". Delegates to `Conversation#clearMessages`, so provider continuation handles are invalidated and `messagesVersion` bumps. Note this only clears the live conversation. A persisted thread is replayed on the next resume unless it is deleted too.",
+        "parameters": {
+          "options": {
+            "type": "ClearMessagesOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "MessageEdit",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.clearMessages()"
+          }
+        ]
+      },
+      "replaceMessage": {
+        "description": "Rewrite one message already in this assistant's history — the supported way to redact it. Delegates to `Conversation#replaceMessage`.",
+        "parameters": {
+          "selector": {
+            "type": "MessageSelector",
+            "description": "Parameter selector"
+          },
+          "replacement": {
+            "type": "Message | ((message: Message, index: number) => Message)",
+            "description": "Parameter replacement"
+          }
+        },
+        "required": [
+          "selector",
+          "replacement"
+        ],
+        "returns": "MessageEdit",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))"
+          }
+        ]
+      },
       "addSystemPromptExtension": {
         "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
         "parameters": {
@@ -33078,6 +33248,53 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<{ summary: string; removedCount: number; estimatedTokens: number }>"
       },
+      "clearMessages": {
+        "description": "Wipe the transcript without changing the conversation's identity — \"start this discussion over\". The leading system/developer messages are kept by default because they are the assistant's identity, not transcript. Always invalidates provider continuation handles: a cleared conversation that still sent `previous_response_id` would silently resume the transcript the caller just deleted. Prefer this to mutating `conversation.messages` — that array is a live projection, and splicing it leaves the continuation handles pointing at history that is gone.",
+        "parameters": {
+          "options": {
+            "type": "ClearMessagesOptions",
+            "description": "`keepSystemPrompt` (default true) keeps the leading system/developer messages",
+            "properties": {
+              "keepSystemPrompt": {
+                "type": "boolean",
+                "description": "Keep the leading system/developer messages — the assistant's identity, not its transcript. Defaults to true. Pass false to empty the list."
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "MessageEdit",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const edit = conversation.clearMessages()\n// => { changed: 6, messageCount: 1, continuationInvalidated: true, version: 8 }"
+          }
+        ]
+      },
+      "replaceMessage": {
+        "description": "Rewrite one message that is already in the history — the supported way to redact it. Use it to strip attachment pixels, secrets, or anything else that was fine to send to the model but must not stay in the transcript. The replacement is deep-copied into a new array, so forks and saved snapshots taken before the call keep the original message. Continuation handles are dropped only when the rewritten message is inside the prefix the provider has already seen. Editing a message the provider has never been shown leaves a live chain intact.",
+        "parameters": {
+          "selector": {
+            "type": "MessageSelector",
+            "description": "Index of the message (negative counts from the end) or a predicate"
+          },
+          "replacement": {
+            "type": "Message | ((message: Message, index: number) => Message)",
+            "description": "The new message, or a function receiving the current one"
+          }
+        },
+        "required": [
+          "selector",
+          "replacement"
+        ],
+        "returns": "MessageEdit",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Redact the pixels from the most recent user message, keep its text\nconversation.replaceMessage(\n message => message.role === 'user',\n message => ({ ...message, content: textPartsOf(message) }),\n)"
+          }
+        ]
+      },
       "ask": {
         "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
         "parameters": {
@@ -33222,6 +33439,16 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
+      "messagesCleared": {
+        "name": "messagesCleared",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "messageReplaced": {
+        "name": "messageReplaced",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
       "autoCompactTriggered": {
         "name": "autoCompactTriggered",
         "description": "Event emitted by Conversation",
@@ -33344,6 +33571,37 @@ export const introspectionData: Record<string, any>[] = [
             "type": "Record<string, any>",
             "description": "Provider-specific transport options, replacing any currently configured.",
             "optional": true
+          }
+        }
+      },
+      "ClearMessagesOptions": {
+        "description": "Options for `Conversation#clearMessages`.",
+        "properties": {
+          "keepSystemPrompt": {
+            "type": "boolean",
+            "description": "Keep the leading system/developer messages — the assistant's identity, not its transcript. Defaults to true. Pass false to empty the list.",
+            "optional": true
+          }
+        }
+      },
+      "MessageEdit": {
+        "description": "What an explicit message edit (`clearMessages` / `replaceMessage`) did.",
+        "properties": {
+          "changed": {
+            "type": "number",
+            "description": "How many messages the edit removed or rewrote. 0 means nothing matched."
+          },
+          "messageCount": {
+            "type": "number",
+            "description": "Messages in the conversation after the edit."
+          },
+          "continuationInvalidated": {
+            "type": "boolean",
+            "description": "Whether a provider continuation handle was actually dropped. False when the edit could not have invalidated one — either none was held, or the edited message sits after everything the provider has seen."
+          },
+          "version": {
+            "type": "number",
+            "description": "`state.messagesVersion` after the edit."
           }
         }
       },
