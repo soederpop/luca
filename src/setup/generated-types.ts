@@ -1262,6 +1262,14 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      */
     reload(): this;
     /**
+     * Apply CORE.md frontmatter routing edits (model/provider) after a reload.
+     * Explicit constructor options still win, so nothing happens for a value the
+     * caller pinned. setModel()/setProvider() record their arguments as caller
+     * options; values that came from frontmatter are restored afterwards so the
+     * next CORE.md edit is not masked by its own predecessor.
+     */
+    private applyMetaRouting;
+    /**
      * Start the assistant by creating the conversation and wiring up events.
      * The system prompt, tools, and hooks are already loaded synchronously
      * during initialization.

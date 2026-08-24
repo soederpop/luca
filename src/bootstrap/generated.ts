@@ -23,6 +23,16 @@ There are three things to learn, in this order:
 4. **Write Runnable Markdown** a great usecase is \`luca run markdown.md\` where the markdown codeblocks are executed inside the Luca VM.
 ---
 
+## Phase 0: Understand the \`luca\` philosophy
+
+Luca is kind of Object oriented programming and Domain Driven Design.  The \`container\` is the root from which the entire system branches off.  It provides generic primitives that are universal to every JavaScript application and context ( scripts that end, webpages that render, persistent processes ( on the server ), persistent processes ( on the browser, e.g. react loops ).  These primitives are observable state, an event emitter, utils (especially for manipulating strings, re-shaping data, hashing), and registries of "Helpers" which are universal interfaces for common, very disparate things.  servers can start / stop.  clients can connect().  however they implement that is up to them, etc.  features are compositions of things, they're supported or not, they can be enabled.  We interact with features as things with names.  same with servers, clients.  They are generally single components we talk about and have names.  ( Multiple *instances* of these components can exist, mechanically.  They don't necessarily do architecturally.
+
+Luca is a framework for building these things that can be "talked to".  Metaphorically, in the traditional pre LLM sense, this means UI code gets the benefit of these single service objects they can render with react and dispatch methods to.  The components are good for encapsulating the complexity, and having the glue code be simple, readable, conversational in style, which makes it easy to debug.  Literally, though, in the post-LLM era. 
+
+Every important architectural component of an application built on luca, is potentially something an assistant can use as tools, responds to "describe()" to teach an assistant, or a developer in a REPL, how to use that thing, what state it is currently in, what state it COULD be in, what events it might emit, etc.  To do this, the Luca framework requires you to go through the ceremony of naming your thing, categorizing ( which kind of helper is it? but also literally, with metadata on the helper class itself ), being good about JSDOC comments and type signatures.  Zod schemas for all of the important interaction points between code and agent / developer.
+
+All of this metadata is parsed from the luca code itself, at runtime and with a little build time help.  Luca is for building any important architectural component in an application, with the philsoophy that the UI code is going to change ridiculously often and should be a cheap representation on top of something more solid and stable.   
+
 ## Phase 1: Discover with \`luca describe\`
 
 This is your primary tool. The \`luca\` binary is a compiled artifact that bundles all introspection data — it is the authority on what the container provides. Run \`luca describe\` first — it outputs full documentation for any part of the container: methods, options, events, state, examples. Reading source can be helpful for additional context if it exists in the project, but the source for built-in helpers may not be present — the binary is always the ground truth.

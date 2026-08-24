@@ -1543,6 +1543,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	reload(): this {
+		// Snapshot the frontmatter before re-reading it, so routing edits
+		// (model/provider) can be detected and applied to the live conversation.
+		const prevMeta = this.meta
+
 		// Snapshot runtime-added tools before reloading from disk
 		const runtimeTools: Record<string, ConversationTool> = {}
 		const runtimeSchemas: Record<string, z.ZodType> = {}
@@ -1572,9 +1576,51 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Reload hooks from disk — triggerHook reads from state so new hooks are active immediately
 		this.state.set('hooks', this.loadHooks())
 
+		// Propagate frontmatter model/provider edits to the live conversation —
+		// without this, a CORE.md model change needs a full process restart.
+		this.applyMetaRouting(prevMeta)
+
 		this.emit('reloaded')
 
 		return this
+	}
+
+	/**
+	 * Apply CORE.md frontmatter routing edits (model/provider) after a reload.
+	 * Explicit constructor options still win, so nothing happens for a value the
+	 * caller pinned. setModel()/setProvider() record their arguments as caller
+	 * options; values that came from frontmatter are restored afterwards so the
+	 * next CORE.md edit is not masked by its own predecessor.
+	 */
+	private applyMetaRouting(prevMeta: Record<string, any>): void {
+		const opts = this.options as Record<string, any>
+		const meta = this.meta
+		const providerChanged = opts.provider == null && (meta.provider ?? null) !== (prevMeta.provider ?? null)
+		const modelChanged = opts.model == null && (meta.model ?? null) !== (prevMeta.model ?? null)
+		if (!providerChanged && !modelChanged) return
+
+		const prev = { provider: opts.provider, model: opts.model, providerOptions: opts.providerOptions }
+		try {
+			if (providerChanged) {
+				// The frontmatter model rides along with its own provider; an explicit
+				// caller model still wins over both.
+				const model = opts.model ?? meta.model
+				this.setProvider(meta.provider ?? null, {
+					...(model ? { model } : {}),
+					...(prev.providerOptions ? { providerOptions: prev.providerOptions } : {}),
+				})
+			} else if (meta.model) {
+				this.setModel(meta.model)
+			} else {
+				// Model removed from frontmatter — re-apply the provider so its
+				// default model takes over.
+				this.setProvider(meta.provider ?? null, prev.providerOptions ? { providerOptions: prev.providerOptions } : {})
+			}
+		} finally {
+			opts.provider = prev.provider
+			opts.model = prev.model
+			opts.providerOptions = prev.providerOptions
+		}
 	}
 
 	/**
