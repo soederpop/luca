@@ -27195,6 +27195,11 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     }>>;
     rejectMessage: z.ZodDefault<z.ZodString>;
     persist: z.ZodDefault<z.ZodBoolean>;
+    transferTargets: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        name: z.ZodString;
+        to: z.ZodString;
+    }, z.core.$strip>>>;
+    warmTransferInstructions: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
 export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
@@ -27261,6 +27266,11 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         }>>;
         rejectMessage: z.ZodDefault<z.ZodString>;
         persist: z.ZodDefault<z.ZodBoolean>;
+        transferTargets: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            to: z.ZodString;
+        }, z.core.$strip>>>;
+        warmTransferInstructions: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -27444,6 +27454,27 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * \`\`\`
      */
     updateAssistantVoice(assistantId: string, voiceSettings: any): Promise<any>;
+    /**
+     * Add or replace the native handoff tool on the deployed Telnyx assistant,
+     * letting it hand the conversation to other Telnyx assistants mid-call.
+     *
+     * Handoff targets need Telnyx assistant IDs, which only exist once those
+     * assistants are deployed — so this is a post-\`start()\` patch, not a
+     * create-time option. Safe to call on every deploy: it replaces any
+     * existing handoff tool, which also heals stale IDs after a target was
+     * deleted and recreated.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.setHandoffTargets([
+     *   { id: 'assistant-abc123', name: 'receptionist — greets and routes callers' },
+     * ])
+     * \`\`\`
+     */
+    setHandoffTargets(targets: Array<{
+        id: string;
+        name: string;
+    }>, voiceMode?: 'unified' | 'distinct'): Promise<any>;
     /**
      * Convert text to speech and return the full audio as a Buffer.
      * Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning.

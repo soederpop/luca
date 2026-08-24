@@ -23400,6 +23400,29 @@ setBuildTimeData('features.telnyxConnector', {
         }
       ]
     },
+    "setHandoffTargets": {
+      "description": "Add or replace the native handoff tool on the deployed Telnyx assistant, letting it hand the conversation to other Telnyx assistants mid-call. Handoff targets need Telnyx assistant IDs, which only exist once those assistants are deployed — so this is a post-`start()` patch, not a create-time option. Safe to call on every deploy: it replaces any existing handoff tool, which also heals stale IDs after a target was deleted and recreated.",
+      "parameters": {
+        "targets": {
+          "type": "Array<{ id: string; name: string }>",
+          "description": "Parameter targets"
+        },
+        "voiceMode": {
+          "type": "'unified' | 'distinct'",
+          "description": "Parameter voiceMode"
+        }
+      },
+      "required": [
+        "targets"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.setHandoffTargets([\n { id: 'assistant-abc123', name: 'receptionist — greets and routes callers' },\n])"
+        }
+      ]
+    },
     "speak": {
       "description": "Convert text to speech and return the full audio as a Buffer. Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning. For lower latency on longer text, use `streamSpeak()` instead.",
       "parameters": {
@@ -49875,6 +49898,29 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "await connector.updateAssistantVoice('assistant-abc', {\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n api_key_ref: 'elevenlabs_api_key',\n voice_speed: 1.05,\n})"
+          }
+        ]
+      },
+      "setHandoffTargets": {
+        "description": "Add or replace the native handoff tool on the deployed Telnyx assistant, letting it hand the conversation to other Telnyx assistants mid-call. Handoff targets need Telnyx assistant IDs, which only exist once those assistants are deployed — so this is a post-`start()` patch, not a create-time option. Safe to call on every deploy: it replaces any existing handoff tool, which also heals stale IDs after a target was deleted and recreated.",
+        "parameters": {
+          "targets": {
+            "type": "Array<{ id: string; name: string }>",
+            "description": "Parameter targets"
+          },
+          "voiceMode": {
+            "type": "'unified' | 'distinct'",
+            "description": "Parameter voiceMode"
+          }
+        },
+        "required": [
+          "targets"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.setHandoffTargets([\n { id: 'assistant-abc123', name: 'receptionist — greets and routes callers' },\n])"
           }
         ]
       },

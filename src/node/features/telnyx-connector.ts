@@ -28,6 +28,11 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   callerPolicy: z.enum(['screen', 'tools']).default('screen').describe("How allowedCallers is enforced. 'screen': unlisted callers hear rejectMessage and the call ends before the assistant answers (SMS from unlisted senders gets rejectMessage back). 'tools': anyone can converse, but unlisted callers cannot trigger tool calls. Tool webhooks are secret-gated in both modes."),
   rejectMessage: z.string().default("Hey, sorry, can't talk right now.").describe("What unlisted callers hear (or receive via SMS) under callerPolicy 'screen'."),
   persist: z.boolean().default(false).describe('Leave the Telnyx assistant, screening app, and number wiring in place on stop() so the next start() can reuse them. For supervised deployments that restart with the loop.'),
+  transferTargets: z.array(z.object({
+    name: z.string().describe('Label the assistant uses to pick this target (e.g. "Jon\'s cell")'),
+    to: z.string().describe('Destination number (+E.164) or SIP URI'),
+  })).optional().describe("Named targets for the native transfer tool. Telnyx executes transfers itself (works in noTools mode too), so any caller who reaches the assistant can request one — under callerPolicy 'tools' the only guard is prompt instructions. Requires phoneNumber: transfers originate from the deployed number."),
+  warmTransferInstructions: z.string().optional().describe('Natural-language instructions for how the assistant briefs the transfer recipient before connecting the caller. Omit for a cold transfer.'),
 })
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
 
@@ -399,6 +404,44 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     const updated = resp?.data || resp
     this._log('[telnyx] 🎙️  Assistant now has voice_settings:', JSON.stringify(updated?.voice_settings, null, 2))
     return updated
+  }
+
+  /**
+   * Add or replace the native handoff tool on the deployed Telnyx assistant,
+   * letting it hand the conversation to other Telnyx assistants mid-call.
+   *
+   * Handoff targets need Telnyx assistant IDs, which only exist once those
+   * assistants are deployed — so this is a post-`start()` patch, not a
+   * create-time option. Safe to call on every deploy: it replaces any
+   * existing handoff tool, which also heals stale IDs after a target was
+   * deleted and recreated.
+   *
+   * @example
+   * ```ts
+   * await connector.setHandoffTargets([
+   *   { id: 'assistant-abc123', name: 'receptionist — greets and routes callers' },
+   * ])
+   * ```
+   */
+  async setHandoffTargets(
+    targets: Array<{ id: string; name: string }>,
+    voiceMode: 'unified' | 'distinct' = 'unified',
+  ) {
+    const assistantId = this.state.get('telnyxAssistantId')
+    if (!assistantId) throw new Error('No deployed Telnyx assistant — call start() first')
+    const client = await this._getClient()
+    const current = await this.getAssistant(assistantId)
+    const tools = (current?.tools || []).filter((t: any) => t?.type !== 'handoff')
+    tools.push({
+      type: 'handoff',
+      handoff: {
+        ai_assistants: targets.map(t => ({ id: t.id, name: t.name })),
+        voice_mode: voiceMode,
+      },
+    })
+    this._log(`[telnyx] 🤝 Setting handoff targets on ${assistantId}:`, JSON.stringify(targets))
+    const resp = await client.ai.assistants.update(assistantId, { tools })
+    return resp?.data || resp
   }
 
   /**
@@ -1369,6 +1412,20 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
         description: 'End the current phone call. Use this when the conversation is complete or the caller should be disconnected.',
       },
     }]
+
+    if (this.options.transferTargets?.length) {
+      if (!this.options.phoneNumber) {
+        throw new Error('transferTargets requires phoneNumber — Telnyx transfers must originate from an owned number with an outbound voice profile')
+      }
+      const transfer: any = {
+        from: this.options.phoneNumber,
+        targets: this.options.transferTargets,
+      }
+      if (this.options.warmTransferInstructions) {
+        transfer.warm_transfer_instructions = this.options.warmTransferInstructions
+      }
+      nativeTools.push({ type: 'transfer' as const, transfer })
+    }
 
     // Greeting and instructions are templated with dynamic variables so
     // dial() can customize them per outbound call. The defaults reproduce
