@@ -658,6 +658,117 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   }
 
   /**
+   * Search Telnyx inventory for purchasable phone numbers.
+   *
+   * @example
+   * ```ts
+   * const telnyx = container.feature('telnyxConnector')
+   * const available = await telnyx.searchNumbers({ areaCode: '312', features: ['sms', 'voice'] })
+   * console.log(available.map(n => n.phone_number))
+   * ```
+   */
+  async searchNumbers(opts: {
+    /** Three-digit national destination code, e.g. '312' */
+    areaCode?: string
+    /** City name, e.g. 'Chicago' */
+    locality?: string
+    /** US state / CA province, e.g. 'IL' */
+    administrativeArea?: string
+    /** ISO country code; defaults to 'US' */
+    countryCode?: string
+    /** Required features, e.g. ['sms', 'voice'] */
+    features?: Array<'sms' | 'mms' | 'voice' | 'fax' | 'emergency' | 'hd_voice' | 'international_sms' | 'local_calling'>
+    /** Max results; defaults to 10 */
+    limit?: number
+  } = {}) {
+    const client = await this._getClient()
+    const resp = await client.availablePhoneNumbers.list({
+      filter: {
+        national_destination_code: opts.areaCode,
+        locality: opts.locality,
+        administrative_area: opts.administrativeArea,
+        country_code: opts.countryCode ?? 'US',
+        features: opts.features,
+        limit: opts.limit ?? 10,
+      },
+    })
+    return (resp.data ?? []).map((num: any) => ({
+      phone_number: num.phone_number,
+      features: (num.features ?? []).map((f: any) => f?.name ?? f),
+      region_information: num.region_information,
+      cost_information: num.cost_information,
+      quickship: num.quickship,
+      reservable: num.reservable,
+      best_effort: num.best_effort,
+    }))
+  }
+
+  /**
+   * Purchase a phone number from Telnyx inventory. Creates a number order and,
+   * by default, polls until Telnyx marks it complete (usually seconds for US
+   * numbers). Pass wait: false to return the pending order immediately.
+   *
+   * @example
+   * ```ts
+   * const telnyx = container.feature('telnyxConnector')
+   * const [candidate] = await telnyx.searchNumbers({ areaCode: '312', limit: 1 })
+   * const order = await telnyx.purchaseNumber(candidate.phone_number)
+   * console.log(order.status) // 'success'
+   * ```
+   */
+  async purchaseNumber(phoneNumber: string, opts: {
+    /** Wire the purchased number to this connection */
+    connectionId?: string
+    /** Attach this messaging profile to the purchased number */
+    messagingProfileId?: string
+    /** Free-form reference stored on the order */
+    customerReference?: string
+    /** Poll the order until it leaves 'pending'; defaults to true */
+    wait?: boolean
+    /** Max time to poll before giving up, in ms; defaults to 30000 */
+    timeout?: number
+  } = {}) {
+    const client = await this._getClient()
+    const resp = await client.numberOrders.create({
+      phone_numbers: [{ phone_number: phoneNumber }],
+      connection_id: opts.connectionId,
+      messaging_profile_id: opts.messagingProfileId,
+      customer_reference: opts.customerReference,
+    })
+    let order: any = (resp as any)?.data ?? resp
+    this._log(`[telnyx] 🛒 Number order ${order?.id} created for ${phoneNumber} (status: ${order?.status})`)
+
+    if (opts.wait !== false && order?.id && order?.status === 'pending') {
+      const deadline = Date.now() + (opts.timeout ?? 30_000)
+      while (order.status === 'pending' && Date.now() < deadline) {
+        await this.container.utils.sleep(1000)
+        const check = await client.numberOrders.retrieve(order.id)
+        order = (check as any)?.data ?? check
+      }
+      this._log(`[telnyx] 🛒 Number order ${order.id} status: ${order.status}`)
+    }
+
+    return {
+      id: order?.id,
+      status: order?.status,
+      phone_numbers: order?.phone_numbers,
+      requirements_met: order?.requirements_met,
+      connection_id: order?.connection_id,
+      messaging_profile_id: order?.messaging_profile_id,
+      created_at: order?.created_at,
+    }
+  }
+
+  /**
+   * Get the current status of a number order by ID.
+   */
+  async getNumberOrder(orderId: string) {
+    const client = await this._getClient()
+    const resp = await client.numberOrders.retrieve(orderId)
+    return (resp as any)?.data ?? resp
+  }
+
+  /**
    * Get a TeXML application by ID.
    */
   async getTexmlApp(appId: string) {
