@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { resolveAgentOptions } from '../src/commands/prompt'
+import { executePromptFile, resolveAgentOptions } from '../src/commands/prompt'
 
 describe('prompt frontmatter agent options', () => {
   it('promotes a top-level skills array', () => {
@@ -28,5 +28,49 @@ describe('prompt frontmatter agent options', () => {
   it('ignores non-array skills and empty frontmatter', () => {
     expect(resolveAgentOptions({ skills: 'luca-framework' })).toEqual({})
     expect(resolveAgentOptions({})).toEqual({})
+  })
+})
+
+describe('prompt code-block context', () => {
+  it('injects the parsed prompt document as $doc', async () => {
+    const doc = {
+      meta: { worksOn: { model: 'Idea' } },
+      content: '',
+      ast: {
+        children: [{
+          type: 'code',
+          lang: 'ts',
+          value: 'console.log($doc.meta.worksOn.model)',
+        }],
+      },
+    }
+    let receivedDoc: any
+    const container = {
+      context: {},
+      docs: {
+        isLoaded: true,
+        parseMarkdownAtPath: async () => doc,
+      },
+      feature(name: string) {
+        if (name === 'transpiler') {
+          return { transformSync: (source: string) => ({ code: source }) }
+        }
+        if (name === 'vm') {
+          return {
+            createContext: (context: any) => context,
+            run: async (_code: string, context: any) => {
+              receivedDoc = context.$doc
+              context.console.log(context.$doc.meta.worksOn.model)
+            },
+          }
+        }
+        throw new Error(`Unexpected feature: ${name}`)
+      },
+    }
+
+    const output = await executePromptFile('/tmp/example.md', container, {}, 'all')
+
+    expect(receivedDoc).toBe(doc)
+    expect(output).toBe('Idea')
   })
 })

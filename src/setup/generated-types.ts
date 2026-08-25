@@ -11474,6 +11474,7 @@ export default function mcp(options: z.infer<typeof argsSchema>, context: Contai
 //# sourceMappingURL=mcp.d.ts.map`,
   "commands/prompt.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container.js';
+import { type EvalMode } from './lib/markdown-eval.js';
 declare module '../command.js' {
     interface AvailableCommands {
         prompt: ReturnType<typeof commands.registerHandler>;
@@ -11527,6 +11528,7 @@ export declare const argsSchema: z.ZodObject<{
  * @returns Options to merge into the agent run
  */
 export declare function resolveAgentOptions(meta: Record<string, any>): Record<string, any>;
+export declare function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode?: EvalMode): Promise<string>;
 export default function prompt(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
     name: string;

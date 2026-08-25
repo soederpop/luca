@@ -817,7 +817,7 @@ function substituteInputs(content: string, inputs: Record<string, any>): string 
 	})
 }
 
-async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode: EvalMode = 'none'): Promise<string> {
+export async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode: EvalMode = 'none'): Promise<string> {
 	if (!container.docs.isLoaded) await container.docs.load()
 	const doc = await container.docs.parseMarkdownAtPath(resolvedPath)
 	const vm = container.feature('vm')
@@ -840,6 +840,7 @@ async function executePromptFile(resolvedPath: string, container: any, inputs?: 
 
 	const shared = vm.createContext({
 		...container.context,
+		$doc: doc,
 		INPUTS: inputs || {},
 		console: captureConsole,
 		setTimeout, clearTimeout, setInterval, clearInterval,
