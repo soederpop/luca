@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.9.3"
+export const typesBundleVersion = "3.9.4"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -27199,6 +27199,7 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
         name: z.ZodString;
         to: z.ZodString;
     }, z.core.$strip>>>;
+    dtmf: z.ZodDefault<z.ZodBoolean>;
     warmTransferInstructions: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>;
@@ -27270,6 +27271,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
             name: z.ZodString;
             to: z.ZodString;
         }, z.core.$strip>>>;
+        dtmf: z.ZodDefault<z.ZodBoolean>;
         warmTransferInstructions: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
@@ -27416,6 +27418,24 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * Delete an insight template by ID.
      */
     deleteInsight(insightId: string): Promise<void>;
+    /**
+     * List the inference models available to your Telnyx account. Model IDs
+     * are \`{source}/{model_name}\` (e.g. \`moonshotai/Kimi-K2.6\`) — the same
+     * strings the \`model\` option accepts.
+     *
+     * @example
+     * \`\`\`ts
+     * await connector.listModels()                     // everything
+     * await connector.listModels({ filter: 'kimi' })   // just the Kimi family
+     * \`\`\`
+     */
+    listModels(opts?: {
+        filter?: string;
+    }): Promise<{
+        id: any;
+        ownedBy: any;
+        created: any;
+    }[]>;
     /**
      * List voices available to your Telnyx account. Optionally pass an
      * integration secret ref for ElevenLabs — Telnyx will then include your
@@ -27609,6 +27629,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * await connector.dial('+13125550000', {
      *   greeting: 'Hey Jon, calling with your morning brief.',
      *   context: 'You called Jon to deliver his morning brief. Keep it under two minutes.',
+     *   machineDetection: 'DetectMessageEnd',
      * })
      * \`\`\`
      */
@@ -27623,6 +27644,19 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         variables?: Record<string, string>;
         /** Telnyx assistant ID; defaults to state, then the number's wiring. */
         assistantId?: string;
+        /**
+         * Answering-machine detection. 'Enable' classifies human vs machine as
+         * soon as possible; 'DetectMessageEnd' additionally waits for the
+         * voicemail beep, so the assistant starts talking after it and the
+         * greeting lands on the recording instead of being cut off.
+         */
+        machineDetection?: 'Enable' | 'Disable' | 'DetectMessageEnd';
+        /** AMD engine: 'Premium' (ML-based) or 'Regular'. */
+        detectionMode?: 'Premium' | 'Regular';
+        /** Overall AMD window in milliseconds. */
+        machineDetectionTimeout?: number;
+        /** Seconds to wait for an answer before canceling (5–120, Telnyx default 30). */
+        timeoutSeconds?: number;
     }): Promise<any>;
     /**
      * Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant,
@@ -31480,7 +31514,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.3";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.4";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
