@@ -257,6 +257,18 @@ luca eval "const fm = container.feature('fileManager'); fm.on('file:change', (e)
 
 For interactive exploration, `luca console` opens a persistent REPL with the container in scope. Useful when you need to try multiple things in sequence.
 
+### Risky change in an established project? Rehearse it in a scratch project
+
+Luca adapts to whatever directory it runs in — auto-discovery just walks the cwd. That means a throwaway folder in `/tmp` is a complete, working luca project the moment you `cd` into it. When a change to an established project is risky (a new feature that touches shared state, a watcher or daemon you haven't run before, a refactor of a helper other commands depend on), build and iterate in a scratch project first, then port only the proven result back:
+
+```shell
+mkdir -p /tmp/luca-experiment && cd /tmp/luca-experiment
+luca scaffold feature myCache --description "trying an idea"
+luca eval "container.feature('myCache')"     # discovered and live, instantly
+```
+
+Everything works there — scaffold, eval, serve, chat — with zero risk to the real project's files, stores, or databases. Iterate until the design is settled, then copy the final helper into the established project. This is not a required first step for ordinary work (eval covers most prototyping); it's the safe path when the cost of a mistake in the real project is high.
+
 ---
 
 ## Key Concepts
