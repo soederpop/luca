@@ -507,7 +507,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 | **Data & Storage** | `contentDb`, `diskCache`, `postgres`, `redis`, `sqlite`, `store` | Cross-process state, databases, caching, document management |
 | **Networking** | `dns`, `ipcSocket`, `networking` | HTTP clients and servers, sockets, DNS, network utilities |
 | **Google Workspace** | `googleAuth`, `googleCalendar`, `googleDocs`, `googleDrive`, `googleMail`, `googleSheets` | OAuth and Google service wrappers |
-| **Dev Tools** | `docker`, `git`, `packageFinder`, `python`, `transpiler`, `vm` | Version control, containers, bundling, sandboxed execution |
+| **Dev Tools** | `docker`, `git`, `packageFinder`, `python`, `transpiler`, `typescript`, `vm` | Version control, containers, bundling, sandboxed execution |
 | **Content & NLP** | `docsReader`, `jsonTree`, `nlp`, `semanticSearch`, `skillsLibrary`, `yamlTree` | Document Q&A, text analysis, semantic search, structured file ingestion |
 | **UI & Output** | `ink`, `ui`, `yaml` | Terminal UI, colors, ascii art, structured data display |
 | **Media & Browser** | `browserUse`, `cipherSocial`, `downloader`, `opener`, `telegram`, `tts` | Browser automation, text-to-speech, downloads, messaging |

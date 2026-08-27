@@ -640,6 +640,7 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     frequencyPenalty: z.ZodOptional<z.ZodNumber>;
     presencePenalty: z.ZodOptional<z.ZodNumber>;
     stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     historyMode: z.ZodOptional<z.ZodEnum<{
         persistent: "persistent";
         lifecycle: "lifecycle";
@@ -783,6 +784,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         frequencyPenalty: z.ZodOptional<z.ZodNumber>;
         presencePenalty: z.ZodOptional<z.ZodNumber>;
         stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         historyMode: z.ZodOptional<z.ZodEnum<{
             persistent: "persistent";
             lifecycle: "lifecycle";
@@ -4068,6 +4070,7 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
     frequencyPenalty: z.ZodOptional<z.ZodNumber>;
     presencePenalty: z.ZodOptional<z.ZodNumber>;
     stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     autoCompact: z.ZodOptional<z.ZodBoolean>;
     compactThreshold: z.ZodOptional<z.ZodNumber>;
     contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -4132,6 +4135,7 @@ export declare const ConversationStateSchema: z.ZodObject<{
     presencePenalty: z.ZodNullable<z.ZodNumber>;
     stop: z.ZodNullable<z.ZodArray<z.ZodString>>;
     maxTokens: z.ZodNullable<z.ZodNumber>;
+    extraBody: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
 }, z.core.$loose>;
 export declare class ConversationAbortError extends Error {
     /** The partial text accumulated before the abort. */
@@ -4374,6 +4378,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         presencePenalty: z.ZodNullable<z.ZodNumber>;
         stop: z.ZodNullable<z.ZodArray<z.ZodString>>;
         maxTokens: z.ZodNullable<z.ZodNumber>;
+        extraBody: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -4406,6 +4411,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         frequencyPenalty: z.ZodOptional<z.ZodNumber>;
         presencePenalty: z.ZodOptional<z.ZodNumber>;
         stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         autoCompact: z.ZodOptional<z.ZodBoolean>;
         compactThreshold: z.ZodOptional<z.ZodNumber>;
         contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -6184,6 +6190,8 @@ export interface ModelRequest {
     signal?: AbortSignal;
     /** When true, transports that support incremental streaming from the underlying API should stream (emitting chunk events per delta). */
     stream?: boolean;
+    /** Extra keys merged verbatim into the chat-completions request body — the escape hatch for server-specific params the schema doesn't model (e.g. llama-server/vLLM's \`chat_template_kwargs\`). Request-level keys win over \`providerOptions.extraBody\` from the provider profile. */
+    extraBody?: Record<string, any>;
     providerOptions?: Record<string, any>;
 }
 export interface ModelResponse {
@@ -11218,8 +11226,8 @@ export declare const argsSchema: z.ZodObject<{
     platform: z.ZodDefault<z.ZodEnum<{
         server: "server";
         all: "all";
-        browser: "browser";
         node: "node";
+        browser: "browser";
         web: "web";
     }>>;
     query: z.ZodOptional<z.ZodString>;
@@ -13890,6 +13898,7 @@ import "./features/telnyx-connector";
 import "./features/tmux";
 import "./features/transpiler";
 import "./features/tts";
+import "./features/typescript";
 import "./features/ui";
 import "./features/vault";
 import "./features/vm";
@@ -13940,6 +13949,7 @@ import type { TelnyxConnector } from "./features/telnyx-connector";
 import type { Tmux } from "./features/tmux";
 import type { Transpiler } from "./features/transpiler";
 import type { TTS } from "./features/tts";
+import type { TypeScriptAst } from "./features/typescript";
 import type { UI } from "./features/ui";
 import type { Vault } from "./features/vault";
 import type { VM } from "./features/vm";
@@ -13990,6 +14000,7 @@ export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxConnector } fr
 export type { TmuxState, TmuxOptions, CaptureOptions, SessionInfo, TmuxPane, TmuxSession, Tmux } from "./features/tmux";
 export type { TransformOptions, TransformResult, Transpiler } from "./features/transpiler";
 export type { TTSOptions, TTSState, TTS } from "./features/tts";
+export type { TsSpan, TsJsdocBlock, TsExportInfo, TsClassMemberInfo, TsFunctionBody, TsSyntaxDiagnostic, TsEditResult, TypeScriptAst } from "./features/typescript";
 export type { UI } from "./features/ui";
 export type { VaultState, VaultOptions, Vault } from "./features/vault";
 export type { VMState, VMOptions, VMRunOptions, VM } from "./features/vm";
@@ -14041,6 +14052,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     tmux: typeof Tmux;
     transpiler: typeof Transpiler;
     tts: typeof TTS;
+    typescript: typeof TypeScriptAst;
     ui: typeof UI;
     vault: typeof Vault;
     vm: typeof VM;
@@ -28456,6 +28468,380 @@ export declare class TTS extends Feature<TTSState, TTSOptions> {
 }
 export default TTS;
 //# sourceMappingURL=tts.d.ts.map`,
+  "node/features/typescript.d.ts": `import * as ts from 'typescript';
+import { Feature } from '../feature.js';
+/** A character range in the original source string. \`code.slice(start, end)\` reproduces the text. */
+export interface TsSpan {
+    start: number;
+    end: number;
+}
+/** A parsed leading JSDoc block. \`raw\` is the full comment including delimiters. */
+export interface TsJsdocBlock {
+    raw: string;
+    /** The prose before the first @tag, with comment asterisks stripped. */
+    description: string;
+    /** Every @tag line, e.g. { tag: 'param', text: '{string} name - the name' }. */
+    tags: Array<{
+        tag: string;
+        text: string;
+    }>;
+    span: TsSpan;
+}
+/** One export of a module — a declaration or default-export expression. */
+export interface TsExportInfo {
+    /** The exported name; 'default' for anonymous default exports. */
+    name: string;
+    /** The local declaration name when it differs (aliased or default-exported identifier). */
+    localName: string | null;
+    kind: 'function' | 'class' | 'variable' | 'interface' | 'typeAlias' | 'enum' | 'expression';
+    isDefault: boolean;
+    /** Full source text of the declaration, excluding the leading JSDoc block. */
+    code: string;
+    span: TsSpan;
+    jsdoc: TsJsdocBlock | null;
+}
+/** One member of a class declaration. */
+export interface TsClassMemberInfo {
+    name: string;
+    kind: 'method' | 'getter' | 'setter' | 'property' | 'constructor' | 'staticBlock';
+    isStatic: boolean;
+    /** True for the \`private\` modifier or a #name. */
+    isPrivate: boolean;
+    /** Full source text of the member, excluding the leading JSDoc block. */
+    code: string;
+    span: TsSpan;
+    jsdoc: TsJsdocBlock | null;
+}
+/** The body of a function. For block bodies the span covers the text between the braces. */
+export interface TsFunctionBody {
+    /** The statements between the braces (or the expression of a braceless arrow). */
+    text: string;
+    span: TsSpan;
+    /** True when the function is a braceless arrow — \`text\` is an expression, not statements. */
+    isExpression: boolean;
+}
+/** A syntax error found while parsing. */
+export interface TsSyntaxDiagnostic {
+    message: string;
+    /** 1-based line number. */
+    line: number;
+    /** 1-based column number. */
+    column: number;
+}
+/** Result of an AST-guided source edit. */
+export interface TsEditResult {
+    /** The full module source after the splice. */
+    source: string;
+    /** Syntax errors in the edited source. Empty means the edit parses cleanly. */
+    diagnostics: TsSyntaxDiagnostic[];
+}
+type SourceInput = string | ts.SourceFile;
+/**
+ * The typescript feature exposes the bundled TypeScript compiler for parsing
+ * source files and working with their ASTs — no install required, the compiler
+ * ships inside the luca binary.
+ *
+ * It has two layers. The \`framework\` getter hands you the entire \`typescript\`
+ * module (\`ts.createSourceFile\`, \`ts.SyntaxKind\`, the works) so anything the
+ * compiler can do, you can build on. On top of that sit purpose-built helpers
+ * for the common structural questions: list a module's exports, pull the full
+ * code of one export, read the leading JSDoc block on an export or a class
+ * member, enumerate class members, and surgically read or replace a single
+ * function body without disturbing any other byte of the file.
+ *
+ * Everything is syntax-only — files parse in isolation with no type checker,
+ * so it is fast and needs no tsconfig or lib files. Edits are text splices at
+ * AST-derived spans: formatting, comments, and untouched code stay
+ * byte-identical, and \`replaceFunctionBody\` re-parses the result so you can
+ * reject a broken edit before writing it.
+ *
+ * @example
+ * \`\`\`typescript
+ * const tsf = container.feature('typescript')
+ *
+ * const source = \`
+ * /** Adds two numbers. *\\/
+ * export function add(a: number, b: number) { return a + b }
+ * export const nums = [1, 2, 3]
+ * export default class Calculator {
+ *   /** Runs the calculation. *\\/
+ *   run() { return 42 }
+ * }
+ * \`
+ *
+ * // List every export with kind, code, and jsdoc
+ * tsf.exports(source).map(e => \`\${e.name}:\${e.kind}\`)
+ * // ['add:function', 'nums:variable', 'default:class']
+ *
+ * // Full code of one export
+ * tsf.exportCode(source, 'add')
+ * // 'export function add(a: number, b: number) { return a + b }'
+ *
+ * // Leading JSDoc of an export, and of a class member
+ * tsf.jsdoc(source, 'add')?.description          // 'Adds two numbers.'
+ * tsf.classMembers(source)[0].jsdoc?.description // 'Runs the calculation.'
+ *
+ * // Surgical function-body edit — only the body changes
+ * const edit = tsf.replaceFunctionBody(source, 'add', ' return a * b ')
+ * edit.diagnostics // [] — the edit parses cleanly
+ *
+ * // Drop to the raw compiler API for anything else
+ * const ts = tsf.framework
+ * const sf = tsf.parse(source)
+ * ts.forEachChild(sf, node => console.log(ts.SyntaxKind[node.kind]))
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class TypeScriptAst extends Feature {
+    static shortcut: "features.typescript";
+    static stability: "stable";
+    static category: "dev-tools";
+    static stateSchema: import("zod").ZodObject<{
+        enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$loose>;
+    static optionsSchema: import("zod").ZodObject<{
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        _cacheKey: import("zod").ZodOptional<import("zod").ZodString>;
+        cached: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        enable: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$strip>;
+    /**
+     * The entire bundled TypeScript compiler API — the \`typescript\` module itself.
+     *
+     * Use this to build anything the helpers below don't cover: create source
+     * files, walk nodes with \`ts.forEachChild\`, inspect \`ts.SyntaxKind\`, print
+     * nodes, transform, and so on.
+     *
+     * @returns {typeof ts} The TypeScript compiler namespace
+     *
+     * @example
+     * \`\`\`typescript
+     * const ts = container.feature('typescript').framework
+     * console.log(ts.version) // e.g. '5.9.3'
+     * \`\`\`
+     */
+    get framework(): typeof ts;
+    /**
+     * Parses TypeScript (or TSX/JS) source into a \`ts.SourceFile\` AST.
+     *
+     * Parsing is syntactic only — no type checking, no file system access —
+     * so it works on any string and is fast enough to call per keystroke.
+     * Parent pointers are set, so \`node.getText()\` and \`node.getSourceFile()\`
+     * work on every node.
+     *
+     * @param {string} source - The module source text
+     * @param {string} [fileName] - Virtual file name; the extension picks the dialect (.ts, .tsx, .js)
+     * @returns {ts.SourceFile} The parsed source file
+     *
+     * @example
+     * \`\`\`typescript
+     * const sf = container.feature('typescript').parse('export const x = 1')
+     * console.log(sf.statements.length) // 1
+     * \`\`\`
+     */
+    parse(source: string, fileName?: string): ts.SourceFile;
+    /**
+     * Returns the syntax errors in a source string (or already-parsed file).
+     *
+     * Only parse errors are reported — this is not a type check. An empty
+     * array means the source is syntactically valid.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @returns {TsSyntaxDiagnostic[]} Syntax errors with 1-based line/column positions
+     *
+     * @example
+     * \`\`\`typescript
+     * container.feature('typescript').diagnostics('function broken( {')
+     * // [{ message: "'}' expected.", line: 1, column: 19 }]
+     * \`\`\`
+     */
+    diagnostics(source: SourceInput): TsSyntaxDiagnostic[];
+    /**
+     * Lists every export of a module: declarations marked \`export\`, the default
+     * export, and \`export { a, b as c }\` clauses (resolved to their local
+     * declarations).
+     *
+     * Each entry carries the export's full source code (JSDoc excluded), its
+     * span in the original text, and its parsed leading JSDoc block. Variable
+     * exports whose initializer is a function or arrow expression report
+     * \`kind: 'function'\`.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @returns {TsExportInfo[]} All exports in declaration order
+     *
+     * @example
+     * \`\`\`typescript
+     * const tsf = container.feature('typescript')
+     * const found = tsf.exports('export const go = async () => 1')
+     * console.log(found[0].kind) // 'function' — arrow initializers count
+     * \`\`\`
+     */
+    exports(source: SourceInput): TsExportInfo[];
+    /**
+     * Returns the default export of a module, or null when there is none.
+     *
+     * \`export default class Foo {}\`, \`export default function () {}\`, and
+     * \`export default Foo\` (resolved to the local declaration) are all handled.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @returns {TsExportInfo | null} The default export, or null
+     *
+     * @example
+     * \`\`\`typescript
+     * const info = container.feature('typescript').defaultExport('class A {}\\nexport default A')
+     * console.log(info?.kind, info?.localName) // 'class' 'A'
+     * \`\`\`
+     */
+    defaultExport(source: SourceInput): TsExportInfo | null;
+    /**
+     * Returns only the class exports of a module (default export included when
+     * it is a class).
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @returns {TsExportInfo[]} Exported classes
+     *
+     * @example
+     * \`\`\`typescript
+     * container.feature('typescript').classExports('export class A {}\\nexport class B {}').length // 2
+     * \`\`\`
+     */
+    classExports(source: SourceInput): TsExportInfo[];
+    /**
+     * Returns only the function exports of a module — \`export function\` and
+     * \`export async function\` declarations plus exported consts whose
+     * initializer is a function or arrow expression.
+     *
+     * This is the shape of an assistant's tools.ts: each entry here whose name
+     * matches a key of the \`schemas\` export is a tool handler.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @returns {TsExportInfo[]} Exported functions
+     *
+     * @example
+     * \`\`\`typescript
+     * const fns = container.feature('typescript').functionExports(await fs.readFile('tools.ts'))
+     * console.log(fns.map(f => f.name))
+     * \`\`\`
+     */
+    functionExports(source: SourceInput): TsExportInfo[];
+    /**
+     * Returns the full source code of one export by name, or null when the
+     * module has no export by that name. The leading JSDoc block is excluded —
+     * fetch it with \`jsdoc()\`.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} name - The exported name ('default' for the default export)
+     * @returns {string | null} The declaration's source text
+     *
+     * @example
+     * \`\`\`typescript
+     * container.feature('typescript').exportCode('export const x = 1', 'x')
+     * // 'export const x = 1'
+     * \`\`\`
+     */
+    exportCode(source: SourceInput, name: string): string | null;
+    /**
+     * Returns the parsed leading JSDoc block of one export, or null when the
+     * export doesn't exist or has no JSDoc.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} name - The exported name ('default' for the default export)
+     * @returns {TsJsdocBlock | null} The JSDoc block with description and tags split out
+     *
+     * @example
+     * \`\`\`typescript
+     * const block = container.feature('typescript').jsdoc(src, 'searchDocs')
+     * console.log(block?.description)
+     * console.log(block?.tags) // [{ tag: 'param', text: '...' }]
+     * \`\`\`
+     */
+    jsdoc(source: SourceInput, name: string): TsJsdocBlock | null;
+    /**
+     * Lists the members of a class: methods, getters, setters, properties, the
+     * constructor, and static blocks — each with its code, span, JSDoc, and
+     * static/private flags.
+     *
+     * With no \`className\` the target is the default-exported class, or the
+     * module's only class when there is exactly one.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} [className] - Which class to inspect; optional when unambiguous
+     * @returns {TsClassMemberInfo[]} The class members in declaration order
+     *
+     * @example
+     * \`\`\`typescript
+     * const members = container.feature('typescript').classMembers(src, 'Widget')
+     * members.filter(m => m.kind === 'getter').map(m => m.name)
+     * \`\`\`
+     */
+    classMembers(source: SourceInput, className?: string): TsClassMemberInfo[];
+    /**
+     * Returns the parsed leading JSDoc block of one class member, or null.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} memberName - The member's name ('constructor' for the constructor)
+     * @param {string} [className] - Which class; optional when unambiguous
+     * @returns {TsJsdocBlock | null} The member's JSDoc block
+     *
+     * @example
+     * \`\`\`typescript
+     * container.feature('typescript').memberJsdoc(src, 'render', 'Widget')?.description
+     * \`\`\`
+     */
+    memberJsdoc(source: SourceInput, memberName: string, className?: string): TsJsdocBlock | null;
+    /**
+     * Returns the body of an exported function — the text between the braces,
+     * plus its exact span in the source. Works on \`export function\` declarations
+     * and exported consts holding a function or arrow expression. A braceless
+     * arrow reports its expression with \`isExpression: true\`.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} name - The exported function's name
+     * @returns {TsFunctionBody | null} The body, or null when no such function exists
+     *
+     * @example
+     * \`\`\`typescript
+     * const body = container.feature('typescript').functionBody(src, 'searchDocs')
+     * console.log(body?.text) // the statements between the braces
+     * \`\`\`
+     */
+    functionBody(source: SourceInput, name: string): TsFunctionBody | null;
+    /**
+     * Replaces the body of one exported function and leaves every other byte of
+     * the module untouched — a text splice at the AST-derived span, never a
+     * re-print, so formatting and comments survive.
+     *
+     * For a braced function, \`newBody\` is the statement text that goes between
+     * the braces (the braces stay). For a braceless arrow it replaces the
+     * expression. The result is re-parsed: check \`diagnostics\` is empty before
+     * writing the file, and throw away the edit when it isn't.
+     *
+     * @param {string | ts.SourceFile} source - Source text or a parsed source file
+     * @param {string} name - The exported function's name
+     * @param {string} newBody - Replacement body text (without braces)
+     * @returns {TsEditResult} The edited source plus its syntax diagnostics
+     * @throws {Error} When the module has no exported function by that name
+     *
+     * @example
+     * \`\`\`typescript
+     * const tsf = container.feature('typescript')
+     * const edit = tsf.replaceFunctionBody(src, 'greet', \`\\n  return 'hi ' + params.name\\n\`)
+     * if (edit.diagnostics.length === 0) await fs.writeFile('tools.ts', edit.source)
+     * \`\`\`
+     */
+    replaceFunctionBody(source: SourceInput, name: string, newBody: string): TsEditResult;
+    private toSourceFile;
+    private scriptKindFor;
+    private declarationKind;
+    private exportInfoFor;
+    private findLocalDeclaration;
+    private findClass;
+    private findFunctionLike;
+    private jsdocFor;
+}
+export default TypeScriptAst;
+//# sourceMappingURL=typescript.d.ts.map`,
   "node/features/ui.d.ts": `import { z } from 'zod';
 import { Feature } from "../feature.js";
 import colors from "chalk";

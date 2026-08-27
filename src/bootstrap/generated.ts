@@ -514,7 +514,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
 | **Google Workspace** | \`googleAuth\`, \`googleCalendar\`, \`googleDocs\`, \`googleDrive\`, \`googleMail\`, \`googleSheets\` | OAuth and Google service wrappers |
-| **Dev Tools** | \`docker\`, \`git\`, \`packageFinder\`, \`python\`, \`transpiler\`, \`vm\` | Version control, containers, bundling, sandboxed execution |
+| **Dev Tools** | \`docker\`, \`git\`, \`packageFinder\`, \`python\`, \`transpiler\`, \`typescript\`, \`vm\` | Version control, containers, bundling, sandboxed execution |
 | **Content & NLP** | \`docsReader\`, \`jsonTree\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, structured file ingestion |
 | **UI & Output** | \`ink\`, \`ui\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
 | **Media & Browser** | \`browserUse\`, \`cipherSocial\`, \`downloader\`, \`opener\`, \`telegram\`, \`tts\` | Browser automation, text-to-speech, downloads, messaging |
@@ -11760,6 +11760,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`tmux\` | feature | process | stable | Tmux session manager for controlling coding assistants and long-running CLI tools. |
 | \`transpiler\` | feature | dev-tools | core | Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. |
 | \`tts\` | feature | media-browser | experimental | TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. |
+| \`typescript\` | feature | dev-tools | stable | The typescript feature exposes the bundled TypeScript compiler for parsing source files and working with their ASTs — no install required, the compiler ships inside the luca binary. |
 | \`ui\` | feature | ui-output | core | UI Feature - Interactive Terminal User Interface Builder Unified interface for building professional CLI experiences using chalk (colors/styles), figlet (ASCII art), and inquirer (interactive prompts). |
 | \`vault\` | feature | system | stable | The Vault feature provides encryption and decryption capabilities using AES-256-GCM. |
 | \`vm\` | feature | dev-tools | core | The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. |
