@@ -264,6 +264,18 @@ luca eval "const fm = container.feature('fileManager'); fm.on('file:change', (e)
 
 For interactive exploration, \`luca console\` opens a persistent REPL with the container in scope. Useful when you need to try multiple things in sequence.
 
+### Risky change in an established project? Rehearse it in a scratch project
+
+Luca adapts to whatever directory it runs in — auto-discovery just walks the cwd. That means a throwaway folder in \`/tmp\` is a complete, working luca project the moment you \`cd\` into it. When a change to an established project is risky (a new feature that touches shared state, a watcher or daemon you haven't run before, a refactor of a helper other commands depend on), build and iterate in a scratch project first, then port only the proven result back:
+
+\`\`\`shell
+mkdir -p /tmp/luca-experiment && cd /tmp/luca-experiment
+luca scaffold feature myCache --description "trying an idea"
+luca eval "container.feature('myCache')"     # discovered and live, instantly
+\`\`\`
+
+Everything works there — scaffold, eval, serve, chat — with zero risk to the real project's files, stores, or databases. Iterate until the design is settled, then copy the final helper into the established project. This is not a required first step for ordinary work (eval covers most prototyping); it's the safe path when the cost of a mistake in the real project is high.
+
 ---
 
 ## Key Concepts
@@ -629,7 +641,7 @@ The \`luca\` binary is available in the path. Key commands:
 
 1. **Discover** — Run \`luca describe features\`, \`luca describe clients\`, \`luca describe servers\` to see what's available. Then \`luca describe <name>\` for full docs on any helper (including per-method examples), or \`luca describe <name>.<member>\` to drill into a specific method or getter. This is your first move, always. (See \`.claude/skills/luca-framework/SKILL.md\` for the full mental model.)
 2. **Build** — Check \`.claude/skills/luca-framework/references/examples/\` first: runnable multi-helper composition patterns (\`luca run <doc.md>\` executes one) — a working example beats fifty describes. Then \`luca scaffold <type> --tutorial\` before creating a new helper; it covers the full guide for that type.
-3. **Prototype** — Use \`luca eval "expression"\` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access.
+3. **Prototype** — Use \`luca eval "expression"\` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access. For risky changes to an established project, a throwaway project in \`/tmp\` is a full working luca project (auto-discovery walks the cwd) — build and iterate there, then port only the proven result back.
 4. **Reference** — The skill file (\`.claude/skills/luca-framework/SKILL.md\`) includes a full Framework Index with every feature, client, and server organized by category, plus a task-to-example routing table. \`references/tutorials/\` holds the long-form guides.
 
 ## Project Structure

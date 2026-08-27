@@ -27589,6 +27589,67 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         status: any;
     } | null>;
     /**
+     * Search Telnyx inventory for purchasable phone numbers.
+     *
+     * @example
+     * \`\`\`ts
+     * const telnyx = container.feature('telnyxConnector')
+     * const available = await telnyx.searchNumbers({ areaCode: '312', features: ['sms', 'voice'] })
+     * console.log(available.map(n => n.phone_number))
+     * \`\`\`
+     */
+    searchNumbers(opts?: {
+        /** Three-digit national destination code, e.g. '312' */
+        areaCode?: string;
+        /** City name, e.g. 'Chicago' */
+        locality?: string;
+        /** US state / CA province, e.g. 'IL' */
+        administrativeArea?: string;
+        /** ISO country code; defaults to 'US' */
+        countryCode?: string;
+        /** Required features, e.g. ['sms', 'voice'] */
+        features?: Array<'sms' | 'mms' | 'voice' | 'fax' | 'emergency' | 'hd_voice' | 'international_sms' | 'local_calling'>;
+        /** Max results; defaults to 10 */
+        limit?: number;
+    }): Promise<any>;
+    /**
+     * Purchase a phone number from Telnyx inventory. Creates a number order and,
+     * by default, polls until Telnyx marks it complete (usually seconds for US
+     * numbers). Pass wait: false to return the pending order immediately.
+     *
+     * @example
+     * \`\`\`ts
+     * const telnyx = container.feature('telnyxConnector')
+     * const [candidate] = await telnyx.searchNumbers({ areaCode: '312', limit: 1 })
+     * const order = await telnyx.purchaseNumber(candidate.phone_number)
+     * console.log(order.status) // 'success'
+     * \`\`\`
+     */
+    purchaseNumber(phoneNumber: string, opts?: {
+        /** Wire the purchased number to this connection */
+        connectionId?: string;
+        /** Attach this messaging profile to the purchased number */
+        messagingProfileId?: string;
+        /** Free-form reference stored on the order */
+        customerReference?: string;
+        /** Poll the order until it leaves 'pending'; defaults to true */
+        wait?: boolean;
+        /** Max time to poll before giving up, in ms; defaults to 30000 */
+        timeout?: number;
+    }): Promise<{
+        id: any;
+        status: any;
+        phone_numbers: any;
+        requirements_met: any;
+        connection_id: any;
+        messaging_profile_id: any;
+        created_at: any;
+    }>;
+    /**
+     * Get the current status of a number order by ID.
+     */
+    getNumberOrder(orderId: string): Promise<any>;
+    /**
      * Get a TeXML application by ID.
      */
     getTexmlApp(appId: string): Promise<any>;

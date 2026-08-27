@@ -15306,6 +15306,59 @@ setBuildTimeData('features.telnyxConnector', {
       ],
       "returns": "void"
     },
+    "searchNumbers": {
+      "description": "Search Telnyx inventory for purchasable phone numbers.",
+      "parameters": {
+        "opts": {
+          "type": "{\n    /** Three-digit national destination code, e.g. '312' */\n    areaCode?: string\n    /** City name, e.g. 'Chicago' */\n    locality?: string\n    /** US state / CA province, e.g. 'IL' */\n    administrativeArea?: string\n    /** ISO country code; defaults to 'US' */\n    countryCode?: string\n    /** Required features, e.g. ['sms', 'voice'] */\n    features?: Array<'sms' | 'mms' | 'voice' | 'fax' | 'emergency' | 'hd_voice' | 'international_sms' | 'local_calling'>\n    /** Max results; defaults to 10 */\n    limit?: number\n  }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const telnyx = container.feature('telnyxConnector')\nconst available = await telnyx.searchNumbers({ areaCode: '312', features: ['sms', 'voice'] })\nconsole.log(available.map(n => n.phone_number))"
+        }
+      ]
+    },
+    "purchaseNumber": {
+      "description": "Purchase a phone number from Telnyx inventory. Creates a number order and, by default, polls until Telnyx marks it complete (usually seconds for US numbers). Pass wait: false to return the pending order immediately.",
+      "parameters": {
+        "phoneNumber": {
+          "type": "string",
+          "description": "Parameter phoneNumber"
+        },
+        "opts": {
+          "type": "{\n    /** Wire the purchased number to this connection */\n    connectionId?: string\n    /** Attach this messaging profile to the purchased number */\n    messagingProfileId?: string\n    /** Free-form reference stored on the order */\n    customerReference?: string\n    /** Poll the order until it leaves 'pending'; defaults to true */\n    wait?: boolean\n    /** Max time to poll before giving up, in ms; defaults to 30000 */\n    timeout?: number\n  }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "phoneNumber"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const telnyx = container.feature('telnyxConnector')\nconst [candidate] = await telnyx.searchNumbers({ areaCode: '312', limit: 1 })\nconst order = await telnyx.purchaseNumber(candidate.phone_number)\nconsole.log(order.status) // 'success'"
+        }
+      ]
+    },
+    "getNumberOrder": {
+      "description": "Get the current status of a number order by ID.",
+      "parameters": {
+        "orderId": {
+          "type": "string",
+          "description": "Parameter orderId"
+        }
+      },
+      "required": [
+        "orderId"
+      ],
+      "returns": "void"
+    },
     "getTexmlApp": {
       "description": "Get a TeXML application by ID.",
       "parameters": {
@@ -15829,6 +15882,458 @@ setBuildTimeData('features.tts', {
       "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\nconst tts = container.feature('tts', {\n voice: 'lucy',            // default preset voice\n format: 'wav',            // 'wav' | 'flac' | 'ogg'\n outputDir: '/tmp/tts-output'\n})\n\n// List the 20 preset voice names (safe — no API call)\nconsole.log('Available voices:', tts.voices.join(', '))\n\n// Synthesize with a preset voice\nconst path = await tts.synthesize('Good morning! Here is your daily briefing.', {\n voice: 'ethan'\n})\nconsole.log('Audio saved to:', path)\nconsole.log('Last generated file:', tts.state.get('lastFile'))\n\n// Clone any voice from a reference audio URL instead of a preset\nconst cloned = await tts.synthesize('Hello world, this is a cloned voice.', {\n voiceUrl: 'https://example.com/reference-voice.wav'\n})"
     }
   ]
+});
+
+setBuildTimeData('features.typescript', {
+  "id": "features.typescript",
+  "description": "The typescript feature exposes the bundled TypeScript compiler for parsing source files and working with their ASTs — no install required, the compiler ships inside the luca binary. It has two layers. The `framework` getter hands you the entire `typescript` module (`ts.createSourceFile`, `ts.SyntaxKind`, the works) so anything the compiler can do, you can build on. On top of that sit purpose-built helpers for the common structural questions: list a module's exports, pull the full code of one export, read the leading JSDoc block on an export or a class member, enumerate class members, and surgically read or replace a single function body without disturbing any other byte of the file. Everything is syntax-only — files parse in isolation with no type checker, so it is fast and needs no tsconfig or lib files. Edits are text splices at AST-derived spans: formatting, comments, and untouched code stay byte-identical, and `replaceFunctionBody` re-parses the result so you can reject a broken edit before writing it.",
+  "shortcut": "features.typescript",
+  "className": "TypeScriptAst",
+  "methods": {
+    "parse": {
+      "description": "Parses TypeScript (or TSX/JS) source into a `ts.SourceFile` AST. Parsing is syntactic only — no type checking, no file system access — so it works on any string and is fast enough to call per keystroke. Parent pointers are set, so `node.getText()` and `node.getSourceFile()` work on every node.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The module source text"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Virtual file name; the extension picks the dialect (.ts, .tsx, .js)"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "ts.SourceFile",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sf = container.feature('typescript').parse('export const x = 1')\nconsole.log(sf.statements.length) // 1"
+        }
+      ]
+    },
+    "diagnostics": {
+      "description": "Returns the syntax errors in a source string (or already-parsed file). Only parse errors are reported — this is not a type check. An empty array means the source is syntactically valid.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsSyntaxDiagnostic[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.feature('typescript').diagnostics('function broken( {')\n// [{ message: \"'}' expected.\", line: 1, column: 19 }]"
+        }
+      ]
+    },
+    "exports": {
+      "description": "Lists every export of a module: declarations marked `export`, the default export, and `export { a, b as c }` clauses (resolved to their local declarations). Each entry carries the export's full source code (JSDoc excluded), its span in the original text, and its parsed leading JSDoc block. Variable exports whose initializer is a function or arrow expression report `kind: 'function'`.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsExportInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const tsf = container.feature('typescript')\nconst found = tsf.exports('export const go = async () => 1')\nconsole.log(found[0].kind) // 'function' — arrow initializers count"
+        }
+      ]
+    },
+    "defaultExport": {
+      "description": "Returns the default export of a module, or null when there is none. `export default class Foo {}`, `export default function () {}`, and `export default Foo` (resolved to the local declaration) are all handled.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsExportInfo | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const info = container.feature('typescript').defaultExport('class A {}\\nexport default A')\nconsole.log(info?.kind, info?.localName) // 'class' 'A'"
+        }
+      ]
+    },
+    "classExports": {
+      "description": "Returns only the class exports of a module (default export included when it is a class).",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsExportInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.feature('typescript').classExports('export class A {}\\nexport class B {}').length // 2"
+        }
+      ]
+    },
+    "functionExports": {
+      "description": "Returns only the function exports of a module — `export function` and `export async function` declarations plus exported consts whose initializer is a function or arrow expression. This is the shape of an assistant's tools.ts: each entry here whose name matches a key of the `schemas` export is a tool handler.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsExportInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const fns = container.feature('typescript').functionExports(await fs.readFile('tools.ts'))\nconsole.log(fns.map(f => f.name))"
+        }
+      ]
+    },
+    "exportCode": {
+      "description": "Returns the full source code of one export by name, or null when the module has no export by that name. The leading JSDoc block is excluded — fetch it with `jsdoc()`.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The exported name ('default' for the default export)"
+        }
+      },
+      "required": [
+        "source",
+        "name"
+      ],
+      "returns": "string | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.feature('typescript').exportCode('export const x = 1', 'x')\n// 'export const x = 1'"
+        }
+      ]
+    },
+    "jsdoc": {
+      "description": "Returns the parsed leading JSDoc block of one export, or null when the export doesn't exist or has no JSDoc.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The exported name ('default' for the default export)"
+        }
+      },
+      "required": [
+        "source",
+        "name"
+      ],
+      "returns": "TsJsdocBlock | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const block = container.feature('typescript').jsdoc(src, 'searchDocs')\nconsole.log(block?.description)\nconsole.log(block?.tags) // [{ tag: 'param', text: '...' }]"
+        }
+      ]
+    },
+    "classMembers": {
+      "description": "Lists the members of a class: methods, getters, setters, properties, the constructor, and static blocks — each with its code, span, JSDoc, and static/private flags. With no `className` the target is the default-exported class, or the module's only class when there is exactly one.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "className": {
+          "type": "string",
+          "description": "Which class to inspect; optional when unambiguous"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "TsClassMemberInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const members = container.feature('typescript').classMembers(src, 'Widget')\nmembers.filter(m => m.kind === 'getter').map(m => m.name)"
+        }
+      ]
+    },
+    "memberJsdoc": {
+      "description": "Returns the parsed leading JSDoc block of one class member, or null.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "memberName": {
+          "type": "string",
+          "description": "The member's name ('constructor' for the constructor)"
+        },
+        "className": {
+          "type": "string",
+          "description": "Which class; optional when unambiguous"
+        }
+      },
+      "required": [
+        "source",
+        "memberName"
+      ],
+      "returns": "TsJsdocBlock | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.feature('typescript').memberJsdoc(src, 'render', 'Widget')?.description"
+        }
+      ]
+    },
+    "functionBody": {
+      "description": "Returns the body of an exported function — the text between the braces, plus its exact span in the source. Works on `export function` declarations and exported consts holding a function or arrow expression. A braceless arrow reports its expression with `isExpression: true`.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The exported function's name"
+        }
+      },
+      "required": [
+        "source",
+        "name"
+      ],
+      "returns": "TsFunctionBody | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const body = container.feature('typescript').functionBody(src, 'searchDocs')\nconsole.log(body?.text) // the statements between the braces"
+        }
+      ]
+    },
+    "replaceFunctionBody": {
+      "description": "Replaces the body of one exported function and leaves every other byte of the module untouched — a text splice at the AST-derived span, never a re-print, so formatting and comments survive. For a braced function, `newBody` is the statement text that goes between the braces (the braces stay). For a braceless arrow it replaces the expression. The result is re-parsed: check `diagnostics` is empty before writing the file, and throw away the edit when it isn't.",
+      "parameters": {
+        "source": {
+          "type": "SourceInput",
+          "description": "Source text or a parsed source file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The exported function's name"
+        },
+        "newBody": {
+          "type": "string",
+          "description": "Replacement body text (without braces)"
+        }
+      },
+      "required": [
+        "source",
+        "name",
+        "newBody"
+      ],
+      "returns": "TsEditResult",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const tsf = container.feature('typescript')\nconst edit = tsf.replaceFunctionBody(src, 'greet', `\\n  return 'hi ' + params.name\\n`)\nif (edit.diagnostics.length === 0) await fs.writeFile('tools.ts', edit.source)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "framework": {
+      "description": "The entire bundled TypeScript compiler API — the `typescript` module itself. Use this to build anything the helpers below don't cover: create source files, walk nodes with `ts.forEachChild`, inspect `ts.SyntaxKind`, print nodes, transform, and so on.",
+      "returns": "typeof ts",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ts = container.feature('typescript').framework\nconsole.log(ts.version) // e.g. '5.9.3'"
+        }
+      ]
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "stable",
+  "category": "dev-tools",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const tsf = container.feature('typescript')\n\nconst source = `\n/** Adds two numbers. *\\/\nexport function add(a: number, b: number) { return a + b }\nexport const nums = [1, 2, 3]\nexport default class Calculator {\n /** Runs the calculation. *\\/\n run() { return 42 }\n}\n`\n\n// List every export with kind, code, and jsdoc\ntsf.exports(source).map(e => `${e.name}:${e.kind}`)\n// ['add:function', 'nums:variable', 'default:class']\n\n// Full code of one export\ntsf.exportCode(source, 'add')\n// 'export function add(a: number, b: number) { return a + b }'\n\n// Leading JSDoc of an export, and of a class member\ntsf.jsdoc(source, 'add')?.description          // 'Adds two numbers.'\ntsf.classMembers(source)[0].jsdoc?.description // 'Runs the calculation.'\n\n// Surgical function-body edit — only the body changes\nconst edit = tsf.replaceFunctionBody(source, 'add', ' return a * b ')\nedit.diagnostics // [] — the edit parses cleanly\n\n// Drop to the raw compiler API for anything else\nconst ts = tsf.framework\nconst sf = tsf.parse(source)\nts.forEachChild(sf, node => console.log(ts.SyntaxKind[node.kind]))"
+    }
+  ],
+  "types": {
+    "TsSyntaxDiagnostic": {
+      "description": "A syntax error found while parsing.",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": ""
+        },
+        "line": {
+          "type": "number",
+          "description": "1-based line number."
+        },
+        "column": {
+          "type": "number",
+          "description": "1-based column number."
+        }
+      }
+    },
+    "TsExportInfo": {
+      "description": "One export of a module — a declaration or default-export expression.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The exported name; 'default' for anonymous default exports."
+        },
+        "localName": {
+          "type": "string | null",
+          "description": "The local declaration name when it differs (aliased or default-exported identifier)."
+        },
+        "kind": {
+          "type": "'function' | 'class' | 'variable' | 'interface' | 'typeAlias' | 'enum' | 'expression'",
+          "description": ""
+        },
+        "isDefault": {
+          "type": "boolean",
+          "description": ""
+        },
+        "code": {
+          "type": "string",
+          "description": "Full source text of the declaration, excluding the leading JSDoc block."
+        },
+        "span": {
+          "type": "TsSpan",
+          "description": ""
+        },
+        "jsdoc": {
+          "type": "TsJsdocBlock | null",
+          "description": ""
+        }
+      }
+    },
+    "TsSpan": {
+      "description": "A character range in the original source string. `code.slice(start, end)` reproduces the text.",
+      "properties": {
+        "start": {
+          "type": "number",
+          "description": ""
+        },
+        "end": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "TsJsdocBlock": {
+      "description": "A parsed leading JSDoc block. `raw` is the full comment including delimiters.",
+      "properties": {
+        "raw": {
+          "type": "string",
+          "description": ""
+        },
+        "description": {
+          "type": "string",
+          "description": "The prose before the first @tag, with comment asterisks stripped."
+        },
+        "tags": {
+          "type": "Array<{ tag: string; text: string }>",
+          "description": "Every @tag line, e.g. { tag: 'param', text: '{string} name - the name' }."
+        },
+        "span": {
+          "type": "TsSpan",
+          "description": ""
+        }
+      }
+    },
+    "TsClassMemberInfo": {
+      "description": "One member of a class declaration.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": ""
+        },
+        "kind": {
+          "type": "'method' | 'getter' | 'setter' | 'property' | 'constructor' | 'staticBlock'",
+          "description": ""
+        },
+        "isStatic": {
+          "type": "boolean",
+          "description": ""
+        },
+        "isPrivate": {
+          "type": "boolean",
+          "description": "True for the `private` modifier or a #name."
+        },
+        "code": {
+          "type": "string",
+          "description": "Full source text of the member, excluding the leading JSDoc block."
+        },
+        "span": {
+          "type": "TsSpan",
+          "description": ""
+        },
+        "jsdoc": {
+          "type": "TsJsdocBlock | null",
+          "description": ""
+        }
+      }
+    },
+    "TsFunctionBody": {
+      "description": "The body of a function. For block bodies the span covers the text between the braces.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The statements between the braces (or the expression of a braceless arrow)."
+        },
+        "span": {
+          "type": "TsSpan",
+          "description": ""
+        },
+        "isExpression": {
+          "type": "boolean",
+          "description": "True when the function is a braceless arrow — `text` is an expression, not statements."
+        }
+      }
+    },
+    "TsEditResult": {
+      "description": "Result of an AST-guided source edit.",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The full module source after the splice."
+        },
+        "diagnostics": {
+          "type": "TsSyntaxDiagnostic[]",
+          "description": "Syntax errors in the edited source. Empty means the edit parses cleanly."
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.ui', {
@@ -33247,6 +33752,59 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "searchNumbers": {
+        "description": "Search Telnyx inventory for purchasable phone numbers.",
+        "parameters": {
+          "opts": {
+            "type": "{\n    /** Three-digit national destination code, e.g. '312' */\n    areaCode?: string\n    /** City name, e.g. 'Chicago' */\n    locality?: string\n    /** US state / CA province, e.g. 'IL' */\n    administrativeArea?: string\n    /** ISO country code; defaults to 'US' */\n    countryCode?: string\n    /** Required features, e.g. ['sms', 'voice'] */\n    features?: Array<'sms' | 'mms' | 'voice' | 'fax' | 'emergency' | 'hd_voice' | 'international_sms' | 'local_calling'>\n    /** Max results; defaults to 10 */\n    limit?: number\n  }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const telnyx = container.feature('telnyxConnector')\nconst available = await telnyx.searchNumbers({ areaCode: '312', features: ['sms', 'voice'] })\nconsole.log(available.map(n => n.phone_number))"
+          }
+        ]
+      },
+      "purchaseNumber": {
+        "description": "Purchase a phone number from Telnyx inventory. Creates a number order and, by default, polls until Telnyx marks it complete (usually seconds for US numbers). Pass wait: false to return the pending order immediately.",
+        "parameters": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Parameter phoneNumber"
+          },
+          "opts": {
+            "type": "{\n    /** Wire the purchased number to this connection */\n    connectionId?: string\n    /** Attach this messaging profile to the purchased number */\n    messagingProfileId?: string\n    /** Free-form reference stored on the order */\n    customerReference?: string\n    /** Poll the order until it leaves 'pending'; defaults to true */\n    wait?: boolean\n    /** Max time to poll before giving up, in ms; defaults to 30000 */\n    timeout?: number\n  }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "phoneNumber"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const telnyx = container.feature('telnyxConnector')\nconst [candidate] = await telnyx.searchNumbers({ areaCode: '312', limit: 1 })\nconst order = await telnyx.purchaseNumber(candidate.phone_number)\nconsole.log(order.status) // 'success'"
+          }
+        ]
+      },
+      "getNumberOrder": {
+        "description": "Get the current status of a number order by ID.",
+        "parameters": {
+          "orderId": {
+            "type": "string",
+            "description": "Parameter orderId"
+          }
+        },
+        "required": [
+          "orderId"
+        ],
+        "returns": "void"
+      },
       "getTexmlApp": {
         "description": "Get a TeXML application by ID.",
         "parameters": {
@@ -33767,6 +34325,457 @@ export const introspectionData: Record<string, any>[] = [
         "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\nconst tts = container.feature('tts', {\n voice: 'lucy',            // default preset voice\n format: 'wav',            // 'wav' | 'flac' | 'ogg'\n outputDir: '/tmp/tts-output'\n})\n\n// List the 20 preset voice names (safe — no API call)\nconsole.log('Available voices:', tts.voices.join(', '))\n\n// Synthesize with a preset voice\nconst path = await tts.synthesize('Good morning! Here is your daily briefing.', {\n voice: 'ethan'\n})\nconsole.log('Audio saved to:', path)\nconsole.log('Last generated file:', tts.state.get('lastFile'))\n\n// Clone any voice from a reference audio URL instead of a preset\nconst cloned = await tts.synthesize('Hello world, this is a cloned voice.', {\n voiceUrl: 'https://example.com/reference-voice.wav'\n})"
       }
     ]
+  },
+  {
+    "id": "features.typescript",
+    "description": "The typescript feature exposes the bundled TypeScript compiler for parsing source files and working with their ASTs — no install required, the compiler ships inside the luca binary. It has two layers. The `framework` getter hands you the entire `typescript` module (`ts.createSourceFile`, `ts.SyntaxKind`, the works) so anything the compiler can do, you can build on. On top of that sit purpose-built helpers for the common structural questions: list a module's exports, pull the full code of one export, read the leading JSDoc block on an export or a class member, enumerate class members, and surgically read or replace a single function body without disturbing any other byte of the file. Everything is syntax-only — files parse in isolation with no type checker, so it is fast and needs no tsconfig or lib files. Edits are text splices at AST-derived spans: formatting, comments, and untouched code stay byte-identical, and `replaceFunctionBody` re-parses the result so you can reject a broken edit before writing it.",
+    "shortcut": "features.typescript",
+    "className": "TypeScriptAst",
+    "methods": {
+      "parse": {
+        "description": "Parses TypeScript (or TSX/JS) source into a `ts.SourceFile` AST. Parsing is syntactic only — no type checking, no file system access — so it works on any string and is fast enough to call per keystroke. Parent pointers are set, so `node.getText()` and `node.getSourceFile()` work on every node.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The module source text"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "Virtual file name; the extension picks the dialect (.ts, .tsx, .js)"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "ts.SourceFile",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sf = container.feature('typescript').parse('export const x = 1')\nconsole.log(sf.statements.length) // 1"
+          }
+        ]
+      },
+      "diagnostics": {
+        "description": "Returns the syntax errors in a source string (or already-parsed file). Only parse errors are reported — this is not a type check. An empty array means the source is syntactically valid.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsSyntaxDiagnostic[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.feature('typescript').diagnostics('function broken( {')\n// [{ message: \"'}' expected.\", line: 1, column: 19 }]"
+          }
+        ]
+      },
+      "exports": {
+        "description": "Lists every export of a module: declarations marked `export`, the default export, and `export { a, b as c }` clauses (resolved to their local declarations). Each entry carries the export's full source code (JSDoc excluded), its span in the original text, and its parsed leading JSDoc block. Variable exports whose initializer is a function or arrow expression report `kind: 'function'`.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsExportInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const tsf = container.feature('typescript')\nconst found = tsf.exports('export const go = async () => 1')\nconsole.log(found[0].kind) // 'function' — arrow initializers count"
+          }
+        ]
+      },
+      "defaultExport": {
+        "description": "Returns the default export of a module, or null when there is none. `export default class Foo {}`, `export default function () {}`, and `export default Foo` (resolved to the local declaration) are all handled.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsExportInfo | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const info = container.feature('typescript').defaultExport('class A {}\\nexport default A')\nconsole.log(info?.kind, info?.localName) // 'class' 'A'"
+          }
+        ]
+      },
+      "classExports": {
+        "description": "Returns only the class exports of a module (default export included when it is a class).",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsExportInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.feature('typescript').classExports('export class A {}\\nexport class B {}').length // 2"
+          }
+        ]
+      },
+      "functionExports": {
+        "description": "Returns only the function exports of a module — `export function` and `export async function` declarations plus exported consts whose initializer is a function or arrow expression. This is the shape of an assistant's tools.ts: each entry here whose name matches a key of the `schemas` export is a tool handler.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsExportInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const fns = container.feature('typescript').functionExports(await fs.readFile('tools.ts'))\nconsole.log(fns.map(f => f.name))"
+          }
+        ]
+      },
+      "exportCode": {
+        "description": "Returns the full source code of one export by name, or null when the module has no export by that name. The leading JSDoc block is excluded — fetch it with `jsdoc()`.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "name": {
+            "type": "string",
+            "description": "The exported name ('default' for the default export)"
+          }
+        },
+        "required": [
+          "source",
+          "name"
+        ],
+        "returns": "string | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.feature('typescript').exportCode('export const x = 1', 'x')\n// 'export const x = 1'"
+          }
+        ]
+      },
+      "jsdoc": {
+        "description": "Returns the parsed leading JSDoc block of one export, or null when the export doesn't exist or has no JSDoc.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "name": {
+            "type": "string",
+            "description": "The exported name ('default' for the default export)"
+          }
+        },
+        "required": [
+          "source",
+          "name"
+        ],
+        "returns": "TsJsdocBlock | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const block = container.feature('typescript').jsdoc(src, 'searchDocs')\nconsole.log(block?.description)\nconsole.log(block?.tags) // [{ tag: 'param', text: '...' }]"
+          }
+        ]
+      },
+      "classMembers": {
+        "description": "Lists the members of a class: methods, getters, setters, properties, the constructor, and static blocks — each with its code, span, JSDoc, and static/private flags. With no `className` the target is the default-exported class, or the module's only class when there is exactly one.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "className": {
+            "type": "string",
+            "description": "Which class to inspect; optional when unambiguous"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "TsClassMemberInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const members = container.feature('typescript').classMembers(src, 'Widget')\nmembers.filter(m => m.kind === 'getter').map(m => m.name)"
+          }
+        ]
+      },
+      "memberJsdoc": {
+        "description": "Returns the parsed leading JSDoc block of one class member, or null.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "memberName": {
+            "type": "string",
+            "description": "The member's name ('constructor' for the constructor)"
+          },
+          "className": {
+            "type": "string",
+            "description": "Which class; optional when unambiguous"
+          }
+        },
+        "required": [
+          "source",
+          "memberName"
+        ],
+        "returns": "TsJsdocBlock | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.feature('typescript').memberJsdoc(src, 'render', 'Widget')?.description"
+          }
+        ]
+      },
+      "functionBody": {
+        "description": "Returns the body of an exported function — the text between the braces, plus its exact span in the source. Works on `export function` declarations and exported consts holding a function or arrow expression. A braceless arrow reports its expression with `isExpression: true`.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "name": {
+            "type": "string",
+            "description": "The exported function's name"
+          }
+        },
+        "required": [
+          "source",
+          "name"
+        ],
+        "returns": "TsFunctionBody | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const body = container.feature('typescript').functionBody(src, 'searchDocs')\nconsole.log(body?.text) // the statements between the braces"
+          }
+        ]
+      },
+      "replaceFunctionBody": {
+        "description": "Replaces the body of one exported function and leaves every other byte of the module untouched — a text splice at the AST-derived span, never a re-print, so formatting and comments survive. For a braced function, `newBody` is the statement text that goes between the braces (the braces stay). For a braceless arrow it replaces the expression. The result is re-parsed: check `diagnostics` is empty before writing the file, and throw away the edit when it isn't.",
+        "parameters": {
+          "source": {
+            "type": "SourceInput",
+            "description": "Source text or a parsed source file"
+          },
+          "name": {
+            "type": "string",
+            "description": "The exported function's name"
+          },
+          "newBody": {
+            "type": "string",
+            "description": "Replacement body text (without braces)"
+          }
+        },
+        "required": [
+          "source",
+          "name",
+          "newBody"
+        ],
+        "returns": "TsEditResult",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const tsf = container.feature('typescript')\nconst edit = tsf.replaceFunctionBody(src, 'greet', `\\n  return 'hi ' + params.name\\n`)\nif (edit.diagnostics.length === 0) await fs.writeFile('tools.ts', edit.source)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "framework": {
+        "description": "The entire bundled TypeScript compiler API — the `typescript` module itself. Use this to build anything the helpers below don't cover: create source files, walk nodes with `ts.forEachChild`, inspect `ts.SyntaxKind`, print nodes, transform, and so on.",
+        "returns": "typeof ts",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ts = container.feature('typescript').framework\nconsole.log(ts.version) // e.g. '5.9.3'"
+          }
+        ]
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "stable",
+    "category": "dev-tools",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const tsf = container.feature('typescript')\n\nconst source = `\n/** Adds two numbers. *\\/\nexport function add(a: number, b: number) { return a + b }\nexport const nums = [1, 2, 3]\nexport default class Calculator {\n /** Runs the calculation. *\\/\n run() { return 42 }\n}\n`\n\n// List every export with kind, code, and jsdoc\ntsf.exports(source).map(e => `${e.name}:${e.kind}`)\n// ['add:function', 'nums:variable', 'default:class']\n\n// Full code of one export\ntsf.exportCode(source, 'add')\n// 'export function add(a: number, b: number) { return a + b }'\n\n// Leading JSDoc of an export, and of a class member\ntsf.jsdoc(source, 'add')?.description          // 'Adds two numbers.'\ntsf.classMembers(source)[0].jsdoc?.description // 'Runs the calculation.'\n\n// Surgical function-body edit — only the body changes\nconst edit = tsf.replaceFunctionBody(source, 'add', ' return a * b ')\nedit.diagnostics // [] — the edit parses cleanly\n\n// Drop to the raw compiler API for anything else\nconst ts = tsf.framework\nconst sf = tsf.parse(source)\nts.forEachChild(sf, node => console.log(ts.SyntaxKind[node.kind]))"
+      }
+    ],
+    "types": {
+      "TsSyntaxDiagnostic": {
+        "description": "A syntax error found while parsing.",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": ""
+          },
+          "line": {
+            "type": "number",
+            "description": "1-based line number."
+          },
+          "column": {
+            "type": "number",
+            "description": "1-based column number."
+          }
+        }
+      },
+      "TsExportInfo": {
+        "description": "One export of a module — a declaration or default-export expression.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The exported name; 'default' for anonymous default exports."
+          },
+          "localName": {
+            "type": "string | null",
+            "description": "The local declaration name when it differs (aliased or default-exported identifier)."
+          },
+          "kind": {
+            "type": "'function' | 'class' | 'variable' | 'interface' | 'typeAlias' | 'enum' | 'expression'",
+            "description": ""
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": ""
+          },
+          "code": {
+            "type": "string",
+            "description": "Full source text of the declaration, excluding the leading JSDoc block."
+          },
+          "span": {
+            "type": "TsSpan",
+            "description": ""
+          },
+          "jsdoc": {
+            "type": "TsJsdocBlock | null",
+            "description": ""
+          }
+        }
+      },
+      "TsSpan": {
+        "description": "A character range in the original source string. `code.slice(start, end)` reproduces the text.",
+        "properties": {
+          "start": {
+            "type": "number",
+            "description": ""
+          },
+          "end": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "TsJsdocBlock": {
+        "description": "A parsed leading JSDoc block. `raw` is the full comment including delimiters.",
+        "properties": {
+          "raw": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": "The prose before the first @tag, with comment asterisks stripped."
+          },
+          "tags": {
+            "type": "Array<{ tag: string; text: string }>",
+            "description": "Every @tag line, e.g. { tag: 'param', text: '{string} name - the name' }."
+          },
+          "span": {
+            "type": "TsSpan",
+            "description": ""
+          }
+        }
+      },
+      "TsClassMemberInfo": {
+        "description": "One member of a class declaration.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "kind": {
+            "type": "'method' | 'getter' | 'setter' | 'property' | 'constructor' | 'staticBlock'",
+            "description": ""
+          },
+          "isStatic": {
+            "type": "boolean",
+            "description": ""
+          },
+          "isPrivate": {
+            "type": "boolean",
+            "description": "True for the `private` modifier or a #name."
+          },
+          "code": {
+            "type": "string",
+            "description": "Full source text of the member, excluding the leading JSDoc block."
+          },
+          "span": {
+            "type": "TsSpan",
+            "description": ""
+          },
+          "jsdoc": {
+            "type": "TsJsdocBlock | null",
+            "description": ""
+          }
+        }
+      },
+      "TsFunctionBody": {
+        "description": "The body of a function. For block bodies the span covers the text between the braces.",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The statements between the braces (or the expression of a braceless arrow)."
+          },
+          "span": {
+            "type": "TsSpan",
+            "description": ""
+          },
+          "isExpression": {
+            "type": "boolean",
+            "description": "True when the function is a braceless arrow — `text` is an expression, not statements."
+          }
+        }
+      },
+      "TsEditResult": {
+        "description": "Result of an AST-guided source edit.",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "The full module source after the splice."
+          },
+          "diagnostics": {
+            "type": "TsSyntaxDiagnostic[]",
+            "description": "Syntax errors in the edited source. Empty means the edit parses cleanly."
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.ui",
