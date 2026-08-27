@@ -127,6 +127,27 @@ describe('Conversation correctness boundaries', () => {
 		expect(requests[3].providerOptions.input.length).toBeGreaterThan(1)
 	})
 
+	it('passes options.extraBody through to the chat transport request', async () => {
+		const extraBody = { chat_template_kwargs: { enable_thinking: false } }
+		const { providers, conversation } = nativeConversation({ extraBody })
+		const requests: any[] = []
+		providers.registerTransport('openai-chat-completions', {
+			apiMode: 'openai-chat-completions',
+			async *stream(request: any) {
+				requests.push(request)
+				yield { type: 'response', response: { content: 'ok', toolCalls: [] } } as const
+			},
+		})
+
+		await conversation.ask('hello')
+		expect(requests[0].extraBody).toEqual(extraBody)
+
+		// State is the runtime source of truth — clearing it drops the passthrough mid-chat.
+		conversation.state.set('extraBody', null)
+		await conversation.ask('again')
+		expect(requests[1].extraBody).toBeUndefined()
+	})
+
 	it('validates structured output for native and generic transports', async () => {
 		const schema = z.object({ count: z.number().int() })
 		const { providers, conversation } = nativeConversation()

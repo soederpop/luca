@@ -111,6 +111,8 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	presencePenalty: z.number().min(-2).max(2).optional().describe('Presence penalty (-2 to 2)'),
 	/** Stop sequences. */
 	stop: z.array(z.string()).optional().describe('Stop sequences'),
+	/** Extra keys merged verbatim into the chat-completions request body — e.g. llama-server/vLLM's chat_template_kwargs. Also settable as `extraBody:` in CORE.md frontmatter. Chat API only. */
+	extraBody: z.record(z.string(), z.any()).optional().describe("Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } }). Also settable in CORE.md frontmatter. Chat API only"),
 
 	/** History persistence mode: lifecycle (ephemeral), daily (auto-resume per day), persistent (single long-running thread), session (unique per run, resumable) */
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
@@ -527,6 +529,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
 				...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
 				...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
+				...(this.effectiveOptions.extraBody ? { extraBody: this.effectiveOptions.extraBody } : {}),
 				...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
 				history: [
 					{ role: 'system', content: this.effectiveSystemPrompt },

@@ -175,6 +175,8 @@ export interface ModelRequest {
   signal?: AbortSignal
   /** When true, transports that support incremental streaming from the underlying API should stream (emitting chunk events per delta). */
   stream?: boolean
+  /** Extra keys merged verbatim into the chat-completions request body — the escape hatch for server-specific params the schema doesn't model (e.g. llama-server/vLLM's `chat_template_kwargs`). Request-level keys win over `providerOptions.extraBody` from the provider profile. */
+  extraBody?: Record<string, any>
   providerOptions?: Record<string, any>
 }
 
@@ -508,6 +510,10 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
       ...(request.stop ? { stop: request.stop } : {}),
       ...(request.responseFormat ? { response_format: { type: 'json_schema', json_schema: request.responseFormat } } : {}),
       ...(request.stream && providerOptions.includeUsage !== false ? { stream_options: { include_usage: true } } : {}),
+      // Escape hatch for params the schema doesn't model (chat_template_kwargs, …).
+      // Profile-level extraBody applies to every request; request-level wins per key.
+      ...(providerOptions.extraBody ?? {}),
+      ...(request.extraBody ?? {}),
     }
   }
 

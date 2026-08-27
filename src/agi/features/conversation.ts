@@ -100,6 +100,8 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	presencePenalty: z.number().min(-2).max(2).optional().describe('Presence penalty (-2 to 2). Positive = encourage new topics'),
 	/** Stop sequences — model stops generating when it encounters any of these strings. */
 	stop: z.array(z.string()).optional().describe('Stop sequences — generation halts when any of these strings is produced'),
+	/** Extra keys merged verbatim into the chat-completions request body — for server-specific params the schema doesn't model, e.g. llama-server/vLLM's chat_template_kwargs. Chat API only; ignored by the Responses API and CLI transports. */
+	extraBody: z.record(z.string(), z.any()).optional().describe("Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } } for llama-server/vLLM). Chat API only"),
 
 	/** Enable automatic compaction when estimated input tokens approach the context limit */
 	autoCompact: z.boolean().optional().describe('Enable automatic compaction when input tokens approach the context limit'),
@@ -167,6 +169,7 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	presencePenalty: z.number().nullable().describe('Presence penalty (-2 to 2). Null means use model default'),
 	stop: z.array(z.string()).nullable().describe('Stop sequences. Null means none'),
 	maxTokens: z.number().nullable().describe('Maximum output tokens per completion. Null means use model default'),
+	extraBody: z.record(z.string(), z.any()).nullable().describe('Extra keys merged verbatim into the chat-completions request body (e.g. chat_template_kwargs). Null means none'),
 })
 
 export class ConversationAbortError extends Error {
@@ -456,6 +459,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			presencePenalty: this.options.presencePenalty ?? null,
 			stop: this.options.stop ?? null,
 			maxTokens: this.options.maxTokens ?? null,
+			extraBody: this.options.extraBody ?? null,
 		}
 	}
 
@@ -1686,6 +1690,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					instructions: this._activeInstructions ?? undefined,
 					responseFormat: this.structuredOutputConfig,
 					temperature: this.state.get('temperature') ?? undefined,
+					extraBody: this.state.get('extraBody') ?? undefined,
 					signal: this._abortController?.signal,
 					providerOptions: provider.providerOptions,
 				}, provider)
@@ -2154,6 +2159,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				presencePenalty: this.state.get('presencePenalty') ?? undefined,
 				stop: this.state.get('stop') ?? undefined,
 				responseFormat: this.structuredOutputConfig,
+				extraBody: this.state.get('extraBody') ?? undefined,
 				signal: this._abortController?.signal,
 				stream: true,
 			}, provider)

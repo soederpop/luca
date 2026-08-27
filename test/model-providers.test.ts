@@ -238,6 +238,45 @@ describe('ModelProviders', () => {
     })
   })
 
+  it('merges extraBody into the chat-completions request body, request keys winning over profile keys', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const calls: any[] = []
+    const fakeClient = {
+      chat: {
+        completions: {
+          create: async (request: any) => {
+            calls.push(request)
+            return { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }] }
+          },
+        },
+      },
+    }
+
+    providers.registerProfile({
+      id: 'extra-body',
+      apiMode: 'openai-chat-completions',
+      auth: 'none',
+      baseURL: 'http://localhost:9999/v1',
+      defaultModel: 'local-model',
+      providerOptions: {
+        client: fakeClient,
+        extraBody: { chat_template_kwargs: { enable_thinking: true }, profile_only: 1 },
+      },
+    })
+
+    const resolved = await providers.resolve({ provider: 'extra-body' })
+    for await (const _event of resolved.transport.stream({
+      model: resolved.model,
+      messages: [{ role: 'user', content: 'hi' }],
+      extraBody: { chat_template_kwargs: { enable_thinking: false } },
+    }, resolved)) { /* drain */ }
+
+    // Request-level extraBody replaces the profile's key wholesale; untouched profile keys survive.
+    expect(calls[0].chat_template_kwargs).toEqual({ enable_thinking: false })
+    expect(calls[0].profile_only).toBe(1)
+    expect(calls[0].extraBody).toBeUndefined()
+  })
+
   it('streams chat completions when request.stream is true', async () => {
     const providers = new AGIContainer().feature('modelProviders')
     const calls: any[] = []
