@@ -23,6 +23,7 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   voice: z.string().optional().describe('TTS voice ID (e.g. Telnyx.Ultra.<id> or an ElevenLabs voice ID). If omitted, uses Telnyx default.'),
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
+  pronunciationDictId: z.string().optional().describe('UUID of a Telnyx pronunciation dictionary to attach to the assistant voice. Falls back to pronunciationDictId in the assistant\'s voice.yml. Survives redeploys — without this, a manually-attached dictionary is lost every time the assistant is recreated.'),
   toolSecret: z.string().optional().describe('Shared secret Telnyx must present on tool webhook calls. Auto-generated per deploy if omitted.'),
   allowedCallers: z.array(z.string()).optional().describe('E.164 numbers allowed past the caller restriction. Omit for a fully open line. How the restriction is enforced is set by callerPolicy.'),
   callerPolicy: z.enum(['screen', 'tools']).default('screen').describe("How allowedCallers is enforced. 'screen': unlisted callers hear rejectMessage and the call ends before the assistant answers (SMS from unlisted senders gets rejectMessage back). 'tools': anyone can converse, but unlisted callers cannot trigger tool calls. Tool webhooks are secret-gated in both modes."),
@@ -427,10 +428,60 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   async updateAssistantVoice(assistantId: string, voiceSettings: any) {
     const client = await this._getClient()
     this._log('[telnyx] 🎙️  Updating assistant voice_settings:', JSON.stringify(voiceSettings, null, 2))
-    const resp = await client.ai.assistants.update(assistantId, { voice_settings: voiceSettings })
+    // Raw PATCH instead of client.ai.assistants.update(): the SDK's update
+    // route has 404'd on live assistants, while PATCH /ai/assistants/{id}
+    // is the verified-working path for voice_settings changes.
+    const resp: any = await client.patch(`/ai/assistants/${assistantId}`, {
+      body: { voice_settings: voiceSettings },
+    })
     const updated = resp?.data || resp
     this._log('[telnyx] 🎙️  Assistant now has voice_settings:', JSON.stringify(updated?.voice_settings, null, 2))
     return updated
+  }
+
+  /**
+   * Pronunciation dictionary to attach to the assistant voice: explicit option
+   * first, then `pronunciationDictId` (or `pronunciation_dict_id`) from the
+   * assistant's voice.yml.
+   */
+  private get _resolvedPronunciationDictId(): string | undefined {
+    const voiceConfig = this.assistant?.voiceConfig
+    return this.options.pronunciationDictId
+      || voiceConfig?.pronunciationDictId
+      || voiceConfig?.pronunciation_dict_id
+      || undefined
+  }
+
+  /**
+   * Make sure the deployed assistant actually carries the configured
+   * pronunciation dictionary. Create can silently drop unknown fields on
+   * older API versions, and reused assistants may predate the config — a
+   * PATCH afterward is the verified-working attach path either way.
+   */
+  private async _ensurePronunciationDict(assistant: any) {
+    const dictId = this._resolvedPronunciationDictId
+    if (!dictId || !assistant?.id) return assistant
+    if (!assistant?.voice_settings) {
+      // Some responses omit voice_settings — re-fetch before deciding
+      const full = await this.getAssistant(assistant.id).catch(() => null)
+      if (full?.voice_settings) assistant = { ...assistant, voice_settings: full.voice_settings }
+    }
+    if (assistant?.voice_settings?.pronunciation_dict_id === dictId) return assistant
+    if (!assistant?.voice_settings?.voice) {
+      this._log(`[telnyx] 🗣️  Cannot attach pronunciation dict ${dictId}: assistant ${assistant.id} has no voice_settings.voice`)
+      return assistant
+    }
+    this._log(`[telnyx] 🗣️  Attaching pronunciation dict ${dictId} to assistant ${assistant.id}`)
+    try {
+      const updated = await this.updateAssistantVoice(assistant.id, {
+        ...assistant.voice_settings,
+        pronunciation_dict_id: dictId,
+      })
+      return updated?.voice_settings ? updated : { ...assistant, voice_settings: { ...assistant.voice_settings, pronunciation_dict_id: dictId } }
+    } catch (err: any) {
+      this._log(`[telnyx] 🗣️  Could not attach pronunciation dict ${dictId}: ${err?.message || err}`)
+      return assistant
+    }
   }
 
   /**
@@ -1653,6 +1704,10 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       if (isElevenLabs && typeof voiceConfig?.voiceSettings?.speed === 'number') {
         voiceSettings.voice_speed = voiceConfig.voiceSettings.speed
       }
+      const pronunciationDictId = this._resolvedPronunciationDictId
+      if (pronunciationDictId) {
+        voiceSettings.pronunciation_dict_id = pronunciationDictId
+      }
       params.voice_settings = voiceSettings
       this._log('[telnyx] 🎙️  Sending voice_settings:', JSON.stringify(voiceSettings, null, 2))
       if (isElevenLabs && voiceConfig?.voiceSettings) {
@@ -1663,6 +1718,9 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       }
     } else {
       this._log('[telnyx] 🎙️  No voiceId resolved — using Telnyx default voice')
+      if (this._resolvedPronunciationDictId) {
+        this._log('[telnyx] 🗣️  pronunciationDictId is set but no voice is configured — Telnyx requires voice_settings.voice, so the dictionary cannot be attached. Set a voice.')
+      }
     }
 
     // Use our persistent messaging profile instead of letting the assistant auto-create one
@@ -1709,7 +1767,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     if (existingMatch) {
       this._log(`[telnyx] ♻️  Reusing assistant ${existingMatch.id} (config unchanged: ${fingerprint})`)
       const full = await this._telnyxClient.ai.assistants.retrieve(existingMatch.id)
-      return full?.data || full
+      return await this._ensurePronunciationDict(full?.data || full)
     }
 
     this._log('[telnyx] Creating assistant with params:', JSON.stringify(params, null, 2))
@@ -1737,7 +1795,7 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
       }
     }
 
-    return result
+    return await this._ensurePronunciationDict(result)
   }
 
   /**
