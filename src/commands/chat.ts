@@ -164,6 +164,10 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		}
 		console.log()
 	}
+
+	// Started assistants leave keepalive handles (provider sockets, timers)
+	// behind, so a plain return leaves the process hanging after the UI is gone
+	process.exit(0)
 }
 
 export const positionals = [
