@@ -17102,6 +17102,48 @@ setBuildTimeData('features.vm', {
           "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
         }
       ]
+    },
+    "evalCode": {
+      "description": "Tool-facing live eval: run a snippet in this process with the container in scope, returning the result plus any console output. Values that can't survive JSON (circular graphs, functions, class instances) are rendered shallowly instead of throwing — the tool must always report *something* useful about what the snippet produced.",
+      "parameters": {
+        "args": {
+          "type": "{ code: string }",
+          "description": "Arguments",
+          "properties": {
+            "code": {
+              "type": "any",
+              "description": "The snippet to execute"
+            }
+          }
+        },
+        "extraContext": {
+          "type": "Record<string, any>",
+          "description": "Additional context entries (e.g. the consuming assistant)"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+        }
+      ]
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+      "parameters": {
+        "consumer": {
+          "type": "any",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
     }
   },
   "getters": {},
@@ -35541,6 +35583,48 @@ export const introspectionData: Record<string, any>[] = [
             "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
           }
         ]
+      },
+      "evalCode": {
+        "description": "Tool-facing live eval: run a snippet in this process with the container in scope, returning the result plus any console output. Values that can't survive JSON (circular graphs, functions, class instances) are rendered shallowly instead of throwing — the tool must always report *something* useful about what the snippet produced.",
+        "parameters": {
+          "args": {
+            "type": "{ code: string }",
+            "description": "Arguments",
+            "properties": {
+              "code": {
+                "type": "any",
+                "description": "The snippet to execute"
+              }
+            }
+          },
+          "extraContext": {
+            "type": "Record<string, any>",
+            "description": "Additional context entries (e.g. the consuming assistant)"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+          }
+        ]
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+        "parameters": {
+          "consumer": {
+            "type": "any",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
       }
     },
     "getters": {},

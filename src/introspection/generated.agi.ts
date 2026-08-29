@@ -2419,6 +2419,37 @@ setBuildTimeData('features.assistant', {
       ],
       "returns": "this"
     },
+    "abort": {
+      "description": "Abort the in-flight turn, if any. The pending `ask()` rejects with a `ConversationAbortError` whose `.partial` property carries the text streamed before the abort. Safe to call when nothing is running (no-op), and it never creates a conversation just to abort one.",
+      "parameters": {},
+      "required": [],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.abort()"
+        }
+      ]
+    },
+    "switchThread": {
+      "description": "Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.",
+      "parameters": {
+        "threadId": {
+          "type": "string",
+          "description": "The thread ID to switch to"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')"
+        }
+      ]
+    },
     "listHistory": {
       "description": "List saved conversations for this assistant+project.",
       "parameters": {
@@ -25566,6 +25597,48 @@ setBuildTimeData('features.vm', {
           "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
         }
       ]
+    },
+    "evalCode": {
+      "description": "Tool-facing live eval: run a snippet in this process with the container in scope, returning the result plus any console output. Values that can't survive JSON (circular graphs, functions, class instances) are rendered shallowly instead of throwing — the tool must always report *something* useful about what the snippet produced.",
+      "parameters": {
+        "args": {
+          "type": "{ code: string }",
+          "description": "Arguments",
+          "properties": {
+            "code": {
+              "type": "any",
+              "description": "The snippet to execute"
+            }
+          }
+        },
+        "extraContext": {
+          "type": "Record<string, any>",
+          "description": "Additional context entries (e.g. the consuming assistant)"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+        }
+      ]
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+      "parameters": {
+        "consumer": {
+          "type": "any",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
     }
   },
   "getters": {},
@@ -29732,6 +29805,37 @@ export const introspectionData: Record<string, any>[] = [
           "threadId"
         ],
         "returns": "this"
+      },
+      "abort": {
+        "description": "Abort the in-flight turn, if any. The pending `ask()` rejects with a `ConversationAbortError` whose `.partial` property carries the text streamed before the abort. Safe to call when nothing is running (no-op), and it never creates a conversation just to abort one.",
+        "parameters": {},
+        "required": [],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.abort()"
+          }
+        ]
+      },
+      "switchThread": {
+        "description": "Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.",
+        "parameters": {
+          "threadId": {
+            "type": "string",
+            "description": "The thread ID to switch to"
+          }
+        },
+        "required": [
+          "threadId"
+        ],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')"
+          }
+        ]
       },
       "listHistory": {
         "description": "List saved conversations for this assistant+project.",
@@ -52815,6 +52919,48 @@ export const introspectionData: Record<string, any>[] = [
             "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
           }
         ]
+      },
+      "evalCode": {
+        "description": "Tool-facing live eval: run a snippet in this process with the container in scope, returning the result plus any console output. Values that can't survive JSON (circular graphs, functions, class instances) are rendered shallowly instead of throwing — the tool must always report *something* useful about what the snippet produced.",
+        "parameters": {
+          "args": {
+            "type": "{ code: string }",
+            "description": "Arguments",
+            "properties": {
+              "code": {
+                "type": "any",
+                "description": "The snippet to execute"
+              }
+            }
+          },
+          "extraContext": {
+            "type": "Record<string, any>",
+            "description": "Additional context entries (e.g. the consuming assistant)"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+          }
+        ]
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+        "parameters": {
+          "consumer": {
+            "type": "any",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
       }
     },
     "getters": {},

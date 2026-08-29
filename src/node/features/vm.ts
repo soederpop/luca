@@ -79,6 +79,15 @@ export class VM<
   static override optionsSchema = VMOptionsSchema
   static { Feature.register(this, 'vm') }
 
+  static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
+    evalCode: {
+      description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` (and, when mounted by an assistant, that assistant as `assistant` — you). Top-level await works; the final expression is the result. Use it to inspect live state, prototype code, call any container feature, or add tools to yourself at runtime with assistant.addTool(name, handler, zodSchema). Nothing is sandboxed away from the real process — this is self-inspection, not a scratchpad.',
+      schema: z.object({
+        code: z.string().describe('The snippet to run. `container` is in scope; `import { z } from "zod"` works. The last expression is returned — end with the value you want to see.'),
+      }).describe('Execute a snippet in the live process with the container in scope.'),
+    },
+  }
+
   /** Map of virtual module IDs to their exports, consulted before Node's native require */
   modules: Map<string, any> = new Map()
 
@@ -762,6 +771,84 @@ export class VM<
 
     return context.module?.exports || context.exports || {}
   }
+
+  /**
+   * Tool-facing live eval: run a snippet in this process with the container in
+   * scope, returning the result plus any console output. Values that can't
+   * survive JSON (circular graphs, functions, class instances) are rendered
+   * shallowly instead of throwing — the tool must always report *something*
+   * useful about what the snippet produced.
+   *
+   * @param args - Arguments
+   * @param args.code - The snippet to execute
+   * @param extraContext - Additional context entries (e.g. the consuming assistant)
+   * @returns The serialized result and captured console calls, or the error
+   *
+   * @example
+   * ```typescript
+   * await vm.evalCode({ code: 'container.features.enabled.length' })
+   * // => { result: 42, console: [] }
+   * ```
+   */
+  async evalCode(args: { code: string }, extraContext: Record<string, any> = {}): Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }> {
+    try {
+      const { result, console: calls } = await this.runCaptured(args.code, {
+        container: this.container,
+        ...extraContext,
+      })
+      return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map(safeSerialize) })) }
+    } catch (err: any) {
+      return { error: err?.message || String(err) }
+    }
+  }
+
+  /**
+   * When an assistant mounts the vm via `use()`, rebind evalCode so the
+   * snippet context includes that assistant as `assistant` — live eval becomes
+   * self-inspection — and inject usage guidance into its system prompt.
+   */
+  override setupToolsConsumer(consumer: any) {
+    if (typeof consumer.addTool === 'function') {
+      const vm = this
+      consumer.addTool('evalCode', function evalCode(args: { code: string }) {
+        return vm.evalCode(args, { assistant: consumer })
+      }, VM.tools.evalCode!.schema)
+    }
+    if (typeof consumer.addSystemPromptExtension === 'function') {
+      consumer.addSystemPromptExtension('vm', [
+        '## Live Eval',
+        '',
+        '`evalCode` runs snippets in YOUR OWN live process — `container` is the real container, `assistant` is you. This is your primary instrument: prefer it over shelling out to the luca CLI, which starts a separate amnesiac process.',
+        '',
+        '**Inspect yourself:** `assistant.state.current`, `Object.keys(assistant.tools)`, `assistant.effectiveSystemPrompt`, `container.feature(\'assistantsManager\').instances`.',
+        '',
+        '**Author tools natively:** prototype the handler in evalCode first, then register it on yourself for this session: `assistant.addTool(\'myTool\', async (args) => {...}, z.object({...}).describe(\'...\'))` — it is live on your next turn. Persist it by writing it into a tools.ts afterward. Never use z.any().',
+        '',
+        '**Discover APIs from inside:** `container.features.available`, `Object.getOwnPropertyNames(Object.getPrototypeOf(container.feature(\'fs\')))` — the runtime is self-describing; read it rather than guessing.',
+      ].join('\n'))
+    }
+  }
+}
+
+/**
+ * Render a value JSON-safe without throwing: primitives pass through, circular
+ * references and functions are replaced with tags, depth is capped so a
+ * container-sized object graph comes back as a readable shallow summary.
+ */
+function safeSerialize(value: any, depth = 0, seen = new WeakSet()): any {
+  if (value === undefined) return null
+  if (value === null || typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return value
+  if (typeof value === 'function') return `[function ${value.name || 'anonymous'}]`
+  if (typeof value !== 'object') return String(value)
+  if (seen.has(value)) return '[circular]'
+  if (depth >= 4) return Array.isArray(value) ? `[array of ${value.length}]` : `[object ${value.constructor?.name || 'Object'}]`
+  seen.add(value)
+  if (Array.isArray(value)) return value.slice(0, 100).map((v) => safeSerialize(v, depth + 1, seen))
+  const out: Record<string, any> = {}
+  for (const key of Object.keys(value).slice(0, 100)) {
+    try { out[key] = safeSerialize(value[key], depth + 1, seen) } catch { out[key] = '[unreadable]' }
+  }
+  return out
 }
 
 export default VM
