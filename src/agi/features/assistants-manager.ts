@@ -1221,6 +1221,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 				'',
 				'**Broken TypeScript is rejected** at write time and the original file is kept — read the error, fix the code, write again.',
 				'',
+				'**Do not invent model/provider frontmatter** in CORE.md — omit it unless explicitly asked for a specific model. Workspace defaults handle routing.',
+				'',
 				'**Do not edit your own assistant folder** unless explicitly asked to; edits to yourself only take effect after a reload, mid-conversation behavior is undefined.',
 			].join('\n'))
 		}
