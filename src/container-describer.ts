@@ -129,6 +129,52 @@ export class ContainerDescriber {
 	}
 
 	/**
+	 * Search helpers, examples, and tutorials by meaning or keywords — the same
+	 * two-tier engine behind `luca describe --query` (BM25 keyword search always;
+	 * hybrid embedding ranking when the index at ~/.luca/describe-index has been
+	 * built), exposed in-process so live code and assistant tools can search the
+	 * docs without spawning a CLI. Results lead with helpers over the larger
+	 * example/tutorial documents, and each carries a `describe` ref you can feed
+	 * straight to {@link describeHelper}.
+	 *
+	 * @param query - Natural-language or keyword query (e.g. "how do I retry with backoff?")
+	 * @param opts - Options
+	 * @param opts.limit - Maximum results (default 8)
+	 * @returns Ranked results with the search mode used and an optional index hint
+	 *
+	 * @example
+	 * ```typescript
+	 * const { mode, results } = await container.describer.query('watch files for changes')
+	 * for (const r of results) console.log(r.describe, '—', r.snippet)
+	 * // then: (await container.describer.describeHelper(results[0].describe)).text
+	 * ```
+	 */
+	async query(query: string, opts: { limit?: number } = {}): Promise<{
+		mode: 'hybrid' | 'keyword'
+		results: Array<{ id: string; kind: string; name: string; category?: string; stability?: string; score: number; snippet: string; describe: string }>
+		hint?: string
+	}> {
+		// Lazy import, matching the CLI: the search stack (catalog build, FTS,
+		// optional embeddings) must not load for containers that never search.
+		const { queryDescribeIndex } = await import('./describe-search.js')
+		const outcome = await queryDescribeIndex(this.container, query, { limit: opts.limit })
+		return {
+			mode: outcome.mode,
+			results: outcome.results.map((r: any) => ({
+				id: r.pathId,
+				kind: r.meta?.kind ?? r.model,
+				name: r.meta?.name ?? r.title,
+				...(r.meta?.category ? { category: r.meta.category } : {}),
+				...(r.meta?.stability ? { stability: r.meta.stability } : {}),
+				score: r.score,
+				snippet: (r.snippet || '').replace(/>>>|<<</g, '').replace(/\s+/g, ' ').trim(),
+				describe: r.meta?.ref ?? '',
+			})),
+			...(outcome.hint ? { hint: outcome.hint } : {}),
+		}
+	}
+
+	/**
 	 * Describe the container itself.
 	 */
 	async describeContainer(options: DescribeOptions = {}): Promise<DescribeResult> {
