@@ -236,6 +236,78 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   }
   
   /**
+   * Retrieve a JSON value from the cache and return it parsed.
+   *
+   * The symmetric partner of `setJson()` — you get back the same value you
+   * stored, no `json` flag to remember. Prefer this pair over `set()`/`get()`
+   * whenever the value is structured data.
+   * @param key - The cache key to retrieve
+   * @returns Promise that resolves to the parsed value (object, array, string, number, boolean, or null)
+   * @throws If the key does not exist (or has expired) — same cache-miss semantics as `get()`
+   * @throws Error if the cached content is not valid JSON (e.g. a plain string stored via `set()`)
+   * @example
+   * ```typescript
+   * await diskCache.setJson('config', { theme: 'dark', retries: 3 })
+   * const config = await diskCache.getJson('config')
+   * console.log(config.retries) // 3
+   * ```
+   */
+  async getJson(key: string): Promise<any> {
+    const raw = await this.get(key)
+    try {
+      return JSON.parse(raw)
+    } catch (error: any) {
+      throw new Error(`diskCache.getJson('${key}'): cached content is not valid JSON (${error?.message || error}). Was it stored with set() instead of setJson()?`)
+    }
+  }
+
+  /**
+   * Store a JSON-serializable value in the cache.
+   *
+   * The symmetric partner of `getJson()` — the value is serialized for you,
+   * so callers never juggle `JSON.stringify` or the `json` flag on `get()`.
+   * @param key - The cache key to store under
+   * @param value - Any JSON-serializable value (object, array, string, number, boolean, or null)
+   * @param meta - Optional metadata to associate with the cached item. `meta.ttl`
+   *   (seconds) sets a time-to-live for this entry, same as `set()`.
+   * @returns Promise that resolves when the value is stored
+   * @example
+   * ```typescript
+   * await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })
+   * const quote = await diskCache.getJson('quote')
+   * console.log(quote.price) // 42
+   * ```
+   */
+  async setJson(key: string, value: any, meta?: any): Promise<any> {
+    return this.set(key, JSON.stringify(value), meta)
+  }
+
+  /**
+   * Ensure a key exists in the cache, storing the JSON-serialized value if it doesn't.
+   *
+   * Like `ensure()` but takes any JSON-serializable value directly — no manual
+   * `JSON.stringify`. Read the value back with `getJson()`.
+   * @param key - The cache key to check/set
+   * @param value - The JSON-serializable value to store if the key doesn't exist
+   * @returns Promise that resolves to the key
+   * @example
+   * ```typescript
+   * await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })
+   * const config = await diskCache.getJson('config')
+   * console.log(config.theme) // 'dark'
+   * ```
+   */
+  async ensureJson(key: string, value: any): Promise<string> {
+    const exists = await this.has(key)
+
+    if (!exists) {
+      await this.setJson(key, value)
+    }
+
+    return key
+  }
+
+  /**
    * Store a value in the cache
    * @param key - The cache key to store under
    * @param value - The value to store (string, object, or any serializable data)

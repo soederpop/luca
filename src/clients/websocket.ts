@@ -290,7 +290,7 @@ export class WebSocketClient<
     return new Promise<R>((resolve, reject) => {
       const timer = setTimeout(() => {
         this._pending.delete(requestId)
-        reject(new Error(`ask("${type}") timed out after ${timeout}ms`))
+        reject(new Error(`ask("${type}") timed out after ${timeout}ms — no reply with replyTo="${requestId}" arrived. Likely causes: no message handler on the server replied to this request (call msg.reply(...) for messages with a requestId), or the server was created with json: false so inbound messages arrive as raw Buffers and reply routing never runs.`))
       }, timeout)
 
       this._pending.set(requestId, { resolve, reject, timer })

@@ -141,25 +141,25 @@ describe('GraphClient', () => {
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
     // Mock the post method to simulate a GraphQL response
-    spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'postOrThrow').mockResolvedValue({
       data: { user: { name: 'Jon' } },
     })
 
     const result = await gql.query('{ user { name } }')
     expect(result).toEqual({ user: { name: 'Jon' } })
-    expect(gql.post).toHaveBeenCalledWith('/graphql', { query: '{ user { name } }' })
+    expect(gql.postOrThrow).toHaveBeenCalledWith('/graphql', { query: '{ user { name } }' })
   })
 
   it('query() passes variables and operationName', async () => {
     const c = new NodeContainer()
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
-    spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'postOrThrow').mockResolvedValue({
       data: { user: { name: 'Jon' } },
     })
 
     await gql.query('query GetUser($id: ID!) { user(id: $id) { name } }', { id: '1' }, 'GetUser')
-    expect(gql.post).toHaveBeenCalledWith('/graphql', {
+    expect(gql.postOrThrow).toHaveBeenCalledWith('/graphql', {
       query: 'query GetUser($id: ID!) { user(id: $id) { name } }',
       variables: { id: '1' },
       operationName: 'GetUser',
@@ -170,7 +170,7 @@ describe('GraphClient', () => {
     const c = new NodeContainer()
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
-    spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'postOrThrow').mockResolvedValue({
       data: { createUser: { id: '1' } },
     })
 
@@ -183,7 +183,7 @@ describe('GraphClient', () => {
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
     const errors = [{ message: 'Not found' }]
 
-    spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'postOrThrow').mockResolvedValue({
       data: null,
       errors,
     })

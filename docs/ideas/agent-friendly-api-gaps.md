@@ -9,7 +9,26 @@ binary-file gotcha: add an explicit method whose *name encodes the contract*,
 so the agent picks the right thing on the first try. The old method stays for
 callers who know what they're doing.
 
-## Status: proposed (not implemented)
+## Status: implemented (2026-08-29)
+
+All 16 sections below shipped, with tests, in one pass. Notable deltas from
+the proposals as written:
+
+- `websocket` server: inbound JSON parsing is now the *default*; `json: false`
+  is the raw-Buffer opt-out.
+- `fs.rm` now defaults `force: true` (idempotent, matching `rmSync`/`remove`);
+  `rm(path, { force: false })` restores strict ENOENT.
+- `rest` grew a full `getOrThrow`/`postOrThrow`/`putOrThrow`/`patchOrThrow`/
+  `deleteOrThrow` family; wrapper clients (elevenlabs, voicebox, comfyui,
+  civitai, graph) switched their typed fetch/list/auth methods to it.
+- `contentDb.query()` throws descriptively on an invalid/undefined model
+  instead of auto-loading (the real pre-load failure is `db.models.X` being
+  undefined); `queries` throws "collection not loaded" instead of returning an
+  empty map.
+- Bonus fixes found during implementation: grep now passes
+  `--with-filename`/`-H` (single-file searches used to silently break the
+  parser), and a broken `docs/models.ts` no longer prevents falling through to
+  `models.js`/`.mjs`.
 
 ## 1. `sqlite` — add `queryOne()`
 

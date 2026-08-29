@@ -21,7 +21,7 @@ import { Selector, type SelectorsInterface } from "../selector";
 
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
-import { basename, parse, relative, resolve, join } from "path";
+import { basename, dirname as nodeDirname, parse, relative, resolve, join } from "path";
 
 // All feature side-effect imports, type re-exports, and the
 // GeneratedNodeFeatures interface come from the generated barrel.
@@ -343,8 +343,11 @@ export class NodeContainer<
   get paths(): { dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse } {
     const { cwd } = this;
     return {
+      // Node's dirname semantics: dirname('foo.txt') === '.' (never '' —
+      // parse(path).dir returns '' for bare filenames, which is falsy and
+      // silently breaks branches like `if (paths.dirname(f))`).
       dirname(path: string) {
-        return parse(path).dir
+        return nodeDirname(path)
       },
       join(...paths: string[]) {
         return resolve(cwd, ...paths)

@@ -134,7 +134,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
    */
   override async connect(): Promise<this> {
     try {
-      await this.get('/v1/models')
+      await this.getOrThrow('/v1/models')
       await super.connect()
       this.emit('connected' as any)
       return this
@@ -164,7 +164,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
     next_page_token?: string
   } = {}): Promise<any> {
     this.trackRequest()
-    const result = await this.get('/v2/voices', options)
+    const result = await this.getOrThrow('/v2/voices', options)
     if (result?.voices) {
       this.emit('voices', result.voices)
     }
@@ -185,7 +185,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
    */
   async getVoice(voiceId: string): Promise<any> {
     this.trackRequest()
-    return this.get(`/v1/voices/${voiceId}`)
+    return this.getOrThrow(`/v1/voices/${voiceId}`)
   }
 
   /**
@@ -201,7 +201,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
    */
   async listModels(): Promise<any[]> {
     this.trackRequest()
-    return this.get('/v1/models')
+    return this.getOrThrow('/v1/models')
   }
 
   /**

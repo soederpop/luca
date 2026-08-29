@@ -326,7 +326,9 @@ export class ChildProcess extends Feature {
    * const listing = proc.exec('ls -1', { cwd: 'src' })
    *
    * // NOTE: exec throws on a non-zero exit code — commands that can fail
-   * // (e.g. git outside a repository) belong in a try/catch or execAndCapture
+   * // (e.g. git outside a repository) belong in a try/catch, or better, use
+   * // tryExec() which runs through a real shell and never throws (the exit
+   * // code and stderr come back as data).
    * ```
    */
   exec(command: string, options?: any): string {
@@ -339,8 +341,99 @@ export class ChildProcess extends Feature {
       .trim();
   }
 
+  /**
+   * Synchronous alias of `exec` — the two are identical.
+   *
+   * Note that `exec` itself is ALSO synchronous despite its node-flavored name;
+   * both run the command through a real shell, block until it completes, return
+   * trimmed stdout, and throw on a non-zero exit code. This alias exists so the
+   * sync behavior is discoverable by name. For an async, non-throwing variant,
+   * use `tryExec`.
+   *
+   * @param {string} command - The command to execute through the shell
+   * @param {any} [options] - Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)
+   * @returns {string} The trimmed stdout from the command
+   * @throws If the command exits with a non-zero code (stderr is on the thrown error)
+   *
+   * @example
+   * ```typescript
+   * const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')
+   * // identical to: proc.exec('git rev-parse --abbrev-ref HEAD')
+   * ```
+   */
   execSync(command: string, options?: any): string {
 	  return this.exec(command,options)
+  }
+
+  /**
+   * Execute a command string through a real shell, asynchronously, and NEVER throw.
+   *
+   * This is the safe default for running commands that can fail: shell quoting
+   * works (unlike `execAndCapture`, which splits naively on spaces), the call is
+   * async (unlike `exec`/`execSync`, which block), and a non-zero exit code is
+   * returned as data instead of thrown. Inspect `exitCode` yourself.
+   *
+   * @param {string} cmd - The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work
+   * @param {SpawnOptions} [options] - Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)
+   * @returns {Promise<{ stdout: string, stderr: string, exitCode: number }>} The captured output and exit code — never rejects for a failing command
+   *
+   * @example
+   * ```typescript
+   * // Quoted arguments survive intact
+   * const ok = await proc.tryExec('echo "two words"')
+   * console.log(ok.stdout.trim()) // 'two words'
+   *
+   * // Failure is data, not an exception
+   * const bad = await proc.tryExec('git -C /nowhere status')
+   * if (bad.exitCode !== 0) {
+   *   console.error('git failed:', bad.stderr.trim())
+   * }
+   * ```
+   */
+  async tryExec(cmd: string, options?: SpawnOptions): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const isWindows = process.platform === 'win32'
+    const shell = isWindows ? (process.env.ComSpec || 'cmd.exe') : '/bin/sh'
+    const shellArgs = isWindows ? ['/d', '/s', '/c', cmd] : ['-c', cmd]
+    const result = await this.spawnAndCapture(shell, shellArgs, options)
+    return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode }
+  }
+
+  /**
+   * Execute a command through a real shell and parse its stdout as JSON.
+   *
+   * The obvious shape for JSON-speaking CLIs (`gh`, `docker inspect`, `curl`).
+   * Throws on a non-zero exit code with stderr in the error message, and throws
+   * on unparseable stdout with a snippet of the offending output — so a failure
+   * is always loud and diagnosable. For a non-throwing variant, use `tryExec`
+   * and parse yourself.
+   *
+   * @param {string} cmd - The complete command string, interpreted by a real shell (quoting works)
+   * @param {SpawnOptions} [options] - Options forwarded to spawnAndCapture (cwd, ...)
+   * @returns {Promise<T>} The parsed JSON value from the command's stdout
+   * @throws {Error} When the command exits non-zero (message includes exit code and stderr) or stdout is not valid JSON (message includes a snippet)
+   *
+   * @example
+   * ```typescript
+   * // Parse structured CLI output directly
+   * const pkg = await proc.execJson<{ name: string }>('cat package.json')
+   * console.log(pkg.name)
+   *
+   * // const pr = await proc.execJson('gh pr view --json title,url')
+   * ```
+   */
+  async execJson<T = any>(cmd: string, options?: SpawnOptions): Promise<T> {
+    const { stdout, stderr, exitCode } = await this.tryExec(cmd, options)
+
+    if (exitCode !== 0) {
+      throw new Error(`execJson: command failed with exit code ${exitCode}: ${cmd}\n${stderr.trim()}`)
+    }
+
+    try {
+      return JSON.parse(stdout) as T
+    } catch {
+      const snippet = stdout.trim().slice(0, 200)
+      throw new Error(`execJson: stdout is not valid JSON for command: ${cmd}\nOutput starts with: ${snippet || '(empty)'}`)
+    }
   }
 
   /**

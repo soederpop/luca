@@ -39,6 +39,19 @@ function matchesPattern(filePath: string, patterns: string[]): boolean {
   return micromatch.isMatch(filePath, patterns, { dot: true })
 }
 
+/**
+ * Walk-specific pattern matching with gitignore-ish semantics: a pattern with
+ * no '/' matches the entry's basename at any depth (`'*.ts'` finds nested
+ * files, `'node_modules'` prunes nested copies), while a pattern containing
+ * '/' keeps plain relative-path matching against the walk root.
+ */
+function matchesWalkPattern(relativePath: string, entryName: string, patterns: string[]): boolean {
+  if (!patterns.length) return false
+  if (matchesPattern(relativePath, patterns)) return true
+  const basenamePatterns = patterns.filter(p => !p.includes('/'))
+  return basenamePatterns.length > 0 && matchesPattern(entryName, basenamePatterns)
+}
+
 /** Sync: check if a symlink target is a directory */
 function lstatFollowIsDir(fullPath: string): boolean {
   try { return statSync(fullPath).isDirectory() } catch { return false }
@@ -577,6 +590,11 @@ export class FS extends Feature {
   /**
    * Synchronously checks if a file or directory exists.
    *
+   * NOTE: this stats *through* symlinks, so a dangling symlink (one whose
+   * target is missing) reports `false` — and then `symlink()` at the same
+   * path throws EEXIST. Symlink-aware callers should use {@link linkExists},
+   * which is lstat-based and returns `true` for dangling links.
+   *
    * @param {string} path - The path to check for existence
    * @returns {boolean} True if the path exists, false otherwise
    *
@@ -646,6 +664,53 @@ export class FS extends Feature {
    */
   pathExistsSync(path: string): boolean {
     return this.exists(path)
+  }
+
+  /**
+   * Synchronously checks whether anything exists at a path *without following
+   * symlinks* (lstat-based, fs-extra style). Unlike {@link exists} — which
+   * stats through links and reports `false` for a dangling symlink — this
+   * returns `true` for a symlink whose target is missing, so it is the right
+   * check before creating or replacing a link.
+   *
+   * @param {string} path - The path to check
+   * @returns {boolean} True if a file, directory, or symlink (dangling or not) exists at the path
+   *
+   * @example
+   * ```typescript
+   * fs.symlink('missing-target.txt', 'dangling-link')
+   * fs.exists('dangling-link')     // false — stats through to the missing target
+   * fs.linkExists('dangling-link') // true — the link entry itself is there
+   * ```
+   */
+  linkExists(path: string): boolean {
+    const filePath = this.container.paths.resolve(path);
+    try {
+      lstatSync(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Asynchronously checks whether anything exists at a path *without following
+   * symlinks* (lstat-based). The async counterpart of {@link linkExists}:
+   * returns `true` for dangling symlinks that {@link existsAsync} reports as
+   * missing.
+   *
+   * @param {string} path - The path to check
+   * @returns {Promise<boolean>} Resolves true if a file, directory, or symlink (dangling or not) exists at the path
+   *
+   * @example
+   * ```typescript
+   * fs.symlink('missing-target.txt', 'dangling-link')
+   * await fs.linkExistsAsync('dangling-link') // true
+   * ```
+   */
+  async linkExistsAsync(path: string): Promise<boolean> {
+    const filePath = this.container.paths.resolve(path);
+    return lstat(filePath).then(() => true).catch(() => false)
   }
 
   /**
@@ -853,6 +918,10 @@ export class FS extends Feature {
    * Synchronously removes a file. Accepts node-style `{ recursive, force }` options,
    * so `fs.rmSync('dir', { recursive: true })` works on directories too.
    *
+   * `force` defaults to `true` — a missing path is silently ignored, matching
+   * {@link rm} and {@link removeSync}. Pass `{ force: false }` to get an
+   * ENOENT error for missing paths.
+   *
    * @param {string} path - The path of the file to remove
    * @param {object} [options={}] - Node-compatible options
    * @param {boolean} [options.recursive=false] - Remove directories and their contents
@@ -874,26 +943,29 @@ export class FS extends Feature {
    * Asynchronously removes a file. Accepts node-style `{ recursive, force }` options,
    * so `await fs.rm('dir', { recursive: true })` works on directories too.
    *
+   * `force` defaults to `true` — a missing path is silently ignored, matching
+   * {@link rmSync} and {@link remove} (the sync and async halves of the pair
+   * used to disagree here). Pass `{ force: false }` to get an ENOENT error for
+   * missing paths, or use {@link unlink} for node's strict semantics.
+   *
    * @param {string} path - The path of the file to remove
    * @param {object} [options={}] - Node-compatible options
    * @param {boolean} [options.recursive=false] - Remove directories and their contents
-   * @param {boolean} [options.force=false] - Don't throw if the path doesn't exist
+   * @param {boolean} [options.force=true] - Don't throw if the path doesn't exist
    * @returns {Promise<void>} A promise that resolves when the file is removed
-   * @throws {Error} Throws an error if the path cannot be removed or doesn't exist
+   * @throws {Error} Throws an error if the path cannot be removed, or (with `force: false`) doesn't exist
    *
    * @example
    * ```typescript
    * fs.ensureFile('temp/cache.tmp', '')
    * await fs.rm('temp/cache.tmp')
-   * await fs.rm('temp/cache', { recursive: true, force: true })
+   * await fs.rm('temp/never-existed')             // silent — force defaults true
+   * await fs.rm('temp/cache', { recursive: true })
    * ```
    */
   async rm(path: string, options: { recursive?: boolean; force?: boolean } = {}) {
     const resolved = this.container.paths.resolve(path)
-    if (options.recursive || options.force) {
-      return await nodeRm(resolved, { recursive: options.recursive ?? false, force: options.force ?? false })
-    }
-    return await unlink(resolved);
+    return await nodeRm(resolved, { recursive: options.recursive ?? false, force: options.force ?? true })
   }
 
   /**
@@ -995,7 +1067,10 @@ export class FS extends Feature {
   }
 
   /**
-   * Asynchronously removes a file (node's `fs/promises` name).
+   * Asynchronously removes a file (node's `fs/promises` name). NOTE: unlike
+   * node's `unlink`, this follows {@link rm}'s idempotent default — a missing
+   * path is silently ignored (matching {@link unlinkSync}). Pass through
+   * `rm(path, { force: false })` for strict ENOENT behavior.
    * @alias rm
    */
   async unlink(path: string) {
@@ -1201,18 +1276,25 @@ export class FS extends Feature {
    * By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`.
    * Supports filtering with exclude and include glob patterns.
    *
+   * Pattern semantics are gitignore-ish: a pattern with no `/` matches the
+   * basename at any depth — `include: ['*.ts']` finds nested `.ts` files, and
+   * `exclude: ['node_modules']` prunes every `node_modules` directory in the
+   * tree, not just the top-level one. A pattern containing `/` (e.g.
+   * `'src/**\/*.ts'`) matches against the path relative to `basePath`.
+   *
    * @param {string} basePath - The base directory path to start walking from
    * @param {WalkOptions} options - Options to configure the walk behavior
    * @param {boolean} [options.directories=true] - Whether to include directories in results
    * @param {boolean} [options.files=true] - Whether to include files in results
-   * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '*.log')
-   * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+   * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '*.log')
+   * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth
    * @param {boolean} [options.relative=false] - When true, returned paths are relative to basePath
    * @returns {{ directories: string[], files: string[] }} Object containing arrays of directory and file paths
    *
    * @example
    * ```typescript
    * const result = fs.walk('src', { files: true, directories: false })
+   * // '*.ts' matches nested files too; 'node_modules' prunes nested copies
    * const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
    *
    * fs.ensureFile('inbox/contact-1.json', '{}')
@@ -1249,11 +1331,14 @@ export class FS extends Feature {
         // so check isSymbolicLink() and resolve to the real target
         const isDir = entry.isDirectory() || (entry.isSymbolicLink() && lstatFollowIsDir(fullPath));
 
-        if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
+        // Slash-free patterns match the basename at any depth (gitignore-ish),
+        // so exclude: ['node_modules'] prunes nested copies too — the continue
+        // below skips recursion into an excluded directory entirely.
+        if (excludePatterns.length && matchesWalkPattern(relativePath, name, excludePatterns)) {
           continue
         }
 
-        const passes = !includePatterns.length || matchesPattern(relativePath, includePatterns)
+        const passes = !includePatterns.length || matchesWalkPattern(relativePath, name, includePatterns)
 
         if (isDir && directories && passes) {
           results.directories.push(outputPath);
@@ -1281,12 +1366,15 @@ export class FS extends Feature {
    * By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`.
    * Supports filtering with exclude and include glob patterns.
    *
+   * Pattern semantics match {@link walk} (gitignore-ish): slash-free patterns
+   * match basenames at any depth, patterns with `/` match the relative path.
+   *
    * @param {string} baseDir - The base directory path to start walking from
    * @param {WalkOptions} options - Options to configure the walk behavior
    * @param {boolean} [options.directories=true] - Whether to include directories in results
    * @param {boolean} [options.files=true] - Whether to include files in results
-   * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '.git')
-   * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+   * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '.git')
+   * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth
    * @param {boolean} [options.relative=false] - When true, returned paths are relative to baseDir
    * @returns {Promise<{ directories: string[], files: string[] }>} Promise resolving to object with directory and file paths
    * @throws {Error} Throws an error if the directory cannot be accessed
@@ -1330,11 +1418,14 @@ export class FS extends Feature {
         // so check isSymbolicLink() and resolve to the real target
         const isDir = entry.isDirectory() || (entry.isSymbolicLink() && await lstatFollowIsDirAsync(fullPath));
 
-        if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
+        // Slash-free patterns match the basename at any depth (gitignore-ish),
+        // so exclude: ['node_modules'] prunes nested copies too — the continue
+        // below skips recursion into an excluded directory entirely.
+        if (excludePatterns.length && matchesWalkPattern(relativePath, name, excludePatterns)) {
           continue
         }
 
-        const passes = !includePatterns.length || matchesPattern(relativePath, includePatterns)
+        const passes = !includePatterns.length || matchesWalkPattern(relativePath, name, includePatterns)
 
         if (isDir && directories && passes) {
           results.directories.push(outputPath);

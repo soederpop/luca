@@ -64,3 +64,48 @@ describe('diskCache TTL', () => {
     expect(await ttlCache.get('long-lived')).toBe('x')
   })
 })
+
+describe('diskCache JSON round-trip', () => {
+  it('setJson/getJson round-trips an object', async () => {
+    await cache.setJson('json-obj', { count: 42, nested: { ok: true } })
+    expect(await cache.getJson('json-obj')).toEqual({ count: 42, nested: { ok: true } })
+  })
+
+  it('round-trips non-object JSON values', async () => {
+    await cache.setJson('json-str', 'plain string')
+    expect(await cache.getJson('json-str')).toBe('plain string')
+
+    await cache.setJson('json-num', 7)
+    expect(await cache.getJson('json-num')).toBe(7)
+
+    await cache.setJson('json-null', null)
+    expect(await cache.getJson('json-null')).toBeNull()
+
+    await cache.setJson('json-arr', [1, 2, 3])
+    expect(await cache.getJson('json-arr')).toEqual([1, 2, 3])
+  })
+
+  it('getJson rejects on a cache miss like get()', async () => {
+    await expect(cache.getJson('json-missing')).rejects.toThrow()
+  })
+
+  it('getJson throws descriptively on non-JSON content', async () => {
+    await cache.set('json-invalid', 'not json {')
+    await expect(cache.getJson('json-invalid')).rejects.toThrow(/not valid JSON/)
+  })
+
+  it('setJson honors ttl meta', async () => {
+    await cache.setJson('json-ttl', { a: 1 }, { ttl: 0.05 })
+    expect(await cache.getJson('json-ttl')).toEqual({ a: 1 })
+    await sleep(80)
+    expect(await cache.has('json-ttl')).toBe(false)
+  })
+
+  it('ensureJson seeds only when the key is missing', async () => {
+    await cache.ensureJson('json-ensure', { seeded: true })
+    expect(await cache.getJson('json-ensure')).toEqual({ seeded: true })
+
+    await cache.ensureJson('json-ensure', { seeded: false })
+    expect(await cache.getJson('json-ensure')).toEqual({ seeded: true })
+  })
+})

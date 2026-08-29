@@ -13,6 +13,7 @@ export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
   tableOfContents: z.string().default('').describe('Generated table of contents string for the collection'),
   modelSummary: z.string().default('').describe('Summary of all discovered content models and their document counts'),
+  modelLoadError: z.string().nullable().default(null).describe('Error message when the collection\'s models file exists but failed to evaluate during load(); null when models loaded cleanly'),
 })
 
 export const ContentDbOptionsSchema = FeatureOptionsSchema.extend({
@@ -175,7 +176,8 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   override get initialState(): ContentDbState {
     return {
       ...super.initialState,
-      loaded: false
+      loaded: false,
+      modelLoadError: null
     }
   }
 
@@ -333,8 +335,16 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /**
    * Query documents belonging to a specific model definition.
    *
-   * @param model - The model definition to query against
+   * The query's terminal methods (`fetchAll()`, `first()`, `count()`, ...)
+   * auto-load the collection, so you don't need to call `load()` first when
+   * you already hold a valid model definition. The usual pre-load failure is
+   * the *argument*: `contentDb.models.MyModel` is `undefined` until models
+   * are discovered at load time — this method throws a descriptive error in
+   * that case instead of the opaque TypeError it used to surface downstream.
+   *
+   * @param model - The model definition to query against (e.g. `contentDb.models.Article`)
    * @returns A query builder scoped to the given model's documents
+   * @throws {Error} When `model` is not a model definition — typically because the collection isn't loaded yet and `contentDb.models.X` was undefined
    * @example
    * ```typescript
    * const contentDb = container.feature('contentDb', { rootPath: './docs' })
@@ -345,6 +355,14 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * ```
    */
   query<T extends ModelDefinition>(model: T) {
+    if (!model || typeof (model as any).name !== 'string') {
+      const got = model === undefined ? 'undefined' : model === null ? 'null' : typeof model
+      const hint = this.isLoaded
+        ? `Known models: ${this.modelNames.join(', ') || '(none)'}.`
+        : `The collection is not loaded yet — models are discovered from models.ts during load(), ` +
+          `so contentDb.models.X is undefined until then. Call \`await load()\` before looking up the model.`
+      throw new Error(`contentDb.query() expects a model definition, got ${got}. ${hint}`)
+    }
     return this.collection.query(model)
   }
 
@@ -415,23 +433,94 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /**
    * Load the collection, discovering models from models.ts and parsing all documents.
    *
+   * When a models file (models.ts/js/mjs) exists in the collection root but
+   * fails to evaluate — a broken import, a syntax error — this throws a
+   * descriptive error that includes the underlying failure, instead of
+   * silently matching every document against the fallback `Base` model.
+   * Pass `{ ignoreModelErrors: true }` to load anyway; the failure is still
+   * recorded in the `modelLoadError` state field either way (also exposed
+   * via the {@link modelLoadError} getter).
+   *
+   * @param options - Load options
+   * @param options.ignoreModelErrors - When true, a broken models file is recorded in state but does not abort the load
    * @returns This ContentDb instance for chaining
+   * @throws {Error} When the collection's models file exists but fails to evaluate (unless `ignoreModelErrors` is set)
    * @example
    * ```typescript
    * const contentDb = container.feature('contentDb', { rootPath: './docs' })
    * await contentDb.load()
    * console.log(contentDb.isLoaded) // true
+   * console.log(contentDb.modelLoadError) // null when models.ts loaded cleanly
+   *
+   * // Tolerant load: a broken models.ts is recorded instead of thrown
+   * // await contentDb.load({ ignoreModelErrors: true })
    * ```
    */
-  async load(): Promise<ContentDb> {
+  async load(options: { ignoreModelErrors?: boolean } = {}): Promise<ContentDb> {
     if (this.isLoaded) {
       return this;
     }
 
     await this.collection.load()
+    await this._checkModelLoad(options.ignoreModelErrors)
     this.state.set('started', true)
 
     return this
+  }
+
+  /**
+   * Error message from the last load()'s models-file evaluation, or null when
+   * the models file loaded cleanly (or none exists).
+   */
+  get modelLoadError(): string | null {
+    return (this.state.get('modelLoadError') as string | null) ?? null
+  }
+
+  /** Locate the collection's models file (models.ts/js/mjs), if any. */
+  private _modelsFilePath(): string | null {
+    for (const ext of ['ts', 'js', 'mjs']) {
+      const candidate = this.container.paths.resolve(this.collectionPath, `models.${ext}`)
+      if (this.container.fs.exists(candidate)) return candidate
+    }
+    return null
+  }
+
+  /**
+   * Contentbase's own model discovery swallows evaluation errors, so a broken
+   * models.ts silently degrades to Base-only. When that symptom appears (a
+   * models file exists but only Base is registered), re-evaluate the file
+   * ourselves to surface the real error.
+   */
+  private async _checkModelLoad(ignoreModelErrors = false): Promise<void> {
+    const modelsFile = this._modelsFilePath()
+    const hasCustomModels = this.collection.modelDefinitions.some((d) => d.name !== 'Base')
+
+    if (!modelsFile || hasCustomModels) {
+      this.state.set('modelLoadError', null)
+      return
+    }
+
+    try {
+      if (this._canNativeImportContentbase()) {
+        await import(modelsFile)
+      } else {
+        this._seedContentbaseVirtualModules()
+        ;(this.container.feature('vm') as any).loadModule(modelsFile)
+      }
+      // The file evaluates fine — it just defines no models. Legit, no error.
+      this.state.set('modelLoadError', null)
+    } catch (err: any) {
+      const message = err?.message || String(err)
+      this.state.set('modelLoadError', message)
+      if (!ignoreModelErrors) {
+        throw new Error(
+          `contentDb: ${modelsFile} exists but failed to load: ${message}\n` +
+          `Every document would silently match only the fallback 'Base' model. ` +
+          `Fix the models file (run it directly to debug: bun ${modelsFile}), ` +
+          `or call load({ ignoreModelErrors: true }) to load anyway.`
+        )
+      }
+    }
   }
 
   /** Force-reload the collection from disk, picking up new/changed/deleted documents. */
@@ -951,7 +1040,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * Returns an object with query builders keyed by model name (singular and plural, lowercased).
    *
    * Provides a convenient shorthand for querying without looking up model definitions manually.
+   * Throws when the collection has not been loaded yet — models are discovered
+   * at load time, so accessing `queries` earlier would return a silently empty map.
    *
+   * @throws {Error} When the collection has not been loaded (call `await load()` first)
    * @example
    * ```typescript
    * // Given a collection whose models.ts defines an Article model:
@@ -976,6 +1068,12 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * ```
    */
   get queries(): Record<string, ReturnType<typeof this.query>> {
+    if (!this.isLoaded) {
+      throw new Error(
+        'contentDb.queries: collection not loaded — call `await load()` first. ' +
+        '`queries` is built from the models discovered at load time, so before load() it would be silently empty.'
+      )
+    }
     const queryChains: [string, ReturnType<typeof this.query>][] = []
     for (const modelName of this.modelNames) {
       const queryChain = this.query(this.models[modelName]!)

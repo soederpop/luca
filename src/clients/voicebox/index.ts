@@ -118,7 +118,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
    */
   override async connect(): Promise<this> {
     try {
-      const health = await this.get('/health')
+      const health = await this.getOrThrow('/health')
       if (health?.status !== 'ok' && health?.status !== 'healthy') {
         // Accept any 200 response as healthy
       }
@@ -144,7 +144,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
    */
   async listProfiles(): Promise<any[]> {
     this.trackRequest()
-    const result = await this.get('/profiles')
+    const result = await this.getOrThrow('/profiles')
     const profiles = Array.isArray(result) ? result : []
     this.emit('profiles', profiles)
     return profiles
@@ -155,7 +155,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
    */
   async getProfile(profileId: string): Promise<any> {
     this.trackRequest()
-    return this.get(`/profiles/${profileId}`)
+    return this.getOrThrow(`/profiles/${profileId}`)
   }
 
   /**
@@ -163,7 +163,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
    */
   async createProfile(name: string, options: { description?: string; language?: string } = {}): Promise<any> {
     this.trackRequest()
-    return this.post('/profiles', { name, ...options })
+    return this.postOrThrow('/profiles', { name, ...options })
   }
 
   /**
@@ -171,7 +171,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
    */
   async listEffects(): Promise<any> {
     this.trackRequest()
-    return this.get('/effects/available')
+    return this.getOrThrow('/effects/available')
   }
 
   /**
@@ -256,7 +256,7 @@ export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClie
     if (options.effectsChain) body.effects_chain = options.effectsChain
 
     this.trackRequest(text.length)
-    return this.post('/generate', body)
+    return this.postOrThrow('/generate', body)
   }
 
   /**

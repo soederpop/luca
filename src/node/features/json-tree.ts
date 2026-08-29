@@ -105,9 +105,9 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
    * @param basePath - The root directory path to scan for JSON files
    * @param key - The key to store the tree under in state (defaults to first segment of basePath)
    * @returns Promise resolving to the complete tree object
-   * 
-   * @throws {Error} When FileManager fails to start or files cannot be read/parsed
-   * 
+   *
+   * @throws {Error} When `basePath` does not exist (a typo'd path is not the same as an empty directory — use {@link loadTreeIfExists} for the tolerant version), or when FileManager fails to start or files cannot be read/parsed
+   *
    * @example
    * ```typescript
    * // Given a directory of JSON files (create one for the demo —
@@ -131,6 +131,13 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
     const { container } = this  ;
     const fileManager = container.feature("fileManager");
     const fileSystem = container.feature("fs");
+
+    if (!fileSystem.exists(basePath)) {
+      throw new Error(
+        `jsonTree.loadTree: base path does not exist: '${basePath}' (resolved to '${container.paths.resolve(basePath)}'). ` +
+        `Use loadTreeIfExists() if a missing directory should yield an empty tree.`
+      )
+    }
 
     await fileManager.start()
 
@@ -164,6 +171,36 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
     this.setState({ ...this.tree, [key]: tree });
 
     return this.tree;
+  }
+
+  /**
+   * Like {@link loadTree}, but tolerant of a missing base path: when
+   * `basePath` does not exist, an empty tree is stored under `key` and no
+   * error is thrown. Use this for optional config directories; use
+   * `loadTree()` when the directory is expected to exist, so a typo'd path
+   * fails loudly instead of returning a silent empty tree.
+   *
+   * @param basePath - The root directory path to scan for JSON files
+   * @param key - The key to store the tree under in state (defaults to first segment of basePath)
+   * @returns Promise resolving to the complete tree object (with `tree[key]` empty when the path is missing)
+   *
+   * @example
+   * ```typescript
+   * // A missing directory yields an empty tree instead of throwing
+   * await jsonTree.loadTreeIfExists('optional-overrides', 'overrides');
+   * console.log(jsonTree.tree.overrides); // {}
+   * ```
+   */
+  async loadTreeIfExists(basePath: string, key: string = basePath.split('/')[0]!) {
+    const fileSystem = this.container.feature("fs");
+
+    if (!fileSystem.exists(basePath)) {
+      // @ts-ignore-next-line
+      this.setState({ ...this.tree, [key]: {} });
+      return this.tree;
+    }
+
+    return this.loadTree(basePath, key);
   }
 
   /**

@@ -131,7 +131,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
       sort = 'Most Downloaded'
     }
 
-    return this.get("/api/v1/models", {
+    return this.getOrThrow("/api/v1/models", {
       ...params,
       sort,
       types: type
@@ -151,7 +151,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
    * ```
    */
   async getModel(modelId: string): Promise<ModelInfo> {
-    return this.get(`/api/v1/models/${modelId}`);
+    return this.getOrThrow(`/api/v1/models/${modelId}`);
   }
 
   override get container() {

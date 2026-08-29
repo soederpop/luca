@@ -156,6 +156,59 @@ export class YAML extends Feature {
   parse<T extends object = any>(yamlStr: string) : T {
     return yaml.load(yamlStr) as T
   }
+
+  /**
+   * Parses a YAML string and guarantees the result is an object (mapping or
+   * sequence). Unlike {@link parse} — which returns `undefined` for empty
+   * input, `null` for comments-only input, and bare scalars for scalar
+   * documents — this method throws a descriptive error in all of those
+   * cases, so a typo'd or empty config file fails here instead of as
+   * `undefined is not an object` far away.
+   *
+   * Use this when you expect a config-shaped document; use `parse()` when
+   * any YAML value (including scalars or nothing at all) is acceptable.
+   *
+   * @template T - The expected object type of the parsed document
+   * @param {string} yamlStr - The YAML string to parse
+   * @returns {T} The parsed object (a mapping or sequence)
+   * @throws {Error} When the input parses to `undefined`/`null` (empty or comments-only) or to a non-object scalar, or when the YAML is malformed
+   *
+   * @example
+   * ```typescript
+   * const yml = container.feature('yaml')
+   *
+   * const config = yml.parseObject('host: localhost\nport: 5432\n')
+   * console.log(config.host) // 'localhost'
+   *
+   * // Empty or comments-only input throws instead of returning undefined/null
+   * try { yml.parseObject('') } catch (err) { console.log(err.message) }
+   * try { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }
+   *
+   * // A bare scalar document throws too
+   * try { yml.parseObject('just a string') } catch (err) { console.log(err.message) }
+   * ```
+   */
+  parseObject<T extends object = any>(yamlStr: string) : T {
+    const result = yaml.load(yamlStr)
+
+    if (result === undefined || result === null) {
+      throw new Error(
+        `yaml.parseObject: input parsed to ${result === undefined ? 'undefined' : 'null'} — ` +
+        `the YAML string is empty or contains only comments. Use parse() if that is acceptable.`
+      )
+    }
+
+    if (typeof result !== 'object') {
+      const preview = JSON.stringify(result)
+      const shown = preview.length > 60 ? preview.slice(0, 60) + '…' : preview
+      throw new Error(
+        `yaml.parseObject: expected a YAML mapping or sequence, got a ${typeof result} scalar (${shown}). ` +
+        `Use parse() for scalar documents.`
+      )
+    }
+
+    return result as T
+  }
 }
 
 export default YAML

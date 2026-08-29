@@ -136,6 +136,18 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       return this.state.get('port') || this.options.port || 3000
     }
 
+    /** @internal Port explicitly passed to start() at runtime — tracked so configure() can tell an explicit request apart from the default. */
+    protected _runtimePort?: number
+
+    /**
+     * The port explicitly requested by the caller — via constructor options or
+     * a start({ port }) override — or `undefined` when no port was specified
+     * and configure() is free to auto-select an open one.
+     */
+    get requestedPort(): number | undefined {
+      return this._runtimePort ?? (this._options as any)?.port
+    }
+
     async stop() {
       if(this.isStopped) {
         return this
@@ -160,6 +172,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       await this._drainPendingPlugins()
 
       if (options?.port) {
+        this._runtimePort = options.port
         this.state.set('port', options.port)
       }
 
@@ -168,11 +181,43 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       return this
     }
 
+    /**
+     * Resolve the port to bind. When no port was explicitly requested, a busy
+     * default port auto-drifts to the next open one and a `portChanged` event
+     * is emitted with the requested and selected ports. When the caller DID
+     * explicitly request a port (constructor option or start({ port })) and it
+     * is busy, this throws an EADDRINUSE-style Error (`error.code ===
+     * 'EADDRINUSE'`, `error.port` set) instead of silently binding elsewhere.
+     *
+     * @returns This server, with `state.port` set to the resolved port
+     * @throws Error with `code: 'EADDRINUSE'` when an explicitly requested port is busy
+     *
+     * @example
+     * ```typescript
+     * const server = container.server('websocket', { port: 9350 })
+     * try {
+     *   await server.start()
+     * } catch (err) {
+     *   if (err.code === 'EADDRINUSE') console.error(`port ${err.port} is busy`)
+     * }
+     * ```
+     */
     async configure() {
-      const port = await this.container.networking.findOpenPort(this.port)
+      const requested = this.port
+      const port = await this.container.networking.findOpenPort(requested)
 
-      if(port !== this.port) {
+      if (port !== requested) {
+        if (this.requestedPort) {
+          const error: any = new Error(
+            `listen EADDRINUSE: address already in use :::${requested} — port ${requested} was explicitly requested but something is already bound to it. Stop the other process, or omit the port to auto-select an open one.`
+          )
+          error.code = 'EADDRINUSE'
+          error.port = requested
+          throw error
+        }
+
         this.state.set('port', port)
+        this.emit('portChanged', requested, port)
       }
 
       this.state.set('configured', true)

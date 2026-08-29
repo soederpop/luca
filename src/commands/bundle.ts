@@ -152,8 +152,11 @@ export async function bundleCommand(
 	for (const dir of COMMAND_DIRS) {
 		const dirPath = container.paths.resolve(source, dir)
 		if (!fs.existsSync(dirPath)) continue
+		// Commands are top-level only. walk's '*.ts' now matches nested files
+		// too (basename semantics), so keep only files directly in dirPath.
 		const { files } = fs.walk(dirPath, { include: ['*.ts'] })
 		for (const file of files) {
+			if (container.paths.dirname(file) !== dirPath) continue
 			if (!shouldIncludeBundleFile(file)) continue
 			const name = commandNameFromFile(file)
 			if (!name) continue

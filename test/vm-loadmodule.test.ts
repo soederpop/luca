@@ -355,4 +355,37 @@ describe('vm.loadModule pipeline', () => {
 			expect(await mod.connect()).toBe(true)
 		})
 	})
+
+	describe('missing files', () => {
+		it('loadModule throws a descriptive error naming the path', () => {
+			const c = new NodeContainer()
+			const vm = c.feature('vm')
+			const missing = c.paths.resolve(tmpdir(), `vm-loadmodule-missing-${c.utils.uuid()}.ts`)
+			expect(() => vm.loadModule(missing)).toThrow(missing)
+			expect(() => vm.loadModule(missing)).toThrow(/not found/)
+		})
+
+		it('tryLoadModule returns null for a missing file', () => {
+			const c = new NodeContainer()
+			const vm = c.feature('vm')
+			const missing = c.paths.resolve(tmpdir(), `vm-tryload-missing-${c.utils.uuid()}.ts`)
+			expect(vm.tryLoadModule(missing)).toBeNull()
+		})
+
+		it('tryLoadModule loads an existing module and still propagates execution errors', () => {
+			const c = new NodeContainer()
+			const fs = c.feature('fs')
+			const vm = c.feature('vm')
+			const dir = c.paths.resolve(tmpdir(), `vm-tryload-${c.utils.uuid()}`)
+			fs.mkdir(dir)
+
+			const good = c.paths.resolve(dir, 'good.ts')
+			fs.writeFile(good, 'export const ok = true')
+			expect(vm.tryLoadModule(good)?.ok).toBe(true)
+
+			const broken = c.paths.resolve(dir, 'broken.ts')
+			fs.writeFile(broken, "throw new Error('boom from module')")
+			expect(() => vm.tryLoadModule(broken)).toThrow('boom from module')
+		})
+	})
 })

@@ -16,6 +16,7 @@ export const RedisOptionsSchema = FeatureOptionsSchema.extend({
   url: z.string().optional().describe('Redis connection URL, e.g. redis://localhost:6379. Defaults to redis://localhost:6379'),
   prefix: z.string().optional().describe('Key prefix applied to all get/set/del operations for namespace isolation'),
   lazyConnect: z.boolean().default(false).describe('If true, connection is deferred until first command'),
+  commandTimeout: z.number().default(10000).describe('Per-command timeout in milliseconds passed to ioredis (default 10000). Prevents commands from hanging unboundedly when the server is unreachable — a timed-out command rejects instead of waiting forever.'),
 })
 
 export type RedisState = z.infer<typeof RedisStateSchema>
@@ -98,6 +99,8 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
     this._client = new Redis(url, {
       lazyConnect: options.lazyConnect ?? false,
       retryStrategy: (times: number) => Math.min(times * 200, 5000),
+      // Bound every command so nothing hangs forever against a dead server
+      commandTimeout: options.commandTimeout ?? 10000,
     })
 
     this.hide('_client')
@@ -117,9 +120,9 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
       this.setState({ connected: false })
     })
 
-    if (!options.lazyConnect) {
-      this.setState({ connected: true, url })
-    }
+    // The 'connect' event owns the connected flag — never claim connected
+    // before a TCP connection actually exists. Only record the url here.
+    this.setState({ url })
   }
 
   /** The underlying ioredis client for advanced operations. */
@@ -130,6 +133,71 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
   /** The dedicated subscriber connection, if pub/sub is active. */
   get subscriber(): Redis | null {
     return this._subscriber
+  }
+
+  /**
+   * Check whether the redis server is actually reachable. Sends a PING and
+   * resolves `true` on a reply, `false` on any error or when no reply arrives
+   * within the timeout — it never throws and never hangs, so it is safe as a
+   * liveness probe against a server that may not exist at all.
+   *
+   * @param timeoutMs - How long to wait for the PONG (default 2000ms)
+   * @returns true when the server replied, false otherwise
+   *
+   * @example
+   * ```typescript
+   * const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+   * if (!(await redis.ping())) {
+   *   console.error('redis is not reachable at', redis.state.get('url'))
+   * }
+   * ```
+   */
+  async ping(timeoutMs: number = 2000): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        this._client.ping().then(() => true).catch(() => false),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), timeoutMs)
+        }),
+      ])
+      return result
+    } catch {
+      return false
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+  }
+
+  /**
+   * Ensure a live connection to the redis server, or throw a descriptive
+   * error. Uses {@link ping} under the hood, so it also verifies servers that
+   * were configured with `lazyConnect`. Use it at startup to fail fast with a
+   * clear message instead of letting the first real command hang or retry
+   * forever.
+   *
+   * @param timeoutMs - How long to wait for the server to respond (default 5000ms)
+   * @returns This feature instance, once the server has answered a PING
+   * @throws Error naming the url and timeout when the server does not respond
+   *
+   * @example
+   * ```typescript
+   * const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+   * await redis.ensureConnected()        // throws fast if nothing is listening
+   * await redis.set('worker:status', 'active')
+   * ```
+   */
+  async ensureConnected(timeoutMs: number = 5000): Promise<this> {
+    const alive = await this.ping(timeoutMs)
+    if (!alive) {
+      const url = this.state.get('url') || 'redis://localhost:6379'
+      const lastError = this.state.get('lastError')
+      throw new Error(
+        `redis at ${url} did not respond within ${timeoutMs}ms — is the server running?` +
+        (lastError ? ` Last error: ${lastError}` : '')
+      )
+    }
+    return this
   }
 
   // ── Key/Value Primitives ──────────────────────────────────────────

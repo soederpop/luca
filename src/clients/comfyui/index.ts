@@ -133,7 +133,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * ```
    */
   async queuePrompt(prompt: Record<string, any>, clientId?: string): Promise<{ prompt_id: string; number: number }> {
-    return this.post("/prompt", {
+    return this.postOrThrow("/prompt", {
       prompt,
       client_id: clientId ?? this.clientId,
     });
@@ -145,7 +145,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * @returns Running and pending queue items
    */
   async getQueue(): Promise<{ queue_running: any[]; queue_pending: any[] }> {
-    return this.get("/queue");
+    return this.getOrThrow("/queue");
   }
 
   /**
@@ -155,7 +155,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * @returns History records keyed by prompt ID
    */
   async getHistory(promptId?: string): Promise<Record<string, any>> {
-    return this.get(promptId ? `/history/${promptId}` : "/history");
+    return this.getOrThrow(promptId ? `/history/${promptId}` : "/history");
   }
 
   /**
@@ -164,7 +164,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * @returns System statistics
    */
   async getSystemStats(): Promise<any> {
-    return this.get("/system_stats");
+    return this.getOrThrow("/system_stats");
   }
 
   /**
@@ -174,12 +174,12 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * @returns Object info keyed by node class name
    */
   async getObjectInfo(nodeClass?: string): Promise<any> {
-    return this.get(nodeClass ? `/object_info/${nodeClass}` : "/object_info");
+    return this.getOrThrow(nodeClass ? `/object_info/${nodeClass}` : "/object_info");
   }
 
   /** Interrupt the currently executing prompt. */
   async interrupt(): Promise<void> {
-    await this.post("/interrupt", {});
+    await this.postOrThrow("/interrupt", {});
   }
 
   /**
@@ -189,12 +189,12 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
    * @returns Array of model file names
    */
   async getModels(type?: string): Promise<string[]> {
-    return this.get(type ? `/models/${type}` : "/models");
+    return this.getOrThrow(type ? `/models/${type}` : "/models");
   }
 
   /** List available embedding models. */
   async getEmbeddings(): Promise<string[]> {
-    return this.get("/embeddings");
+    return this.getOrThrow("/embeddings");
   }
 
   /**
@@ -560,10 +560,12 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
       const onComplete = (data: any) => {
         if (data.promptId === promptId) {
           cleanup();
+          // getHistory now throws on HTTP failure — route that into reject so
+          // the outer promise can't hang on an unhandled rejection
           this.getHistory(promptId).then((history) => {
             const entry = history[promptId];
             resolve(entry?.outputs ?? {});
-          });
+          }, reject);
         }
       };
 

@@ -32,7 +32,12 @@ declare module '../client' {
  * 404 — inspect the returned value's shape instead. HTTP errors come back as
  * `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code`
  * whose exact string depends on the runtime (`'ConnectionRefused'` under Bun,
- * `'ECONNREFUSED'` under Node).
+ * `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed
+ * response body) and `headers` from the failed response.
+ *
+ * When a failure should be an exception instead, use the throwing variants —
+ * `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow`
+ * — which reject with a real Error carrying `status`, `code`, and `data`.
  *
  * Configure once via options: `baseURL` prefixes every request path, and
  * `json: true` sets `Content-Type: application/json` + `Accept: application/json`
@@ -285,10 +290,195 @@ export class RestClient<
       });
   }
 
-  /** Handle an axios error by emitting 'failure' and returning the error as JSON. */
+  /**
+   * Handle an axios error by emitting 'failure' and returning the error as a
+   * plain JSON object. Unlike axios' bare `error.toJSON()` (which drops the
+   * response entirely), the returned object also carries `data` (the parsed
+   * response body — validation details, API error codes, rate-limit messages)
+   * and `headers` from the failed response when one exists.
+   * @param error - The axios error caught from a failed request
+   * @returns Plain object: `error.toJSON()` fields plus `data` and `headers` from the response (both `undefined` for connection-level failures with no response)
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * const result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }
+   * if (result?.name === 'AxiosError') {
+   *   console.error(result.status, result.data)   // 422 { error: 'validation_failed' }
+   * }
+   * ```
+   */
   async handleError(error: AxiosError): Promise<object> {
     this.emit('failure', error)
-    return error.toJSON();
+    return {
+      ...(error.toJSON() as object),
+      data: error.response?.data,
+      headers: error.response?.headers,
+    }
+  }
+
+  /**
+   * Shared implementation for the OrThrow request variants. Sends the request
+   * and returns the parsed body on success. On any failure — HTTP error status
+   * or connection-level failure — emits 'failure' and **throws** a real Error
+   * carrying `status` (numeric HTTP status, when there was a response),
+   * `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with
+   * a body summary in the message.
+   * @param config - Full axios request config (method, url, data/params, headers, ...)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` properties on any request failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * try {
+   *   await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })
+   * } catch (err) {
+   *   console.error(err.status, err.data)   // 422 { error: 'validation_failed' }
+   * }
+   * ```
+   */
+  async requestOrThrow(config: AxiosRequestConfig): Promise<any> {
+    await this.beforeRequest()
+    try {
+      const response = await this.axios(config)
+      return response.data
+    } catch (e: any) {
+      if (!e?.isAxiosError) throw e
+      this.emit('failure', e)
+
+      const method = String(config.method || 'GET').toUpperCase()
+      const status = e.response?.status
+      const data = e.response?.data
+
+      let summary = ''
+      if (data !== undefined) {
+        try {
+          summary = typeof data === 'string' ? data : JSON.stringify(data)
+        } catch {
+          summary = String(data)
+        }
+        if (summary.length > 300) summary = `${summary.slice(0, 300)}…`
+      }
+
+      const reason = status
+        ? `status ${status}${summary ? `: ${summary}` : ''}`
+        : `${e.code || e.message}`
+      const error: any = new Error(`${method} ${config.url} failed with ${reason}`)
+      error.status = status
+      error.code = e.code
+      error.data = data
+      error.headers = e.response?.headers
+      error.cause = e
+      throw error
+    }
+  }
+
+  /**
+   * Send a GET request that **throws on failure** instead of returning the
+   * error. Use this when a failed request has no meaningful "inspect the
+   * returned error" semantics (auth checks, listings, lookups). The thrown
+   * Error carries `status`, `code`, and `data` (parsed response body).
+   * @param url - Request path relative to baseURL
+   * @param params - Query parameters (serialized into the query string)
+   * @param options - Additional axios request config (headers, timeout, etc.)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` on HTTP or connection failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * try {
+   *   const me = await api.getOrThrow('/me')
+   * } catch (err) {
+   *   console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }
+   * }
+   * ```
+   */
+  async getOrThrow(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+    return this.requestOrThrow({ ...options, method: 'GET', url, params })
+  }
+
+  /**
+   * Send a POST request that **throws on failure** instead of returning the
+   * error. The thrown Error carries `status`, `code`, and `data` (parsed
+   * response body — validation details, API error codes).
+   * @param url - Request path relative to baseURL
+   * @param data - Request body (JSON-encoded when the `json` option is set)
+   * @param options - Additional axios request config (headers, timeout, etc.)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` on HTTP or connection failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * try {
+   *   const created = await api.postOrThrow('/users', { name: 'Alice' })
+   * } catch (err) {
+   *   console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }
+   * }
+   * ```
+   */
+  async postOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+    return this.requestOrThrow({ ...options, method: 'POST', url, data })
+  }
+
+  /**
+   * Send a PUT request that **throws on failure** instead of returning the
+   * error. The thrown Error carries `status`, `code`, and `data`.
+   * @param url - Request path relative to baseURL
+   * @param data - Request body (the full replacement representation)
+   * @param options - Additional axios request config (headers, timeout, etc.)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` on HTTP or connection failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
+   * ```
+   */
+  async putOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+    return this.requestOrThrow({ ...options, method: 'PUT', url, data })
+  }
+
+  /**
+   * Send a PATCH request that **throws on failure** instead of returning the
+   * error. The thrown Error carries `status`, `code`, and `data`.
+   * @param url - Request path relative to baseURL
+   * @param data - Request body (the partial update)
+   * @param options - Additional axios request config (headers, timeout, etc.)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` on HTTP or connection failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
+   * ```
+   */
+  async patchOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+    return this.requestOrThrow({ ...options, method: 'PATCH', url, data })
+  }
+
+  /**
+   * Send a DELETE request that **throws on failure** instead of returning the
+   * error. Like `delete()`, the second argument is query params, not a body.
+   * The thrown Error carries `status`, `code`, and `data`.
+   * @param url - Request path relative to baseURL
+   * @param params - Query parameters (serialized into the query string)
+   * @param options - Additional axios request config (headers, timeout, etc.)
+   * @returns Parsed response body
+   * @throws Error with `status`, `code`, and `data` on HTTP or connection failure
+   *
+   * @example
+   * ```typescript
+   * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+   * await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
+   * ```
+   */
+  async deleteOrThrow(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+    return this.requestOrThrow({ ...options, method: 'DELETE', url, params })
   }
 }
 

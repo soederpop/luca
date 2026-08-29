@@ -67,15 +67,17 @@ export class GraphClient<
   /**
    * Execute a GraphQL operation, unwrap the response, and handle errors.
    * Posts to the configured endpoint with the standard GraphQL envelope.
-   * If the response contains GraphQL-level errors, emits both 'graphqlError'
-   * and 'failure' events before returning the data.
+   * HTTP-level failures (connection refused, 4xx/5xx) THROW an Error carrying
+   * `status` and `data` — a transport failure has no meaningful `data` to
+   * unwrap. If a successful response contains GraphQL-level errors, emits
+   * both 'graphqlError' and 'failure' events before returning the data.
    */
   private async execute<R = any>(query: string, variables?: Record<string, any>, operationName?: string): Promise<R> {
     const body: Record<string, any> = { query }
     if (variables) body.variables = variables
     if (operationName) body.operationName = operationName
 
-    const response = await this.post(this.endpoint, body)
+    const response = await this.postOrThrow(this.endpoint, body)
 
     if (response?.errors?.length) {
       this.emit('graphqlError', response.errors)

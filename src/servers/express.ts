@@ -187,7 +187,9 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * Runs the `beforeStart` hook, wires the SPA history fallback (when
      * `historyFallback` + `static` are set), then listens. Resolves once the
      * server is accepting connections; calling start() while already listening
-     * is a no-op.
+     * is a no-op. Rejects with the listen error (e.g. `code: 'EADDRINUSE'`
+     * when the port is busy) instead of hanging — so `await start()` is
+     * try/catch-able.
      *
      * @param options - Optional runtime overrides for port and host (host defaults to '0.0.0.0')
      *
@@ -232,11 +234,20 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
         })
       }
 
-      await new Promise((res) => {
-        this._listener = this.app.listen(startOptions.port, startOptions.host, () => {
+      // Reject on listen errors (EADDRINUSE etc.) — without the error handler
+      // the failure surfaces as an uncatchable async emit and start() hangs forever.
+      await new Promise((res, rej) => {
+        const listener = this.app.listen(startOptions.port, startOptions.host, () => {
+          listener.removeListener('error', onError)
           this.state.set('listening', true)
           res(null)
         })
+        const onError = (err: any) => {
+          this._listener = undefined
+          rej(err)
+        }
+        this._listener = listener
+        listener.once('error', onError)
       })
 
       return this

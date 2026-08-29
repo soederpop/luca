@@ -121,7 +121,12 @@ export const GraphClientEventsSchema = ClientEventsSchema.extend({
   graphqlError: z.tuple([z.array(z.any()).describe('Array of GraphQL errors')]).describe('Emitted when GraphQL-level errors are present in the response'),
 }).describe('GraphQL client events')
 
-export const ServerEventsSchema = HelperEventsSchema.extend({}).describe('Base server events')
+export const ServerEventsSchema = HelperEventsSchema.extend({
+  portChanged: z.tuple([
+    z.number().describe('The port originally requested'),
+    z.number().describe('The open port actually selected'),
+  ]).describe('Emitted when configure() auto-selects a different port because the default one was busy. Only fires when no port was explicitly requested — an explicit busy port throws EADDRINUSE instead of drifting.'),
+}).describe('Base server events')
 
 // MCP Server schemas
 export const MCPServerOptionsSchema = ServerOptionsSchema.extend({

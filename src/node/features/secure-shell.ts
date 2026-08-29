@@ -120,41 +120,42 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	}
 
 	/**
-	 * Build SSH connection string with authentication options
+	 * Build the ssh argv (flags + user@host) with authentication options.
+	 * Argv arrays go straight to the binary — no local shell, no quoting layer.
 	 */
-	private buildSSHConnectionString(): string {
+	private buildSshArgs(): string[] {
 		this.validateOptions()
 		const { host, port = 22, username, key } = this.options
-		let sshCmd = `${this.sshPath} -p ${port}`
-		
+		const args = ['-p', String(port)]
+
 		if (key) {
-			sshCmd += ` -i "${key}"`
+			args.push('-i', key)
 		}
-		
+
 		// Batch mode fails immediately instead of hanging on interactive prompts
-		sshCmd += ` -o BatchMode=yes -o StrictHostKeyChecking=no`
-		
-		sshCmd += ` ${username}@${host}`
-		
-		return sshCmd
+		args.push('-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no')
+		args.push(`${username}@${host}`)
+
+		return args
 	}
 
 	/**
-	 * Build SCP connection string for file transfers
+	 * Build the scp flag argv for file transfers (no source/target — callers append those).
+	 * Argv arrays go straight to the binary — no local shell, no quoting layer.
 	 */
-	private buildSCPConnectionString(): string {
+	private buildScpArgs(): string[] {
 		this.validateOptions()
-		const { host, port = 22, username, key } = this.options
-		let scpCmd = `${this.scpPath} -P ${port}`
-		
+		const { port = 22, key } = this.options
+		const args = ['-P', String(port)]
+
 		if (key) {
-			scpCmd += ` -i "${key}"`
+			args.push('-i', key)
 		}
-		
+
 		// Batch mode fails immediately instead of hanging on interactive prompts
-		scpCmd += ` -o BatchMode=yes -o StrictHostKeyChecking=no`
-		
-		return scpCmd
+		args.push('-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no')
+
+		return args
 	}
 
 	/**
@@ -188,7 +189,11 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	/**
 	 * Executes a command on the remote host.
 	 *
-	 * @param command - The command to execute on the remote shell
+	 * The command string is passed to ssh as a single argv element — it never
+	 * touches the LOCAL shell, so `$VARS`, backticks, and `$(...)` are expanded
+	 * on the remote host (by the remote shell), exactly as written.
+	 *
+	 * @param command - The command to execute on the remote shell — the string reaches the remote shell verbatim
 	 * @returns The trimmed stdout output of the command
 	 * @throws {Error} When the SSH command exits with a non-zero code
 	 *
@@ -199,17 +204,17 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 * const uptime = await ssh.exec('uptime')
 	 * console.log('Remote uptime:', uptime)
 	 *
-	 * const listing = await ssh.exec('ls -la /var/log')
-	 * console.log(listing)
+	 * // $HOME expands on the REMOTE host, not locally
+	 * const remoteHome = await ssh.exec('echo "$HOME"')
 	 * ```
 	 */
 	async exec(command: string): Promise<string> {
-		const sshCmd = `${this.buildSSHConnectionString()} "${command}"`
+		const argv = [...this.buildSshArgs(), command]
 
 		try {
-			// Use the platform shell to avoid execAndCapture splitting the command on spaces
-			const osFeature = this.container.feature('os')
-			const result = await this.proc.spawnAndCapture(osFeature.shell, [osFeature.shellFlag, sshCmd])
+			// argv array — the command string reaches the remote shell verbatim,
+			// with no local shell interpolation or quoting layer in between
+			const result = await this.proc.spawnAndCapture(this.sshPath, argv)
 
 			if (result.exitCode !== 0) {
 				throw new Error(`SSH command failed with exit code ${result.exitCode}: ${result.stderr}`)
@@ -228,6 +233,8 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * Uses the same authentication credentials configured on the feature instance.
 	 * Remote paths are absolute, or relative to the remote user's home directory.
+	 * Paths are passed as argv elements (no local shell), so local paths with
+	 * spaces work as-is.
 	 *
 	 * @param source - The source file path on the remote host
 	 * @param target - The target file path on the local machine
@@ -243,15 +250,15 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 */
 	async download(source: string, target: string): Promise<string> {
 		const { host, username } = this.options
-		const scpCmd = `${this.buildSCPConnectionString()} ${username}@${host}:"${source}" "${target}"`
-		
+		const argv = [...this.buildScpArgs(), `${username}@${host}:${source}`, target]
+
 		try {
-			const result = await this.proc.execAndCapture(scpCmd)
-			
+			const result = await this.proc.spawnAndCapture(this.scpPath, argv)
+
 			if (result.exitCode !== 0) {
 				throw new Error(`SCP download failed with exit code ${result.exitCode}: ${result.stderr}`)
 			}
-			
+
 			return result.stdout.trim() || `Successfully downloaded ${source} to ${target}`
 		} catch (error) {
 			throw new Error(`Failed to download file: ${error instanceof Error ? error.message : String(error)}`)
@@ -263,6 +270,8 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * Uses the same authentication credentials configured on the feature instance.
 	 * Remote paths are absolute, or relative to the remote user's home directory.
+	 * Paths are passed as argv elements (no local shell), so local paths with
+	 * spaces work as-is.
 	 *
 	 * @param source - The source file path on the local machine
 	 * @param target - The target file path on the remote host
@@ -278,15 +287,15 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 */
 	async upload(source: string, target: string): Promise<string> {
 		const { host, username } = this.options
-		const scpCmd = `${this.buildSCPConnectionString()} "${source}" ${username}@${host}:"${target}"`
-		
+		const argv = [...this.buildScpArgs(), source, `${username}@${host}:${target}`]
+
 		try {
-			const result = await this.proc.execAndCapture(scpCmd)
-			
+			const result = await this.proc.spawnAndCapture(this.scpPath, argv)
+
 			if (result.exitCode !== 0) {
 				throw new Error(`SCP upload failed with exit code ${result.exitCode}: ${result.stderr}`)
 			}
-			
+
 			return result.stdout.trim() || `Successfully uploaded ${source} to ${target}`
 		} catch (error) {
 			throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : String(error)}`)

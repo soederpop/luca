@@ -665,9 +665,14 @@ export class VM<
    * in an isolated VM context and returning its exports. The module gets `require`,
    * `exports`, and `module` globals automatically, plus any additional context you provide.
    *
+   * Throws when the file does not exist — a typo'd path should fail here, not
+   * later as "tool X is not a function". Use {@link tryLoadModule} when a
+   * missing file is expected and should yield `null` instead.
+   *
    * @param {string} filePath - Absolute path to the module file to load
    * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
    * @returns {Record<string, any>} The module's exports (from `module.exports` or `exports`)
+   * @throws {Error} When no file exists at `filePath`, or when the module fails to transpile or execute
    *
    * @example
    * ```typescript
@@ -682,7 +687,12 @@ export class VM<
   loadModule(filePath: string, ctx: any = {}): Record<string, any> {
     const { fs } = this.container
 
-    if (!fs.exists(filePath)) return {}
+    if (!fs.exists(filePath)) {
+      throw new Error(
+        `vm.loadModule: module file not found: ${filePath}. ` +
+        `Use tryLoadModule() if a missing file should be tolerated.`
+      )
+    }
 
     // If we have virtual modules defined, use bundling to inline all other imports.
     // Virtual module IDs are marked external so they resolve via our custom require.
@@ -694,6 +704,34 @@ export class VM<
     const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
 
     return this._execModule(code, filePath, ctx)
+  }
+
+  /**
+   * Tolerant counterpart to {@link loadModule}: returns `null` when no file
+   * exists at `filePath` instead of throwing. Use it for optional modules
+   * (a project-level hooks file, an optional config module). Errors from a
+   * file that *does* exist but fails to transpile or execute still propagate
+   * — only the missing-file case is softened.
+   *
+   * @param {string} filePath - Absolute path to the module file to load
+   * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
+   * @returns {Record<string, any> | null} The module's exports, or `null` when the file does not exist
+   *
+   * @example
+   * ```typescript
+   * const vm = container.feature('vm')
+   *
+   * const optional = vm.tryLoadModule(container.paths.resolve('luca.hooks.ts'))
+   * if (optional) {
+   *   console.log('hooks loaded:', Object.keys(optional))
+   * } else {
+   *   console.log('no hooks file — that is fine')
+   * }
+   * ```
+   */
+  tryLoadModule(filePath: string, ctx: any = {}): Record<string, any> | null {
+    if (!this.container.fs.exists(filePath)) return null
+    return this.loadModule(filePath, ctx)
   }
 
   /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
@@ -796,7 +834,7 @@ export class VM<
         container: this.container,
         ...extraContext,
       })
-      return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map(safeSerialize) })) }
+      return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map((a) => safeSerialize(a)) })) }
     } catch (err: any) {
       return { error: err?.message || String(err) }
     }

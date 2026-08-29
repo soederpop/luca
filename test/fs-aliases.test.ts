@@ -70,8 +70,13 @@ describe('fs node/fs-extra compat aliases', () => {
     fs.rmSync(join(dir, 'never-existed'))
   })
 
-  it('rm without options still throws on a missing file (unlink semantics)', async () => {
-    await expect(fs.rm(join(base, 'nope-missing'))).rejects.toThrow()
+  it('rm without options is silent on a missing file (force defaults true, matching rmSync)', async () => {
+    // The sync/async halves of the pair used to disagree: rmSync was silent,
+    // rm threw ENOENT. Both now default force: true.
+    await fs.rm(join(base, 'nope-missing'))
+
+    // Explicit force: false restores strict ENOENT behavior
+    await expect(fs.rm(join(base, 'nope-missing'), { force: false })).rejects.toThrow()
   })
 
   it('rmdir / rmdirAsync accept and ignore node-style options', async () => {

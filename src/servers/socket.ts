@@ -11,7 +11,7 @@ declare module '../server' {
 }
 
 export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
-  json: z.boolean().optional().describe('When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.'),
+  json: z.boolean().optional().describe('Inbound JSON parsing, enabled by DEFAULT: incoming messages are JSON-parsed before emitting the message event, and frames that are not valid JSON are passed through untouched as raw data. Set json: false to opt out and always receive raw Buffer/string data (for binary-protocol consumers). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.'),
   server: z.any().optional().describe('Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port.'),
   noServer: z.boolean().optional().describe('Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server\'s "upgrade" event.'),
   path: z.string().optional().describe('Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding.'),
@@ -28,10 +28,11 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
  * WebSocket server built on the `ws` library with optional JSON message framing.
  *
  * Manages WebSocket connections, tracks connected clients, and bridges
- * messages to Luca's event bus. When `json` mode is enabled, incoming
- * messages are automatically JSON-parsed (with `.toString()` for Buffer data);
- * a binary frame that is not valid JSON is passed through untouched. When
- * `json` mode is disabled, raw message data is emitted as-is.
+ * messages to Luca's event bus. Incoming messages are automatically
+ * JSON-parsed by default (with `.toString()` for Buffer data), matching the
+ * always-JSON outbound framing and the Luca websocket client; a frame that is
+ * not valid JSON is passed through untouched. Pass `json: false` to opt out
+ * and receive raw Buffer/string data as-is.
  *
  * Outgoing `send()` / `broadcast()` frame the payload with
  * {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/
@@ -206,7 +207,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return new Promise<R>((resolve, reject) => {
         const timer = setTimeout(() => {
           this._pending.delete(requestId)
-          reject(new Error(`ask("${type}") timed out after ${timeout}ms`))
+          reject(new Error(`ask("${type}") timed out after ${timeout}ms — no reply with replyTo="${requestId}" arrived. Likely cause: the client has no message handler echoing requestId back as replyTo.`))
         }, timeout)
 
         this._pending.set(requestId, { resolve, reject, timer })
@@ -246,7 +247,13 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
      * option and is written to state before the underlying `ws.Server` is created,
      * so the server binds to the correct port.
      *
+     * When a port was explicitly requested (constructor option or start({ port }))
+     * and it is busy, start() throws an EADDRINUSE-style Error rather than
+     * silently binding a different port. Auto-selection (with a `portChanged`
+     * event) only happens when no port was specified.
+     *
      * @param options - Optional runtime overrides for port and host
+     * @throws Error with `code: 'EADDRINUSE'` when an explicitly requested port is busy
      */
     override async start(options?: StartOptions): Promise<this> {
       if (this.isListening) {
@@ -268,6 +275,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
 
       // Own-port mode honors a runtime port override; attach/noServer bind no port.
       if (options?.port && !attaching && !manual) {
+        this._runtimePort = options.port
         this.state.set('port', options.port)
         // Reset cached wss so it rebinds to the new port
         this._wss = undefined
@@ -316,7 +324,10 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
 
         ws.on('message', (raw: any) => {
           let data: any = raw
-          if (this.options.json) {
+          // Inbound JSON parsing is the default (matching outbound framing and
+          // the websocket client); json: false opts out for raw-Buffer consumers.
+          // Frames that aren't valid JSON still deliver raw.
+          if (this.options.json !== false) {
             try {
               data = JSON.parse(typeof raw === 'string' ? raw : raw.toString())
             } catch {}

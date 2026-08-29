@@ -11,6 +11,10 @@ export type GrepMatch = {
     line: number
     column?: number
     content: string
+    /** Context lines preceding the match (present when `before` was requested) */
+    before?: string[]
+    /** Context lines following the match (present when `after` was requested) */
+    after?: string[]
 }
 
 export type GrepOptions = {
@@ -30,7 +34,7 @@ export type GrepOptions = {
     recursive?: boolean
     /** Include hidden files */
     hidden?: boolean
-    /** Max number of results to return */
+    /** Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance) */
     maxResults?: number
     /** Number of context lines before match */
     before?: number
@@ -118,8 +122,17 @@ export class Grep extends Feature {
     /**
      * Search for a pattern in files and return structured results.
      *
+     * Zero matches returns `[]`. Any other failure — invalid regex, nonexistent
+     * search path, unreadable files — THROWS with the underlying rg/grep stderr
+     * in the message, so a broken pattern is never mistaken for "no matches".
+     *
+     * `maxResults` caps the TOTAL number of returned matches (sliced after
+     * parsing). When `before`/`after` context is requested, each match gains
+     * `before`/`after` arrays holding the surrounding lines' text.
+     *
      * @param {GrepOptions} options - Search options
      * @returns {Promise<GrepMatch[]>} Array of match objects with relative file paths
+     * @throws {Error} When rg/grep fails for any reason other than "no matches" (exit code 1) — the message includes the tool's stderr
      *
      * @example
      * ```typescript
@@ -146,19 +159,28 @@ export class Grep extends Feature {
         const cmd = this.buildCommand(options)
         const proc = this.container.feature('proc')
 
-        try {
-            const output = proc.exec(cmd, {
-                cwd: this.container.cwd,
-                maxBuffer: 1024 * 1024 * 50,
-            })
+        const result = await proc.tryExec(cmd, { cwd: this.container.cwd })
 
-            if (!output.length) return []
-
-            return this.parseResults(output, options)
-        } catch {
-            // grep returns exit code 1 when no matches found
-            return []
+        if (result.exitCode !== 0) {
+            // rg and grep both use exit code 1 for "no matches" — that is a
+            // valid empty result. Anything else (2 = regex/IO error) is a real
+            // failure and must be loud, not an empty array.
+            if (result.exitCode === 1 && !result.stdout.length) return []
+            throw new Error(
+                `grep search failed (exit code ${result.exitCode}): ${result.stderr.trim() || '(no stderr)'}\ncommand: ${cmd}`
+            )
         }
+
+        if (!result.stdout.length) return []
+
+        let matches = this.parseResults(result.stdout, options)
+
+        // --max-count is only a per-file bound; enforce the documented total here
+        if (options.maxResults && matches.length > options.maxResults) {
+            matches = matches.slice(0, options.maxResults)
+        }
+
+        return matches
     }
 
     /**
@@ -312,7 +334,9 @@ export class Grep extends Feature {
 
         if (useRg) {
             // ripgrep mode
-            flags.push('--no-heading', '--line-number', '--column')
+            // --with-filename: rg omits the filename when searching a single
+            // explicit file, which would break the file:line:col parser
+            flags.push('--no-heading', '--with-filename', '--line-number', '--column')
 
             if (filesOnly) flags.push('--files-with-matches')
             if (ignoreCase) flags.push('--ignore-case')
@@ -340,7 +364,9 @@ export class Grep extends Feature {
             return `${this.rgPath} ${flags.join(' ')} -e ${shellQuote(pattern)} ${shellQuote(searchPath)}`
         } else {
             // fallback to grep — use -E for extended regex (supports ?, +, |, (), {})
-            flags.push('-r', '-n', '-E')
+            // -H: force the filename prefix even for a single explicit file,
+            // so the file:line parser always sees the same format
+            flags.push('-r', '-n', '-E', '-H')
 
             if (filesOnly) flags.push('-l')
             if (ignoreCase) flags.push('-i')
@@ -392,12 +418,25 @@ export class Grep extends Feature {
             return results
         }
 
-        // Context lines (from -B/-A) are separated by -- and use - instead of :
-        // Skip separator lines
+        // Context lines (from -B/-A) use - as the separator instead of : and
+        // groups are divided by bare -- lines. When context was requested we
+        // attach those lines to the surrounding matches; otherwise any line
+        // that isn't a match line is skipped.
         const useRg = this.hasRipgrep
+        const wantContext = Boolean(options.before || options.after)
+
+        // Lines seen before the next match in the current group
+        let pendingBefore: string[] = []
+        // The most recent match in the current group (context after it attaches here)
+        let lastMatch: GrepMatch | null = null
 
         for (const line of lines) {
-            if (line === '--') continue
+            if (line === '--') {
+                // Group separator — context never crosses it
+                pendingBefore = []
+                lastMatch = null
+                continue
+            }
 
             // rg format: file:line:column:content
             // grep format: file:line:content
@@ -424,7 +463,30 @@ export class Grep extends Feature {
                 }
             }
 
-            if (match) results.push(match)
+            if (match) {
+                if (wantContext) {
+                    if (options.before) match.before = pendingBefore
+                    if (options.after) match.after = []
+                    pendingBefore = []
+                    lastMatch = match
+                }
+                results.push(match)
+                continue
+            }
+
+            if (!wantContext) continue
+
+            // Context line: file-line-content (rg and grep both use - separators)
+            const c = line.match(/^(.+?)-(\d+)-(.*)$/)
+            if (!c) continue
+
+            if (lastMatch && options.after && (lastMatch.after?.length ?? 0) < (options.after ?? 0)) {
+                // Fills the after-window of the previous match first; overlap
+                // lines beyond that window become before-context for the next match
+                lastMatch.after!.push(c[3]!)
+            } else {
+                pendingBefore.push(c[3]!)
+            }
         }
 
         return results
