@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import * as readline from 'readline'
 import { commands } from '../command'
 import { CommandOptionsSchema } from '../schemas/base'
 import type { ContainerContext } from '../container'
+import { runChatTui } from './lib/chat-tui'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -41,7 +41,7 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	}
 
 	const requestedName = container.argv._[1] as string | undefined
-	let name: string
+	let name: string | undefined
 
 	if (requestedName) {
 		const entry = manager.get(requestedName)
@@ -54,17 +54,9 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		name = requestedName
 	} else if (entries.length === 1) {
 		name = entries[0].name
-	} else {
-		const answers = await ui.wizard([
-			{
-				type: 'list',
-				name: 'assistant',
-				message: 'Choose an assistant',
-				choices: entries.map((e: any) => ({ name: e.name, value: e.name })),
-			},
-		])
-		name = answers.assistant
 	}
+	// With no name and multiple assistants, chat opens the lobby — messages are
+	// routed with @mentions, so `name` stays undefined here.
 
 	// Resolve history mode: --off-record overrides everything to lifecycle
 	// CLI defaults to 'daily' for interactive persistence
@@ -94,21 +86,27 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		}
 	}
 
-	const assistant = manager.create(name, createOptions)
+	// --clear / --list operate on one assistant's history, so they need a name
+	if ((options.clear || options.list) && !name) {
+		console.error(ui.colors.red('Specify an assistant, e.g. luca chat researcher --list'))
+		process.exit(1)
+	}
 
 	// --clear: wipe history for the current mode and exit
 	if (options.clear) {
+		const assistant = manager.create(name!, createOptions)
 		const deleted = await assistant.clearHistory()
 		if (deleted > 0) {
-			console.log(ui.colors.green(`  Cleared ${deleted} conversation(s) for ${ui.colors.cyan(name)} (${historyMode} mode).`))
+			console.log(ui.colors.green(`  Cleared ${deleted} conversation(s) for ${ui.colors.cyan(name!)} (${historyMode} mode).`))
 		} else {
-			console.log(ui.colors.dim(`  No history to clear for ${ui.colors.cyan(name)} (${historyMode} mode).`))
+			console.log(ui.colors.dim(`  No history to clear for ${ui.colors.cyan(name!)} (${historyMode} mode).`))
 		}
 		return
 	}
 
 	// --list: show recent conversations and exit
 	if (options.list) {
+		const assistant = manager.create(name!, createOptions)
 		const history = await assistant.listHistory({ limit: 20 })
 		if (history.length === 0) {
 			console.log(ui.colors.dim('  No saved conversations.'))
@@ -128,64 +126,10 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		return
 	}
 
-	// --resume: set thread override before start
-	if (options.resume) {
-		assistant.resumeThread(options.resume)
-	}
-
-	const ink = container.feature('ink', { enable: true })
-	await ink.loadModules()
-	const React = ink.React
-	const { Text } = ink.components
-
-	// Use the raw ink render (sync) since modules are already loaded
-	const inkModule = await import('ink')
-
-	let responseBuffer = ''
-	let inkInstance: any = null
-
-	function mdElement(content: string) {
-		const rendered = content ? String(ui.markdown(content)).trimEnd() : ''
-		return React.createElement(Text, null, rendered)
-	}
-
-	assistant.on('chunk', (text: string) => {
-		responseBuffer += text
-		if (!inkInstance) {
-			process.stdout.write('\n')
-			inkInstance = inkModule.render(mdElement(responseBuffer), { patchConsole: false })
-		} else {
-			inkInstance.rerender(mdElement(responseBuffer))
-		}
-	})
-
-	assistant.on('toolCall', (toolName: string, args: any) => {
-		if (inkInstance) { inkInstance.unmount(); inkInstance = null }
-		responseBuffer = ''
-		const argsStr = JSON.stringify(args).slice(0, 120)
-		process.stdout.write(ui.colors.dim(`\n  ⟳ ${toolName}`) + ui.colors.dim(`(${argsStr})\n`))
-	})
-
-	assistant.on('toolResult', (toolName: string, result: any) => {
-		const preview = typeof result === 'string' ? result.slice(0, 100) : JSON.stringify(result).slice(0, 100)
-		process.stdout.write(ui.colors.green(`  ✓ ${toolName}`) + ui.colors.dim(` → ${preview}${preview.length >= 100 ? '…' : ''}\n`))
-	})
-
-	assistant.on('toolError', (toolName: string, error: any) => {
-		const msg = error?.message || String(error)
-		process.stdout.write(ui.colors.red(`  ✗ ${toolName}: ${msg}\n`))
-	})
-
-	assistant.on('response', () => {
-		if (inkInstance) { inkInstance.unmount(); inkInstance = null }
-		responseBuffer = ''
-		process.stdout.write('\n')
-	})
-
-	// --use: inject features into the assistant
-	if (options.use) {
-		const items = Array.isArray(options.use) ? options.use : [options.use]
-		for (const item of items) {
+	// --use: applied to every assistant the session creates (lobby included)
+	const useItems = options.use ? (Array.isArray(options.use) ? options.use : [options.use]) : []
+	function setupAssistant(assistant: any) {
+		for (const item of useItems) {
 			const [namepart, optStr] = item.split(':')
 			if (!namepart) continue
 			const featureOpts: Record<string, any> = { enable: true }
@@ -200,114 +144,35 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		}
 	}
 
-	// Start the assistant (loads history if applicable)
-	await assistant.start()
-
-	const messageCount = assistant.messages?.length || 0
-	const isResuming = historyMode !== 'lifecycle' && messageCount > 1
-
-	let rl = readline.createInterface({
-		input: process.stdin,
-		output: process.stdout,
+	const result = await runChatTui({
+		container,
+		manager,
+		historyMode,
+		createOptions,
+		initialAssistant: name,
+		entries,
+		resumeThreadId: options.resume,
+		setupAssistant,
 	})
 
-	let rlClosed = false
-	rl.on('close', () => { rlClosed = true })
-
-	function ensureRl() {
-		if (rlClosed) {
-			rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-			rlClosed = false
-			rl.on('close', () => { rlClosed = true })
-		}
-	}
-
-	function prompt(): Promise<string> {
-		return new Promise((resolve) => {
-			ensureRl()
-			rl.question(ui.colors.dim(`\n${name} > `), (answer: string) => resolve(answer.trim()))
-		})
-	}
-
-	console.log()
-	if (isResuming) {
-		console.log(ui.colors.dim(`  Resuming conversation with ${ui.colors.cyan(name)} (${messageCount} messages). Type .exit to quit.`))
-	} else {
-		console.log(ui.colors.dim(`  Chatting with ${ui.colors.cyan(name)}. Type .exit to quit.`))
-	}
-	if (historyMode !== 'lifecycle') {
-		console.log(ui.colors.dim(`  Mode: ${historyMode}`))
-	}
-	console.log()
-
-	while (true) {
-		const question = await prompt()
-
-		if (!question) continue
-		if (question === '.exit') break
-
-		if (question === '/console') {
-			// Pause chat readline so the REPL can own stdin
-			rl.close()
-
-			// Build feature context like `luca console` does
-			const featureContext: Record<string, any> = {}
-			for (const fname of container.features.available) {
-				try { featureContext[fname] = container.feature(fname) } catch {}
-			}
-
-			const replPrompt = ui.colors.magenta('console') + ui.colors.dim(' > ')
-			const repl = container.feature('repl', { prompt: replPrompt })
-
-			console.log()
-			console.log(ui.colors.dim('  Dropping into console. The assistant is available as `assistant`.'))
-			console.log(ui.colors.dim('  Type .exit to return to chat.'))
-			console.log()
-
-			await repl.start({
-				context: {
-					...featureContext,
-					assistant,
-					console,
-					setTimeout, setInterval, clearTimeout, clearInterval,
-					fetch,
-				},
-			})
-
-			// Wait for the REPL to close
-			await new Promise<void>((resolve) => {
-				repl._rl!.on('close', resolve)
-			})
-
-			// Resume chat readline
-			console.log()
-			console.log(ui.colors.dim(`  Back in chat with ${ui.colors.cyan(name)}.`))
-			rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-			rlClosed = false
-			rl.on('close', () => { rlClosed = true })
-			continue
-		}
-
-		await assistant.ask(question)
-	}
-
-	rl.close()
-
-	// Show resume instruction for non-lifecycle modes
-	if (historyMode !== 'lifecycle' && assistant.currentThreadId) {
+	// Show resume instructions for non-lifecycle modes
+	if (result.threads.length > 0) {
 		console.log()
-		console.log(ui.colors.dim(`  Session saved. To resume this conversation:`))
-		console.log(ui.colors.dim(`    luca chat ${name} --resume ${assistant.currentThreadId}`))
+		console.log(ui.colors.dim(`  Session saved. To resume:`))
+		for (const thread of result.threads) {
+			console.log(ui.colors.dim(`    luca chat ${thread.name} --resume ${thread.threadId}`))
+		}
 		console.log()
 	}
 }
 
 export const positionals = [
-	{ name: 'assistant', description: 'Name of the assistant to chat with (discovered from assistants/). Omit to use the default assistant.', required: false },
+	{ name: 'assistant', description: 'Name of the assistant to chat with (discovered from assistants/). Omit to open the lobby and route messages with @mentions.', required: false },
 ]
 
 export const examples = [
 	'luca chat researcher',
+	{ command: 'luca chat', description: 'Open the lobby — @mention any discovered assistant to talk to it' },
 	{ command: 'luca chat --list', description: 'List recent conversations' },
 	{ command: 'luca chat researcher --resume <threadId>', description: 'Resume a previous conversation' },
 	{ command: 'luca chat researcher --use "contentDb:rootPath=./docs"', description: 'Inject a feature into the assistant' },
@@ -315,7 +180,7 @@ export const examples = [
 ]
 
 commands.registerHandler('chat', {
-	description: 'Start an interactive chat session with a local assistant',
+	description: 'Interactive chat TUI for local assistants — @mention routing, /provider switching, tool call display, persisted input history',
 	argsSchema,
 	positionals,
 	examples,

@@ -1468,6 +1468,42 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Abort the in-flight turn, if any. The pending `ask()` rejects with a
+	 * `ConversationAbortError` whose `.partial` property carries the text
+	 * streamed before the abort. Safe to call when nothing is running (no-op),
+	 * and it never creates a conversation just to abort one.
+	 *
+	 * @returns this, for chaining
+	 *
+	 * @example
+	 * assistant.abort()
+	 */
+	abort(): this {
+		const conv = this.state.get('conversation') as Conversation | null
+		conv?.abort()
+		return this
+	}
+
+	/**
+	 * Switch to another saved thread mid-session. Unlike `resumeThread()`,
+	 * which only records an override for the next `start()`, this loads the
+	 * thread's history into the live conversation immediately — the message
+	 * list, response chain, token usage, and cost are all replaced. A thread
+	 * id with no saved record starts that thread fresh.
+	 *
+	 * @param threadId - The thread ID to switch to
+	 * @returns this, for chaining
+	 *
+	 * @example
+	 * await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')
+	 */
+	async switchThread(threadId: string): Promise<this> {
+		this.state.set('resumeThreadId', threadId)
+		await this.loadConversationHistory()
+		return this
+	}
+
+	/**
 	 * List saved conversations for this assistant+project.
 	 *
 	 * @param opts - Optional limit
