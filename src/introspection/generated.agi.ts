@@ -6502,11 +6502,11 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "query": {
-      "description": "Query documents belonging to a specific model definition.",
+      "description": "Query documents belonging to a specific model definition. The query's terminal methods (`fetchAll()`, `first()`, `count()`, ...) auto-load the collection, so you don't need to call `load()` first when you already hold a valid model definition. The usual pre-load failure is the *argument*: `contentDb.models.MyModel` is `undefined` until models are discovered at load time — this method throws a descriptive error in that case instead of the opaque TypeError it used to surface downstream.",
       "parameters": {
         "model": {
           "type": "T",
-          "description": "The model definition to query against"
+          "description": "The model definition to query against (e.g. `contentDb.models.Article`)"
         }
       },
       "required": [
@@ -6573,14 +6573,25 @@ setBuildTimeData('features.contentDb', {
       ]
     },
     "load": {
-      "description": "Load the collection, discovering models from models.ts and parsing all documents.",
-      "parameters": {},
+      "description": "Load the collection, discovering models from models.ts and parsing all documents. When a models file (models.ts/js/mjs) exists in the collection root but fails to evaluate — a broken import, a syntax error — this throws a descriptive error that includes the underlying failure, instead of silently matching every document against the fallback `Base` model. Pass `{ ignoreModelErrors: true }` to load anyway; the failure is still recorded in the `modelLoadError` state field either way (also exposed via the {@link modelLoadError} getter).",
+      "parameters": {
+        "options": {
+          "type": "{ ignoreModelErrors?: boolean }",
+          "description": "Load options",
+          "properties": {
+            "ignoreModelErrors": {
+              "type": "any",
+              "description": "When true, a broken models file is recorded in state but does not abort the load"
+            }
+          }
+        }
+      },
       "required": [],
       "returns": "Promise<ContentDb>",
       "examples": [
         {
           "language": "ts",
-          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true\nconsole.log(contentDb.modelLoadError) // null when models.ts loaded cleanly\n\n// Tolerant load: a broken models.ts is recorded instead of thrown\n// await contentDb.load({ ignoreModelErrors: true })"
         }
       ]
     },
@@ -6967,6 +6978,10 @@ setBuildTimeData('features.contentDb', {
       "description": "Returns the available document ids in the collection",
       "returns": "string[]"
     },
+    "modelLoadError": {
+      "description": "Error message from the last load()'s models-file evaluation, or null when the models file loaded cleanly (or none exists).",
+      "returns": "string | null"
+    },
     "modelDefinitionTable": {
       "description": "",
       "returns": "Record<string, { description: string; glob: string; routePatterns: string[] }>"
@@ -6980,7 +6995,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "{ exists: boolean; documentCount: number; chunkCount: number; embeddingCount: number; lastIndexedAt: any; provider: any; model: any; dimensions: number; dbSizeBytes: number }"
     },
     "queries": {
-      "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
+      "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. Throws when the collection has not been loaded yet — models are discovered at load time, so accessing `queries` earlier would return a silently empty map.",
       "returns": "Record<string, ReturnType<typeof this.query>>",
       "examples": [
         {
@@ -10944,7 +10959,7 @@ setBuildTimeData('features.fs', {
       "returns": "Promise<string>"
     },
     "exists": {
-      "description": "Synchronously checks if a file or directory exists.",
+      "description": "Synchronously checks if a file or directory exists. NOTE: this stats *through* symlinks, so a dangling symlink (one whose target is missing) reports `false` — and then `symlink()` at the same path throws EEXIST. Symlink-aware callers should use {@link linkExists}, which is lstat-based and returns `true` for dangling links.",
       "parameters": {
         "path": {
           "type": "string",
@@ -11025,6 +11040,44 @@ setBuildTimeData('features.fs', {
         "path"
       ],
       "returns": "boolean"
+    },
+    "linkExists": {
+      "description": "Synchronously checks whether anything exists at a path *without following symlinks* (lstat-based, fs-extra style). Unlike {@link exists} — which stats through links and reports `false` for a dangling symlink — this returns `true` for a symlink whose target is missing, so it is the right check before creating or replacing a link.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The path to check"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.symlink('missing-target.txt', 'dangling-link')\nfs.exists('dangling-link')     // false — stats through to the missing target\nfs.linkExists('dangling-link') // true — the link entry itself is there"
+        }
+      ]
+    },
+    "linkExistsAsync": {
+      "description": "Asynchronously checks whether anything exists at a path *without following symlinks* (lstat-based). The async counterpart of {@link linkExists}: returns `true` for dangling symlinks that {@link existsAsync} reports as missing.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The path to check"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.symlink('missing-target.txt', 'dangling-link')\nawait fs.linkExistsAsync('dangling-link') // true"
+        }
+      ]
     },
     "isSymlink": {
       "description": "Checks if a path is a symbolic link.",
@@ -11228,7 +11281,7 @@ setBuildTimeData('features.fs', {
       ]
     },
     "rmSync": {
-      "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.",
+      "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rm} and {@link removeSync}. Pass `{ force: false }` to get an ENOENT error for missing paths.",
       "parameters": {
         "path": {
           "type": "string",
@@ -11261,7 +11314,7 @@ setBuildTimeData('features.fs', {
       ]
     },
     "rm": {
-      "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.",
+      "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rmSync} and {@link remove} (the sync and async halves of the pair used to disagree here). Pass `{ force: false }` to get an ENOENT error for missing paths, or use {@link unlink} for node's strict semantics.",
       "parameters": {
         "path": {
           "type": "string",
@@ -11289,7 +11342,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/cache', { recursive: true, force: true })"
+          "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/never-existed')             // silent — force defaults true\nawait fs.rm('temp/cache', { recursive: true })"
         }
       ]
     },
@@ -11416,7 +11469,7 @@ setBuildTimeData('features.fs', {
       ]
     },
     "unlink": {
-      "description": "Asynchronously removes a file (node's `fs/promises` name).",
+      "description": "Asynchronously removes a file (node's `fs/promises` name). NOTE: unlike node's `unlink`, this follows {@link rm}'s idempotent default — a missing path is silently ignored (matching {@link unlinkSync}). Pass through `rm(path, { force: false })` for strict ENOENT behavior.",
       "parameters": {
         "path": {
           "type": "string",
@@ -11708,7 +11761,7 @@ setBuildTimeData('features.fs', {
       "returns": "void"
     },
     "walk": {
-      "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns.",
+      "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns. Pattern semantics are gitignore-ish: a pattern with no `/` matches the basename at any depth — `include: ['*.ts']` finds nested `.ts` files, and `exclude: ['node_modules']` prunes every `node_modules` directory in the tree, not just the top-level one. A pattern containing `/` (e.g. `'src/**\\/*.ts'`) matches against the path relative to `basePath`.",
       "parameters": {
         "basePath": {
           "type": "string",
@@ -11728,11 +11781,11 @@ setBuildTimeData('features.fs', {
             },
             "exclude": {
               "type": "string | string[]",
-              "description": "] - Glob patterns to exclude (e.g. 'node_modules', '*.log')"
+              "description": "] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '*.log')"
             },
             "include": {
               "type": "string | string[]",
-              "description": "] - Glob patterns to include (only matching paths are returned)"
+              "description": "] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth"
             },
             "relative": {
               "type": "boolean",
@@ -11748,12 +11801,12 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
+          "code": "const result = fs.walk('src', { files: true, directories: false })\n// '*.ts' matches nested files too; 'node_modules' prunes nested copies\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
         }
       ]
     },
     "walkAsync": {
-      "description": "Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns.",
+      "description": "Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns. Pattern semantics match {@link walk} (gitignore-ish): slash-free patterns match basenames at any depth, patterns with `/` match the relative path.",
       "parameters": {
         "baseDir": {
           "type": "string",
@@ -11773,11 +11826,11 @@ setBuildTimeData('features.fs', {
             },
             "exclude": {
               "type": "string | string[]",
-              "description": "] - Glob patterns to exclude (e.g. 'node_modules', '.git')"
+              "description": "] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '.git')"
             },
             "include": {
               "type": "string | string[]",
-              "description": "] - Glob patterns to include (only matching paths are returned)"
+              "description": "] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth"
             },
             "relative": {
               "type": "boolean",
@@ -26099,7 +26152,7 @@ setBuildTimeData('features.vm', {
       ]
     },
     "loadModule": {
-      "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
+      "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide. Throws when the file does not exist — a typo'd path should fail here, not later as \"tool X is not a function\". Use {@link tryLoadModule} when a missing file is expected and should yield `null` instead.",
       "parameters": {
         "filePath": {
           "type": "string",
@@ -26118,6 +26171,29 @@ setBuildTimeData('features.vm', {
         {
           "language": "ts",
           "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
+        }
+      ]
+    },
+    "tryLoadModule": {
+      "description": "Tolerant counterpart to {@link loadModule}: returns `null` when no file exists at `filePath` instead of throwing. Use it for optional modules (a project-level hooks file, an optional config module). Errors from a file that *does* exist but fails to transpile or execute still propagate — only the missing-file case is softened.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Absolute path to the module file to load"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Additional context variables to inject into the module's execution environment"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "Record<string, any> | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const vm = container.feature('vm')\n\nconst optional = vm.tryLoadModule(container.paths.resolve('luca.hooks.ts'))\nif (optional) {\n console.log('hooks loaded:', Object.keys(optional))\n} else {\n console.log('no hooks file — that is fine')\n}"
         }
       ]
     },
@@ -34446,11 +34522,11 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "query": {
-        "description": "Query documents belonging to a specific model definition.",
+        "description": "Query documents belonging to a specific model definition. The query's terminal methods (`fetchAll()`, `first()`, `count()`, ...) auto-load the collection, so you don't need to call `load()` first when you already hold a valid model definition. The usual pre-load failure is the *argument*: `contentDb.models.MyModel` is `undefined` until models are discovered at load time — this method throws a descriptive error in that case instead of the opaque TypeError it used to surface downstream.",
         "parameters": {
           "model": {
             "type": "T",
-            "description": "The model definition to query against"
+            "description": "The model definition to query against (e.g. `contentDb.models.Article`)"
           }
         },
         "required": [
@@ -34517,14 +34593,25 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "load": {
-        "description": "Load the collection, discovering models from models.ts and parsing all documents.",
-        "parameters": {},
+        "description": "Load the collection, discovering models from models.ts and parsing all documents. When a models file (models.ts/js/mjs) exists in the collection root but fails to evaluate — a broken import, a syntax error — this throws a descriptive error that includes the underlying failure, instead of silently matching every document against the fallback `Base` model. Pass `{ ignoreModelErrors: true }` to load anyway; the failure is still recorded in the `modelLoadError` state field either way (also exposed via the {@link modelLoadError} getter).",
+        "parameters": {
+          "options": {
+            "type": "{ ignoreModelErrors?: boolean }",
+            "description": "Load options",
+            "properties": {
+              "ignoreModelErrors": {
+                "type": "any",
+                "description": "When true, a broken models file is recorded in state but does not abort the load"
+              }
+            }
+          }
+        },
         "required": [],
         "returns": "Promise<ContentDb>",
         "examples": [
           {
             "language": "ts",
-            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true\nconsole.log(contentDb.modelLoadError) // null when models.ts loaded cleanly\n\n// Tolerant load: a broken models.ts is recorded instead of thrown\n// await contentDb.load({ ignoreModelErrors: true })"
           }
         ]
       },
@@ -34911,6 +34998,10 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Returns the available document ids in the collection",
         "returns": "string[]"
       },
+      "modelLoadError": {
+        "description": "Error message from the last load()'s models-file evaluation, or null when the models file loaded cleanly (or none exists).",
+        "returns": "string | null"
+      },
       "modelDefinitionTable": {
         "description": "",
         "returns": "Record<string, { description: string; glob: string; routePatterns: string[] }>"
@@ -34924,7 +35015,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "{ exists: boolean; documentCount: number; chunkCount: number; embeddingCount: number; lastIndexedAt: any; provider: any; model: any; dimensions: number; dbSizeBytes: number }"
       },
       "queries": {
-        "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
+        "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. Throws when the collection has not been loaded yet — models are discovered at load time, so accessing `queries` earlier would return a silently empty map.",
         "returns": "Record<string, ReturnType<typeof this.query>>",
         "examples": [
           {
@@ -38878,7 +38969,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<string>"
       },
       "exists": {
-        "description": "Synchronously checks if a file or directory exists.",
+        "description": "Synchronously checks if a file or directory exists. NOTE: this stats *through* symlinks, so a dangling symlink (one whose target is missing) reports `false` — and then `symlink()` at the same path throws EEXIST. Symlink-aware callers should use {@link linkExists}, which is lstat-based and returns `true` for dangling links.",
         "parameters": {
           "path": {
             "type": "string",
@@ -38959,6 +39050,44 @@ export const introspectionData: Record<string, any>[] = [
           "path"
         ],
         "returns": "boolean"
+      },
+      "linkExists": {
+        "description": "Synchronously checks whether anything exists at a path *without following symlinks* (lstat-based, fs-extra style). Unlike {@link exists} — which stats through links and reports `false` for a dangling symlink — this returns `true` for a symlink whose target is missing, so it is the right check before creating or replacing a link.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The path to check"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.symlink('missing-target.txt', 'dangling-link')\nfs.exists('dangling-link')     // false — stats through to the missing target\nfs.linkExists('dangling-link') // true — the link entry itself is there"
+          }
+        ]
+      },
+      "linkExistsAsync": {
+        "description": "Asynchronously checks whether anything exists at a path *without following symlinks* (lstat-based). The async counterpart of {@link linkExists}: returns `true` for dangling symlinks that {@link existsAsync} reports as missing.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The path to check"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.symlink('missing-target.txt', 'dangling-link')\nawait fs.linkExistsAsync('dangling-link') // true"
+          }
+        ]
       },
       "isSymlink": {
         "description": "Checks if a path is a symbolic link.",
@@ -39162,7 +39291,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "rmSync": {
-        "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.",
+        "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rm} and {@link removeSync}. Pass `{ force: false }` to get an ENOENT error for missing paths.",
         "parameters": {
           "path": {
             "type": "string",
@@ -39195,7 +39324,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "rm": {
-        "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.",
+        "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rmSync} and {@link remove} (the sync and async halves of the pair used to disagree here). Pass `{ force: false }` to get an ENOENT error for missing paths, or use {@link unlink} for node's strict semantics.",
         "parameters": {
           "path": {
             "type": "string",
@@ -39223,7 +39352,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/cache', { recursive: true, force: true })"
+            "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/never-existed')             // silent — force defaults true\nawait fs.rm('temp/cache', { recursive: true })"
           }
         ]
       },
@@ -39350,7 +39479,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "unlink": {
-        "description": "Asynchronously removes a file (node's `fs/promises` name).",
+        "description": "Asynchronously removes a file (node's `fs/promises` name). NOTE: unlike node's `unlink`, this follows {@link rm}'s idempotent default — a missing path is silently ignored (matching {@link unlinkSync}). Pass through `rm(path, { force: false })` for strict ENOENT behavior.",
         "parameters": {
           "path": {
             "type": "string",
@@ -39642,7 +39771,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "walk": {
-        "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns.",
+        "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns. Pattern semantics are gitignore-ish: a pattern with no `/` matches the basename at any depth — `include: ['*.ts']` finds nested `.ts` files, and `exclude: ['node_modules']` prunes every `node_modules` directory in the tree, not just the top-level one. A pattern containing `/` (e.g. `'src/**\\/*.ts'`) matches against the path relative to `basePath`.",
         "parameters": {
           "basePath": {
             "type": "string",
@@ -39662,11 +39791,11 @@ export const introspectionData: Record<string, any>[] = [
               },
               "exclude": {
                 "type": "string | string[]",
-                "description": "] - Glob patterns to exclude (e.g. 'node_modules', '*.log')"
+                "description": "] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '*.log')"
               },
               "include": {
                 "type": "string | string[]",
-                "description": "] - Glob patterns to include (only matching paths are returned)"
+                "description": "] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth"
               },
               "relative": {
                 "type": "boolean",
@@ -39682,12 +39811,12 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
+            "code": "const result = fs.walk('src', { files: true, directories: false })\n// '*.ts' matches nested files too; 'node_modules' prunes nested copies\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
           }
         ]
       },
       "walkAsync": {
-        "description": "Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns.",
+        "description": "Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns. Pattern semantics match {@link walk} (gitignore-ish): slash-free patterns match basenames at any depth, patterns with `/` match the relative path.",
         "parameters": {
           "baseDir": {
             "type": "string",
@@ -39707,11 +39836,11 @@ export const introspectionData: Record<string, any>[] = [
               },
               "exclude": {
                 "type": "string | string[]",
-                "description": "] - Glob patterns to exclude (e.g. 'node_modules', '.git')"
+                "description": "] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '.git')"
               },
               "include": {
                 "type": "string | string[]",
-                "description": "] - Glob patterns to include (only matching paths are returned)"
+                "description": "] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth"
               },
               "relative": {
                 "type": "boolean",
@@ -53986,7 +54115,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "loadModule": {
-        "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
+        "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide. Throws when the file does not exist — a typo'd path should fail here, not later as \"tool X is not a function\". Use {@link tryLoadModule} when a missing file is expected and should yield `null` instead.",
         "parameters": {
           "filePath": {
             "type": "string",
@@ -54005,6 +54134,29 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
+          }
+        ]
+      },
+      "tryLoadModule": {
+        "description": "Tolerant counterpart to {@link loadModule}: returns `null` when no file exists at `filePath` instead of throwing. Use it for optional modules (a project-level hooks file, an optional config module). Errors from a file that *does* exist but fails to transpile or execute still propagate — only the missing-file case is softened.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Absolute path to the module file to load"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Additional context variables to inject into the module's execution environment"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "Record<string, any> | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const vm = container.feature('vm')\n\nconst optional = vm.tryLoadModule(container.paths.resolve('luca.hooks.ts'))\nif (optional) {\n console.log('hooks loaded:', Object.keys(optional))\n} else {\n console.log('no hooks file — that is fine')\n}"
           }
         ]
       },

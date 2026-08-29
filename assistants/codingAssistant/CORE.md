@@ -1,9 +1,4 @@
 ---
-model: qwen36 
-clientOptions:
-  baseURL: http://chief:1234/v1
-  apiKey: sk-local
-contextWindow: 64000
 skills:
   - luca-framework
 ---

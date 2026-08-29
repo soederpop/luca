@@ -1246,6 +1246,32 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      */
     resumeThread(threadId: string): this;
     /**
+     * Abort the in-flight turn, if any. The pending \`ask()\` rejects with a
+     * \`ConversationAbortError\` whose \`.partial\` property carries the text
+     * streamed before the abort. Safe to call when nothing is running (no-op),
+     * and it never creates a conversation just to abort one.
+     *
+     * @returns this, for chaining
+     *
+     * @example
+     * assistant.abort()
+     */
+    abort(): this;
+    /**
+     * Switch to another saved thread mid-session. Unlike \`resumeThread()\`,
+     * which only records an override for the next \`start()\`, this loads the
+     * thread's history into the live conversation immediately — the message
+     * list, response chain, token usage, and cost are all replaced. A thread
+     * id with no saved record starts that thread fresh.
+     *
+     * @param threadId - The thread ID to switch to
+     * @returns this, for chaining
+     *
+     * @example
+     * await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')
+     */
+    switchThread(threadId: string): Promise<this>;
+    /**
      * List saved conversations for this assistant+project.
      *
      * @param opts - Optional limit
@@ -1474,6 +1500,7 @@ import { Feature } from '../feature.js';
 import { type Assistant } from './assistant.js';
 import type { ConversationMeta, ConversationRecord } from './conversation-history.js';
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js';
+import type { Helper } from '../../helper.js';
 declare module 'luca/feature' {
     interface AvailableFeatures {
         assistantsManager: typeof AssistantsManager;
@@ -1610,6 +1637,10 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
     static shortcut: "features.assistantsManager";
     static stability: "core";
     static category: "ai-assistants";
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+    }>;
     /** @returns Default state with discovery not yet run and zero counts. */
     get initialState(): AssistantsManagerState;
     /** Workspace-level hooks module loaded from \`assistants/hooks.ts\`, if present. */
@@ -1944,6 +1975,186 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * @returns {string} Markdown-formatted summary
      */
     toSummary(): string;
+    /** Definition files that the read/write/rollback tools may touch. */
+    private static readonly DEFINITION_FILES;
+    /** Resolve an assistant entry + validated definition-file path, throwing on unknown names or files. */
+    private _definitionPath;
+    /**
+     * Tool-facing wrapper around {@link toSummary}: markdown listing of every
+     * discovered assistant and its definition files. Runs discovery first if it
+     * hasn't happened yet, so the tool works on a cold container.
+     *
+     * @returns {Promise<string>} Markdown summary of discovered assistants
+     *
+     * @example
+     * \`\`\`typescript
+     * console.log(await manager.listAssistants({}))
+     * \`\`\`
+     */
+    listAssistants(_args?: Record<string, never>): Promise<string>;
+    /**
+     * Create a new assistant definition: \`assistants/<name>/\` with the given
+     * CORE.md and a minimal tools.ts, then re-run discovery so it is immediately
+     * available to \`create()\`. Refuses to touch an existing assistant.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - Folder name for the new assistant
+     * @param {string} args.corePrompt - Full CORE.md contents (system prompt, optional frontmatter)
+     * @returns {Promise<{ created: string; folder: string }>} The created assistant's name and folder
+     * @throws {Error} If an assistant with that name already exists
+     *
+     * @example
+     * \`\`\`typescript
+     * await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })
+     * \`\`\`
+     */
+    createAssistant(args: {
+        name: string;
+        corePrompt: string;
+    }): Promise<{
+        created: string;
+        folder: string;
+    }>;
+    /**
+     * Read one definition file of a discovered assistant. Only the known
+     * definition files (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml) are
+     * readable — anything else throws, so a tool call cannot traverse paths.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant name
+     * @param {string} args.file - The definition file to read
+     * @returns {string} The file contents
+     * @throws {Error} On unknown assistant, disallowed file name, or missing file
+     *
+     * @example
+     * \`\`\`typescript
+     * const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })
+     * \`\`\`
+     */
+    readDefinitionFile(args: {
+        name: string;
+        file: string;
+    }): string;
+    /**
+     * Overwrite one definition file with complete new contents, guarded two ways:
+     * TypeScript files are first written to a staged copy and loaded through the
+     * vm feature — a file that fails to load is rejected and the original stays
+     * untouched (a broken tools.ts would otherwise silently cripple the
+     * assistant). The previous version is backed up to \`.history/\` in the
+     * assistant's folder (the rollback path — no git involved), and any live
+     * instance is reloaded so the edit takes effect immediately.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant name
+     * @param {string} args.file - The definition file to overwrite
+     * @param {string} args.content - The complete new file contents
+     * @returns {Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }>} What happened
+     * @throws {Error} On unknown assistant, disallowed file, or a .ts file that fails to load
+     *
+     * @example
+     * \`\`\`typescript
+     * await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })
+     * \`\`\`
+     */
+    writeDefinitionFile(args: {
+        name: string;
+        file: string;
+        content: string;
+    }): Promise<{
+        wrote: string;
+        backedUp: string | null;
+        reloaded: boolean;
+    }>;
+    /**
+     * List the \`.history/\` backups for an assistant, newest first. Every
+     * successful {@link writeDefinitionFile} over an existing file creates one.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant name
+     * @param {string} [args.file] - Filter to backups of one file
+     * @returns {string[]} Backup file names (e.g. "2026-08-28T12-00-00-000Z-tools.ts"), newest first
+     *
+     * @example
+     * \`\`\`typescript
+     * manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })
+     * \`\`\`
+     */
+    listDefinitionHistory(args: {
+        name: string;
+        file?: string;
+    }): string[];
+    /**
+     * Restore the most recent \`.history/\` backup of a definition file — the undo
+     * for {@link writeDefinitionFile}. Reloads any live instance afterward. The
+     * backup itself is kept, so repeated rollbacks are safe.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant name
+     * @param {string} args.file - The definition file to restore
+     * @returns {Promise<{ restoredFrom: string; reloaded: boolean }>} Which backup was restored
+     * @throws {Error} If no backup exists for that file
+     *
+     * @example
+     * \`\`\`typescript
+     * await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })
+     * \`\`\`
+     */
+    rollbackDefinitionFile(args: {
+        name: string;
+        file: string;
+    }): Promise<{
+        restoredFrom: string;
+        reloaded: boolean;
+    }>;
+    /**
+     * Spin up a detached instance of an assistant and send it one message —
+     * the verification half of the edit → test loop. The instance is created
+     * uncached so it does not disturb (or get confused with) a live instance of
+     * the same assistant. Makes real model calls.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant name (must be a discovered entry)
+     * @param {string} args.message - The message to send
+     * @returns {Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }>} The reply, tool calls made, and tool names available
+     *
+     * @example
+     * \`\`\`typescript
+     * const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })
+     * \`\`\`
+     */
+    testAssistant(args: {
+        name: string;
+        message: string;
+    }): Promise<{
+        reply: string;
+        toolCalls: Array<{
+            tool: string;
+            args: Record<string, any>;
+        }>;
+        availableTools: string[];
+    }>;
+    /**
+     * Args-object wrapper around {@link reload} for tool consumption.
+     *
+     * @param {object} args - Arguments
+     * @param {string} args.name - The assistant to reload (must have an active instance)
+     * @returns {{ reloaded: string[] }} Names of reloaded assistants
+     *
+     * @example
+     * \`\`\`typescript
+     * manager.reloadAssistant({ name: 'researcher' })
+     * \`\`\`
+     */
+    reloadAssistant(args: {
+        name: string;
+    }): {
+        reloaded: string[];
+    };
+    /**
+     * When an assistant consumes this manager via \`use()\`, inject the operating
+     * doctrine for editing assistants safely.
+     */
+    setupToolsConsumer(consumer: Helper): void;
 }
 export default AssistantsManager;
 //# sourceMappingURL=assistants-manager.d.ts.map`,
@@ -9378,8 +9589,10 @@ export declare class GraphClient<T extends ClientState = ClientState, K extends 
     /**
      * Execute a GraphQL operation, unwrap the response, and handle errors.
      * Posts to the configured endpoint with the standard GraphQL envelope.
-     * If the response contains GraphQL-level errors, emits both 'graphqlError'
-     * and 'failure' events before returning the data.
+     * HTTP-level failures (connection refused, 4xx/5xx) THROW an Error carrying
+     * \`status\` and \`data\` — a transport failure has no meaningful \`data\` to
+     * unwrap. If a successful response contains GraphQL-level errors, emits
+     * both 'graphqlError' and 'failure' events before returning the data.
      */
     private execute;
 }
@@ -9841,7 +10054,12 @@ declare module '../client' {
  * 404 — inspect the returned value's shape instead. HTTP errors come back as
  * \`name: 'AxiosError'\` with a numeric \`status\`; connection errors carry a \`code\`
  * whose exact string depends on the runtime (\`'ConnectionRefused'\` under Bun,
- * \`'ECONNREFUSED'\` under Node).
+ * \`'ECONNREFUSED'\` under Node). HTTP error results also carry \`data\` (the parsed
+ * response body) and \`headers\` from the failed response.
+ *
+ * When a failure should be an exception instead, use the throwing variants —
+ * \`getOrThrow\` / \`postOrThrow\` / \`putOrThrow\` / \`patchOrThrow\` / \`deleteOrThrow\`
+ * — which reject with a real Error carrying \`status\`, \`code\`, and \`data\`.
  *
  * Configure once via options: \`baseURL\` prefixes every request path, and
  * \`json: true\` sets \`Content-Type: application/json\` + \`Accept: application/json\`
@@ -9981,8 +10199,139 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * \`\`\`
      */
     get(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
-    /** Handle an axios error by emitting 'failure' and returning the error as JSON. */
+    /**
+     * Handle an axios error by emitting 'failure' and returning the error as a
+     * plain JSON object. Unlike axios' bare \`error.toJSON()\` (which drops the
+     * response entirely), the returned object also carries \`data\` (the parsed
+     * response body — validation details, API error codes, rate-limit messages)
+     * and \`headers\` from the failed response when one exists.
+     * @param error - The axios error caught from a failed request
+     * @returns Plain object: \`error.toJSON()\` fields plus \`data\` and \`headers\` from the response (both \`undefined\` for connection-level failures with no response)
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * const result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }
+     * if (result?.name === 'AxiosError') {
+     *   console.error(result.status, result.data)   // 422 { error: 'validation_failed' }
+     * }
+     * \`\`\`
+     */
     handleError(error: AxiosError): Promise<object>;
+    /**
+     * Shared implementation for the OrThrow request variants. Sends the request
+     * and returns the parsed body on success. On any failure — HTTP error status
+     * or connection-level failure — emits 'failure' and **throws** a real Error
+     * carrying \`status\` (numeric HTTP status, when there was a response),
+     * \`code\` (e.g. 'ECONNREFUSED'), and \`data\` (the parsed response body), with
+     * a body summary in the message.
+     * @param config - Full axios request config (method, url, data/params, headers, ...)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` properties on any request failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * try {
+     *   await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })
+     * } catch (err) {
+     *   console.error(err.status, err.data)   // 422 { error: 'validation_failed' }
+     * }
+     * \`\`\`
+     */
+    requestOrThrow(config: AxiosRequestConfig): Promise<any>;
+    /**
+     * Send a GET request that **throws on failure** instead of returning the
+     * error. Use this when a failed request has no meaningful "inspect the
+     * returned error" semantics (auth checks, listings, lookups). The thrown
+     * Error carries \`status\`, \`code\`, and \`data\` (parsed response body).
+     * @param url - Request path relative to baseURL
+     * @param params - Query parameters (serialized into the query string)
+     * @param options - Additional axios request config (headers, timeout, etc.)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` on HTTP or connection failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * try {
+     *   const me = await api.getOrThrow('/me')
+     * } catch (err) {
+     *   console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }
+     * }
+     * \`\`\`
+     */
+    getOrThrow(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
+    /**
+     * Send a POST request that **throws on failure** instead of returning the
+     * error. The thrown Error carries \`status\`, \`code\`, and \`data\` (parsed
+     * response body — validation details, API error codes).
+     * @param url - Request path relative to baseURL
+     * @param data - Request body (JSON-encoded when the \`json\` option is set)
+     * @param options - Additional axios request config (headers, timeout, etc.)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` on HTTP or connection failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * try {
+     *   const created = await api.postOrThrow('/users', { name: 'Alice' })
+     * } catch (err) {
+     *   console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }
+     * }
+     * \`\`\`
+     */
+    postOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    /**
+     * Send a PUT request that **throws on failure** instead of returning the
+     * error. The thrown Error carries \`status\`, \`code\`, and \`data\`.
+     * @param url - Request path relative to baseURL
+     * @param data - Request body (the full replacement representation)
+     * @param options - Additional axios request config (headers, timeout, etc.)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` on HTTP or connection failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
+     * \`\`\`
+     */
+    putOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    /**
+     * Send a PATCH request that **throws on failure** instead of returning the
+     * error. The thrown Error carries \`status\`, \`code\`, and \`data\`.
+     * @param url - Request path relative to baseURL
+     * @param data - Request body (the partial update)
+     * @param options - Additional axios request config (headers, timeout, etc.)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` on HTTP or connection failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
+     * \`\`\`
+     */
+    patchOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    /**
+     * Send a DELETE request that **throws on failure** instead of returning the
+     * error. Like \`delete()\`, the second argument is query params, not a body.
+     * The thrown Error carries \`status\`, \`code\`, and \`data\`.
+     * @param url - Request path relative to baseURL
+     * @param params - Query parameters (serialized into the query string)
+     * @param options - Additional axios request config (headers, timeout, etc.)
+     * @returns Parsed response body
+     * @throws Error with \`status\`, \`code\`, and \`data\` on HTTP or connection failure
+     *
+     * @example
+     * \`\`\`typescript
+     * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+     * await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
+     * \`\`\`
+     */
+    deleteOrThrow(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
 }
 export default RestClient;
 //# sourceMappingURL=rest.d.ts.map`,
@@ -11361,6 +11710,41 @@ export declare const argsSchema: z.ZodObject<{
     lint: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 //# sourceMappingURL=introspect.d.ts.map`,
+  "commands/lib/chat-tui.d.ts": `/**
+ * The interactive chat TUI behind \`luca chat\`.
+ *
+ * One persistent ink app owns the whole session: completed turns flow into a
+ * <Static> scrollback, the live region renders the streaming turn (text +
+ * tool calls), and a custom input line provides persisted history, editing
+ * keys, tab completion, and abort. Slash commands are registry-based so the
+ * surface is discoverable via /help.
+ */
+export interface ChatTuiOptions {
+    container: any;
+    manager: any;
+    historyMode: string;
+    createOptions: Record<string, any>;
+    /** Assistant to talk to. Undefined opens the lobby (@-mention routing). */
+    initialAssistant?: string;
+    /** All discovered assistant entries ({ name, description }). */
+    entries: Array<{
+        name: string;
+        description?: string;
+    }>;
+    /** Thread to resume on the initial assistant. */
+    resumeThreadId?: string;
+    /** Applied to every assistant this session creates (e.g. --use wiring). */
+    setupAssistant?: (assistant: any) => void;
+}
+export interface ChatTuiResult {
+    /** name → currentThreadId for every assistant that saved history. */
+    threads: Array<{
+        name: string;
+        threadId: string;
+    }>;
+}
+export declare function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult>;
+//# sourceMappingURL=chat-tui.d.ts.map`,
   "commands/lib/markdown-eval.d.ts": `/**
  * Shared eval-mode policy for markdown documents with fenced code blocks.
  *
@@ -11910,6 +12294,43 @@ export declare class ContainerDescriber {
      * High-level: describe one or more targets, returning combined json and text.
      */
     describe(targets: string[], options?: DescribeOptions): Promise<DescribeResult>;
+    /**
+     * Search helpers, examples, and tutorials by meaning or keywords — the same
+     * two-tier engine behind \`luca describe --query\` (BM25 keyword search always;
+     * hybrid embedding ranking when the index at ~/.luca/describe-index has been
+     * built), exposed in-process so live code and assistant tools can search the
+     * docs without spawning a CLI. Results lead with helpers over the larger
+     * example/tutorial documents, and each carries a \`describe\` ref you can feed
+     * straight to {@link describeHelper}.
+     *
+     * @param query - Natural-language or keyword query (e.g. "how do I retry with backoff?")
+     * @param opts - Options
+     * @param opts.limit - Maximum results (default 8)
+     * @returns Ranked results with the search mode used and an optional index hint
+     *
+     * @example
+     * \`\`\`typescript
+     * const { mode, results } = await container.describer.query('watch files for changes')
+     * for (const r of results) console.log(r.describe, '—', r.snippet)
+     * // then: (await container.describer.describeHelper(results[0].describe)).text
+     * \`\`\`
+     */
+    query(query: string, opts?: {
+        limit?: number;
+    }): Promise<{
+        mode: 'hybrid' | 'keyword';
+        results: Array<{
+            id: string;
+            kind: string;
+            name: string;
+            category?: string;
+            stability?: string;
+            score: number;
+            snippet: string;
+            describe: string;
+        }>;
+        hint?: string;
+    }>;
     /**
      * Describe the container itself.
      */
@@ -14506,6 +14927,7 @@ export declare const ContentDbStateSchema: contentbaseExports.z.ZodObject<{
     loaded: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
     tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
     modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
+    modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
 }, contentbaseExports.z.core.$loose>;
 export declare const ContentDbOptionsSchema: contentbaseExports.z.ZodObject<{
     name: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
@@ -14545,6 +14967,7 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
         loaded: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
         tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
         modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
+        modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
     }, contentbaseExports.z.core.$loose>;
     static optionsSchema: contentbaseExports.z.ZodObject<{
         name: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
@@ -14605,8 +15028,16 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     /**
      * Query documents belonging to a specific model definition.
      *
-     * @param model - The model definition to query against
+     * The query's terminal methods (\`fetchAll()\`, \`first()\`, \`count()\`, ...)
+     * auto-load the collection, so you don't need to call \`load()\` first when
+     * you already hold a valid model definition. The usual pre-load failure is
+     * the *argument*: \`contentDb.models.MyModel\` is \`undefined\` until models
+     * are discovered at load time — this method throws a descriptive error in
+     * that case instead of the opaque TypeError it used to surface downstream.
+     *
+     * @param model - The model definition to query against (e.g. \`contentDb.models.Article\`)
      * @returns A query builder scoped to the given model's documents
+     * @throws {Error} When \`model\` is not a model definition — typically because the collection isn't loaded yet and \`contentDb.models.X\` was undefined
      * @example
      * \`\`\`typescript
      * const contentDb = container.feature('contentDb', { rootPath: './docs' })
@@ -14677,15 +15108,46 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     /**
      * Load the collection, discovering models from models.ts and parsing all documents.
      *
+     * When a models file (models.ts/js/mjs) exists in the collection root but
+     * fails to evaluate — a broken import, a syntax error — this throws a
+     * descriptive error that includes the underlying failure, instead of
+     * silently matching every document against the fallback \`Base\` model.
+     * Pass \`{ ignoreModelErrors: true }\` to load anyway; the failure is still
+     * recorded in the \`modelLoadError\` state field either way (also exposed
+     * via the {@link modelLoadError} getter).
+     *
+     * @param options - Load options
+     * @param options.ignoreModelErrors - When true, a broken models file is recorded in state but does not abort the load
      * @returns This ContentDb instance for chaining
+     * @throws {Error} When the collection's models file exists but fails to evaluate (unless \`ignoreModelErrors\` is set)
      * @example
      * \`\`\`typescript
      * const contentDb = container.feature('contentDb', { rootPath: './docs' })
      * await contentDb.load()
      * console.log(contentDb.isLoaded) // true
+     * console.log(contentDb.modelLoadError) // null when models.ts loaded cleanly
+     *
+     * // Tolerant load: a broken models.ts is recorded instead of thrown
+     * // await contentDb.load({ ignoreModelErrors: true })
      * \`\`\`
      */
-    load(): Promise<ContentDb>;
+    load(options?: {
+        ignoreModelErrors?: boolean;
+    }): Promise<ContentDb>;
+    /**
+     * Error message from the last load()'s models-file evaluation, or null when
+     * the models file loaded cleanly (or none exists).
+     */
+    get modelLoadError(): string | null;
+    /** Locate the collection's models file (models.ts/js/mjs), if any. */
+    private _modelsFilePath;
+    /**
+     * Contentbase's own model discovery swallows evaluation errors, so a broken
+     * models.ts silently degrades to Base-only. When that symptom appears (a
+     * models file exists but only Base is registered), re-evaluate the file
+     * ourselves to surface the real error.
+     */
+    private _checkModelLoad;
     /** Force-reload the collection from disk, picking up new/changed/deleted documents. */
     reload(): Promise<ContentDb>;
     /**
@@ -14938,7 +15400,10 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
      * Returns an object with query builders keyed by model name (singular and plural, lowercased).
      *
      * Provides a convenient shorthand for querying without looking up model definitions manually.
+     * Throws when the collection has not been loaded yet — models are discovered
+     * at load time, so accessing \`queries\` earlier would return a silently empty map.
      *
+     * @throws {Error} When the collection has not been loaded (call \`await load()\` first)
      * @example
      * \`\`\`typescript
      * // Given a collection whose models.ts defines an Article model:
@@ -15277,6 +15742,58 @@ export declare class DiskCache extends Feature<FeatureState, DiskCacheOptions> {
      * \`\`\`
      */
     get(key: string, json?: boolean): Promise<any>;
+    /**
+     * Retrieve a JSON value from the cache and return it parsed.
+     *
+     * The symmetric partner of \`setJson()\` — you get back the same value you
+     * stored, no \`json\` flag to remember. Prefer this pair over \`set()\`/\`get()\`
+     * whenever the value is structured data.
+     * @param key - The cache key to retrieve
+     * @returns Promise that resolves to the parsed value (object, array, string, number, boolean, or null)
+     * @throws If the key does not exist (or has expired) — same cache-miss semantics as \`get()\`
+     * @throws Error if the cached content is not valid JSON (e.g. a plain string stored via \`set()\`)
+     * @example
+     * \`\`\`typescript
+     * await diskCache.setJson('config', { theme: 'dark', retries: 3 })
+     * const config = await diskCache.getJson('config')
+     * console.log(config.retries) // 3
+     * \`\`\`
+     */
+    getJson(key: string): Promise<any>;
+    /**
+     * Store a JSON-serializable value in the cache.
+     *
+     * The symmetric partner of \`getJson()\` — the value is serialized for you,
+     * so callers never juggle \`JSON.stringify\` or the \`json\` flag on \`get()\`.
+     * @param key - The cache key to store under
+     * @param value - Any JSON-serializable value (object, array, string, number, boolean, or null)
+     * @param meta - Optional metadata to associate with the cached item. \`meta.ttl\`
+     *   (seconds) sets a time-to-live for this entry, same as \`set()\`.
+     * @returns Promise that resolves when the value is stored
+     * @example
+     * \`\`\`typescript
+     * await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })
+     * const quote = await diskCache.getJson('quote')
+     * console.log(quote.price) // 42
+     * \`\`\`
+     */
+    setJson(key: string, value: any, meta?: any): Promise<any>;
+    /**
+     * Ensure a key exists in the cache, storing the JSON-serialized value if it doesn't.
+     *
+     * Like \`ensure()\` but takes any JSON-serializable value directly — no manual
+     * \`JSON.stringify\`. Read the value back with \`getJson()\`.
+     * @param key - The cache key to check/set
+     * @param value - The JSON-serializable value to store if the key doesn't exist
+     * @returns Promise that resolves to the key
+     * @example
+     * \`\`\`typescript
+     * await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })
+     * const config = await diskCache.getJson('config')
+     * console.log(config.theme) // 'dark'
+     * \`\`\`
+     */
+    ensureJson(key: string, value: any): Promise<string>;
     /**
      * Store a value in the cache
      * @param key - The cache key to store under
@@ -16475,10 +16992,12 @@ export declare class Downloader extends Feature {
      * path is resolved relative to the container's working directory
      * (\`container.paths.resolve(targetPath)\`).
      *
-     * Note: HTTP error statuses (404, 500, ...) do NOT throw — the response body is
-     * written as-is, whatever it contains. Only network-level failures (DNS, refused
-     * connection, invalid URL) reject. Check the URL is correct before trusting the
-     * downloaded file.
+     * NOTE: HTTP error statuses (404, 500, ...) do NOT throw — the response body is
+     * written as-is, whatever it contains (a 404 HTML error page gets saved at your
+     * target path as if it were the file). Only network-level failures (DNS, refused
+     * connection, invalid URL) reject. Unless you specifically want that
+     * write-whatever-came-back behavior, use \`downloadFile()\` (throws on 4xx/5xx and
+     * empty bodies) or \`downloadJson()\` (for JSON API responses, no file written).
      *
      * @param {string} url - The URL to download the file from. Must be a valid HTTP/HTTPS URL.
      * @param {string} targetPath - The local file path where the downloaded file should be saved.
@@ -16508,6 +17027,75 @@ export declare class Downloader extends Feature {
      * @since 1.0.0
      */
     download(url: string, targetPath: string): Promise<string>;
+    /**
+     * Fetches a URL expected to return JSON and returns the parsed value.
+     *
+     * The safe default for JSON APIs: unlike \`download()\`, a non-2xx response
+     * THROWS — the error message includes the HTTP status and a truncated copy
+     * of the response body, so the failure surfaces at the call site instead of
+     * as a parse error far from the cause. No file is written.
+     *
+     * @param {string} url - The URL to fetch. Must be a valid HTTP/HTTPS URL returning JSON.
+     * @param {RequestInit} [opts] - Optional fetch options (headers, method, body, ...) passed straight to \`fetch()\`.
+     *
+     * @returns {Promise<T>} A promise that resolves to the parsed JSON response body.
+     *
+     * @throws {Error} When the response status is not 2xx — the message includes the status code and the (truncated) response body.
+     * @throws {Error} When the response body is not valid JSON.
+     * @throws {Error} On network-level failures (DNS, refused connection, invalid URL).
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) fetches from the network
+     * const downloader = container.feature('downloader')
+     *
+     * const release = await downloader.downloadJson<{ tag_name: string }>(
+     *   'https://api.github.com/repos/oven-sh/bun/releases/latest',
+     *   { headers: { 'User-Agent': 'luca' } }
+     * )
+     * console.log(release.tag_name)
+     *
+     * // A 404 throws with the status and body in the message:
+     * // Error: downloadJson failed: HTTP 404 for https://... — body: {"message":"Not Found"...
+     * \`\`\`
+     */
+    downloadJson<T = any>(url: string, opts?: RequestInit): Promise<T>;
+    /**
+     * Downloads a file from a URL and saves it to the specified local path,
+     * throwing on HTTP errors instead of writing the error page to disk.
+     *
+     * The safe default for file downloads: like \`download()\`, but a 4xx/5xx
+     * response THROWS with the status code in the message (so a 404 HTML page
+     * never gets saved as your file), and an empty response body also throws.
+     * The target path is resolved relative to the container's working directory.
+     *
+     * @param {string} url - The URL to download the file from. Must be a valid HTTP/HTTPS URL.
+     * @param {string} targetPath - The local file path where the downloaded file should be saved,
+     *   resolved relative to the container's base path.
+     * @param {RequestInit} [opts] - Optional fetch options (headers, method, ...) passed straight to \`fetch()\`.
+     *
+     * @returns {Promise<string>} A promise that resolves to the absolute path of the saved file.
+     *
+     * @throws {Error} When the response status is 4xx/5xx — the message includes the status code and the (truncated) response body.
+     * @throws {Error} When the response body is empty (zero bytes) — nothing is written.
+     * @throws {Error} On network-level failures, or when the target directory doesn't exist or is not writable.
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) fetches from the network
+     * const downloader = container.feature('downloader')
+     *
+     * const localPath = await downloader.downloadFile(
+     *   'https://example.com/data.json',
+     *   'downloads/data.json'
+     * )
+     * console.log(\`File saved to: \${localPath}\`)
+     *
+     * // A misconfigured URL fails loudly instead of saving an error page:
+     * // Error: downloadFile failed: HTTP 404 for https://... — body: <html>...
+     * \`\`\`
+     */
+    downloadFile(url: string, targetPath: string, opts?: RequestInit): Promise<string>;
 }
 export default Downloader;
 //# sourceMappingURL=downloader.d.ts.map`,
@@ -17106,6 +17694,11 @@ export declare class FS extends Feature {
     /**
      * Synchronously checks if a file or directory exists.
      *
+     * NOTE: this stats *through* symlinks, so a dangling symlink (one whose
+     * target is missing) reports \`false\` — and then \`symlink()\` at the same
+     * path throws EEXIST. Symlink-aware callers should use {@link linkExists},
+     * which is lstat-based and returns \`true\` for dangling links.
+     *
      * @param {string} path - The path to check for existence
      * @returns {boolean} True if the path exists, false otherwise
      *
@@ -17155,6 +17748,40 @@ export declare class FS extends Feature {
      * @alias exists
      */
     pathExistsSync(path: string): boolean;
+    /**
+     * Synchronously checks whether anything exists at a path *without following
+     * symlinks* (lstat-based, fs-extra style). Unlike {@link exists} — which
+     * stats through links and reports \`false\` for a dangling symlink — this
+     * returns \`true\` for a symlink whose target is missing, so it is the right
+     * check before creating or replacing a link.
+     *
+     * @param {string} path - The path to check
+     * @returns {boolean} True if a file, directory, or symlink (dangling or not) exists at the path
+     *
+     * @example
+     * \`\`\`typescript
+     * fs.symlink('missing-target.txt', 'dangling-link')
+     * fs.exists('dangling-link')     // false — stats through to the missing target
+     * fs.linkExists('dangling-link') // true — the link entry itself is there
+     * \`\`\`
+     */
+    linkExists(path: string): boolean;
+    /**
+     * Asynchronously checks whether anything exists at a path *without following
+     * symlinks* (lstat-based). The async counterpart of {@link linkExists}:
+     * returns \`true\` for dangling symlinks that {@link existsAsync} reports as
+     * missing.
+     *
+     * @param {string} path - The path to check
+     * @returns {Promise<boolean>} Resolves true if a file, directory, or symlink (dangling or not) exists at the path
+     *
+     * @example
+     * \`\`\`typescript
+     * fs.symlink('missing-target.txt', 'dangling-link')
+     * await fs.linkExistsAsync('dangling-link') // true
+     * \`\`\`
+     */
+    linkExistsAsync(path: string): Promise<boolean>;
     /**
      * Checks if a path is a symbolic link.
      *
@@ -17294,6 +17921,10 @@ export declare class FS extends Feature {
      * Synchronously removes a file. Accepts node-style \`{ recursive, force }\` options,
      * so \`fs.rmSync('dir', { recursive: true })\` works on directories too.
      *
+     * \`force\` defaults to \`true\` — a missing path is silently ignored, matching
+     * {@link rm} and {@link removeSync}. Pass \`{ force: false }\` to get an
+     * ENOENT error for missing paths.
+     *
      * @param {string} path - The path of the file to remove
      * @param {object} [options={}] - Node-compatible options
      * @param {boolean} [options.recursive=false] - Remove directories and their contents
@@ -17314,18 +17945,24 @@ export declare class FS extends Feature {
      * Asynchronously removes a file. Accepts node-style \`{ recursive, force }\` options,
      * so \`await fs.rm('dir', { recursive: true })\` works on directories too.
      *
+     * \`force\` defaults to \`true\` — a missing path is silently ignored, matching
+     * {@link rmSync} and {@link remove} (the sync and async halves of the pair
+     * used to disagree here). Pass \`{ force: false }\` to get an ENOENT error for
+     * missing paths, or use {@link unlink} for node's strict semantics.
+     *
      * @param {string} path - The path of the file to remove
      * @param {object} [options={}] - Node-compatible options
      * @param {boolean} [options.recursive=false] - Remove directories and their contents
-     * @param {boolean} [options.force=false] - Don't throw if the path doesn't exist
+     * @param {boolean} [options.force=true] - Don't throw if the path doesn't exist
      * @returns {Promise<void>} A promise that resolves when the file is removed
-     * @throws {Error} Throws an error if the path cannot be removed or doesn't exist
+     * @throws {Error} Throws an error if the path cannot be removed, or (with \`force: false\`) doesn't exist
      *
      * @example
      * \`\`\`typescript
      * fs.ensureFile('temp/cache.tmp', '')
      * await fs.rm('temp/cache.tmp')
-     * await fs.rm('temp/cache', { recursive: true, force: true })
+     * await fs.rm('temp/never-existed')             // silent — force defaults true
+     * await fs.rm('temp/cache', { recursive: true })
      * \`\`\`
      */
     rm(path: string, options?: {
@@ -17419,7 +18056,10 @@ export declare class FS extends Feature {
      */
     deleteFileAsync(path: string): Promise<void>;
     /**
-     * Asynchronously removes a file (node's \`fs/promises\` name).
+     * Asynchronously removes a file (node's \`fs/promises\` name). NOTE: unlike
+     * node's \`unlink\`, this follows {@link rm}'s idempotent default — a missing
+     * path is silently ignored (matching {@link unlinkSync}). Pass through
+     * \`rm(path, { force: false })\` for strict ENOENT behavior.
      * @alias rm
      */
     unlink(path: string): Promise<void>;
@@ -17556,18 +18196,25 @@ export declare class FS extends Feature {
      * By default paths are absolute. Pass \`relative: true\` to get paths relative to \`basePath\`.
      * Supports filtering with exclude and include glob patterns.
      *
+     * Pattern semantics are gitignore-ish: a pattern with no \`/\` matches the
+     * basename at any depth — \`include: ['*.ts']\` finds nested \`.ts\` files, and
+     * \`exclude: ['node_modules']\` prunes every \`node_modules\` directory in the
+     * tree, not just the top-level one. A pattern containing \`/\` (e.g.
+     * \`'src/**\\/*.ts'\`) matches against the path relative to \`basePath\`.
+     *
      * @param {string} basePath - The base directory path to start walking from
      * @param {WalkOptions} options - Options to configure the walk behavior
      * @param {boolean} [options.directories=true] - Whether to include directories in results
      * @param {boolean} [options.files=true] - Whether to include files in results
-     * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '*.log')
-     * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+     * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '*.log')
+     * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth
      * @param {boolean} [options.relative=false] - When true, returned paths are relative to basePath
      * @returns {{ directories: string[], files: string[] }} Object containing arrays of directory and file paths
      *
      * @example
      * \`\`\`typescript
      * const result = fs.walk('src', { files: true, directories: false })
+     * // '*.ts' matches nested files too; 'node_modules' prunes nested copies
      * const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
      *
      * fs.ensureFile('inbox/contact-1.json', '{}')
@@ -17583,12 +18230,15 @@ export declare class FS extends Feature {
      * By default paths are absolute. Pass \`relative: true\` to get paths relative to \`baseDir\`.
      * Supports filtering with exclude and include glob patterns.
      *
+     * Pattern semantics match {@link walk} (gitignore-ish): slash-free patterns
+     * match basenames at any depth, patterns with \`/\` match the relative path.
+     *
      * @param {string} baseDir - The base directory path to start walking from
      * @param {WalkOptions} options - Options to configure the walk behavior
      * @param {boolean} [options.directories=true] - Whether to include directories in results
      * @param {boolean} [options.files=true] - Whether to include files in results
-     * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '.git')
-     * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+     * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '.git')
+     * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth
      * @param {boolean} [options.relative=false] - When true, returned paths are relative to baseDir
      * @returns {Promise<{ directories: string[], files: string[] }>} Promise resolving to object with directory and file paths
      * @throws {Error} Throws an error if the directory cannot be accessed
@@ -19398,6 +20048,10 @@ export type GrepMatch = {
     line: number;
     column?: number;
     content: string;
+    /** Context lines preceding the match (present when \`before\` was requested) */
+    before?: string[];
+    /** Context lines following the match (present when \`after\` was requested) */
+    after?: string[];
 };
 export type GrepOptions = {
     /** Pattern to search for (string or regex) */
@@ -19416,7 +20070,7 @@ export type GrepOptions = {
     recursive?: boolean;
     /** Include hidden files */
     hidden?: boolean;
-    /** Max number of results to return */
+    /** Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance) */
     maxResults?: number;
     /** Number of context lines before match */
     before?: number;
@@ -19483,8 +20137,17 @@ export declare class Grep extends Feature {
     /**
      * Search for a pattern in files and return structured results.
      *
+     * Zero matches returns \`[]\`. Any other failure — invalid regex, nonexistent
+     * search path, unreadable files — THROWS with the underlying rg/grep stderr
+     * in the message, so a broken pattern is never mistaken for "no matches".
+     *
+     * \`maxResults\` caps the TOTAL number of returned matches (sliced after
+     * parsing). When \`before\`/\`after\` context is requested, each match gains
+     * \`before\`/\`after\` arrays holding the surrounding lines' text.
+     *
      * @param {GrepOptions} options - Search options
      * @returns {Promise<GrepMatch[]>} Array of match objects with relative file paths
+     * @throws {Error} When rg/grep fails for any reason other than "no matches" (exit code 1) — the message includes the tool's stderr
      *
      * @example
      * \`\`\`typescript
@@ -20363,8 +21026,8 @@ import { Server, Socket } from "net";
 export declare const IpcStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     mode: z.ZodOptional<z.ZodEnum<{
-        client: "client";
         server: "server";
+        client: "client";
     }>>;
     socketPath: z.ZodOptional<z.ZodString>;
 }, z.core.$loose>;
@@ -20489,8 +21152,8 @@ export declare class IpcSocket<T extends IpcState = IpcState> extends Feature<T>
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         mode: z.ZodOptional<z.ZodEnum<{
-            client: "client";
             server: "server";
+            client: "client";
         }>>;
         socketPath: z.ZodOptional<z.ZodString>;
     }, z.core.$loose>;
@@ -20952,7 +21615,7 @@ export declare class JsonTree<T extends JsonTreeState = JsonTreeState> extends F
      * @param key - The key to store the tree under in state (defaults to first segment of basePath)
      * @returns Promise resolving to the complete tree object
      *
-     * @throws {Error} When FileManager fails to start or files cannot be read/parsed
+     * @throws {Error} When \`basePath\` does not exist (a typo'd path is not the same as an empty directory — use {@link loadTreeIfExists} for the tolerant version), or when FileManager fails to start or files cannot be read/parsed
      *
      * @example
      * \`\`\`typescript
@@ -20974,6 +21637,25 @@ export declare class JsonTree<T extends JsonTreeState = JsonTreeState> extends F
      * \`\`\`
      */
     loadTree(basePath: string, key?: string): Promise<Pick<T, Exclude<keyof T, "enabled">>>;
+    /**
+     * Like {@link loadTree}, but tolerant of a missing base path: when
+     * \`basePath\` does not exist, an empty tree is stored under \`key\` and no
+     * error is thrown. Use this for optional config directories; use
+     * \`loadTree()\` when the directory is expected to exist, so a typo'd path
+     * fails loudly instead of returning a silent empty tree.
+     *
+     * @param basePath - The root directory path to scan for JSON files
+     * @param key - The key to store the tree under in state (defaults to first segment of basePath)
+     * @returns Promise resolving to the complete tree object (with \`tree[key]\` empty when the path is missing)
+     *
+     * @example
+     * \`\`\`typescript
+     * // A missing directory yields an empty tree instead of throwing
+     * await jsonTree.loadTreeIfExists('optional-overrides', 'overrides');
+     * console.log(jsonTree.tree.overrides); // {}
+     * \`\`\`
+     */
+    loadTreeIfExists(basePath: string, key?: string): Promise<Pick<T, Exclude<keyof T, "enabled">>>;
     /**
      * Gets the current tree data, excluding the 'enabled' state property.
      *
@@ -23092,11 +23774,87 @@ export declare class ChildProcess extends Feature {
      * const listing = proc.exec('ls -1', { cwd: 'src' })
      *
      * // NOTE: exec throws on a non-zero exit code — commands that can fail
-     * // (e.g. git outside a repository) belong in a try/catch or execAndCapture
+     * // (e.g. git outside a repository) belong in a try/catch, or better, use
+     * // tryExec() which runs through a real shell and never throws (the exit
+     * // code and stderr come back as data).
      * \`\`\`
      */
     exec(command: string, options?: any): string;
+    /**
+     * Synchronous alias of \`exec\` — the two are identical.
+     *
+     * Note that \`exec\` itself is ALSO synchronous despite its node-flavored name;
+     * both run the command through a real shell, block until it completes, return
+     * trimmed stdout, and throw on a non-zero exit code. This alias exists so the
+     * sync behavior is discoverable by name. For an async, non-throwing variant,
+     * use \`tryExec\`.
+     *
+     * @param {string} command - The command to execute through the shell
+     * @param {any} [options] - Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)
+     * @returns {string} The trimmed stdout from the command
+     * @throws If the command exits with a non-zero code (stderr is on the thrown error)
+     *
+     * @example
+     * \`\`\`typescript
+     * const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')
+     * // identical to: proc.exec('git rev-parse --abbrev-ref HEAD')
+     * \`\`\`
+     */
     execSync(command: string, options?: any): string;
+    /**
+     * Execute a command string through a real shell, asynchronously, and NEVER throw.
+     *
+     * This is the safe default for running commands that can fail: shell quoting
+     * works (unlike \`execAndCapture\`, which splits naively on spaces), the call is
+     * async (unlike \`exec\`/\`execSync\`, which block), and a non-zero exit code is
+     * returned as data instead of thrown. Inspect \`exitCode\` yourself.
+     *
+     * @param {string} cmd - The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work
+     * @param {SpawnOptions} [options] - Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)
+     * @returns {Promise<{ stdout: string, stderr: string, exitCode: number }>} The captured output and exit code — never rejects for a failing command
+     *
+     * @example
+     * \`\`\`typescript
+     * // Quoted arguments survive intact
+     * const ok = await proc.tryExec('echo "two words"')
+     * console.log(ok.stdout.trim()) // 'two words'
+     *
+     * // Failure is data, not an exception
+     * const bad = await proc.tryExec('git -C /nowhere status')
+     * if (bad.exitCode !== 0) {
+     *   console.error('git failed:', bad.stderr.trim())
+     * }
+     * \`\`\`
+     */
+    tryExec(cmd: string, options?: SpawnOptions): Promise<{
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+    }>;
+    /**
+     * Execute a command through a real shell and parse its stdout as JSON.
+     *
+     * The obvious shape for JSON-speaking CLIs (\`gh\`, \`docker inspect\`, \`curl\`).
+     * Throws on a non-zero exit code with stderr in the error message, and throws
+     * on unparseable stdout with a snippet of the offending output — so a failure
+     * is always loud and diagnosable. For a non-throwing variant, use \`tryExec\`
+     * and parse yourself.
+     *
+     * @param {string} cmd - The complete command string, interpreted by a real shell (quoting works)
+     * @param {SpawnOptions} [options] - Options forwarded to spawnAndCapture (cwd, ...)
+     * @returns {Promise<T>} The parsed JSON value from the command's stdout
+     * @throws {Error} When the command exits non-zero (message includes exit code and stderr) or stdout is not valid JSON (message includes a snippet)
+     *
+     * @example
+     * \`\`\`typescript
+     * // Parse structured CLI output directly
+     * const pkg = await proc.execJson<{ name: string }>('cat package.json')
+     * console.log(pkg.name)
+     *
+     * // const pr = await proc.execJson('gh pr view --json title,url')
+     * \`\`\`
+     */
+    execJson<T = any>(cmd: string, options?: SpawnOptions): Promise<T>;
     /**
      * Establishes a PID-file lock to prevent duplicate process instances.
      *
@@ -24226,6 +24984,7 @@ export declare const RedisOptionsSchema: z.ZodObject<{
     url: z.ZodOptional<z.ZodString>;
     prefix: z.ZodOptional<z.ZodString>;
     lazyConnect: z.ZodDefault<z.ZodBoolean>;
+    commandTimeout: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>;
 export type RedisState = z.infer<typeof RedisStateSchema>;
 export type RedisOptions = z.infer<typeof RedisOptionsSchema>;
@@ -24286,6 +25045,7 @@ export declare class RedisFeature extends Feature<RedisState, RedisOptions> {
         url: z.ZodOptional<z.ZodString>;
         prefix: z.ZodOptional<z.ZodString>;
         lazyConnect: z.ZodDefault<z.ZodBoolean>;
+        commandTimeout: z.ZodDefault<z.ZodNumber>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -24306,6 +25066,43 @@ export declare class RedisFeature extends Feature<RedisState, RedisOptions> {
     get client(): Redis;
     /** The dedicated subscriber connection, if pub/sub is active. */
     get subscriber(): Redis | null;
+    /**
+     * Check whether the redis server is actually reachable. Sends a PING and
+     * resolves \`true\` on a reply, \`false\` on any error or when no reply arrives
+     * within the timeout — it never throws and never hangs, so it is safe as a
+     * liveness probe against a server that may not exist at all.
+     *
+     * @param timeoutMs - How long to wait for the PONG (default 2000ms)
+     * @returns true when the server replied, false otherwise
+     *
+     * @example
+     * \`\`\`typescript
+     * const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+     * if (!(await redis.ping())) {
+     *   console.error('redis is not reachable at', redis.state.get('url'))
+     * }
+     * \`\`\`
+     */
+    ping(timeoutMs?: number): Promise<boolean>;
+    /**
+     * Ensure a live connection to the redis server, or throw a descriptive
+     * error. Uses {@link ping} under the hood, so it also verifies servers that
+     * were configured with \`lazyConnect\`. Use it at startup to fail fast with a
+     * clear message instead of letting the first real command hang or retry
+     * forever.
+     *
+     * @param timeoutMs - How long to wait for the server to respond (default 5000ms)
+     * @returns This feature instance, once the server has answered a PING
+     * @throws Error naming the url and timeout when the server does not respond
+     *
+     * @example
+     * \`\`\`typescript
+     * const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+     * await redis.ensureConnected()        // throws fast if nothing is listening
+     * await redis.set('worker:status', 'active')
+     * \`\`\`
+     */
+    ensureConnected(timeoutMs?: number): Promise<this>;
     private _key;
     /**
      * Set a key to a string value with optional TTL.
@@ -25518,13 +26315,15 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
      */
     private validateOptions;
     /**
-     * Build SSH connection string with authentication options
+     * Build the ssh argv (flags + user@host) with authentication options.
+     * Argv arrays go straight to the binary — no local shell, no quoting layer.
      */
-    private buildSSHConnectionString;
+    private buildSshArgs;
     /**
-     * Build SCP connection string for file transfers
+     * Build the scp flag argv for file transfers (no source/target — callers append those).
+     * Argv arrays go straight to the binary — no local shell, no quoting layer.
      */
-    private buildSCPConnectionString;
+    private buildScpArgs;
     /**
      * Test the SSH connection by running a simple echo command on the remote host.
      *
@@ -25545,7 +26344,11 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
     /**
      * Executes a command on the remote host.
      *
-     * @param command - The command to execute on the remote shell
+     * The command string is passed to ssh as a single argv element — it never
+     * touches the LOCAL shell, so \`$VARS\`, backticks, and \`$(...)\` are expanded
+     * on the remote host (by the remote shell), exactly as written.
+     *
+     * @param command - The command to execute on the remote shell — the string reaches the remote shell verbatim
      * @returns The trimmed stdout output of the command
      * @throws {Error} When the SSH command exits with a non-zero code
      *
@@ -25556,8 +26359,8 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
      * const uptime = await ssh.exec('uptime')
      * console.log('Remote uptime:', uptime)
      *
-     * const listing = await ssh.exec('ls -la /var/log')
-     * console.log(listing)
+     * // $HOME expands on the REMOTE host, not locally
+     * const remoteHome = await ssh.exec('echo "$HOME"')
      * \`\`\`
      */
     exec(command: string): Promise<string>;
@@ -25566,6 +26369,8 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
      *
      * Uses the same authentication credentials configured on the feature instance.
      * Remote paths are absolute, or relative to the remote user's home directory.
+     * Paths are passed as argv elements (no local shell), so local paths with
+     * spaces work as-is.
      *
      * @param source - The source file path on the remote host
      * @param target - The target file path on the local machine
@@ -25585,6 +26390,8 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
      *
      * Uses the same authentication credentials configured on the feature instance.
      * Remote paths are absolute, or relative to the remote user's home directory.
+     * Paths are passed as argv elements (no local shell), so local paths with
+     * spaces work as-is.
      *
      * @param source - The source file path on the local machine
      * @param target - The target file path on the remote host
@@ -26140,6 +26947,68 @@ export declare class Sqlite extends Feature<SqliteState, SqliteOptions> {
      * \`\`\`
      */
     execute(queryText: string, params?: SqlValue[]): Promise<{
+        changes: number;
+        lastInsertRowid: number | bigint | null;
+    }>;
+    /**
+     * Executes a SELECT-like query expected to return a single row.
+     *
+     * Returns the first result row, or \`null\` when the query matches nothing —
+     * no more \`(await query(...))[0] ?? null\` dance. Use sqlite placeholders
+     * (\`?\`) for \`params\`.
+     *
+     * @param queryText - The SQL query string with optional \`?\` placeholders
+     * @param params - Ordered array of values to bind to the placeholders
+     * @returns Promise resolving to the first row, or \`null\` when there are no rows
+     * @throws {Error} When query text is empty or params contain \`undefined\`
+     *
+     * @example
+     * \`\`\`typescript
+     * const db = container.feature('sqlite') // in-memory
+     * await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+     * await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+     *
+     * const user = await db.queryOne<{ id: number; email: string }>(
+     *   'SELECT id, email FROM users WHERE email = ?',
+     *   ['hello@example.com']
+     * )
+     * console.log(user) // { id: 1, email: 'hello@example.com' }
+     *
+     * const missing = await db.queryOne('SELECT * FROM users WHERE id = ?', [999])
+     * console.log(missing) // null
+     * \`\`\`
+     */
+    queryOne<T extends object = Record<string, unknown>>(queryText: string, params?: SqlValue[]): Promise<T | null>;
+    /**
+     * Runs any SQL statement and returns the shape that fits it — no
+     * SELECT-vs-write classification required from the caller.
+     *
+     * The statement's leading keyword (after skipping whitespace, \`--\` line
+     * comments, and \`/* ... *\\/\` block comments) decides the path:
+     * \`SELECT\`, \`WITH\`, \`PRAGMA\`, and \`EXPLAIN\` go through \`query()\` and return
+     * rows; everything else goes through \`execute()\` and returns
+     * \`{ changes, lastInsertRowid }\`. This removes the silent-failure gotcha
+     * where \`query('INSERT ...')\` returns \`[]\` or \`execute('SELECT ...')\`
+     * discards the rows.
+     *
+     * @param queryText - The SQL statement string with optional \`?\` placeholders
+     * @param params - Ordered array of values to bind to the placeholders
+     * @returns Promise resolving to result rows for SELECT-like statements, or \`{ changes, lastInsertRowid }\` for writes
+     * @throws {Error} When query text is empty or params contain \`undefined\`
+     *
+     * @example
+     * \`\`\`typescript
+     * const db = container.feature('sqlite') // in-memory
+     * await db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+     *
+     * const meta = await db.run('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+     * console.log(meta) // { changes: 1, lastInsertRowid: 1 }
+     *
+     * const rows = await db.run('SELECT id, email FROM users')
+     * console.log(rows) // [{ id: 1, email: 'hello@example.com' }]
+     * \`\`\`
+     */
+    run<T extends object = Record<string, unknown>>(queryText: string, params?: SqlValue[]): Promise<T[] | {
         changes: number;
         lastInsertRowid: number | bigint | null;
     }>;
@@ -27201,6 +28070,7 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     voice: z.ZodOptional<z.ZodString>;
     ttsProvider: z.ZodOptional<z.ZodString>;
     apiKeyRef: z.ZodOptional<z.ZodString>;
+    pronunciationDictId: z.ZodOptional<z.ZodString>;
     toolSecret: z.ZodOptional<z.ZodString>;
     allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
     callerPolicy: z.ZodDefault<z.ZodEnum<{
@@ -27273,6 +28143,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         voice: z.ZodOptional<z.ZodString>;
         ttsProvider: z.ZodOptional<z.ZodString>;
         apiKeyRef: z.ZodOptional<z.ZodString>;
+        pronunciationDictId: z.ZodOptional<z.ZodString>;
         toolSecret: z.ZodOptional<z.ZodString>;
         allowedCallers: z.ZodOptional<z.ZodArray<z.ZodString>>;
         callerPolicy: z.ZodDefault<z.ZodEnum<{
@@ -27488,6 +28359,19 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
      * \`\`\`
      */
     updateAssistantVoice(assistantId: string, voiceSettings: any): Promise<any>;
+    /**
+     * Pronunciation dictionary to attach to the assistant voice: explicit option
+     * first, then \`pronunciationDictId\` (or \`pronunciation_dict_id\`) from the
+     * assistant's voice.yml.
+     */
+    private get _resolvedPronunciationDictId();
+    /**
+     * Make sure the deployed assistant actually carries the configured
+     * pronunciation dictionary. Create can silently drop unknown fields on
+     * older API versions, and reused assistants may predate the config — a
+     * PATCH afterward is the verified-working attach path either way.
+     */
+    private _ensurePronunciationDict;
     /**
      * Add or replace the native handoff tool on the deployed Telnyx assistant,
      * letting it hand the conversation to other Telnyx assistants mid-call.
@@ -29689,6 +30573,10 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
         enable: z.ZodOptional<z.ZodBoolean>;
         context: z.ZodAny;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+    }>;
     /** Map of virtual module IDs to their exports, consulted before Node's native require */
     modules: Map<string, any>;
     /** Map of lazy virtual module IDs to loader functions, invoked on first require */
@@ -30020,9 +30908,14 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * in an isolated VM context and returning its exports. The module gets \`require\`,
      * \`exports\`, and \`module\` globals automatically, plus any additional context you provide.
      *
+     * Throws when the file does not exist — a typo'd path should fail here, not
+     * later as "tool X is not a function". Use {@link tryLoadModule} when a
+     * missing file is expected and should yield \`null\` instead.
+     *
      * @param {string} filePath - Absolute path to the module file to load
      * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
      * @returns {Record<string, any>} The module's exports (from \`module.exports\` or \`exports\`)
+     * @throws {Error} When no file exists at \`filePath\`, or when the module fails to transpile or execute
      *
      * @example
      * \`\`\`typescript
@@ -30035,10 +30928,69 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * \`\`\`
      */
     loadModule(filePath: string, ctx?: any): Record<string, any>;
+    /**
+     * Tolerant counterpart to {@link loadModule}: returns \`null\` when no file
+     * exists at \`filePath\` instead of throwing. Use it for optional modules
+     * (a project-level hooks file, an optional config module). Errors from a
+     * file that *does* exist but fails to transpile or execute still propagate
+     * — only the missing-file case is softened.
+     *
+     * @param {string} filePath - Absolute path to the module file to load
+     * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
+     * @returns {Record<string, any> | null} The module's exports, or \`null\` when the file does not exist
+     *
+     * @example
+     * \`\`\`typescript
+     * const vm = container.feature('vm')
+     *
+     * const optional = vm.tryLoadModule(container.paths.resolve('luca.hooks.ts'))
+     * if (optional) {
+     *   console.log('hooks loaded:', Object.keys(optional))
+     * } else {
+     *   console.log('no hooks file — that is fine')
+     * }
+     * \`\`\`
+     */
+    tryLoadModule(filePath: string, ctx?: any): Record<string, any> | null;
     /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
     private _loadModuleBundled;
     /** @internal Execute CJS code in a VM context and return its exports. */
     private _execModule;
+    /**
+     * Tool-facing live eval: run a snippet in this process with the container in
+     * scope, returning the result plus any console output. Values that can't
+     * survive JSON (circular graphs, functions, class instances) are rendered
+     * shallowly instead of throwing — the tool must always report *something*
+     * useful about what the snippet produced.
+     *
+     * @param args - Arguments
+     * @param args.code - The snippet to execute
+     * @param extraContext - Additional context entries (e.g. the consuming assistant)
+     * @returns The serialized result and captured console calls, or the error
+     *
+     * @example
+     * \`\`\`typescript
+     * await vm.evalCode({ code: 'container.features.enabled.length' })
+     * // => { result: 42, console: [] }
+     * \`\`\`
+     */
+    evalCode(args: {
+        code: string;
+    }, extraContext?: Record<string, any>): Promise<{
+        result: any;
+        console: Array<{
+            method: string;
+            args: any[];
+        }>;
+    } | {
+        error: string;
+    }>;
+    /**
+     * When an assistant mounts the vm via \`use()\`, rebind evalCode so the
+     * snippet context includes that assistant as \`assistant\` — live eval becomes
+     * self-inspection — and inject usage guidance into its system prompt.
+     */
+    setupToolsConsumer(consumer: any): void;
 }
 export default VM;
 //# sourceMappingURL=vm.d.ts.map`,
@@ -30142,7 +31094,7 @@ export declare class YamlTree<T extends YamlTreeState = YamlTreeState> extends F
      * @param key - The key to store the tree under in state (defaults to first segment of basePath)
      * @returns Promise resolving to the complete tree object
      *
-     * @throws {Error} When FileManager fails to start or files cannot be read
+     * @throws {Error} When \`basePath\` does not exist (a typo'd path is not the same as an empty directory — use {@link loadTreeIfExists} for the tolerant version), or when FileManager fails to start or files cannot be read
      *
      * @example
      * \`\`\`typescript
@@ -30164,6 +31116,25 @@ export declare class YamlTree<T extends YamlTreeState = YamlTreeState> extends F
      * \`\`\`
      */
     loadTree(basePath: string, key?: string): Promise<Pick<T, Exclude<keyof T, "enabled">>>;
+    /**
+     * Like {@link loadTree}, but tolerant of a missing base path: when
+     * \`basePath\` does not exist, an empty tree is stored under \`key\` and no
+     * error is thrown. Use this for optional config directories; use
+     * \`loadTree()\` when the directory is expected to exist, so a typo'd path
+     * fails loudly instead of returning a silent empty tree.
+     *
+     * @param basePath - The root directory path to scan for YAML files
+     * @param key - The key to store the tree under in state (defaults to first segment of basePath)
+     * @returns Promise resolving to the complete tree object (with \`tree[key]\` empty when the path is missing)
+     *
+     * @example
+     * \`\`\`typescript
+     * // A missing directory yields an empty tree instead of throwing
+     * await yamlTree.loadTreeIfExists('optional-overrides', 'overrides');
+     * console.log(yamlTree.tree.overrides); // {}
+     * \`\`\`
+     */
+    loadTreeIfExists(basePath: string, key?: string): Promise<Pick<T, Exclude<keyof T, "enabled">>>;
     /**
      * Gets the current tree data, excluding the 'enabled' state property.
      *
@@ -30335,6 +31306,38 @@ export declare class YAML extends Feature {
      * \`\`\`
      */
     parse<T extends object = any>(yamlStr: string): T;
+    /**
+     * Parses a YAML string and guarantees the result is an object (mapping or
+     * sequence). Unlike {@link parse} — which returns \`undefined\` for empty
+     * input, \`null\` for comments-only input, and bare scalars for scalar
+     * documents — this method throws a descriptive error in all of those
+     * cases, so a typo'd or empty config file fails here instead of as
+     * \`undefined is not an object\` far away.
+     *
+     * Use this when you expect a config-shaped document; use \`parse()\` when
+     * any YAML value (including scalars or nothing at all) is acceptable.
+     *
+     * @template T - The expected object type of the parsed document
+     * @param {string} yamlStr - The YAML string to parse
+     * @returns {T} The parsed object (a mapping or sequence)
+     * @throws {Error} When the input parses to \`undefined\`/\`null\` (empty or comments-only) or to a non-object scalar, or when the YAML is malformed
+     *
+     * @example
+     * \`\`\`typescript
+     * const yml = container.feature('yaml')
+     *
+     * const config = yml.parseObject('host: localhost\\nport: 5432\\n')
+     * console.log(config.host) // 'localhost'
+     *
+     * // Empty or comments-only input throws instead of returning undefined/null
+     * try { yml.parseObject('') } catch (err) { console.log(err.message) }
+     * try { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }
+     *
+     * // A bare scalar document throws too
+     * try { yml.parseObject('just a string') } catch (err) { console.log(err.message) }
+     * \`\`\`
+     */
+    parseObject<T extends object = any>(yamlStr: string): T;
 }
 export default YAML;
 //# sourceMappingURL=yaml.d.ts.map`,
@@ -30613,6 +31616,7 @@ export declare const GraphClientEventsSchema: z.ZodObject<{
 }, z.core.$strip>;
 export declare const ServerEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
+    portChanged: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
 }, z.core.$strip>;
 export declare const MCPServerOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -30647,6 +31651,7 @@ export declare const MCPServerStateSchema: z.ZodObject<{
 }, z.core.$loose>;
 export declare const MCPServerEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
+    portChanged: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     toolRegistered: z.ZodTuple<[z.ZodString], null>;
     resourceRegistered: z.ZodTuple<[z.ZodString], null>;
     promptRegistered: z.ZodTuple<[z.ZodString], null>;
@@ -30969,6 +31974,14 @@ export declare class Server<T extends ServerState = ServerState, K extends Serve
     get isStopped(): boolean;
     /** The port this server will bind to. Reads from state first (set by start() or configure()), then constructor options, then defaults to 3000. */
     get port(): number;
+    /** @internal Port explicitly passed to start() at runtime — tracked so configure() can tell an explicit request apart from the default. */
+    protected _runtimePort?: number;
+    /**
+     * The port explicitly requested by the caller — via constructor options or
+     * a start({ port }) override — or \`undefined\` when no port was specified
+     * and configure() is free to auto-select an open one.
+     */
+    get requestedPort(): number | undefined;
     stop(): Promise<this>;
     /**
      * Start the server. Runtime options override constructor options and update state
@@ -30977,6 +31990,27 @@ export declare class Server<T extends ServerState = ServerState, K extends Serve
      * @param options - Optional runtime overrides for port and host
      */
     start(options?: StartOptions): Promise<this>;
+    /**
+     * Resolve the port to bind. When no port was explicitly requested, a busy
+     * default port auto-drifts to the next open one and a \`portChanged\` event
+     * is emitted with the requested and selected ports. When the caller DID
+     * explicitly request a port (constructor option or start({ port })) and it
+     * is busy, this throws an EADDRINUSE-style Error (\`error.code ===
+     * 'EADDRINUSE'\`, \`error.port\` set) instead of silently binding elsewhere.
+     *
+     * @returns This server, with \`state.port\` set to the resolved port
+     * @throws Error with \`code: 'EADDRINUSE'\` when an explicitly requested port is busy
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('websocket', { port: 9350 })
+     * try {
+     *   await server.start()
+     * } catch (err) {
+     *   if (err.code === 'EADDRINUSE') console.error(\`port \${err.port} is busy\`)
+     * }
+     * \`\`\`
+     */
     configure(): Promise<this>;
 }
 export declare class ServersRegistry extends Registry<Server<any>> {
@@ -31148,7 +32182,9 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
      * Runs the \`beforeStart\` hook, wires the SPA history fallback (when
      * \`historyFallback\` + \`static\` are set), then listens. Resolves once the
      * server is accepting connections; calling start() while already listening
-     * is a no-op.
+     * is a no-op. Rejects with the listen error (e.g. \`code: 'EADDRINUSE'\`
+     * when the port is busy) instead of hanging — so \`await start()\` is
+     * try/catch-able.
      *
      * @param options - Optional runtime overrides for port and host (host defaults to '0.0.0.0')
      *
@@ -31677,6 +32713,7 @@ export declare class MCPServer extends Server<MCPServerState, MCPServerOptions> 
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
+        portChanged: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
         toolRegistered: z.ZodTuple<[z.ZodString], null>;
         resourceRegistered: z.ZodTuple<[z.ZodString], null>;
         promptRegistered: z.ZodTuple<[z.ZodString], null>;
@@ -31787,6 +32824,7 @@ export declare const SocketServerOptionsSchema: z.ZodObject<{
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>;
 export declare const SocketServerEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
+    portChanged: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
     connection: z.ZodTuple<[z.ZodAny], null>;
     message: z.ZodTuple<[z.ZodAny, z.ZodAny], null>;
     attached: z.ZodTuple<[z.ZodAny], null>;
@@ -31795,10 +32833,11 @@ export declare const SocketServerEventsSchema: z.ZodObject<{
  * WebSocket server built on the \`ws\` library with optional JSON message framing.
  *
  * Manages WebSocket connections, tracks connected clients, and bridges
- * messages to Luca's event bus. When \`json\` mode is enabled, incoming
- * messages are automatically JSON-parsed (with \`.toString()\` for Buffer data);
- * a binary frame that is not valid JSON is passed through untouched. When
- * \`json\` mode is disabled, raw message data is emitted as-is.
+ * messages to Luca's event bus. Incoming messages are automatically
+ * JSON-parsed by default (with \`.toString()\` for Buffer data), matching the
+ * always-JSON outbound framing and the Luca websocket client; a frame that is
+ * not valid JSON is passed through untouched. Pass \`json: false\` to opt out
+ * and receive raw Buffer/string data as-is.
  *
  * Outgoing \`send()\` / \`broadcast()\` frame the payload with
  * {@link encodeWireFrame}: objects become JSON, but a \`Buffer\`/\`ArrayBuffer\`/
@@ -31865,6 +32904,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
+        portChanged: z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>;
         connection: z.ZodTuple<[z.ZodAny], null>;
         message: z.ZodTuple<[z.ZodAny, z.ZodAny], null>;
         attached: z.ZodTuple<[z.ZodAny], null>;
@@ -31950,7 +32990,13 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
      * option and is written to state before the underlying \`ws.Server\` is created,
      * so the server binds to the correct port.
      *
+     * When a port was explicitly requested (constructor option or start({ port }))
+     * and it is busy, start() throws an EADDRINUSE-style Error rather than
+     * silently binding a different port. Auto-selection (with a \`portChanged\`
+     * event) only happens when no port was specified.
+     *
      * @param options - Optional runtime overrides for port and host
+     * @throws Error with \`code: 'EADDRINUSE'\` when an explicitly requested port is busy
      */
     start(options?: StartOptions): Promise<this>;
     /** Attach to a Luca server (e.g. express) once it is listening, sharing its port. */
