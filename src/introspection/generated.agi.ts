@@ -1055,7 +1055,7 @@ setBuildTimeData('clients.openai', {
 
 setBuildTimeData('clients.rest', {
   "id": "clients.rest",
-  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
+  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
   "shortcut": "clients.rest",
   "className": "RestClient",
   "methods": {
@@ -1201,17 +1201,177 @@ setBuildTimeData('clients.rest', {
       ]
     },
     "handleError": {
-      "description": "Handle an axios error by emitting 'failure' and returning the error as JSON.",
+      "description": "Handle an axios error by emitting 'failure' and returning the error as a plain JSON object. Unlike axios' bare `error.toJSON()` (which drops the response entirely), the returned object also carries `data` (the parsed response body — validation details, API error codes, rate-limit messages) and `headers` from the failed response when one exists.",
       "parameters": {
         "error": {
           "type": "AxiosError",
-          "description": "Parameter error"
+          "description": "The axios error caught from a failed request"
         }
       },
       "required": [
         "error"
       ],
-      "returns": "Promise<object>"
+      "returns": "Promise<object>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }\nif (result?.name === 'AxiosError') {\n console.error(result.status, result.data)   // 422 { error: 'validation_failed' }\n}"
+        }
+      ]
+    },
+    "requestOrThrow": {
+      "description": "Shared implementation for the OrThrow request variants. Sends the request and returns the parsed body on success. On any failure — HTTP error status or connection-level failure — emits 'failure' and **throws** a real Error carrying `status` (numeric HTTP status, when there was a response), `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with a body summary in the message.",
+      "parameters": {
+        "config": {
+          "type": "AxiosRequestConfig",
+          "description": "Full axios request config (method, url, data/params, headers, ...)"
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })\n} catch (err) {\n console.error(err.status, err.data)   // 422 { error: 'validation_failed' }\n}"
+        }
+      ]
+    },
+    "getOrThrow": {
+      "description": "Send a GET request that **throws on failure** instead of returning the error. Use this when a failed request has no meaningful \"inspect the returned error\" semantics (auth checks, listings, lookups). The thrown Error carries `status`, `code`, and `data` (parsed response body).",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Request path relative to baseURL"
+        },
+        "params": {
+          "type": "any",
+          "description": "Query parameters (serialized into the query string)"
+        },
+        "options": {
+          "type": "AxiosRequestConfig",
+          "description": "Additional axios request config (headers, timeout, etc.)"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n const me = await api.getOrThrow('/me')\n} catch (err) {\n console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }\n}"
+        }
+      ]
+    },
+    "postOrThrow": {
+      "description": "Send a POST request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data` (parsed response body — validation details, API error codes).",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Request path relative to baseURL"
+        },
+        "data": {
+          "type": "any",
+          "description": "Request body (JSON-encoded when the `json` option is set)"
+        },
+        "options": {
+          "type": "AxiosRequestConfig",
+          "description": "Additional axios request config (headers, timeout, etc.)"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n const created = await api.postOrThrow('/users', { name: 'Alice' })\n} catch (err) {\n console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }\n}"
+        }
+      ]
+    },
+    "putOrThrow": {
+      "description": "Send a PUT request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Request path relative to baseURL"
+        },
+        "data": {
+          "type": "any",
+          "description": "Request body (the full replacement representation)"
+        },
+        "options": {
+          "type": "AxiosRequestConfig",
+          "description": "Additional axios request config (headers, timeout, etc.)"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })"
+        }
+      ]
+    },
+    "patchOrThrow": {
+      "description": "Send a PATCH request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Request path relative to baseURL"
+        },
+        "data": {
+          "type": "any",
+          "description": "Request body (the partial update)"
+        },
+        "options": {
+          "type": "AxiosRequestConfig",
+          "description": "Additional axios request config (headers, timeout, etc.)"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst patched = await api.patchOrThrow('/users/42', { role: 'viewer' })"
+        }
+      ]
+    },
+    "deleteOrThrow": {
+      "description": "Send a DELETE request that **throws on failure** instead of returning the error. Like `delete()`, the second argument is query params, not a body. The thrown Error carries `status`, `code`, and `data`.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Request path relative to baseURL"
+        },
+        "params": {
+          "type": "any",
+          "description": "Query parameters (serialized into the query string)"
+        },
+        "options": {
+          "type": "AxiosRequestConfig",
+          "description": "Additional axios request config (headers, timeout, etc.)"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nawait api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true"
+        }
+      ]
     }
   },
   "getters": {
@@ -8250,6 +8410,77 @@ setBuildTimeData('features.diskCache', {
         }
       ]
     },
+    "getJson": {
+      "description": "Retrieve a JSON value from the cache and return it parsed. The symmetric partner of `setJson()` — you get back the same value you stored, no `json` flag to remember. Prefer this pair over `set()`/`get()` whenever the value is structured data.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The cache key to retrieve"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await diskCache.setJson('config', { theme: 'dark', retries: 3 })\nconst config = await diskCache.getJson('config')\nconsole.log(config.retries) // 3"
+        }
+      ]
+    },
+    "setJson": {
+      "description": "Store a JSON-serializable value in the cache. The symmetric partner of `getJson()` — the value is serialized for you, so callers never juggle `JSON.stringify` or the `json` flag on `get()`.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The cache key to store under"
+        },
+        "value": {
+          "type": "any",
+          "description": "Any JSON-serializable value (object, array, string, number, boolean, or null)"
+        },
+        "meta": {
+          "type": "any",
+          "description": "Optional metadata to associate with the cached item. `meta.ttl`"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })\nconst quote = await diskCache.getJson('quote')\nconsole.log(quote.price) // 42"
+        }
+      ]
+    },
+    "ensureJson": {
+      "description": "Ensure a key exists in the cache, storing the JSON-serialized value if it doesn't. Like `ensure()` but takes any JSON-serializable value directly — no manual `JSON.stringify`. Read the value back with `getJson()`.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The cache key to check/set"
+        },
+        "value": {
+          "type": "any",
+          "description": "The JSON-serializable value to store if the key doesn't exist"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })\nconst config = await diskCache.getJson('config')\nconsole.log(config.theme) // 'dark'"
+        }
+      ]
+    },
     "set": {
       "description": "Store a value in the cache",
       "parameters": {
@@ -9603,7 +9834,7 @@ setBuildTimeData('features.downloader', {
   "className": "Downloader",
   "methods": {
     "download": {
-      "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). Note: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains. Only network-level failures (DNS, refused connection, invalid URL) reject. Check the URL is correct before trusting the downloaded file.",
+      "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). NOTE: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains (a 404 HTML error page gets saved at your target path as if it were the file). Only network-level failures (DNS, refused connection, invalid URL) reject. Unless you specifically want that write-whatever-came-back behavior, use `downloadFile()` (throws on 4xx/5xx and empty bodies) or `downloadJson()` (for JSON API responses, no file written).",
       "parameters": {
         "url": {
           "type": "string",
@@ -9623,6 +9854,57 @@ setBuildTimeData('features.downloader', {
         {
           "language": "ts",
           "code": "// (no-run) fetches from the network\n// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+        }
+      ]
+    },
+    "downloadJson": {
+      "description": "Fetches a URL expected to return JSON and returns the parsed value. The safe default for JSON APIs: unlike `download()`, a non-2xx response THROWS — the error message includes the HTTP status and a truncated copy of the response body, so the failure surfaces at the call site instead of as a parse error far from the cause. No file is written.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "The URL to fetch. Must be a valid HTTP/HTTPS URL returning JSON."
+        },
+        "opts": {
+          "type": "RequestInit",
+          "description": "Optional fetch options (headers, method, body, ...) passed straight to `fetch()`."
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<T>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\nconst release = await downloader.downloadJson<{ tag_name: string }>(\n 'https://api.github.com/repos/oven-sh/bun/releases/latest',\n { headers: { 'User-Agent': 'luca' } }\n)\nconsole.log(release.tag_name)\n\n// A 404 throws with the status and body in the message:\n// Error: downloadJson failed: HTTP 404 for https://... — body: {\"message\":\"Not Found\"..."
+        }
+      ]
+    },
+    "downloadFile": {
+      "description": "Downloads a file from a URL and saves it to the specified local path, throwing on HTTP errors instead of writing the error page to disk. The safe default for file downloads: like `download()`, but a 4xx/5xx response THROWS with the status code in the message (so a 404 HTML page never gets saved as your file), and an empty response body also throws. The target path is resolved relative to the container's working directory.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "The URL to download the file from. Must be a valid HTTP/HTTPS URL."
+        },
+        "targetPath": {
+          "type": "string",
+          "description": "The local file path where the downloaded file should be saved,"
+        },
+        "opts": {
+          "type": "RequestInit",
+          "description": "Optional fetch options (headers, method, ...) passed straight to `fetch()`."
+        }
+      },
+      "required": [
+        "url",
+        "targetPath"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\nconst localPath = await downloader.downloadFile(\n 'https://example.com/data.json',\n 'downloads/data.json'\n)\nconsole.log(`File saved to: ${localPath}`)\n\n// A misconfigured URL fails loudly instead of saving an error page:\n// Error: downloadFile failed: HTTP 404 for https://... — body: <html>..."
         }
       ]
     }
@@ -13588,7 +13870,7 @@ setBuildTimeData('features.grep', {
   "className": "Grep",
   "methods": {
     "search": {
-      "description": "Search for a pattern in files and return structured results.",
+      "description": "Search for a pattern in files and return structured results. Zero matches returns `[]`. Any other failure — invalid regex, nonexistent search path, unreadable files — THROWS with the underlying rg/grep stderr in the message, so a broken pattern is never mistaken for \"no matches\". `maxResults` caps the TOTAL number of returned matches (sliced after parsing). When `before`/`after` context is requested, each match gains `before`/`after` arrays holding the surrounding lines' text.",
       "parameters": {
         "options": {
           "type": "GrepOptions",
@@ -13628,7 +13910,7 @@ setBuildTimeData('features.grep', {
             },
             "maxResults": {
               "type": "number",
-              "description": "Max number of results to return"
+              "description": "Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance)"
             },
             "before": {
               "type": "number",
@@ -13872,7 +14154,7 @@ setBuildTimeData('features.grep', {
         },
         "maxResults": {
           "type": "number",
-          "description": "Max number of results to return",
+          "description": "Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance)",
           "optional": true
         },
         "before": {
@@ -13926,6 +14208,16 @@ setBuildTimeData('features.grep', {
         "content": {
           "type": "string",
           "description": ""
+        },
+        "before": {
+          "type": "string[]",
+          "description": "Context lines preceding the match (present when `before` was requested)",
+          "optional": true
+        },
+        "after": {
+          "type": "string[]",
+          "description": "Context lines following the match (present when `after` was requested)",
+          "optional": true
         }
       }
     }
@@ -15172,6 +15464,29 @@ setBuildTimeData('features.jsonTree', {
         {
           "language": "ts",
           "code": "// Given a directory of JSON files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('settings/database')\nfs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))\n\n// Load all JSON files from the 'settings' directory into state.settings\nawait jsonTree.loadTree('settings');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = jsonTree.tree.settings.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load the same folder again under a custom key\nawait jsonTree.loadTree('settings', 'configuration');"
+        }
+      ]
+    },
+    "loadTreeIfExists": {
+      "description": "Like {@link loadTree}, but tolerant of a missing base path: when `basePath` does not exist, an empty tree is stored under `key` and no error is thrown. Use this for optional config directories; use `loadTree()` when the directory is expected to exist, so a typo'd path fails loudly instead of returning a silent empty tree.",
+      "parameters": {
+        "basePath": {
+          "type": "string",
+          "description": "The root directory path to scan for JSON files"
+        },
+        "key": {
+          "type": "string",
+          "description": "The key to store the tree under in state (defaults to first segment of basePath)"
+        }
+      },
+      "required": [
+        "basePath"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// A missing directory yields an empty tree instead of throwing\nawait jsonTree.loadTreeIfExists('optional-overrides', 'overrides');\nconsole.log(jsonTree.tree.overrides); // {}"
         }
       ]
     }
@@ -19181,26 +19496,154 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch or execAndCapture"
+          "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
         }
       ]
     },
     "execSync": {
-      "description": "",
+      "description": "Synchronous alias of `exec` — the two are identical. Note that `exec` itself is ALSO synchronous despite its node-flavored name; both run the command through a real shell, block until it completes, return trimmed stdout, and throw on a non-zero exit code. This alias exists so the sync behavior is discoverable by name. For an async, non-throwing variant, use `tryExec`.",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "Parameter command"
+          "description": "The command to execute through the shell"
         },
         "options": {
           "type": "any",
-          "description": "Parameter options"
+          "description": "Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)"
         }
       },
       "required": [
         "command"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')\n// identical to: proc.exec('git rev-parse --abbrev-ref HEAD')"
+        }
+      ]
+    },
+    "tryExec": {
+      "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `exec`/`execSync`, which block), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
+      "parameters": {
+        "cmd": {
+          "type": "string",
+          "description": "The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work"
+        },
+        "options": {
+          "type": "SpawnOptions",
+          "description": "Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)",
+          "properties": {
+            "stdio": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Standard I/O mode for the child process"
+            },
+            "stdout": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Stdout mode for the child process"
+            },
+            "stderr": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Stderr mode for the child process"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the child process"
+            },
+            "environment": {
+              "type": "Record<string, any>",
+              "description": "Environment variables to pass to the child process"
+            },
+            "onError": {
+              "type": "(data: string) => void",
+              "description": "Callback invoked when stderr data is received"
+            },
+            "onOutput": {
+              "type": "(data: string) => void",
+              "description": "Callback invoked when stdout data is received"
+            },
+            "onExit": {
+              "type": "(code: number) => void",
+              "description": "Callback invoked when the process exits"
+            },
+            "onStart": {
+              "type": "(childProcess: ChildProcess) => void",
+              "description": "Callback invoked when the process starts"
+            }
+          }
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Quoted arguments survive intact\nconst ok = await proc.tryExec('echo \"two words\"')\nconsole.log(ok.stdout.trim()) // 'two words'\n\n// Failure is data, not an exception\nconst bad = await proc.tryExec('git -C /nowhere status')\nif (bad.exitCode !== 0) {\n console.error('git failed:', bad.stderr.trim())\n}"
+        }
+      ]
+    },
+    "execJson": {
+      "description": "Execute a command through a real shell and parse its stdout as JSON. The obvious shape for JSON-speaking CLIs (`gh`, `docker inspect`, `curl`). Throws on a non-zero exit code with stderr in the error message, and throws on unparseable stdout with a snippet of the offending output — so a failure is always loud and diagnosable. For a non-throwing variant, use `tryExec` and parse yourself.",
+      "parameters": {
+        "cmd": {
+          "type": "string",
+          "description": "The complete command string, interpreted by a real shell (quoting works)"
+        },
+        "options": {
+          "type": "SpawnOptions",
+          "description": "Options forwarded to spawnAndCapture (cwd, ...)",
+          "properties": {
+            "stdio": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Standard I/O mode for the child process"
+            },
+            "stdout": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Stdout mode for the child process"
+            },
+            "stderr": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": "Stderr mode for the child process"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the child process"
+            },
+            "environment": {
+              "type": "Record<string, any>",
+              "description": "Environment variables to pass to the child process"
+            },
+            "onError": {
+              "type": "(data: string) => void",
+              "description": "Callback invoked when stderr data is received"
+            },
+            "onOutput": {
+              "type": "(data: string) => void",
+              "description": "Callback invoked when stdout data is received"
+            },
+            "onExit": {
+              "type": "(code: number) => void",
+              "description": "Callback invoked when the process exits"
+            },
+            "onStart": {
+              "type": "(childProcess: ChildProcess) => void",
+              "description": "Callback invoked when the process starts"
+            }
+          }
+        }
+      },
+      "required": [
+        "cmd"
+      ],
+      "returns": "Promise<T>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Parse structured CLI output directly\nconst pkg = await proc.execJson<{ name: string }>('cat package.json')\nconsole.log(pkg.name)\n\n// const pr = await proc.execJson('gh pr view --json title,url')"
+        }
+      ]
     },
     "establishLock": {
       "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
@@ -20094,6 +20537,40 @@ setBuildTimeData('features.redis', {
   "shortcut": "features.redis",
   "className": "RedisFeature",
   "methods": {
+    "ping": {
+      "description": "Check whether the redis server is actually reachable. Sends a PING and resolves `true` on a reply, `false` on any error or when no reply arrives within the timeout — it never throws and never hangs, so it is safe as a liveness probe against a server that may not exist at all.",
+      "parameters": {
+        "timeoutMs": {
+          "type": "number",
+          "description": "How long to wait for the PONG (default 2000ms)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\nif (!(await redis.ping())) {\n console.error('redis is not reachable at', redis.state.get('url'))\n}"
+        }
+      ]
+    },
+    "ensureConnected": {
+      "description": "Ensure a live connection to the redis server, or throw a descriptive error. Uses {@link ping} under the hood, so it also verifies servers that were configured with `lazyConnect`. Use it at startup to fail fast with a clear message instead of letting the first real command hang or retry forever.",
+      "parameters": {
+        "timeoutMs": {
+          "type": "number",
+          "description": "How long to wait for the server to respond (default 5000ms)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\nawait redis.ensureConnected()        // throws fast if nothing is listening\nawait redis.set('worker:status', 'active')"
+        }
+      ]
+    },
     "set": {
       "description": "Set a key to a string value with optional TTL.",
       "parameters": {
@@ -21689,11 +22166,11 @@ setBuildTimeData('features.secureShell', {
       ]
     },
     "exec": {
-      "description": "Executes a command on the remote host.",
+      "description": "Executes a command on the remote host. The command string is passed to ssh as a single argv element — it never touches the LOCAL shell, so `$VARS`, backticks, and `$(...)` are expanded on the remote host (by the remote shell), exactly as written.",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "The command to execute on the remote shell"
+          "description": "The command to execute on the remote shell — the string reaches the remote shell verbatim"
         }
       },
       "required": [
@@ -21703,12 +22180,12 @@ setBuildTimeData('features.secureShell', {
       "examples": [
         {
           "language": "ts",
-          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\n// $HOME expands on the REMOTE host, not locally\nconst remoteHome = await ssh.exec('echo \"$HOME\"')"
         }
       ]
     },
     "download": {
-      "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
+      "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory. Paths are passed as argv elements (no local shell), so local paths with spaces work as-is.",
       "parameters": {
         "source": {
           "type": "string",
@@ -21732,7 +22209,7 @@ setBuildTimeData('features.secureShell', {
       ]
     },
     "upload": {
-      "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
+      "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory. Paths are passed as argv elements (no local shell), so local paths with spaces work as-is.",
       "parameters": {
         "source": {
           "type": "string",
@@ -23011,6 +23488,52 @@ setBuildTimeData('features.sqlite', {
         {
           "language": "ts",
           "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')\n\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+        }
+      ]
+    },
+    "queryOne": {
+      "description": "Executes a SELECT-like query expected to return a single row. Returns the first result row, or `null` when the query matches nothing — no more `(await query(...))[0] ?? null` dance. Use sqlite placeholders (`?`) for `params`.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "The SQL query string with optional `?` placeholders"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Ordered array of values to bind to the placeholders"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<T | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\nawait db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\n\nconst user = await db.queryOne<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE email = ?',\n ['hello@example.com']\n)\nconsole.log(user) // { id: 1, email: 'hello@example.com' }\n\nconst missing = await db.queryOne('SELECT * FROM users WHERE id = ?', [999])\nconsole.log(missing) // null"
+        }
+      ]
+    },
+    "run": {
+      "description": "Runs any SQL statement and returns the shape that fits it — no SELECT-vs-write classification required from the caller. The statement's leading keyword (after skipping whitespace, `--` line comments, and `/* ... *\\/` block comments) decides the path: `SELECT`, `WITH`, `PRAGMA`, and `EXPLAIN` go through `query()` and return rows; everything else goes through `execute()` and returns `{ changes, lastInsertRowid }`. This removes the silent-failure gotcha where `query('INSERT ...')` returns `[]` or `execute('SELECT ...')` discards the rows.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "The SQL statement string with optional `?` placeholders"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Ordered array of values to bind to the placeholders"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<T[] | { changes: number; lastInsertRowid: number | bigint | null }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\n\nconst meta = await db.run('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\nconsole.log(meta) // { changes: 1, lastInsertRowid: 1 }\n\nconst rows = await db.run('SELECT id, email FROM users')\nconsole.log(rows) // [{ id: 1, email: 'hello@example.com' }]"
         }
       ]
     },
@@ -26020,6 +26543,25 @@ setBuildTimeData('features.yaml', {
           "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
         }
       ]
+    },
+    "parseObject": {
+      "description": "Parses a YAML string and guarantees the result is an object (mapping or sequence). Unlike {@link parse} — which returns `undefined` for empty input, `null` for comments-only input, and bare scalars for scalar documents — this method throws a descriptive error in all of those cases, so a typo'd or empty config file fails here instead of as `undefined is not an object` far away. Use this when you expect a config-shaped document; use `parse()` when any YAML value (including scalars or nothing at all) is acceptable.",
+      "parameters": {
+        "yamlStr": {
+          "type": "string",
+          "description": "The YAML string to parse"
+        }
+      },
+      "required": [
+        "yamlStr"
+      ],
+      "returns": "T",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const yml = container.feature('yaml')\n\nconst config = yml.parseObject('host: localhost\\nport: 5432\\n')\nconsole.log(config.host) // 'localhost'\n\n// Empty or comments-only input throws instead of returning undefined/null\ntry { yml.parseObject('') } catch (err) { console.log(err.message) }\ntry { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }\n\n// A bare scalar document throws too\ntry { yml.parseObject('just a string') } catch (err) { console.log(err.message) }"
+        }
+      ]
     }
   },
   "getters": {},
@@ -26065,6 +26607,29 @@ setBuildTimeData('features.yamlTree', {
           "code": "// Given a directory of YAML files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('config/database')\nfs.writeFile('config/database/production.yml', 'host: db.example.com\\nport: 5432\\n')\n\n// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = yamlTree.tree.config.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load a different folder under a custom key\nawait yamlTree.loadTree('config', 'appSettings');"
         }
       ]
+    },
+    "loadTreeIfExists": {
+      "description": "Like {@link loadTree}, but tolerant of a missing base path: when `basePath` does not exist, an empty tree is stored under `key` and no error is thrown. Use this for optional config directories; use `loadTree()` when the directory is expected to exist, so a typo'd path fails loudly instead of returning a silent empty tree.",
+      "parameters": {
+        "basePath": {
+          "type": "string",
+          "description": "The root directory path to scan for YAML files"
+        },
+        "key": {
+          "type": "string",
+          "description": "The key to store the tree under in state (defaults to first segment of basePath)"
+        }
+      },
+      "required": [
+        "basePath"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// A missing directory yields an empty tree instead of throwing\nawait yamlTree.loadTreeIfExists('optional-overrides', 'overrides');\nconsole.log(yamlTree.tree.overrides); // {}"
+        }
+      ]
     }
   },
   "getters": {
@@ -26100,7 +26665,7 @@ setBuildTimeData('servers.express', {
   "className": "ExpressServer",
   "methods": {
     "start": {
-      "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op.",
+      "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op. Rejects with the listen error (e.g. `code: 'EADDRINUSE'` when the port is busy) instead of hanging — so `await start()` is try/catch-able.",
       "parameters": {
         "options": {
           "type": "StartOptions",
@@ -26663,7 +27228,7 @@ setBuildTimeData('servers.mcp', {
 
 setBuildTimeData('servers.websocket', {
   "id": "servers.websocket",
-  "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
+  "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. Incoming messages are automatically JSON-parsed by default (with `.toString()` for Buffer data), matching the always-JSON outbound framing and the Luca websocket client; a frame that is not valid JSON is passed through untouched. Pass `json: false` to opt out and receive raw Buffer/string data as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
   "shortcut": "servers.websocket",
   "className": "WebsocketServer",
   "methods": {
@@ -26754,7 +27319,7 @@ setBuildTimeData('servers.websocket', {
       ]
     },
     "start": {
-      "description": "Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port.",
+      "description": "Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port. When a port was explicitly requested (constructor option or start({ port })) and it is busy, start() throws an EADDRINUSE-style Error rather than silently binding a different port. Auto-selection (with a `portChanged` event) only happens when no port was specified.",
       "parameters": {
         "options": {
           "type": "StartOptions",
@@ -28447,7 +29012,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "clients.rest",
-    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
+    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
     "shortcut": "clients.rest",
     "className": "RestClient",
     "methods": {
@@ -28593,17 +29158,177 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "handleError": {
-        "description": "Handle an axios error by emitting 'failure' and returning the error as JSON.",
+        "description": "Handle an axios error by emitting 'failure' and returning the error as a plain JSON object. Unlike axios' bare `error.toJSON()` (which drops the response entirely), the returned object also carries `data` (the parsed response body — validation details, API error codes, rate-limit messages) and `headers` from the failed response when one exists.",
         "parameters": {
           "error": {
             "type": "AxiosError",
-            "description": "Parameter error"
+            "description": "The axios error caught from a failed request"
           }
         },
         "required": [
           "error"
         ],
-        "returns": "Promise<object>"
+        "returns": "Promise<object>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }\nif (result?.name === 'AxiosError') {\n console.error(result.status, result.data)   // 422 { error: 'validation_failed' }\n}"
+          }
+        ]
+      },
+      "requestOrThrow": {
+        "description": "Shared implementation for the OrThrow request variants. Sends the request and returns the parsed body on success. On any failure — HTTP error status or connection-level failure — emits 'failure' and **throws** a real Error carrying `status` (numeric HTTP status, when there was a response), `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with a body summary in the message.",
+        "parameters": {
+          "config": {
+            "type": "AxiosRequestConfig",
+            "description": "Full axios request config (method, url, data/params, headers, ...)"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })\n} catch (err) {\n console.error(err.status, err.data)   // 422 { error: 'validation_failed' }\n}"
+          }
+        ]
+      },
+      "getOrThrow": {
+        "description": "Send a GET request that **throws on failure** instead of returning the error. Use this when a failed request has no meaningful \"inspect the returned error\" semantics (auth checks, listings, lookups). The thrown Error carries `status`, `code`, and `data` (parsed response body).",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Request path relative to baseURL"
+          },
+          "params": {
+            "type": "any",
+            "description": "Query parameters (serialized into the query string)"
+          },
+          "options": {
+            "type": "AxiosRequestConfig",
+            "description": "Additional axios request config (headers, timeout, etc.)"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n const me = await api.getOrThrow('/me')\n} catch (err) {\n console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }\n}"
+          }
+        ]
+      },
+      "postOrThrow": {
+        "description": "Send a POST request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data` (parsed response body — validation details, API error codes).",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Request path relative to baseURL"
+          },
+          "data": {
+            "type": "any",
+            "description": "Request body (JSON-encoded when the `json` option is set)"
+          },
+          "options": {
+            "type": "AxiosRequestConfig",
+            "description": "Additional axios request config (headers, timeout, etc.)"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\ntry {\n const created = await api.postOrThrow('/users', { name: 'Alice' })\n} catch (err) {\n console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }\n}"
+          }
+        ]
+      },
+      "putOrThrow": {
+        "description": "Send a PUT request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Request path relative to baseURL"
+          },
+          "data": {
+            "type": "any",
+            "description": "Request body (the full replacement representation)"
+          },
+          "options": {
+            "type": "AxiosRequestConfig",
+            "description": "Additional axios request config (headers, timeout, etc.)"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })"
+          }
+        ]
+      },
+      "patchOrThrow": {
+        "description": "Send a PATCH request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Request path relative to baseURL"
+          },
+          "data": {
+            "type": "any",
+            "description": "Request body (the partial update)"
+          },
+          "options": {
+            "type": "AxiosRequestConfig",
+            "description": "Additional axios request config (headers, timeout, etc.)"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst patched = await api.patchOrThrow('/users/42', { role: 'viewer' })"
+          }
+        ]
+      },
+      "deleteOrThrow": {
+        "description": "Send a DELETE request that **throws on failure** instead of returning the error. Like `delete()`, the second argument is query params, not a body. The thrown Error carries `status`, `code`, and `data`.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Request path relative to baseURL"
+          },
+          "params": {
+            "type": "any",
+            "description": "Query parameters (serialized into the query string)"
+          },
+          "options": {
+            "type": "AxiosRequestConfig",
+            "description": "Additional axios request config (headers, timeout, etc.)"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nawait api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true"
+          }
+        ]
       }
     },
     "getters": {
@@ -35626,6 +36351,77 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "getJson": {
+        "description": "Retrieve a JSON value from the cache and return it parsed. The symmetric partner of `setJson()` — you get back the same value you stored, no `json` flag to remember. Prefer this pair over `set()`/`get()` whenever the value is structured data.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The cache key to retrieve"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await diskCache.setJson('config', { theme: 'dark', retries: 3 })\nconst config = await diskCache.getJson('config')\nconsole.log(config.retries) // 3"
+          }
+        ]
+      },
+      "setJson": {
+        "description": "Store a JSON-serializable value in the cache. The symmetric partner of `getJson()` — the value is serialized for you, so callers never juggle `JSON.stringify` or the `json` flag on `get()`.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The cache key to store under"
+          },
+          "value": {
+            "type": "any",
+            "description": "Any JSON-serializable value (object, array, string, number, boolean, or null)"
+          },
+          "meta": {
+            "type": "any",
+            "description": "Optional metadata to associate with the cached item. `meta.ttl`"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })\nconst quote = await diskCache.getJson('quote')\nconsole.log(quote.price) // 42"
+          }
+        ]
+      },
+      "ensureJson": {
+        "description": "Ensure a key exists in the cache, storing the JSON-serialized value if it doesn't. Like `ensure()` but takes any JSON-serializable value directly — no manual `JSON.stringify`. Read the value back with `getJson()`.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The cache key to check/set"
+          },
+          "value": {
+            "type": "any",
+            "description": "The JSON-serializable value to store if the key doesn't exist"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })\nconst config = await diskCache.getJson('config')\nconsole.log(config.theme) // 'dark'"
+          }
+        ]
+      },
       "set": {
         "description": "Store a value in the cache",
         "parameters": {
@@ -36975,7 +37771,7 @@ export const introspectionData: Record<string, any>[] = [
     "className": "Downloader",
     "methods": {
       "download": {
-        "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). Note: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains. Only network-level failures (DNS, refused connection, invalid URL) reject. Check the URL is correct before trusting the downloaded file.",
+        "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). NOTE: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains (a 404 HTML error page gets saved at your target path as if it were the file). Only network-level failures (DNS, refused connection, invalid URL) reject. Unless you specifically want that write-whatever-came-back behavior, use `downloadFile()` (throws on 4xx/5xx and empty bodies) or `downloadJson()` (for JSON API responses, no file written).",
         "parameters": {
           "url": {
             "type": "string",
@@ -36995,6 +37791,57 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "// (no-run) fetches from the network\n// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+          }
+        ]
+      },
+      "downloadJson": {
+        "description": "Fetches a URL expected to return JSON and returns the parsed value. The safe default for JSON APIs: unlike `download()`, a non-2xx response THROWS — the error message includes the HTTP status and a truncated copy of the response body, so the failure surfaces at the call site instead of as a parse error far from the cause. No file is written.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "The URL to fetch. Must be a valid HTTP/HTTPS URL returning JSON."
+          },
+          "opts": {
+            "type": "RequestInit",
+            "description": "Optional fetch options (headers, method, body, ...) passed straight to `fetch()`."
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<T>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\nconst release = await downloader.downloadJson<{ tag_name: string }>(\n 'https://api.github.com/repos/oven-sh/bun/releases/latest',\n { headers: { 'User-Agent': 'luca' } }\n)\nconsole.log(release.tag_name)\n\n// A 404 throws with the status and body in the message:\n// Error: downloadJson failed: HTTP 404 for https://... — body: {\"message\":\"Not Found\"..."
+          }
+        ]
+      },
+      "downloadFile": {
+        "description": "Downloads a file from a URL and saves it to the specified local path, throwing on HTTP errors instead of writing the error page to disk. The safe default for file downloads: like `download()`, but a 4xx/5xx response THROWS with the status code in the message (so a 404 HTML page never gets saved as your file), and an empty response body also throws. The target path is resolved relative to the container's working directory.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "The URL to download the file from. Must be a valid HTTP/HTTPS URL."
+          },
+          "targetPath": {
+            "type": "string",
+            "description": "The local file path where the downloaded file should be saved,"
+          },
+          "opts": {
+            "type": "RequestInit",
+            "description": "Optional fetch options (headers, method, ...) passed straight to `fetch()`."
+          }
+        },
+        "required": [
+          "url",
+          "targetPath"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\nconst localPath = await downloader.downloadFile(\n 'https://example.com/data.json',\n 'downloads/data.json'\n)\nconsole.log(`File saved to: ${localPath}`)\n\n// A misconfigured URL fails loudly instead of saving an error page:\n// Error: downloadFile failed: HTTP 404 for https://... — body: <html>..."
           }
         ]
       }
@@ -40949,7 +41796,7 @@ export const introspectionData: Record<string, any>[] = [
     "className": "Grep",
     "methods": {
       "search": {
-        "description": "Search for a pattern in files and return structured results.",
+        "description": "Search for a pattern in files and return structured results. Zero matches returns `[]`. Any other failure — invalid regex, nonexistent search path, unreadable files — THROWS with the underlying rg/grep stderr in the message, so a broken pattern is never mistaken for \"no matches\". `maxResults` caps the TOTAL number of returned matches (sliced after parsing). When `before`/`after` context is requested, each match gains `before`/`after` arrays holding the surrounding lines' text.",
         "parameters": {
           "options": {
             "type": "GrepOptions",
@@ -40989,7 +41836,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "maxResults": {
                 "type": "number",
-                "description": "Max number of results to return"
+                "description": "Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance)"
               },
               "before": {
                 "type": "number",
@@ -41233,7 +42080,7 @@ export const introspectionData: Record<string, any>[] = [
           },
           "maxResults": {
             "type": "number",
-            "description": "Max number of results to return",
+            "description": "Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance)",
             "optional": true
           },
           "before": {
@@ -41287,6 +42134,16 @@ export const introspectionData: Record<string, any>[] = [
           "content": {
             "type": "string",
             "description": ""
+          },
+          "before": {
+            "type": "string[]",
+            "description": "Context lines preceding the match (present when `before` was requested)",
+            "optional": true
+          },
+          "after": {
+            "type": "string[]",
+            "description": "Context lines following the match (present when `after` was requested)",
+            "optional": true
           }
         }
       }
@@ -42528,6 +43385,29 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "// Given a directory of JSON files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('settings/database')\nfs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))\n\n// Load all JSON files from the 'settings' directory into state.settings\nawait jsonTree.loadTree('settings');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = jsonTree.tree.settings.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load the same folder again under a custom key\nawait jsonTree.loadTree('settings', 'configuration');"
+          }
+        ]
+      },
+      "loadTreeIfExists": {
+        "description": "Like {@link loadTree}, but tolerant of a missing base path: when `basePath` does not exist, an empty tree is stored under `key` and no error is thrown. Use this for optional config directories; use `loadTree()` when the directory is expected to exist, so a typo'd path fails loudly instead of returning a silent empty tree.",
+        "parameters": {
+          "basePath": {
+            "type": "string",
+            "description": "The root directory path to scan for JSON files"
+          },
+          "key": {
+            "type": "string",
+            "description": "The key to store the tree under in state (defaults to first segment of basePath)"
+          }
+        },
+        "required": [
+          "basePath"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// A missing directory yields an empty tree instead of throwing\nawait jsonTree.loadTreeIfExists('optional-overrides', 'overrides');\nconsole.log(jsonTree.tree.overrides); // {}"
           }
         ]
       }
@@ -46524,26 +47404,154 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch or execAndCapture"
+            "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
           }
         ]
       },
       "execSync": {
-        "description": "",
+        "description": "Synchronous alias of `exec` — the two are identical. Note that `exec` itself is ALSO synchronous despite its node-flavored name; both run the command through a real shell, block until it completes, return trimmed stdout, and throw on a non-zero exit code. This alias exists so the sync behavior is discoverable by name. For an async, non-throwing variant, use `tryExec`.",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "Parameter command"
+            "description": "The command to execute through the shell"
           },
           "options": {
             "type": "any",
-            "description": "Parameter options"
+            "description": "Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)"
           }
         },
         "required": [
           "command"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')\n// identical to: proc.exec('git rev-parse --abbrev-ref HEAD')"
+          }
+        ]
+      },
+      "tryExec": {
+        "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `exec`/`execSync`, which block), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
+        "parameters": {
+          "cmd": {
+            "type": "string",
+            "description": "The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work"
+          },
+          "options": {
+            "type": "SpawnOptions",
+            "description": "Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)",
+            "properties": {
+              "stdio": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Standard I/O mode for the child process"
+              },
+              "stdout": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Stdout mode for the child process"
+              },
+              "stderr": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Stderr mode for the child process"
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the child process"
+              },
+              "environment": {
+                "type": "Record<string, any>",
+                "description": "Environment variables to pass to the child process"
+              },
+              "onError": {
+                "type": "(data: string) => void",
+                "description": "Callback invoked when stderr data is received"
+              },
+              "onOutput": {
+                "type": "(data: string) => void",
+                "description": "Callback invoked when stdout data is received"
+              },
+              "onExit": {
+                "type": "(code: number) => void",
+                "description": "Callback invoked when the process exits"
+              },
+              "onStart": {
+                "type": "(childProcess: ChildProcess) => void",
+                "description": "Callback invoked when the process starts"
+              }
+            }
+          }
+        },
+        "required": [
+          "cmd"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Quoted arguments survive intact\nconst ok = await proc.tryExec('echo \"two words\"')\nconsole.log(ok.stdout.trim()) // 'two words'\n\n// Failure is data, not an exception\nconst bad = await proc.tryExec('git -C /nowhere status')\nif (bad.exitCode !== 0) {\n console.error('git failed:', bad.stderr.trim())\n}"
+          }
+        ]
+      },
+      "execJson": {
+        "description": "Execute a command through a real shell and parse its stdout as JSON. The obvious shape for JSON-speaking CLIs (`gh`, `docker inspect`, `curl`). Throws on a non-zero exit code with stderr in the error message, and throws on unparseable stdout with a snippet of the offending output — so a failure is always loud and diagnosable. For a non-throwing variant, use `tryExec` and parse yourself.",
+        "parameters": {
+          "cmd": {
+            "type": "string",
+            "description": "The complete command string, interpreted by a real shell (quoting works)"
+          },
+          "options": {
+            "type": "SpawnOptions",
+            "description": "Options forwarded to spawnAndCapture (cwd, ...)",
+            "properties": {
+              "stdio": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Standard I/O mode for the child process"
+              },
+              "stdout": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Stdout mode for the child process"
+              },
+              "stderr": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": "Stderr mode for the child process"
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the child process"
+              },
+              "environment": {
+                "type": "Record<string, any>",
+                "description": "Environment variables to pass to the child process"
+              },
+              "onError": {
+                "type": "(data: string) => void",
+                "description": "Callback invoked when stderr data is received"
+              },
+              "onOutput": {
+                "type": "(data: string) => void",
+                "description": "Callback invoked when stdout data is received"
+              },
+              "onExit": {
+                "type": "(code: number) => void",
+                "description": "Callback invoked when the process exits"
+              },
+              "onStart": {
+                "type": "(childProcess: ChildProcess) => void",
+                "description": "Callback invoked when the process starts"
+              }
+            }
+          }
+        },
+        "required": [
+          "cmd"
+        ],
+        "returns": "Promise<T>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Parse structured CLI output directly\nconst pkg = await proc.execJson<{ name: string }>('cat package.json')\nconsole.log(pkg.name)\n\n// const pr = await proc.execJson('gh pr view --json title,url')"
+          }
+        ]
       },
       "establishLock": {
         "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
@@ -47434,6 +48442,40 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.redis",
     "className": "RedisFeature",
     "methods": {
+      "ping": {
+        "description": "Check whether the redis server is actually reachable. Sends a PING and resolves `true` on a reply, `false` on any error or when no reply arrives within the timeout — it never throws and never hangs, so it is safe as a liveness probe against a server that may not exist at all.",
+        "parameters": {
+          "timeoutMs": {
+            "type": "number",
+            "description": "How long to wait for the PONG (default 2000ms)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\nif (!(await redis.ping())) {\n console.error('redis is not reachable at', redis.state.get('url'))\n}"
+          }
+        ]
+      },
+      "ensureConnected": {
+        "description": "Ensure a live connection to the redis server, or throw a descriptive error. Uses {@link ping} under the hood, so it also verifies servers that were configured with `lazyConnect`. Use it at startup to fail fast with a clear message instead of letting the first real command hang or retry forever.",
+        "parameters": {
+          "timeoutMs": {
+            "type": "number",
+            "description": "How long to wait for the server to respond (default 5000ms)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\nawait redis.ensureConnected()        // throws fast if nothing is listening\nawait redis.set('worker:status', 'active')"
+          }
+        ]
+      },
       "set": {
         "description": "Set a key to a string value with optional TTL.",
         "parameters": {
@@ -49025,11 +50067,11 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "exec": {
-        "description": "Executes a command on the remote host.",
+        "description": "Executes a command on the remote host. The command string is passed to ssh as a single argv element — it never touches the LOCAL shell, so `$VARS`, backticks, and `$(...)` are expanded on the remote host (by the remote shell), exactly as written.",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "The command to execute on the remote shell"
+            "description": "The command to execute on the remote shell — the string reaches the remote shell verbatim"
           }
         },
         "required": [
@@ -49039,12 +50081,12 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\n// $HOME expands on the REMOTE host, not locally\nconst remoteHome = await ssh.exec('echo \"$HOME\"')"
           }
         ]
       },
       "download": {
-        "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
+        "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory. Paths are passed as argv elements (no local shell), so local paths with spaces work as-is.",
         "parameters": {
           "source": {
             "type": "string",
@@ -49068,7 +50110,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "upload": {
-        "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
+        "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory. Paths are passed as argv elements (no local shell), so local paths with spaces work as-is.",
         "parameters": {
           "source": {
             "type": "string",
@@ -50343,6 +51385,52 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')\n\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+          }
+        ]
+      },
+      "queryOne": {
+        "description": "Executes a SELECT-like query expected to return a single row. Returns the first result row, or `null` when the query matches nothing — no more `(await query(...))[0] ?? null` dance. Use sqlite placeholders (`?`) for `params`.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "The SQL query string with optional `?` placeholders"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Ordered array of values to bind to the placeholders"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<T | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\nawait db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\n\nconst user = await db.queryOne<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE email = ?',\n ['hello@example.com']\n)\nconsole.log(user) // { id: 1, email: 'hello@example.com' }\n\nconst missing = await db.queryOne('SELECT * FROM users WHERE id = ?', [999])\nconsole.log(missing) // null"
+          }
+        ]
+      },
+      "run": {
+        "description": "Runs any SQL statement and returns the shape that fits it — no SELECT-vs-write classification required from the caller. The statement's leading keyword (after skipping whitespace, `--` line comments, and `/* ... *\\/` block comments) decides the path: `SELECT`, `WITH`, `PRAGMA`, and `EXPLAIN` go through `query()` and return rows; everything else goes through `execute()` and returns `{ changes, lastInsertRowid }`. This removes the silent-failure gotcha where `query('INSERT ...')` returns `[]` or `execute('SELECT ...')` discards the rows.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "The SQL statement string with optional `?` placeholders"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Ordered array of values to bind to the placeholders"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<T[] | { changes: number; lastInsertRowid: number | bigint | null }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\n\nconst meta = await db.run('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\nconsole.log(meta) // { changes: 1, lastInsertRowid: 1 }\n\nconst rows = await db.run('SELECT id, email FROM users')\nconsole.log(rows) // [{ id: 1, email: 'hello@example.com' }]"
           }
         ]
       },
@@ -53340,6 +54428,25 @@ export const introspectionData: Record<string, any>[] = [
             "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
           }
         ]
+      },
+      "parseObject": {
+        "description": "Parses a YAML string and guarantees the result is an object (mapping or sequence). Unlike {@link parse} — which returns `undefined` for empty input, `null` for comments-only input, and bare scalars for scalar documents — this method throws a descriptive error in all of those cases, so a typo'd or empty config file fails here instead of as `undefined is not an object` far away. Use this when you expect a config-shaped document; use `parse()` when any YAML value (including scalars or nothing at all) is acceptable.",
+        "parameters": {
+          "yamlStr": {
+            "type": "string",
+            "description": "The YAML string to parse"
+          }
+        },
+        "required": [
+          "yamlStr"
+        ],
+        "returns": "T",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const yml = container.feature('yaml')\n\nconst config = yml.parseObject('host: localhost\\nport: 5432\\n')\nconsole.log(config.host) // 'localhost'\n\n// Empty or comments-only input throws instead of returning undefined/null\ntry { yml.parseObject('') } catch (err) { console.log(err.message) }\ntry { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }\n\n// A bare scalar document throws too\ntry { yml.parseObject('just a string') } catch (err) { console.log(err.message) }"
+          }
+        ]
       }
     },
     "getters": {},
@@ -53384,6 +54491,29 @@ export const introspectionData: Record<string, any>[] = [
             "code": "// Given a directory of YAML files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('config/database')\nfs.writeFile('config/database/production.yml', 'host: db.example.com\\nport: 5432\\n')\n\n// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = yamlTree.tree.config.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load a different folder under a custom key\nawait yamlTree.loadTree('config', 'appSettings');"
           }
         ]
+      },
+      "loadTreeIfExists": {
+        "description": "Like {@link loadTree}, but tolerant of a missing base path: when `basePath` does not exist, an empty tree is stored under `key` and no error is thrown. Use this for optional config directories; use `loadTree()` when the directory is expected to exist, so a typo'd path fails loudly instead of returning a silent empty tree.",
+        "parameters": {
+          "basePath": {
+            "type": "string",
+            "description": "The root directory path to scan for YAML files"
+          },
+          "key": {
+            "type": "string",
+            "description": "The key to store the tree under in state (defaults to first segment of basePath)"
+          }
+        },
+        "required": [
+          "basePath"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// A missing directory yields an empty tree instead of throwing\nawait yamlTree.loadTreeIfExists('optional-overrides', 'overrides');\nconsole.log(yamlTree.tree.overrides); // {}"
+          }
+        ]
       }
     },
     "getters": {
@@ -53418,7 +54548,7 @@ export const introspectionData: Record<string, any>[] = [
     "className": "ExpressServer",
     "methods": {
       "start": {
-        "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op.",
+        "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op. Rejects with the listen error (e.g. `code: 'EADDRINUSE'` when the port is busy) instead of hanging — so `await start()` is try/catch-able.",
         "parameters": {
           "options": {
             "type": "StartOptions",
@@ -53978,7 +55108,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "servers.websocket",
-    "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
+    "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. Incoming messages are automatically JSON-parsed by default (with `.toString()` for Buffer data), matching the always-JSON outbound framing and the Luca websocket client; a frame that is not valid JSON is passed through untouched. Pass `json: false` to opt out and receive raw Buffer/string data as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
     "shortcut": "servers.websocket",
     "className": "WebsocketServer",
     "methods": {
@@ -54069,7 +55199,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "start": {
-        "description": "Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port.",
+        "description": "Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port. When a port was explicitly requested (constructor option or start({ port })) and it is busy, start() throws an EADDRINUSE-style Error rather than silently binding a different port. Auto-selection (with a `portChanged` event) only happens when no port was specified.",
         "parameters": {
           "options": {
             "type": "StartOptions",

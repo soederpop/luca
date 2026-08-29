@@ -824,7 +824,7 @@ export class VM<
         '',
         '**Author tools natively:** prototype the handler in evalCode first, then register it on yourself for this session: `assistant.addTool(\'myTool\', async (args) => {...}, z.object({...}).describe(\'...\'))` — it is live on your next turn. Persist it by writing it into a tools.ts afterward. Never use z.any().',
         '',
-        '**Discover APIs from inside:** `container.features.available`, `Object.getOwnPropertyNames(Object.getPrototypeOf(container.feature(\'fs\')))` — the runtime is self-describing; read it rather than guessing.',
+        '**Discover APIs from inside:** the runtime documents itself — never guess a method name. `(await container.describer.describeHelper(\'fs\')).text` returns the full docs for a helper, `describeHelper(\'fs.readFile\')` for one member, `describeRegistry(\'features\')` for the index of everything available.',
       ].join('\n'))
     }
   }
