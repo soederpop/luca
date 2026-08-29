@@ -7,6 +7,7 @@ import type { ConversationHistory, ConversationMeta, ConversationRecord } from '
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js'
 import hashObject from '../../hash-object.js'
 import { deepMergeOptions } from '../lib/merge-options.js'
+import type { Helper } from '../../helper.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -146,6 +147,62 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	static override category = 'ai-assistants' as const
 
 	static { Feature.register(this, 'assistantsManager') }
+
+	static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
+		listAssistants: {
+			description: 'List every discovered assistant and which definition files (CORE.md, tools.ts, hooks.ts) each one has. Call this FIRST to see what exists before creating or editing anything.',
+			schema: z.object({}).describe('List every discovered assistant and which definition files each one has.'),
+		},
+		createAssistant: {
+			description: 'Create a new assistant: a folder with a CORE.md system prompt and a minimal tools.ts. Fails if the assistant already exists — use writeDefinitionFile to modify an existing one.',
+			schema: z.object({
+				name: z.string().describe('camelCase folder name for the new assistant (e.g. "haikuWriter")'),
+				corePrompt: z.string().describe('Full contents of CORE.md — the system prompt defining the assistant\'s identity and behavior. Optional YAML frontmatter (model, provider) goes at the top between --- markers.'),
+			}).describe('Create a new assistant folder with a CORE.md and a minimal tools.ts.'),
+		},
+		readDefinitionFile: {
+			description: 'Read one definition file of an assistant (CORE.md, ABOUT.md, tools.ts, hooks.ts, or voice.yml). ALWAYS read a file before writing it.',
+			schema: z.object({
+				name: z.string().describe('The assistant name, as listed by listAssistants'),
+				file: z.string().describe('One of: CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml'),
+			}).describe('Read one definition file of an assistant.'),
+		},
+		writeDefinitionFile: {
+			description: 'Overwrite one definition file of an assistant with complete new contents (whole-file writes only — no patches). TypeScript files are parse-checked before the write lands; a file that fails to load is rejected and the original is untouched. The previous version is backed up automatically, and any live instance is reloaded. In tools.ts, never use z.any() in schemas.',
+			schema: z.object({
+				name: z.string().describe('The assistant name'),
+				file: z.string().describe('One of: CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml'),
+				content: z.string().describe('The COMPLETE new file contents. This replaces the whole file — read the current version first and include everything that should remain.'),
+			}).describe('Overwrite one definition file of an assistant with complete new contents.'),
+		},
+		rollbackDefinitionFile: {
+			description: 'Restore the most recent backup of a definition file, undoing the last writeDefinitionFile to it. Use when a change made the assistant worse. Reloads any live instance.',
+			schema: z.object({
+				name: z.string().describe('The assistant name'),
+				file: z.string().describe('The definition file to restore (e.g. tools.ts)'),
+			}).describe('Restore the most recent backup of a definition file.'),
+		},
+		listDefinitionHistory: {
+			description: 'List the backed-up versions of an assistant\'s definition files, newest first. Every writeDefinitionFile creates one backup.',
+			schema: z.object({
+				name: z.string().describe('The assistant name'),
+				file: z.string().optional().describe('Filter to backups of one file (e.g. tools.ts). Omit to list all.'),
+			}).describe('List the backed-up versions of an assistant\'s definition files.'),
+		},
+		testAssistant: {
+			description: 'Instantiate a fresh copy of an assistant and send it one message to verify it behaves as intended. Returns its reply, which tools it called with what arguments, and its available tool names. ALWAYS test after changing an assistant.',
+			schema: z.object({
+				name: z.string().describe('The assistant name'),
+				message: z.string().describe('The message to send — pick one that exercises the behavior you just changed'),
+			}).describe('Instantiate a fresh copy of an assistant and send it one message.'),
+		},
+		reloadAssistant: {
+			description: 'Reload a running assistant\'s tools, hooks, and system prompt from disk. writeDefinitionFile already does this automatically — use this only after out-of-band file changes.',
+			schema: z.object({
+				name: z.string().describe('The assistant name (must have an active instance)'),
+			}).describe('Reload a running assistant\'s definition from disk.'),
+		},
+	}
 
 	/** @returns Default state with discovery not yet run and zero counts. */
 	override get initialState(): AssistantsManagerState {
@@ -883,6 +940,290 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		})
 
 		return `## Assistants\n\n${lines.join('\n')}`
+	}
+
+	/** Definition files that the read/write/rollback tools may touch. */
+	private static readonly DEFINITION_FILES = new Set(['CORE.md', 'ABOUT.md', 'tools.ts', 'hooks.ts', 'voice.yml'])
+
+	/** Resolve an assistant entry + validated definition-file path, throwing on unknown names or files. */
+	private _definitionPath(name: string, file: string): { entry: AssistantEntry; path: string } {
+		if (!AssistantsManager.DEFINITION_FILES.has(file)) {
+			throw new Error(
+				`"${file}" is not a definition file. Allowed: ${[...AssistantsManager.DEFINITION_FILES].join(', ')}`
+			)
+		}
+		const entry = this.get(name)
+		if (!entry) {
+			throw new Error(
+				`Assistant "${name}" not found. Available: ${this.available.join(', ') || '(none — run discover() first)'}`
+			)
+		}
+		return { entry, path: `${entry.folder}/${file}` }
+	}
+
+	/**
+	 * Tool-facing wrapper around {@link toSummary}: markdown listing of every
+	 * discovered assistant and its definition files. Runs discovery first if it
+	 * hasn't happened yet, so the tool works on a cold container.
+	 *
+	 * @returns {Promise<string>} Markdown summary of discovered assistants
+	 *
+	 * @example
+	 * ```typescript
+	 * console.log(await manager.listAssistants({}))
+	 * ```
+	 */
+	async listAssistants(_args: Record<string, never> = {}): Promise<string> {
+		if (!this.state.get('discovered')) await this.discover()
+		return this.toSummary()
+	}
+
+	/**
+	 * Create a new assistant definition: `assistants/<name>/` with the given
+	 * CORE.md and a minimal tools.ts, then re-run discovery so it is immediately
+	 * available to `create()`. Refuses to touch an existing assistant.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - Folder name for the new assistant
+	 * @param {string} args.corePrompt - Full CORE.md contents (system prompt, optional frontmatter)
+	 * @returns {Promise<{ created: string; folder: string }>} The created assistant's name and folder
+	 * @throws {Error} If an assistant with that name already exists
+	 *
+	 * @example
+	 * ```typescript
+	 * await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })
+	 * ```
+	 */
+	async createAssistant(args: { name: string; corePrompt: string }): Promise<{ created: string; folder: string }> {
+		const { fs, paths } = this.container
+		if (!this.state.get('discovered')) await this.discover()
+		if (this.get(args.name)) {
+			throw new Error(`Assistant "${args.name}" already exists — use writeDefinitionFile to modify it`)
+		}
+		const folder = paths.resolve('assistants', args.name)
+		fs.mkdir(folder)
+		fs.writeFile(`${folder}/CORE.md`, args.corePrompt)
+		fs.writeFile(`${folder}/tools.ts`, [
+			`declare const container: any`,
+			``,
+			`export const schemas = {}`,
+			``,
+		].join('\n'))
+		await this.discover()
+		return { created: args.name, folder }
+	}
+
+	/**
+	 * Read one definition file of a discovered assistant. Only the known
+	 * definition files (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml) are
+	 * readable — anything else throws, so a tool call cannot traverse paths.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant name
+	 * @param {string} args.file - The definition file to read
+	 * @returns {string} The file contents
+	 * @throws {Error} On unknown assistant, disallowed file name, or missing file
+	 *
+	 * @example
+	 * ```typescript
+	 * const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })
+	 * ```
+	 */
+	readDefinitionFile(args: { name: string; file: string }): string {
+		const { fs } = this.container
+		const { path } = this._definitionPath(args.name, args.file)
+		if (!fs.exists(path)) {
+			throw new Error(`${args.name} has no ${args.file}`)
+		}
+		return fs.readFileSync(path, 'utf8') as string
+	}
+
+	/**
+	 * Overwrite one definition file with complete new contents, guarded two ways:
+	 * TypeScript files are first written to a staged copy and loaded through the
+	 * vm feature — a file that fails to load is rejected and the original stays
+	 * untouched (a broken tools.ts would otherwise silently cripple the
+	 * assistant). The previous version is backed up to `.history/` in the
+	 * assistant's folder (the rollback path — no git involved), and any live
+	 * instance is reloaded so the edit takes effect immediately.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant name
+	 * @param {string} args.file - The definition file to overwrite
+	 * @param {string} args.content - The complete new file contents
+	 * @returns {Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }>} What happened
+	 * @throws {Error} On unknown assistant, disallowed file, or a .ts file that fails to load
+	 *
+	 * @example
+	 * ```typescript
+	 * await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })
+	 * ```
+	 */
+	async writeDefinitionFile(args: { name: string; file: string; content: string }): Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }> {
+		const { fs } = this.container
+		const { entry, path } = this._definitionPath(args.name, args.file)
+
+		if (args.file.endsWith('.ts')) {
+			// Discovery only looks for exact filenames, so a dotfile stage in the
+			// assistant folder is invisible to it.
+			const staged = `${entry.folder}/.staged-${args.file}`
+			fs.writeFile(staged, args.content)
+			try {
+				this.container.feature('vm').loadModule(staged, { container: this.container, console })
+			} catch (err: any) {
+				throw new Error(`${args.file} failed to load, write rejected: ${err?.message || err}`)
+			} finally {
+				await fs.rm(staged)
+			}
+		}
+
+		let backedUp: string | null = null
+		if (fs.exists(path)) {
+			const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+			backedUp = `.history/${stamp}-${args.file}`
+			// ensureFile creates .history/ on first use; writeFile would throw.
+			fs.ensureFile(`${entry.folder}/${backedUp}`, fs.readFileSync(path, 'utf8') as string, true)
+		}
+
+		fs.writeFile(path, args.content)
+		await this.discover()
+
+		const instance = this.getInstance(args.name)
+		if (instance) instance.reload()
+		return { wrote: `${args.name}/${args.file}`, backedUp, reloaded: Boolean(instance) }
+	}
+
+	/**
+	 * List the `.history/` backups for an assistant, newest first. Every
+	 * successful {@link writeDefinitionFile} over an existing file creates one.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant name
+	 * @param {string} [args.file] - Filter to backups of one file
+	 * @returns {string[]} Backup file names (e.g. "2026-08-28T12-00-00-000Z-tools.ts"), newest first
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })
+	 * ```
+	 */
+	listDefinitionHistory(args: { name: string; file?: string }): string[] {
+		const { fs } = this.container
+		const entry = this.get(args.name)
+		if (!entry) {
+			throw new Error(`Assistant "${args.name}" not found. Available: ${this.available.join(', ') || '(none)'}`)
+		}
+		const historyDir = `${entry.folder}/.history`
+		if (!fs.exists(historyDir)) return []
+		const names = (fs.readdirSync(historyDir) as string[])
+			.filter((n) => (args.file ? n.endsWith(`-${args.file}`) : true))
+		return names.sort().reverse()
+	}
+
+	/**
+	 * Restore the most recent `.history/` backup of a definition file — the undo
+	 * for {@link writeDefinitionFile}. Reloads any live instance afterward. The
+	 * backup itself is kept, so repeated rollbacks are safe.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant name
+	 * @param {string} args.file - The definition file to restore
+	 * @returns {Promise<{ restoredFrom: string; reloaded: boolean }>} Which backup was restored
+	 * @throws {Error} If no backup exists for that file
+	 *
+	 * @example
+	 * ```typescript
+	 * await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })
+	 * ```
+	 */
+	async rollbackDefinitionFile(args: { name: string; file: string }): Promise<{ restoredFrom: string; reloaded: boolean }> {
+		const { fs } = this.container
+		const { entry, path } = this._definitionPath(args.name, args.file)
+		const [latest] = this.listDefinitionHistory(args)
+		if (!latest) {
+			throw new Error(`No history for ${args.name}/${args.file} — nothing has been written over yet`)
+		}
+		fs.writeFile(path, fs.readFileSync(`${entry.folder}/.history/${latest}`, 'utf8') as string)
+		await this.discover()
+		const instance = this.getInstance(args.name)
+		if (instance) instance.reload()
+		return { restoredFrom: latest, reloaded: Boolean(instance) }
+	}
+
+	/**
+	 * Spin up a detached instance of an assistant and send it one message —
+	 * the verification half of the edit → test loop. The instance is created
+	 * uncached so it does not disturb (or get confused with) a live instance of
+	 * the same assistant. Makes real model calls.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant name (must be a discovered entry)
+	 * @param {string} args.message - The message to send
+	 * @returns {Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }>} The reply, tool calls made, and tool names available
+	 *
+	 * @example
+	 * ```typescript
+	 * const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })
+	 * ```
+	 */
+	async testAssistant(args: { name: string; message: string }): Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }> {
+		if (!this.state.get('discovered')) await this.discover()
+		const entry = this.get(args.name)
+		if (!entry) {
+			throw new Error(`Assistant "${args.name}" not found. Available: ${this.available.join(', ') || '(none)'}`)
+		}
+		const instance = this.container.feature(
+			'assistant',
+			deepMergeOptions({ folder: entry.folder, cached: false }, this.overridesFor(args.name)),
+		) as Assistant
+
+		const toolCalls: Array<{ tool: string; args: Record<string, any> }> = []
+		instance.on('toolCall', (tool: string, callArgs: Record<string, any>) => {
+			toolCalls.push({ tool, args: callArgs })
+		})
+
+		const reply = await instance.ask(args.message)
+		return { reply, toolCalls, availableTools: Object.keys((instance as any).tools ?? {}) }
+	}
+
+	/**
+	 * Args-object wrapper around {@link reload} for tool consumption.
+	 *
+	 * @param {object} args - Arguments
+	 * @param {string} args.name - The assistant to reload (must have an active instance)
+	 * @returns {{ reloaded: string[] }} Names of reloaded assistants
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.reloadAssistant({ name: 'researcher' })
+	 * ```
+	 */
+	reloadAssistant(args: { name: string }): { reloaded: string[] } {
+		return this.reload(args.name)
+	}
+
+	/**
+	 * When an assistant consumes this manager via `use()`, inject the operating
+	 * doctrine for editing assistants safely.
+	 */
+	override setupToolsConsumer(consumer: Helper) {
+		if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+			(consumer as any).addSystemPromptExtension('assistantsManager', [
+				'## Assistant Management Tools',
+				'',
+				'You can create, inspect, edit, test, and roll back assistant definitions.',
+				'',
+				'**Workflow:** `listAssistants` to see what exists → `readDefinitionFile` before ANY write → `writeDefinitionFile` with the COMPLETE new file → `testAssistant` to verify the change → `rollbackDefinitionFile` if it regressed.',
+				'',
+				'**Whole-file writes only.** `writeDefinitionFile` replaces the entire file. Always read the current version first and include everything that should remain.',
+				'',
+				'**tools.ts contract:** export a `schemas` object (zod, keys = tool names) plus a matching exported function per key. The luca `container` is a global — declare it with `declare const container: any`. Never use `z.any()` in schemas.',
+				'',
+				'**Broken TypeScript is rejected** at write time and the original file is kept — read the error, fix the code, write again.',
+				'',
+				'**Do not edit your own assistant folder** unless explicitly asked to; edits to yourself only take effect after a reload, mid-conversation behavior is undefined.',
+			].join('\n'))
+		}
 	}
 }
 

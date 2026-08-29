@@ -3229,6 +3229,239 @@ setBuildTimeData('features.assistantsManager', {
       "parameters": {},
       "required": [],
       "returns": "string"
+    },
+    "listAssistants": {
+      "description": "Tool-facing wrapper around {@link toSummary}: markdown listing of every discovered assistant and its definition files. Runs discovery first if it hasn't happened yet, so the tool works on a cold container.",
+      "parameters": {
+        "_args": {
+          "type": "Record<string, never>",
+          "description": "Parameter _args"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "console.log(await manager.listAssistants({}))"
+        }
+      ]
+    },
+    "createAssistant": {
+      "description": "Create a new assistant definition: `assistants/<name>/` with the given CORE.md and a minimal tools.ts, then re-run discovery so it is immediately available to `create()`. Refuses to touch an existing assistant.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; corePrompt: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "Folder name for the new assistant"
+            },
+            "corePrompt": {
+              "type": "any",
+              "description": "Full CORE.md contents (system prompt, optional frontmatter)"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ created: string; folder: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })"
+        }
+      ]
+    },
+    "readDefinitionFile": {
+      "description": "Read one definition file of a discovered assistant. Only the known definition files (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml) are readable — anything else throws, so a tool call cannot traverse paths.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; file: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant name"
+            },
+            "file": {
+              "type": "any",
+              "description": "The definition file to read"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })"
+        }
+      ]
+    },
+    "writeDefinitionFile": {
+      "description": "Overwrite one definition file with complete new contents, guarded two ways: TypeScript files are first written to a staged copy and loaded through the vm feature — a file that fails to load is rejected and the original stays untouched (a broken tools.ts would otherwise silently cripple the assistant). The previous version is backed up to `.history/` in the assistant's folder (the rollback path — no git involved), and any live instance is reloaded so the edit takes effect immediately.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; file: string; content: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant name"
+            },
+            "file": {
+              "type": "any",
+              "description": "The definition file to overwrite"
+            },
+            "content": {
+              "type": "any",
+              "description": "The complete new file contents"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })"
+        }
+      ]
+    },
+    "listDefinitionHistory": {
+      "description": "List the `.history/` backups for an assistant, newest first. Every successful {@link writeDefinitionFile} over an existing file creates one.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; file?: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant name"
+            },
+            "file": {
+              "type": "any",
+              "description": "Filter to backups of one file"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })"
+        }
+      ]
+    },
+    "rollbackDefinitionFile": {
+      "description": "Restore the most recent `.history/` backup of a definition file — the undo for {@link writeDefinitionFile}. Reloads any live instance afterward. The backup itself is kept, so repeated rollbacks are safe.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; file: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant name"
+            },
+            "file": {
+              "type": "any",
+              "description": "The definition file to restore"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ restoredFrom: string; reloaded: boolean }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })"
+        }
+      ]
+    },
+    "testAssistant": {
+      "description": "Spin up a detached instance of an assistant and send it one message — the verification half of the edit → test loop. The instance is created uncached so it does not disturb (or get confused with) a live instance of the same assistant. Makes real model calls.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string; message: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant name (must be a discovered entry)"
+            },
+            "message": {
+              "type": "any",
+              "description": "The message to send"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })"
+        }
+      ]
+    },
+    "reloadAssistant": {
+      "description": "Args-object wrapper around {@link reload} for tool consumption.",
+      "parameters": {
+        "args": {
+          "type": "{ name: string }",
+          "description": "Arguments",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "The assistant to reload (must have an active instance)"
+            }
+          }
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "{ reloaded: string[] }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "manager.reloadAssistant({ name: 'researcher' })"
+        }
+      ]
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes this manager via `use()`, inject the operating doctrine for editing assistants safely.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
     }
   },
   "getters": {
@@ -30309,6 +30542,239 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "string"
+      },
+      "listAssistants": {
+        "description": "Tool-facing wrapper around {@link toSummary}: markdown listing of every discovered assistant and its definition files. Runs discovery first if it hasn't happened yet, so the tool works on a cold container.",
+        "parameters": {
+          "_args": {
+            "type": "Record<string, never>",
+            "description": "Parameter _args"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "console.log(await manager.listAssistants({}))"
+          }
+        ]
+      },
+      "createAssistant": {
+        "description": "Create a new assistant definition: `assistants/<name>/` with the given CORE.md and a minimal tools.ts, then re-run discovery so it is immediately available to `create()`. Refuses to touch an existing assistant.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; corePrompt: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "Folder name for the new assistant"
+              },
+              "corePrompt": {
+                "type": "any",
+                "description": "Full CORE.md contents (system prompt, optional frontmatter)"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ created: string; folder: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })"
+          }
+        ]
+      },
+      "readDefinitionFile": {
+        "description": "Read one definition file of a discovered assistant. Only the known definition files (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml) are readable — anything else throws, so a tool call cannot traverse paths.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; file: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant name"
+              },
+              "file": {
+                "type": "any",
+                "description": "The definition file to read"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })"
+          }
+        ]
+      },
+      "writeDefinitionFile": {
+        "description": "Overwrite one definition file with complete new contents, guarded two ways: TypeScript files are first written to a staged copy and loaded through the vm feature — a file that fails to load is rejected and the original stays untouched (a broken tools.ts would otherwise silently cripple the assistant). The previous version is backed up to `.history/` in the assistant's folder (the rollback path — no git involved), and any live instance is reloaded so the edit takes effect immediately.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; file: string; content: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant name"
+              },
+              "file": {
+                "type": "any",
+                "description": "The definition file to overwrite"
+              },
+              "content": {
+                "type": "any",
+                "description": "The complete new file contents"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })"
+          }
+        ]
+      },
+      "listDefinitionHistory": {
+        "description": "List the `.history/` backups for an assistant, newest first. Every successful {@link writeDefinitionFile} over an existing file creates one.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; file?: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant name"
+              },
+              "file": {
+                "type": "any",
+                "description": "Filter to backups of one file"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })"
+          }
+        ]
+      },
+      "rollbackDefinitionFile": {
+        "description": "Restore the most recent `.history/` backup of a definition file — the undo for {@link writeDefinitionFile}. Reloads any live instance afterward. The backup itself is kept, so repeated rollbacks are safe.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; file: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant name"
+              },
+              "file": {
+                "type": "any",
+                "description": "The definition file to restore"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ restoredFrom: string; reloaded: boolean }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })"
+          }
+        ]
+      },
+      "testAssistant": {
+        "description": "Spin up a detached instance of an assistant and send it one message — the verification half of the edit → test loop. The instance is created uncached so it does not disturb (or get confused with) a live instance of the same assistant. Makes real model calls.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string; message: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant name (must be a discovered entry)"
+              },
+              "message": {
+                "type": "any",
+                "description": "The message to send"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })"
+          }
+        ]
+      },
+      "reloadAssistant": {
+        "description": "Args-object wrapper around {@link reload} for tool consumption.",
+        "parameters": {
+          "args": {
+            "type": "{ name: string }",
+            "description": "Arguments",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "The assistant to reload (must have an active instance)"
+              }
+            }
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "{ reloaded: string[] }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "manager.reloadAssistant({ name: 'researcher' })"
+          }
+        ]
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes this manager via `use()`, inject the operating doctrine for editing assistants safely.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
       }
     },
     "getters": {
