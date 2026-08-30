@@ -227,6 +227,7 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error object or message')]).describe('Fired when a tool handler throws or the tool is unknown'),
 	toolCallsEnd: z.tuple([]).describe('Fired after all tool calls in a turn have been executed'),
 	chunk: z.tuple([z.string().describe('Text delta from the stream')]).describe('Fired for each streaming text delta'),
+	reasoning: z.tuple([z.string().describe('Reasoning/thinking text delta from the stream')]).describe('Fired for each reasoning delta a thinking model streams before its answer. Never part of the response text or message history. What arrives is provider-shaped: local models stream raw thinking (reasoning_content or inline <think> tags), the OpenAI Responses API streams reasoning summaries only'),
 	preview: z.tuple([z.string().describe('Accumulated text so far')]).describe('Fired after each chunk with the full accumulated text'),
 	response: z.tuple([z.string().describe('Final accumulated response text')]).describe('Fired when the final text response is produced'),
 	responseCompleted: z.tuple([z.any().describe('The completed OpenAI Response object')]).describe('Fired when the Responses API stream completes'),
@@ -1702,6 +1703,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 						this.state.set('lastResponse', accumulated)
 						this.emit('chunk', event.text)
 						this.emit('preview', accumulated)
+					} else if (event.type === 'reasoning') {
+						this.emit('reasoning', event.text)
 					} else if (event.type === 'toolCall') {
 						toolCalls.push(event.toolCall)
 					} else if (event.type === 'rawEvent') {
@@ -1993,6 +1996,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					this.state.set('lastResponse', accumulated)
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
+				} else if (transportEvent.type === 'reasoning') {
+					this.emit('reasoning', transportEvent.text)
 				} else if (transportEvent.type === 'response') {
 					finalResponse = (transportEvent.response.providerData?.response ?? finalResponse) as OpenAI.Responses.Response | undefined
 				}
@@ -2172,6 +2177,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					this.state.set('lastResponse', accumulated)
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
+				} else if (transportEvent.type === 'reasoning') {
+					this.emit('reasoning', transportEvent.text)
 				} else if (transportEvent.type === 'response') {
 					const response = transportEvent.response
 

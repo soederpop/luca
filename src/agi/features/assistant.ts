@@ -24,6 +24,7 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Emitted when a new completion turn begins. isFollowUp is true when resuming after tool calls'),
 	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Emitted when a completion turn ends. hasToolCalls indicates whether tool calls will follow'),
 	chunk: z.tuple([z.string().describe('A chunk of streamed text')]).describe('Emitted as tokens stream in'),
+	reasoning: z.tuple([z.string().describe('A delta of reasoning/thinking text')]).describe('Emitted as a thinking model streams its reasoning, before and between answer chunks. Never included in the response text or message history; availability and shape depend on the provider (raw thinking from local models, summaries from the OpenAI Responses API, nothing from codex/claude-code sessions)'),
 	preview: z.tuple([z.string().describe('The accumulated response so far')]).describe('Emitted with the full response text accumulated across all turns'),
 	response: z.tuple([z.string().describe('The final response text')]).describe('Emitted when a complete response is produced (accumulated across all turns)'),
 	rawEvent: z.tuple([z.any().describe('A raw streaming event from the active model API')]).describe('Emitted for each raw streaming event from the underlying conversation transport'),
@@ -1756,6 +1757,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		conversation.on('chunk', async (chunk: string) => {
 			await this.triggerHook('chunk', chunk)
 			this.emit('chunk', chunk)
+		})
+		conversation.on('reasoning', async (text: string) => {
+			await this.triggerHook('reasoning', text)
+			this.emit('reasoning', text)
 		})
 		conversation.on('preview', async (text: string) => {
 			await this.triggerHook('preview', text)

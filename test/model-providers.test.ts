@@ -730,3 +730,97 @@ describe('ModelProviders discover()', () => {
     expect(found[0]!.hint).toBeUndefined()
   })
 })
+
+describe('ThinkTagSplitter', () => {
+  const { ThinkTagSplitter } = require('../src/agi/features/model-providers')
+
+  function run(chunks: string[]) {
+    const splitter = new ThinkTagSplitter()
+    let content = ''
+    let reasoning = ''
+    for (const chunk of chunks) {
+      const out = splitter.push(chunk)
+      content += out.content
+      reasoning += out.reasoning
+    }
+    const tail = splitter.flush()
+    content += tail.content
+    reasoning += tail.reasoning
+    return { content, reasoning }
+  }
+
+  it('passes plain content through untouched', () => {
+    expect(run(['hello ', 'world'])).toEqual({ content: 'hello world', reasoning: '' })
+  })
+
+  it('routes a leading think block to reasoning', () => {
+    expect(run(['<think>hmm, 2+2</think>4'])).toEqual({ content: '4', reasoning: 'hmm, 2+2' })
+  })
+
+  it('handles tags split across chunk boundaries', () => {
+    expect(run(['<thi', 'nk>deep ', 'thought</th', 'ink>answer'])).toEqual({ content: 'answer', reasoning: 'deep thought' })
+  })
+
+  it('treats a think tag after real content as literal text', () => {
+    expect(run(['the tag is <think> ok'])).toEqual({ content: 'the tag is <think> ok', reasoning: '' })
+  })
+
+  it('allows leading whitespace before the opening tag', () => {
+    expect(run(['\n  <think>x</think>y'])).toEqual({ content: '\n  y', reasoning: 'x' })
+  })
+
+  it('flushes an unterminated think block as reasoning', () => {
+    expect(run(['<think>never closed'])).toEqual({ content: '', reasoning: 'never closed' })
+  })
+
+  it('does not hold back angle brackets that cannot start a tag', () => {
+    const splitter = new ThinkTagSplitter()
+    const out = splitter.push('a < b')
+    expect(out.content).toBe('a < b')
+  })
+})
+
+describe('reasoning stream events', () => {
+  const makeFakeClient = () => ({ chat: { completions: { create: async () => {
+    async function* chunks() {
+      yield { choices: [{ delta: { reasoning_content: 'let me think. ' } }] }
+      yield { choices: [{ delta: { content: '<think>more tho' } }] }
+      yield { choices: [{ delta: { content: 'ughts</think>the answer' } }] }
+      yield { choices: [{ delta: { content: ' is 4' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }
+    }
+    return chunks()
+  } } } })
+
+  it('chat transport emits reasoning from reasoning_content deltas and inline think tags, keeping content clean', async () => {
+    const container = new AGIContainer()
+    const providers = container.feature('modelProviders')
+    const provider = await providers.resolve({
+      provider: { id: 'test-think', apiMode: 'openai-chat-completions', auth: 'none' },
+      providerOptions: { client: makeFakeClient() },
+    })
+    const events: any[] = []
+    for await (const event of provider.transport.stream({ model: 'm', messages: [], stream: true }, provider)) events.push(event)
+    const reasoning = events.filter(e => e.type === 'reasoning').map(e => e.text).join('')
+    const content = events.filter(e => e.type === 'chunk').map(e => e.text).join('')
+    expect(reasoning).toBe('let me think. more thoughts')
+    expect(content).toBe('the answer is 4')
+    expect(events.at(-1).response.content).toBe('the answer is 4')
+  })
+
+  it('conversation re-emits reasoning and keeps it out of the response and history', async () => {
+    const container = new AGIContainer()
+    const conv = container.feature('conversation', {
+      cached: false,
+      provider: { id: 'test-think-conv', apiMode: 'openai-chat-completions', auth: 'none' },
+      providerOptions: { client: makeFakeClient() },
+      history: [{ role: 'system', content: 'sys' }],
+    }) as any
+    const reasoning: string[] = []
+    conv.on('reasoning', (text: string) => reasoning.push(text))
+    const answer = await conv.ask('2+2?')
+    expect(answer).toBe('the answer is 4')
+    expect(reasoning.join('')).toBe('let me think. more thoughts')
+    expect(conv.messages.at(-1).content).toBe('the answer is 4')
+    expect(JSON.stringify(conv.messages)).not.toContain('more thoughts')
+  })
+})

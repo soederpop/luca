@@ -190,6 +190,7 @@ export interface ModelResponse {
 
 export type ModelStreamEvent =
   | { type: 'chunk'; text: string }
+  | { type: 'reasoning'; text: string }
   | { type: 'toolCall'; toolCall: ModelToolCall }
   | { type: 'response'; response: ModelResponse }
   | { type: 'rawEvent'; event: any }
@@ -466,6 +467,82 @@ async function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<
   })
 }
 
+/**
+ * Incremental `<think>…</think>` segmenter for models whose chat template
+ * leaves reasoning inline in the content stream (qwen3, DeepSeek-R1 via
+ * llama-server without --reasoning-format, etc.).
+ *
+ * Feed it content deltas; it routes text inside the tags to `reasoning` and
+ * everything else to `content`, holding back a partial tag split across chunk
+ * boundaries until the next delta resolves it. An opening tag only counts
+ * while the turn has produced nothing but whitespace — a literal `<think>`
+ * mentioned mid-answer stays in the content.
+ */
+export class ThinkTagSplitter {
+  private inside = false
+  private pending = ''
+  private sawContent = false
+
+  push(text: string): { content: string; reasoning: string } {
+    this.pending += text
+    let content = ''
+    let reasoning = ''
+
+    while (true) {
+      if (!this.inside && this.sawContent) {
+        // Past the point where an opening tag is plausible — pass through.
+        content += this.pending
+        this.pending = ''
+        break
+      }
+      const tag = this.inside ? '</think>' : '<think>'
+      const idx = this.pending.indexOf(tag)
+      if (idx === -1) {
+        const keep = partialTagSuffix(this.pending, tag)
+        const emit = this.pending.slice(0, this.pending.length - keep)
+        if (this.inside) reasoning += emit
+        else {
+          content += emit
+          if (emit.trim()) this.sawContent = true
+        }
+        this.pending = this.pending.slice(this.pending.length - keep)
+        break
+      }
+      const emit = this.pending.slice(0, idx)
+      if (this.inside) reasoning += emit
+      else {
+        content += emit
+        if (emit.trim()) this.sawContent = true
+      }
+      this.pending = this.pending.slice(idx + tag.length)
+      if (!this.inside && this.sawContent) {
+        // The tag opened after real content — it was literal text, put it back.
+        content += tag
+      } else {
+        this.inside = !this.inside
+      }
+    }
+
+    return { content, reasoning }
+  }
+
+  /** Emit whatever is still held back (call once, at stream end). */
+  flush(): { content: string; reasoning: string } {
+    const emit = this.pending
+    this.pending = ''
+    return this.inside ? { content: '', reasoning: emit } : { content: emit, reasoning: '' }
+  }
+}
+
+/** Length of the longest suffix of `s` that is a proper prefix of `tag`. */
+function partialTagSuffix(s: string, tag: string): number {
+  const max = Math.min(s.length, tag.length - 1)
+  for (let len = max; len > 0; len--) {
+    if (tag.startsWith(s.slice(s.length - len))) return len
+  }
+  return 0
+}
+
 class NotImplementedTransport implements ModelTransport {
   constructor(public apiMode: ModelProviderApiMode) {}
   async *stream(): AsyncIterable<ModelStreamEvent> {
@@ -531,7 +608,21 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
     yield { type: 'rawEvent', event: json }
     const choice = json.choices?.[0]
     const message = choice?.message ?? {}
-    const content = typeof message.content === 'string' ? message.content : ''
+    // llama-server/vLLM/DeepSeek surface reasoning as reasoning_content;
+    // OpenRouter as reasoning; some templates leave it inline in <think> tags
+    const messageReasoning = message.reasoning_content ?? message.reasoning
+    if (typeof messageReasoning === 'string' && messageReasoning) {
+      yield { type: 'reasoning', text: messageReasoning }
+    }
+    let content = typeof message.content === 'string' ? message.content : ''
+    if (content) {
+      const splitter = new ThinkTagSplitter()
+      const split = splitter.push(content)
+      const tail = splitter.flush()
+      const inlineReasoning = split.reasoning + tail.reasoning
+      if (inlineReasoning) yield { type: 'reasoning', text: inlineReasoning }
+      content = split.content + tail.content
+    }
     if (content) yield { type: 'chunk', text: content }
     yield {
       type: 'response',
@@ -560,15 +651,30 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
     let responseModel: string | undefined
     const toolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = []
 
+    const splitter = new ThinkTagSplitter()
+
     for await (const chunk of stream) {
       yield { type: 'rawEvent', event: chunk }
 
       const choice = chunk.choices?.[0]
       const delta = choice?.delta
 
+      // Structured reasoning deltas (llama-server/vLLM: reasoning_content,
+      // OpenRouter: reasoning) stream separately from content
+      const reasoningDelta = (delta as any)?.reasoning_content ?? (delta as any)?.reasoning
+      if (typeof reasoningDelta === 'string' && reasoningDelta) {
+        yield { type: 'reasoning', text: reasoningDelta }
+      }
+
       if (delta?.content) {
-        content += delta.content
-        yield { type: 'chunk', text: delta.content }
+        // Inline <think> tags (template-dependent) are segmented out so
+        // reasoning never lands in the visible content or message history
+        const split = splitter.push(delta.content)
+        if (split.reasoning) yield { type: 'reasoning', text: split.reasoning }
+        if (split.content) {
+          content += split.content
+          yield { type: 'chunk', text: split.content }
+        }
       }
 
       if (delta?.tool_calls) {
@@ -599,6 +705,13 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
           },
         }
       }
+    }
+
+    const tail = splitter.flush()
+    if (tail.reasoning) yield { type: 'reasoning', text: tail.reasoning }
+    if (tail.content) {
+      content += tail.content
+      yield { type: 'chunk', text: tail.content }
     }
 
     yield {
@@ -703,6 +816,12 @@ export class OpenAIResponsesTransport implements ModelTransport {
         const delta = event.delta || ''
         content += delta
         yield { type: 'chunk', text: delta }
+      }
+
+      // OpenAI never returns raw chain-of-thought — these are the reasoning
+      // summaries (requested via reasoning.summary on o-series/gpt-5 models)
+      if (event.type === 'response.reasoning_summary_text.delta' || event.type === 'response.reasoning_text.delta') {
+        if (event.delta) yield { type: 'reasoning', text: event.delta }
       }
 
       if (event.type === 'response.completed') {

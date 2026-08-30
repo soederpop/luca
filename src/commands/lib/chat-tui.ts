@@ -39,7 +39,7 @@ type ToolEv = {
 	error?: string
 }
 
-type Part = { type: 'text'; text: string } | { type: 'tool'; ev: ToolEv }
+type Part = { type: 'text'; text: string } | { type: 'reasoning'; text: string } | { type: 'tool'; ev: ToolEv }
 
 type Item =
 	| { id: string; kind: 'user'; who: string; text: string }
@@ -100,6 +100,9 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		queue: [] as Array<{ target: string; text: string }>,
 		target: options.initialAssistant ?? null,
 		showToolResults: false,
+		showThinking: false,
+		// Only surface the ctrl+t hint once a model has actually streamed reasoning
+		sawReasoning: false,
 		mode: 'input' as 'input' | 'picker',
 		picker: null as null | {
 			title: string
@@ -169,6 +172,15 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			const last = current.parts[current.parts.length - 1]
 			if (last && last.type === 'text') last.text += text
 			else current.parts.push({ type: 'text', text })
+			bump()
+		})
+
+		assistant.on('reasoning', (text: string) => {
+			const current = ensureCurrent(name)
+			store.sawReasoning = true
+			const last = current.parts[current.parts.length - 1]
+			if (last && last.type === 'reasoning') last.text += text
+			else current.parts.push({ type: 'reasoning', text })
 			bump()
 		})
 
@@ -312,6 +324,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				lines.push(colors.bold('keys'))
 				lines.push(`  ${colors.cyan('esc / ctrl+c')}  ${colors.dim('interrupt the running turn')}`)
 				lines.push(`  ${colors.cyan('ctrl+o')}        ${colors.dim('toggle expanded tool results')}`)
+				lines.push(`  ${colors.cyan('ctrl+t')}        ${colors.dim('toggle thinking/reasoning output (also /thinking)')}`)
 				lines.push(`  ${colors.cyan('↑ / ↓')}         ${colors.dim('input history (persisted per project)')}`)
 				lines.push(`  ${colors.cyan('tab')}           ${colors.dim('complete /commands and @assistants')}`)
 				lines.push(`  ${colors.cyan('\\ then enter')}  ${colors.dim('continue on a new line (multiline input)')}`)
@@ -408,6 +421,19 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				} catch (err: any) {
 					systemLine(colors.red(`✗ ${err?.message || err}`))
 				}
+			},
+		},
+		thinking: {
+			desc: 'Toggle reasoning/thinking output (or /thinking on|off)',
+			usage: '[on|off]',
+			run(args) {
+				if (args[0] === 'on') store.showThinking = true
+				else if (args[0] === 'off') store.showThinking = false
+				else store.showThinking = !store.showThinking
+				const note = store.showThinking
+					? 'thinking shown — what appears depends on the provider (raw thinking from local models, summaries from openai, nothing from codex/claude-code)'
+					: 'thinking hidden (a dim ✻ line marks where it happened)'
+				systemLine(colors.dim(note))
 			},
 		},
 		tools: {
@@ -645,10 +671,26 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		)
 	}
 
-	function TurnParts({ parts, expanded }: { parts: Part[]; expanded: boolean }) {
+	function ReasoningBlock({ text, streaming }: { text: string; streaming: boolean }) {
+		const approxTokens = Math.max(1, Math.round(text.length / 4))
+		if (!store.showThinking) {
+			return h(Text, { dimColor: true },
+				`✻ ${streaming ? 'thinking…' : 'thought'} (~${approxTokens} tokens) · ctrl+t to show`)
+		}
+		return h(Box, { flexDirection: 'column' },
+			h(Text, { dimColor: true }, `✻ ${streaming ? 'thinking…' : 'thinking'}`),
+			h(Text, { dimColor: true, italic: true }, text.trim() || '…'),
+		)
+	}
+
+	function TurnParts({ parts, expanded, streaming }: { parts: Part[]; expanded: boolean; streaming?: boolean }) {
 		return h(Box, { flexDirection: 'column' },
 			...parts.map((part, index) => {
 				if (part.type === 'tool') return h(ToolLine, { key: part.ev.id, ev: part.ev, expanded })
+				if (part.type === 'reasoning') {
+					const isLive = !!streaming && index === parts.length - 1
+					return h(ReasoningBlock, { key: `r${index}`, text: part.text, streaming: isLive })
+				}
 				return h(Text, { key: `t${index}` }, md(part.text))
 			}),
 		)
@@ -694,6 +736,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		}
 		parts.push(historyMode)
 		parts.push(`ctrl+o tools ${store.showToolResults ? 'on' : 'off'}`)
+		if (store.sawReasoning) parts.push(`ctrl+t thinking ${store.showThinking ? 'on' : 'off'}`)
 		return h(Text, { dimColor: true }, '  ' + parts.join(' · '))
 	}
 
@@ -762,6 +805,11 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			}
 			if (key.ctrl && input === 'o') {
 				store.showToolResults = !store.showToolResults
+				bump()
+				return
+			}
+			if (key.ctrl && input === 't') {
+				store.showThinking = !store.showThinking
 				bump()
 				return
 			}
@@ -859,7 +907,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			h(Static, { items: staticItems }, (item: Item) => h(TranscriptItem, { key: item.id, item, expanded })),
 			...(store.current ? [h(Box, { flexDirection: 'column', marginTop: 1 },
 				...(multi ? [h(Text, null, colors.cyan(colors.bold(store.current.who)))] : []),
-				h(TurnParts, { parts: store.current.parts, expanded }),
+				h(TurnParts, { parts: store.current.parts, expanded, streaming: store.busy }),
 			)] : []),
 			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`thinking… ${elapsed}s · esc to interrupt`)}`)] : []),
 			...store.queue.map((queued, index) => h(Text, { key: `q${index}`, dimColor: true }, `  ⧗ queued: ${queued.text.split('\n')[0]}`)),
