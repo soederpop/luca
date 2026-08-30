@@ -31,6 +31,10 @@ describe('AssistantsManager disabling', () => {
 		process.chdir(tmpDir)
 		// Rebuild container so paths.resolve() picks up the new cwd
 		container = new AGIContainer()
+		// Point homedir at the sandbox too — discover() scans ~/.luca/assistants,
+		// so a developer's real global assistants would leak into the listings
+		// (bun's os.homedir() ignores $HOME, so shadow the feature getter)
+		Object.defineProperty(container.os, 'homedir', { value: tmpDir, configurable: true })
 		manager = container.feature('assistantsManager')
 	})
 
