@@ -1,4 +1,5 @@
 import * as readline from 'readline'
+import * as util from 'util'
 
 /**
  * The interactive chat TUI behind `luca chat`.
@@ -92,8 +93,6 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		version: 0,
 		listeners: new Set<() => void>(),
 		transcript: [] as Item[],
-		// Static index base — reset after a /console detour so the remounted app
-		// doesn't re-print scrollback that is already on screen
 		staticBase: 0,
 		current: null as null | { who: string; parts: Part[]; startedAt: number },
 		busy: false,
@@ -103,7 +102,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		showThinking: false,
 		// Only surface the ctrl+t hint once a model has actually streamed reasoning
 		sawReasoning: false,
-		mode: 'input' as 'input' | 'picker',
+		mode: 'input' as 'input' | 'picker' | 'console',
 		picker: null as null | {
 			title: string
 			items: Array<{ label: string; hint?: string; value: string }>
@@ -111,7 +110,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			onPick: (value: string) => void | Promise<void>
 		},
 		notice: '',
-		exitReason: null as null | 'exit' | 'console',
+		exitRequested: false,
 	}
 
 	function bump() {
@@ -124,8 +123,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		bump()
 	}
 
-	function requestExit(reason: 'exit' | 'console') {
-		store.exitReason = reason
+	function requestExit() {
+		store.exitRequested = true
 		bump()
 	}
 
@@ -336,7 +335,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		exit: {
 			desc: 'Leave the chat',
 			run() {
-				requestExit('exit')
+				requestExit()
 			},
 		},
 		clear: {
@@ -500,9 +499,9 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			},
 		},
 		console: {
-			desc: 'Drop into a live REPL with the container in scope',
+			desc: 'Console mode — evaluate JS with the container in scope (.exit returns)',
 			run() {
-				requestExit('console')
+				enterConsole()
 			},
 		},
 	}
@@ -516,6 +515,40 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		} catch (err: any) {
 			systemLine(colors.red(`✗ ${err?.message || err}`))
 		}
+	}
+
+	// ── console mode: evaluate JS in the repl's VM without leaving ink ────────
+	// (Tearing ink down for a readline repl is not survivable in bun: once a
+	// readline interface has been through fd 0 after an ink app, the next ink
+	// render never receives another byte. So the console lives inside the app.)
+	let consoleContext: Record<string, any> | null = null
+
+	function enterConsole() {
+		const featureContext: Record<string, any> = {}
+		for (const featureName of container.features.available) {
+			try { featureContext[featureName] = container.feature(featureName) } catch {}
+		}
+		consoleContext = {
+			...featureContext,
+			assistant: store.target ? getCell(store.target).assistant : undefined,
+			assistants: Object.fromEntries([...cells.entries()].map(([cellName, cell]) => [cellName, cell.assistant])),
+			console,
+			setTimeout, setInterval, clearTimeout, clearInterval,
+			fetch,
+		}
+		store.mode = 'console'
+		systemLine(
+			colors.magenta('console mode') + colors.dim(' — evaluate JS with every feature in scope; the active assistant is `assistant`, `_` holds the last result'),
+			colors.dim('.exit returns to chat'),
+		)
+	}
+
+	async function runConsoleLine(code: string) {
+		const repl = container.feature('repl')
+		const { value, error } = await repl.evaluate(code, consoleContext ? { context: consoleContext } : {})
+		consoleContext = null // merged into the VM on first use; later lines see the same globals
+		if (error) systemLine(colors.red(`Error: ${error.message}`))
+		else if (value !== undefined) systemLine(util.inspect(value, { colors: true, depth: 4 }))
 	}
 
 	// ── input history (persisted per project, like the repl feature) ──────────
@@ -546,7 +579,19 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		saveHistoryEntry(text)
 		store.notice = ''
 
-		if (text === '.exit') return requestExit('exit')
+		if (store.mode === 'console') {
+			if (text === '.exit' || text === 'exit') {
+				store.mode = 'input'
+				systemLine(colors.dim(`back in chat${store.target ? ` with ${colors.cyan(store.target)}` : ''}`))
+				return
+			}
+			store.transcript.push({ id: uid(), kind: 'system', lines: [colors.magenta('console ❯ ') + text] })
+			bump()
+			void runConsoleLine(text)
+			return
+		}
+
+		if (text === '.exit') return requestExit()
 
 		if (text.startsWith('/')) {
 			const [cmdWord, ...args] = text.slice(1).split(/\s+/)
@@ -763,7 +808,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		const busyTick = useTick(store.busy, 120)
 
 		useEffect(() => {
-			if (store.exitReason) exit()
+			if (store.exitRequested) exit()
 		}, [store.version])
 
 		const setInput = (nextValue: string, nextCursor: number) => {
@@ -793,14 +838,14 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			if (key.ctrl && input === 'c') {
 				if (store.busy) return abortActive()
 				if (value) return setInput('', 0)
-				if (ctrlCArmed) return requestExit('exit')
+				if (ctrlCArmed) return requestExit()
 				setCtrlCArmed(true)
 				store.notice = colors.dim('press ctrl+c again to quit')
 				bump()
 				return
 			}
 			if (key.ctrl && input === 'd') {
-				if (!value) requestExit('exit')
+				if (!value) requestExit()
 				return
 			}
 			if (key.ctrl && input === 'o') {
@@ -892,7 +937,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		const elapsed = store.current ? Math.round((Date.now() - store.current.startedAt) / 1000) : 0
 
 		// input line with a block cursor; multiline drafts get a gutter
-		const promptSymbol = colors.cyan('❯ ')
+		const promptSymbol = store.mode === 'console' ? colors.magenta('console ❯ ') : colors.cyan('❯ ')
 		let rendered: string
 		if (cursor < value.length) {
 			const cursorChar = value[cursor]!
@@ -912,7 +957,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`thinking… ${elapsed}s · esc to interrupt`)}`)] : []),
 			...store.queue.map((queued, index) => h(Text, { key: `q${index}`, dimColor: true }, `  ⧗ queued: ${queued.text.split('\n')[0]}`)),
 			...(store.mode === 'picker' && store.picker ? [h(Picker, {})] : []),
-			...(store.mode === 'input' ? [h(Box, { marginTop: 1 }, h(Text, null, promptSymbol + rendered.split('\n').join('\n' + colors.dim('… ')))) ] : []),
+			...(store.mode !== 'picker' ? [h(Box, { marginTop: 1 }, h(Text, null, promptSymbol + rendered.split('\n').join('\n' + colors.dim('… ')))) ] : []),
 			...(store.notice ? [h(Text, { dimColor: true }, '  ' + store.notice)] : []),
 			h(StatusLine, {}),
 		)
@@ -933,47 +978,9 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	]
 	store.transcript.unshift({ id: uid(), kind: 'system', lines: bootLines })
 
-	// /console unmounts the app, runs a repl on the same stdin, then remounts
-	// with the static base advanced so scrollback isn't reprinted
-	while (true) {
-		store.exitReason = null
-		const instance = await ink.render(h(App, {}), { patchConsole: false, exitOnCtrlC: false })
-		await instance.waitUntilExit()
-		ink.unmount()
-		if (store.exitReason === 'console') {
-			await runConsole()
-			store.staticBase = store.transcript.length
-			systemLine(colors.dim(`back in chat${store.target ? ` with ${colors.cyan(store.target)}` : ''}`))
-			continue
-		}
-		break
-	}
-
-	async function runConsole() {
-		const featureContext: Record<string, any> = {}
-		for (const featureName of container.features.available) {
-			try { featureContext[featureName] = container.feature(featureName) } catch {}
-		}
-		const replPrompt = colors.magenta('console') + colors.dim(' > ')
-		const repl = container.feature('repl', { prompt: replPrompt })
-		console.log()
-		console.log(colors.dim('  Dropping into console. The active assistant is available as `assistant`.'))
-		console.log(colors.dim('  Type .exit to return to chat.'))
-		console.log()
-		await repl.start({
-			context: {
-				...featureContext,
-				assistant: store.target ? getCell(store.target).assistant : undefined,
-				assistants: Object.fromEntries([...cells.entries()].map(([cellName, cell]) => [cellName, cell.assistant])),
-				console,
-				setTimeout, setInterval, clearTimeout, clearInterval,
-				fetch,
-			},
-		})
-		await new Promise<void>((resolve) => {
-			repl._rl!.on('close', resolve)
-		})
-	}
+	const instance = await ink.render(h(App, {}), { patchConsole: false, exitOnCtrlC: false })
+	await instance.waitUntilExit()
+	ink.unmount()
 
 	return collectThreads()
 

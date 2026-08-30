@@ -70,6 +70,8 @@ export class Repl<
   }
 
   _rl?: readline.Interface
+  /** Input stream override from start({ input }) — falls back to process.stdin. */
+  _input?: NodeJS.ReadableStream
   _vmContext?: vm.Context
   _history: string[] = []
   _historyPath?: string
@@ -95,6 +97,7 @@ export class Repl<
    * @param options - Configuration for the REPL session
    * @param options.historyPath - Custom path for the history file (defaults to ~/.cache/luca/repl-{cwdHash}.history)
    * @param options.context - Additional variables to inject into the VM context as globals
+   * @param options.input - Readable stream to read from instead of process.stdin (e.g. a fresh tty.ReadStream when process.stdin has been consumed by another UI)
    * @returns The Repl instance
    *
    * @example
@@ -108,8 +111,9 @@ export class Repl<
    * // tab completion works on dot paths, and `await` works at the top level.
    * ```
    */
-  async start(options: { historyPath?: string, context?: any } = {}) {
+  async start(options: { historyPath?: string, context?: any, input?: NodeJS.ReadableStream } = {}) {
     const { prompt = "> " } = this.options;
+    if (options.input) this._input = options.input
 
     // If already started, resume with a fresh readline but reuse the VM context
     if (this.isStarted) {
@@ -188,7 +192,7 @@ export class Repl<
 
     // Create readline interface
     this._rl = readline.createInterface({
-      input: process.stdin,
+      input: this._input ?? process.stdin,
       output: process.stdout,
       terminal: true,
       history: this._history,
@@ -209,22 +213,14 @@ export class Repl<
 
         this._saveHistory(input)
 
-        try {
-          const script = new vm.Script(trimmed)
-          let result = script.runInContext(ctx)
-
-          if (result && typeof result.then === 'function') {
-            result = await result
+        const { value, error } = await this.evaluate(trimmed)
+        if (error) {
+          console.log(`\x1b[31mError: ${error.message}\x1b[0m`)
+        } else {
+          lastResult = value
+          if (value !== undefined) {
+            displayResult(value)
           }
-
-          lastResult = result
-          ctx._ = lastResult
-
-          if (result !== undefined) {
-            displayResult(result)
-          }
-        } catch (err: any) {
-          console.log(`\x1b[31mError: ${err.message}\x1b[0m`)
         }
 
         ask()
@@ -233,6 +229,51 @@ export class Repl<
 
     ask()
     return this;
+  }
+
+  /**
+   * Evaluate one line of code in the REPL's VM context without a readline
+   * session — the headless core of the interactive loop. Useful for hosts
+   * that own the terminal themselves (the chat TUI's /console mode). Builds
+   * the VM context on first use, merges any extra context globals, records
+   * the result as `_`, and awaits thenables.
+   *
+   * @param code - The source to evaluate
+   * @param options.context - Extra globals merged into the VM context first
+   * @returns { value } on success, { error } on failure — never throws
+   *
+   * @example
+   * ```typescript
+   * const repl = container.feature('repl')
+   * const { value } = await repl.evaluate('1 + 1')
+   * console.log(value) // 2
+   * ```
+   */
+  async evaluate(code: string, options: { context?: any } = {}): Promise<{ value?: any; error?: Error }> {
+    if (!this._vmContext) {
+      this._vmContext = vm.createContext({
+        ...this.container.context,
+        setTimeout, setInterval, process, clearInterval, clearTimeout, Buffer, URL, URLSearchParams,
+        // @ts-ignore
+        client: (...args: any[]) => this.container.client(...args),
+      })
+    }
+    if (options.context) {
+      for (const [k, v] of Object.entries(options.context)) {
+        this._vmContext[k] = v
+      }
+    }
+    try {
+      const script = new vm.Script(code)
+      let result = script.runInContext(this._vmContext)
+      if (result && typeof result.then === 'function') {
+        result = await result
+      }
+      this._vmContext._ = result
+      return { value: result }
+    } catch (error: any) {
+      return { error }
+    }
   }
 
   private _saveHistory(line: string) {
