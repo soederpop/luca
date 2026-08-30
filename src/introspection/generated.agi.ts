@@ -2999,6 +2999,11 @@ setBuildTimeData('features.assistant', {
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
+    "reasoning": {
+      "name": "reasoning",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
     "preview": {
       "name": "preview",
       "description": "Event emitted by Assistant",
@@ -7482,6 +7487,11 @@ setBuildTimeData('features.conversation', {
     },
     "preview": {
       "name": "preview",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "reasoning": {
+      "name": "reasoning",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -31027,6 +31037,11 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Event emitted by Assistant",
         "arguments": {}
       },
+      "reasoning": {
+        "name": "reasoning",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
       "preview": {
         "name": "preview",
         "description": "Event emitted by Assistant",
@@ -35501,6 +35516,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "preview": {
         "name": "preview",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "reasoning": {
+        "name": "reasoning",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },

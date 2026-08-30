@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.9.4"
+export const typesBundleVersion = "3.10.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -115,7 +115,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -577,6 +577,7 @@ export declare const AssistantEventsSchema: z.ZodObject<{
         hasToolCalls: z.ZodBoolean;
     }, z.core.$strip>], null>;
     chunk: z.ZodTuple<[z.ZodString], null>;
+    reasoning: z.ZodTuple<[z.ZodString], null>;
     preview: z.ZodTuple<[z.ZodString], null>;
     response: z.ZodTuple<[z.ZodString], null>;
     rawEvent: z.ZodTuple<[z.ZodAny], null>;
@@ -822,6 +823,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
             hasToolCalls: z.ZodBoolean;
         }, z.core.$strip>], null>;
         chunk: z.ZodTuple<[z.ZodString], null>;
+        reasoning: z.ZodTuple<[z.ZodString], null>;
         preview: z.ZodTuple<[z.ZodString], null>;
         response: z.ZodTuple<[z.ZodString], null>;
         rawEvent: z.ZodTuple<[z.ZodAny], null>;
@@ -4401,6 +4403,7 @@ export declare const ConversationEventsSchema: z.ZodObject<{
     toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolCallsEnd: z.ZodTuple<[], null>;
     chunk: z.ZodTuple<[z.ZodString], null>;
+    reasoning: z.ZodTuple<[z.ZodString], null>;
     preview: z.ZodTuple<[z.ZodString], null>;
     response: z.ZodTuple<[z.ZodString], null>;
     responseCompleted: z.ZodTuple<[z.ZodAny], null>;
@@ -4654,6 +4657,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolCallsEnd: z.ZodTuple<[], null>;
         chunk: z.ZodTuple<[z.ZodString], null>;
+        reasoning: z.ZodTuple<[z.ZodString], null>;
         preview: z.ZodTuple<[z.ZodString], null>;
         response: z.ZodTuple<[z.ZodString], null>;
         responseCompleted: z.ZodTuple<[z.ZodAny], null>;
@@ -6416,6 +6420,9 @@ export type ModelStreamEvent = {
     type: 'chunk';
     text: string;
 } | {
+    type: 'reasoning';
+    text: string;
+} | {
     type: 'toolCall';
     toolCall: ModelToolCall;
 } | {
@@ -6448,6 +6455,31 @@ export declare function toResponsesUserMessage(content: string | any[]): OpenAI.
  * matching server-side IDs.
  */
 export declare function messagesToResponsesInput(messages: ModelMessage[]): OpenAI.Responses.ResponseInput;
+/**
+ * Incremental \`<think>…</think>\` segmenter for models whose chat template
+ * leaves reasoning inline in the content stream (qwen3, DeepSeek-R1 via
+ * llama-server without --reasoning-format, etc.).
+ *
+ * Feed it content deltas; it routes text inside the tags to \`reasoning\` and
+ * everything else to \`content\`, holding back a partial tag split across chunk
+ * boundaries until the next delta resolves it. An opening tag only counts
+ * while the turn has produced nothing but whitespace — a literal \`<think>\`
+ * mentioned mid-answer stays in the content.
+ */
+export declare class ThinkTagSplitter {
+    private inside;
+    private pending;
+    private sawContent;
+    push(text: string): {
+        content: string;
+        reasoning: string;
+    };
+    /** Emit whatever is still held back (call once, at stream end). */
+    flush(): {
+        content: string;
+        reasoning: string;
+    };
+}
 export declare class OpenAIChatCompletionsTransport implements ModelTransport {
     apiMode: string;
     private resolveClient;
@@ -33009,7 +33041,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.9.4";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.10.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

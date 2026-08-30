@@ -253,7 +253,7 @@ export class NodeContainer<
   /** Returns the parsed package.json manifest for the current working directory. */
   get manifest(): Record<string, any> {
     try {
-      const packageJson = this.fs.findUp("packageon");
+      const packageJson = this.fs.findUp("package.json");
 
       if (!packageJson) {
         throw new Error("No packageon found");
