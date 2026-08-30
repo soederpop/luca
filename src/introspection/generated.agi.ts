@@ -20946,7 +20946,7 @@ setBuildTimeData('features.repl', {
       "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await, and binds the last evaluated result to `_`. The prompt string comes from the feature's `prompt` option (default: `\"> \"`). Calling `start()` again on an already-started REPL resumes with a fresh readline but reuses the existing VM context, merging in any new `context` variables — accumulated session state survives.",
       "parameters": {
         "options": {
-          "type": "{ historyPath?: string, context?: any }",
+          "type": "{ historyPath?: string, context?: any, input?: NodeJS.ReadableStream }",
           "description": "Configuration for the REPL session",
           "properties": {
             "historyPath": {
@@ -20956,6 +20956,10 @@ setBuildTimeData('features.repl', {
             "context": {
               "type": "any",
               "description": "Additional variables to inject into the VM context as globals"
+            },
+            "input": {
+              "type": "any",
+              "description": "Readable stream to read from instead of process.stdin (e.g. a fresh tty.ReadStream when process.stdin has been consumed by another UI)"
             }
           }
         }
@@ -20966,6 +20970,35 @@ setBuildTimeData('features.repl', {
         {
           "language": "ts",
           "code": "const repl = container.feature('repl', { enable: true, prompt: 'luca> ' })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})\n// Inside the session: `db`, `container`, `fs`, etc. are all in scope,\n// tab completion works on dot paths, and `await` works at the top level."
+        }
+      ]
+    },
+    "evaluate": {
+      "description": "Evaluate one line of code in the REPL's VM context without a readline session — the headless core of the interactive loop. Useful for hosts that own the terminal themselves (the chat TUI's /console mode). Builds the VM context on first use, merges any extra context globals, records the result as `_`, and awaits thenables.",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "The source to evaluate"
+        },
+        "options": {
+          "type": "{ context?: any }",
+          "description": "Parameter options",
+          "properties": {
+            "context": {
+              "type": "any",
+              "description": "Extra globals merged into the VM context first"
+            }
+          }
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<{ value?: any; error?: Error }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const repl = container.feature('repl')\nconst { value } = await repl.evaluate('1 + 1')\nconsole.log(value) // 2"
         }
       ]
     }
@@ -48936,7 +48969,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await, and binds the last evaluated result to `_`. The prompt string comes from the feature's `prompt` option (default: `\"> \"`). Calling `start()` again on an already-started REPL resumes with a fresh readline but reuses the existing VM context, merging in any new `context` variables — accumulated session state survives.",
         "parameters": {
           "options": {
-            "type": "{ historyPath?: string, context?: any }",
+            "type": "{ historyPath?: string, context?: any, input?: NodeJS.ReadableStream }",
             "description": "Configuration for the REPL session",
             "properties": {
               "historyPath": {
@@ -48946,6 +48979,10 @@ export const introspectionData: Record<string, any>[] = [
               "context": {
                 "type": "any",
                 "description": "Additional variables to inject into the VM context as globals"
+              },
+              "input": {
+                "type": "any",
+                "description": "Readable stream to read from instead of process.stdin (e.g. a fresh tty.ReadStream when process.stdin has been consumed by another UI)"
               }
             }
           }
@@ -48956,6 +48993,35 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const repl = container.feature('repl', { enable: true, prompt: 'luca> ' })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})\n// Inside the session: `db`, `container`, `fs`, etc. are all in scope,\n// tab completion works on dot paths, and `await` works at the top level."
+          }
+        ]
+      },
+      "evaluate": {
+        "description": "Evaluate one line of code in the REPL's VM context without a readline session — the headless core of the interactive loop. Useful for hosts that own the terminal themselves (the chat TUI's /console mode). Builds the VM context on first use, merges any extra context globals, records the result as `_`, and awaits thenables.",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "The source to evaluate"
+          },
+          "options": {
+            "type": "{ context?: any }",
+            "description": "Parameter options",
+            "properties": {
+              "context": {
+                "type": "any",
+                "description": "Extra globals merged into the VM context first"
+              }
+            }
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<{ value?: any; error?: Error }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const repl = container.feature('repl')\nconst { value } = await repl.evaluate('1 + 1')\nconsole.log(value) // 2"
           }
         ]
       }

@@ -25358,6 +25358,8 @@ export declare class Repl<T extends ReplState = ReplState, K extends ReplOptions
     /** Whether the REPL session is currently running. */
     get isStarted(): boolean;
     _rl?: readline.Interface;
+    /** Input stream override from start({ input }) — falls back to process.stdin. */
+    _input?: NodeJS.ReadableStream;
     _vmContext?: vm.Context;
     _history: string[];
     _historyPath?: string;
@@ -25379,6 +25381,7 @@ export declare class Repl<T extends ReplState = ReplState, K extends ReplOptions
      * @param options - Configuration for the REPL session
      * @param options.historyPath - Custom path for the history file (defaults to ~/.cache/luca/repl-{cwdHash}.history)
      * @param options.context - Additional variables to inject into the VM context as globals
+     * @param options.input - Readable stream to read from instead of process.stdin (e.g. a fresh tty.ReadStream when process.stdin has been consumed by another UI)
      * @returns The Repl instance
      *
      * @example
@@ -25395,9 +25398,34 @@ export declare class Repl<T extends ReplState = ReplState, K extends ReplOptions
     start(options?: {
         historyPath?: string;
         context?: any;
+        input?: NodeJS.ReadableStream;
     }): Promise<this>;
     /** Open a fresh readline and enter the REPL loop using the existing VM context. */
     private _resume;
+    /**
+     * Evaluate one line of code in the REPL's VM context without a readline
+     * session — the headless core of the interactive loop. Useful for hosts
+     * that own the terminal themselves (the chat TUI's /console mode). Builds
+     * the VM context on first use, merges any extra context globals, records
+     * the result as \`_\`, and awaits thenables.
+     *
+     * @param code - The source to evaluate
+     * @param options.context - Extra globals merged into the VM context first
+     * @returns { value } on success, { error } on failure — never throws
+     *
+     * @example
+     * \`\`\`typescript
+     * const repl = container.feature('repl')
+     * const { value } = await repl.evaluate('1 + 1')
+     * console.log(value) // 2
+     * \`\`\`
+     */
+    evaluate(code: string, options?: {
+        context?: any;
+    }): Promise<{
+        value?: any;
+        error?: Error;
+    }>;
     private _saveHistory;
 }
 export default Repl;
