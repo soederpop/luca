@@ -251,3 +251,52 @@ describe('memory consolidate', () => {
 		expect(coffeeAfter.status).toBe('dormant')
 	})
 })
+
+describe('remember tool intent routing', () => {
+	it('observation appends; correction with regarding supersedes; confirmation strengthens', async () => {
+		const mem = makeMem()
+
+		const obs = await mem.remember({ category: 'facts', text: 'User prefers codex' })
+		expect(obs.stored).toBe(true)
+		expect((await mem.get('facts', obs.id)).layer).toBe('episodic')
+
+		const conf = await mem.remember({ category: 'facts', text: 'User prefers codex', intent: 'confirmation', regarding: obs.id })
+		expect(conf.confirmed).toBe(true)
+		expect(conf.confirmations).toBe(2)
+
+		const corr = await mem.remember({ category: 'facts', text: 'User no longer prefers codex; now prefers claude-code', intent: 'correction', regarding: obs.id })
+		expect(corr.stored).toBe(true)
+		expect(corr.superseded).toBe(obs.id)
+		expect((await mem.get('facts', obs.id)).status).toBe('superseded')
+		expect((await mem.get('facts', corr.id)).status).toBe('active')
+	})
+
+	it('correction without regarding returns candidates instead of storing a contradiction', async () => {
+		const mem = makeMem()
+		const old = await mem.create('facts', 'User prefers codex')
+
+		const result = await mem.remember({ category: 'facts', text: 'User no longer prefers codex; now prefers claude-code', intent: 'correction' })
+		expect(result.stored).toBe(false)
+		expect(result.candidates.map((c: any) => c.id)).toContain(old.id)
+		// The old belief is untouched until the model re-calls with the id.
+		expect((await mem.get('facts', old.id)).status).toBe('active')
+		expect(await mem.count('facts')).toBe(1)
+	})
+
+	it('correction with nothing to correct falls back to an observation', async () => {
+		const mem = makeMem()
+		const result = await mem.remember({ category: 'facts', text: 'User drinks black coffee', intent: 'correction' })
+		expect(result.stored).toBe(true)
+		expect(result.note).toContain('stored as a new observation')
+	})
+
+	it('forget retracts by id and keeps the reason in metadata', async () => {
+		const mem = makeMem()
+		const row = await mem.create('facts', 'User prefers codex')
+		const result = await mem.forget({ category: 'facts', id: row.id, reason: 'user said to drop it' })
+		expect(result.retracted).toBe(true)
+		const after = await mem.get('facts', row.id)
+		expect(after.status).toBe('retracted')
+		expect(after.metadata.retracted_reason).toBe('user said to drop it')
+	})
+})

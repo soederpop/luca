@@ -151,30 +151,47 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
   static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
     remember: {
-      description: 'Persist a fact, preference, or piece of context to long-term memory so it can be recalled in future conversations. Safe to call liberally — duplicates are automatically detected and skipped.',
+      description: 'Store something in long-term memory, declaring WHY you are storing it. An observation is appended as-is (repeats are fine — they become confirmation strength). A correction supersedes an outdated memory by id. A confirmation strengthens an existing memory by id. Nothing is ever silently dropped.',
       schema: z.object({
         category: z.string().describe('A short, consistent label for grouping related memories. Use lowercase-kebab-case. Common categories: "facts" (things that are true about the user or world), "preferences" (how the user likes things done), "context" (project state, decisions, plans). When in doubt, use "facts". Always reuse existing categories — call listCategories first if unsure.'),
         text: z.string().describe('A single, self-contained statement of what to remember. Write it as a fact, not a conversation excerpt. Good: "User prefers dark mode". Bad: "The user said they like dark mode in our chat".'),
+        intent: z.enum(['observation', 'correction', 'confirmation']).default('observation').describe('Why you are storing this. "observation": new information (the default). "correction": this CONTRADICTS or REPLACES a memory you recalled — pass its id as regarding, and the old memory is superseded. "confirmation": the user re-affirmed a memory you recalled — pass its id as regarding to strengthen it instead of duplicating it. Whenever the user changes their mind, updates a fact, or says something no longer holds, use correction — never store a contradiction as a plain observation.'),
+        regarding: z.number().optional().describe('The id of the existing memory this corrects or confirms (ids are returned by recall). Required for confirmation; strongly recommended for correction — a correction without it returns candidate memories to pick from instead of storing.'),
         metadata: z.record(z.string(), z.string()).optional().describe('Optional key-value tags for filtering later (e.g. {"source": "onboarding", "confidence": "high"})'),
-      }).describe('Persist a fact, preference, or piece of context to long-term memory so it can be recalled in future conversations. Safe to call liberally — duplicates are automatically detected and skipped.'),
+      }).describe('Store something in long-term memory, declaring WHY you are storing it. An observation is appended as-is (repeats are fine — they become confirmation strength). A correction supersedes an outdated memory by id. A confirmation strengthens an existing memory by id. Nothing is ever silently dropped.'),
     },
     recall: {
-      description: 'Search long-term memory using natural language. Returns the most semantically similar memories ranked by relevance. Call this BEFORE answering questions — you may already know something from a previous conversation.',
+      description: 'Search long-term memory using natural language. Returns the most relevant memories with their ids — keep the ids: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.',
       schema: z.object({
         category: z.string().describe('The category to search in. If unsure which category holds what you need, call listCategories first, then search the most likely one. Use "facts" as a default.'),
         query: z.string().describe('A natural-language description of what you are looking for. Phrase it as a question or topic, not keywords. Good: "what programming languages does the user prefer". Bad: "languages".'),
         n_results: z.number().default(5).describe('How many results to return. Use 3-5 for focused lookups, up to 10 for broad exploration.'),
-      }).describe('Search long-term memory using natural language. Returns the most semantically similar memories ranked by relevance. Call this BEFORE answering questions — you may already know something from a previous conversation.'),
+      }).describe('Search long-term memory using natural language. Returns the most relevant memories with their ids — keep the ids: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.'),
+    },
+    forget: {
+      description: 'Retract one specific memory by id (from recall) — it stops being recalled but stays in the audit trail. Use when the user says a specific thing is wrong or should be forgotten, but there is no replacement fact (if there IS a replacement, use remember with intent "correction" instead).',
+      schema: z.object({
+        category: z.string().describe('The category the memory belongs to.'),
+        id: z.number().describe('The id of the memory to retract, as returned by recall.'),
+        reason: z.string().optional().describe('Short note on why this was retracted (kept in the audit trail).'),
+      }).describe('Retract one specific memory by id (from recall) — it stops being recalled but stays in the audit trail. Use when the user says a specific thing is wrong or should be forgotten, but there is no replacement fact (if there IS a replacement, use remember with intent "correction" instead).'),
     },
     forgetCategory: {
-      description: 'Permanently delete all memories in a category. Use only when the user explicitly asks to forget something or when a category has become stale.',
+      description: 'Permanently delete ALL memories in a category. Use only when the user explicitly asks to forget everything about a topic. For a single wrong memory, use forget; for an outdated one with a replacement, use remember with intent "correction".',
       schema: z.object({
         category: z.string().describe('The category to wipe. This is irreversible — all memories in this category will be permanently deleted.'),
-      }).describe('Permanently delete all memories in a category. Use only when the user explicitly asks to forget something or when a category has become stale.'),
+      }).describe('Permanently delete ALL memories in a category. Use only when the user explicitly asks to forget everything about a topic. For a single wrong memory, use forget; for an outdated one with a replacement, use remember with intent "correction".'),
     },
     listCategories: {
       description: 'List all memory categories and how many memories each contains. Call this at the start of a conversation to understand what you already know, and before recall if unsure which category to search.',
       schema: z.object({}).describe('List all memory categories and how many memories each contains. Call this at the start of a conversation to understand what you already know, and before recall if unsure which category to search.'),
+    },
+    consolidateMemory: {
+      description: 'Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.',
+      schema: z.object({
+        category: z.string().optional().describe('Restrict the pass to one category. Omit to consolidate everything.'),
+        dryRun: z.boolean().default(false).describe('Preview what would happen without changing anything.'),
+      }).describe('Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.'),
     },
   }
 
@@ -296,17 +313,50 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
   // --- Tool handler methods (auto-wired by toTools via matching names) ---
 
-  /** Tool handler: store a memory, deduplicating by similarity. */
-  async remember(args: { category: string; text: string; metadata?: Record<string, any> }) {
-    const mem = await this.createUnique(args.category, args.text, args.metadata || {})
-    if (mem) return { stored: true, id: mem.id, category: mem.category }
-    return { stored: false, reason: 'A similar memory already exists' }
+  /** Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id. */
+  async remember(args: { category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }) {
+    const intent = args.intent ?? 'observation'
+    const metadata = args.metadata || {}
+
+    if (intent === 'correction') {
+      if (args.regarding !== undefined) {
+        const revised = await this.revise(args.category, args.regarding, args.text, metadata)
+        if (revised) return { stored: true, id: revised.id, category: args.category, superseded: args.regarding }
+        return { stored: false, reason: `No memory with id ${args.regarding} in ${args.category} — call recall to find the right id` }
+      }
+      // A correction must name what it corrects. Rather than storing a
+      // contradiction next to the belief it contradicts, surface the likely
+      // targets and let the model re-call with the id (or downgrade to an
+      // observation if nothing matches).
+      const candidates = await this.search(args.category, args.text, 3, { trackUsage: false })
+      if (candidates.length) {
+        return {
+          stored: false,
+          reason: 'A correction needs the id of the memory it replaces. If one of these candidates is the outdated memory, call remember again with regarding set to its id. If none match, use intent "observation".',
+          candidates: candidates.map(c => ({ id: c.id, document: c.document, created_at: c.created_at })),
+        }
+      }
+      const created = await this.observe(args.category, args.text, metadata)
+      return { stored: true, id: created.id, category: args.category, note: 'Nothing to correct was found, so this was stored as a new observation' }
+    }
+
+    if (intent === 'confirmation' && args.regarding !== undefined) {
+      const confirmed = await this.confirm(args.category, args.regarding)
+      if (confirmed) return { confirmed: true, id: confirmed.id, confirmations: confirmed.confirmations }
+      return { stored: false, reason: `No memory with id ${args.regarding} in ${args.category} — call recall to find the right id` }
+    }
+
+    // Plain observation (also: a confirmation without an id — a repeated
+    // observation IS a confirmation once consolidation merges it).
+    const created = await this.observe(args.category, args.text, metadata)
+    return { stored: true, id: created.id, category: created.category }
   }
 
   /** Tool handler: search memories by semantic similarity. */
   async recall(args: { category: string; query: string; n_results?: number }) {
     const results = await this.search(args.category, args.query, args.n_results ?? 5)
     return results.map(r => ({
+      id: r.id,
       document: r.document,
       metadata: r.metadata,
       distance: Math.round(r.distance * 1000) / 1000,
@@ -315,10 +365,39 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     }))
   }
 
+  /** Tool handler: retract one memory by id. */
+  async forget(args: { category: string; id: number; reason?: string }) {
+    if (args.reason) {
+      await this.update(args.category, args.id, { metadata: { retracted_reason: args.reason } })
+    }
+    const retracted = await this.retract(args.category, args.id)
+    if (retracted) return { retracted: true, id: args.id }
+    return { retracted: false, reason: `No memory with id ${args.id} in ${args.category}` }
+  }
+
   /** Tool handler: wipe all memories in a category. */
   async forgetCategory(args: { category: string }) {
     const deleted = await this.wipeCategory(args.category)
     return { deleted, category: args.category }
+  }
+
+  /** Tool handler: run a consolidation pass (the assistant gardening its own memory). */
+  async consolidateMemory(args: { category?: string; dryRun?: boolean } = {}) {
+    const report = await this.consolidate({
+      categories: args.category ? [args.category] : undefined,
+      dryRun: args.dryRun ?? false,
+    })
+    // Trim the report for the model — counts and warnings, not every action.
+    return {
+      epoch: report.epoch,
+      rowsReviewed: report.rowsReviewed,
+      merged: report.merged,
+      superseded: report.superseded,
+      generalized: report.generalized,
+      dormant: report.dormant,
+      warnings: report.warnings,
+      dryRun: report.dryRun,
+    }
   }
 
   /** Tool handler: list all categories with counts. */
@@ -339,13 +418,19 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       (consumer as any).addSystemPromptExtension('memory', [
         '## Long-Term Memory',
         '',
-        'You have persistent memory that survives across conversations. Use it proactively:',
+        'You have persistent memory that survives across conversations, and you are its gardener: you don\'t just store and retrieve, you keep it TRUE. Use it proactively:',
         '',
         '**Start of conversation:** Call `listCategories` to see what you already know. If categories exist, call `recall` with a broad query related to the user\'s first message. Do this before responding — context from prior sessions makes your answers dramatically better.',
         '',
-        '**During conversation:** When the user shares facts about themselves, their preferences, decisions, or project context, call `remember` immediately. Don\'t wait — if it\'s worth noting, store it now. Duplicates are auto-detected so over-remembering is safe, under-remembering is not.',
+        '**During conversation:** When the user shares facts about themselves, their preferences, decisions, or project context, call `remember` immediately. Don\'t wait — if it\'s worth noting, store it now. Over-remembering is safe: repeated observations become confirmation strength, nothing is silently dropped.',
         '',
-        '**Before answering questions:** Call `recall` to check if you already have relevant knowledge. A user asking "what\'s my deploy target?" may have told you last week. Always check before saying "I don\'t know".',
+        '**Before answering questions:** Call `recall` to check if you already have relevant knowledge. A user asking "what\'s my deploy target?" may have told you last week. Always check before saying "I don\'t know". Note the ids recall returns — they are how you correct or confirm specific memories.',
+        '',
+        '**When the user contradicts a memory:** This is the moment that matters most. If the user says something that conflicts with a memory you recalled ("actually I switched to...", "that\'s not true anymore", "we changed that"), do NOT store it as a plain observation — call `remember` with intent "correction" and regarding set to the outdated memory\'s id. The old memory is superseded and stops being recalled. Storing a contradiction as an observation leaves both versions active, and you will answer from stale beliefs later.',
+        '',
+        '**When the user re-affirms a memory:** Call `remember` with intent "confirmation" and the memory\'s id. Confirmed memories are trusted more and survive longer.',
+        '',
+        '**Tending:** If recall returns memories that contradict each other, resolve it now — decide which is current (ask the user if unclear) and use correction/forget to fix it. If memory feels cluttered, run `consolidateMemory`.',
         '',
         '**Categories:** Use consistent, descriptive kebab-case categories. Prefer a few broad categories ("facts", "preferences", "context") over many narrow ones. Always reuse existing categories rather than creating similar new ones.',
       ].join('\n'))
@@ -447,6 +532,26 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       [id, this.options.namespace, category]
     )
     return changes > 0
+  }
+
+  /**
+   * Strengthen an existing memory: the same thing was observed again.
+   * Increments confirmations instead of writing a duplicate row — repeated
+   * observation is evidence, and this is how it accrues.
+   *
+   * @param {string} category - The category the memory belongs to
+   * @param {number} id - The memory id
+   * @returns {Promise<MemoryRecord | null>} The strengthened memory, or null if not found
+   */
+  async confirm(category: string, id: number): Promise<MemoryRecord | null> {
+    await this.ensureDb()
+
+    const { changes } = await this.db.execute(
+      "UPDATE memories SET confirmations = confirmations + 1, updated_at = datetime('now') WHERE id = ? AND namespace = ? AND category = ?",
+      [id, this.options.namespace, category]
+    )
+    if (!changes) return null
+    return this.get(category, id)
   }
 
   /** @internal Shared insert used by create/observe/revise/consolidate. */
