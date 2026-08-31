@@ -954,7 +954,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				...(multi ? [h(Text, null, colors.cyan(colors.bold(store.current.who)))] : []),
 				h(TurnParts, { parts: store.current.parts, expanded, streaming: store.busy }),
 			)] : []),
-			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`thinking… ${elapsed}s · esc to interrupt`)}`)] : []),
+			// "working", not "thinking" — the ✻ reasoning line owns that word
+			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`working… ${elapsed}s · esc to interrupt`)}`)] : []),
 			...store.queue.map((queued, index) => h(Text, { key: `q${index}`, dimColor: true }, `  ⧗ queued: ${queued.text.split('\n')[0]}`)),
 			...(store.mode === 'picker' && store.picker ? [h(Picker, {})] : []),
 			...(store.mode !== 'picker' ? [h(Box, { marginTop: 1 }, h(Text, null, promptSymbol + rendered.split('\n').join('\n' + colors.dim('… ')))) ] : []),
