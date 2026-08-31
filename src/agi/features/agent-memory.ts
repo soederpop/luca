@@ -37,6 +37,24 @@ export const MemoryEventsSchema = FeatureEventsSchema.extend({
 
 // --- Types ---
 
+/** @internal Columns selected for MemoryRecord hydration (everything but the embedding blob). */
+const MEMORY_COLUMNS = 'id, category, document, metadata, created_at, updated_at, layer, status, superseded_by, confirmations, usage_count, last_used_at, derived_from, reviewed_epoch'
+
+/** @internal System prompt for the consolidation judge. Embeddings cluster rows that are about the same thing; this judge decides what the cluster means — the one job cosine similarity cannot do (it cannot see negation or which statement is current). */
+const GARDENER_SYSTEM_PROMPT = [
+  'You are a memory gardener. You review clusters of an AI assistant\'s memories that are about the same topic and decide how to consolidate them.',
+  '',
+  'Each memory has: id, layer ("episodic" = raw observation, "belief" = curated knowledge), text, created_at, confirmations, usage_count.',
+  '',
+  'Respond with ONLY a JSON object: {"actions": [...]}. Each action is one of:',
+  '- {"type": "merge", "ids": [keepId, ...absorbedIds], "text": "optional improved canonical wording"} — the memories say the same thing. The first id is kept (and becomes a belief); the rest are absorbed into it as confirmations. Use this for duplicates and rephrasings, and for a single episodic observation worth keeping as a belief (ids with just one element).',
+  '- {"type": "supersede", "ids": [winnerId, ...loserIds]} — the memories CONTRADICT each other. The winner is the statement that is currently true (usually the newest); the losers are outdated. Never merge contradictions.',
+  '- {"type": "generalize", "ids": [...sourceIds], "text": "the general rule"} — several specific memories reveal a pattern worth stating once. Sources are kept; a new belief is added.',
+  '- {"type": "keep", "ids": [...]} — leave these alone (distinct facts that merely share a topic, or a lone observation not worth promoting yet).',
+  '',
+  'Rules: be conservative — when unsure, keep. Watch for negation and corrections: "X" and "no longer X" are near-identical to a similarity metric but are contradictions to you. Only reference ids you were shown. Every id you were shown should appear in exactly one action.',
+].join('\n')
+
 export interface MemoryRecord {
   id: number
   category: string
@@ -44,10 +62,63 @@ export interface MemoryRecord {
   metadata: Record<string, any>
   created_at: string
   updated_at: string
+  /** 'episodic' rows are raw appended observations; 'belief' rows are curated knowledge. */
+  layer: 'episodic' | 'belief'
+  /** Only 'active' rows are returned by search/recall. Other statuses preserve history. */
+  status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'
+  /** When superseded, the id of the row that replaced this one. */
+  superseded_by: number | null
+  /** How many independent observations support this row. Merging duplicates sums them. */
+  confirmations: number
+  /** How many times search() has returned this row. */
+  usage_count: number
+  last_used_at: string | null
+  /** Ids of the rows this row was distilled from during consolidation. */
+  derived_from: number[]
+  /** The epoch (sleep-cycle counter) this row was last reviewed in. */
+  reviewed_epoch: number
 }
 
 export interface MemorySearchResult extends MemoryRecord {
   distance: number
+}
+
+export interface MemoryConsolidateOptions {
+  /** Restrict the pass to these categories (default: all categories in the namespace). */
+  categories?: string[]
+  /** Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict). */
+  clusterThreshold?: number
+  /** Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay. */
+  dormantAfterEpochs?: number
+  /** Report what would happen without changing anything. The epoch is not advanced. */
+  dryRun?: boolean
+  /** Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime. */
+  judge?: (prompt: string) => Promise<string>
+  /** Model for the default judge conversation. */
+  model?: string
+  /** Provider preset or config for the default judge conversation (e.g. 'claude-code'). */
+  provider?: any
+}
+
+export interface MemoryConsolidateAction {
+  type: 'merge' | 'supersede' | 'generalize' | 'keep'
+  category: string
+  ids: number[]
+  text?: string
+}
+
+export interface MemoryConsolidateReport {
+  epoch: number
+  categories: string[]
+  rowsReviewed: number
+  clusters: number
+  merged: number
+  superseded: number
+  generalized: number
+  dormant: number
+  actions: MemoryConsolidateAction[]
+  warnings: string[]
+  dryRun: boolean
 }
 
 /**
@@ -176,6 +247,25 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       CREATE INDEX IF NOT EXISTS idx_memories_ns_cat ON memories(namespace, category)
     `)
 
+    // Idempotent migration for databases created before the belief/episodic
+    // split. Existing rows become active beliefs, so prior behavior holds.
+    const existingColumns = new Set(
+      ((await this.db.query('PRAGMA table_info(memories)')) as { name: string }[]).map(c => c.name)
+    )
+    const migrations: Array<[string, string]> = [
+      ['layer', "ALTER TABLE memories ADD COLUMN layer TEXT NOT NULL DEFAULT 'belief'"],
+      ['status', "ALTER TABLE memories ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"],
+      ['superseded_by', 'ALTER TABLE memories ADD COLUMN superseded_by INTEGER'],
+      ['confirmations', 'ALTER TABLE memories ADD COLUMN confirmations INTEGER NOT NULL DEFAULT 1'],
+      ['usage_count', 'ALTER TABLE memories ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0'],
+      ['last_used_at', 'ALTER TABLE memories ADD COLUMN last_used_at TEXT'],
+      ['derived_from', "ALTER TABLE memories ADD COLUMN derived_from TEXT NOT NULL DEFAULT '[]'"],
+      ['reviewed_epoch', 'ALTER TABLE memories ADD COLUMN reviewed_epoch INTEGER NOT NULL DEFAULT 0'],
+    ]
+    for (const [column, sql] of migrations) {
+      if (!existingColumns.has(column)) await this.db.execute(sql)
+    }
+
     await this.db.execute(`
       CREATE TABLE IF NOT EXISTS epochs (
         namespace TEXT NOT NULL,
@@ -221,6 +311,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       metadata: r.metadata,
       distance: Math.round(r.distance * 1000) / 1000,
       created_at: r.created_at,
+      confirmations: r.confirmations,
     }))
   }
 
@@ -278,6 +369,93 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * ```
    */
   async create(category: string, text: string, metadata: Record<string, any> = {}): Promise<MemoryRecord> {
+    return this._insert(category, text, metadata, { layer: 'belief' })
+  }
+
+  /**
+   * Append a raw observation to the episodic layer — no dedup, no judgment.
+   * This is the cheap write path: repeated observations are welcome (they
+   * become confirmation strength during consolidate()), and nothing is ever
+   * silently dropped. Consolidation later distills these into beliefs.
+   *
+   * @param {string} category - The category to store the observation in
+   * @param {string} text - What was observed
+   * @param {Record<string, any>} metadata - Optional metadata (e.g. provenance)
+   * @returns {Promise<MemoryRecord>} The created episodic memory
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory')
+   * await mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })
+   * ```
+   */
+  async observe(category: string, text: string, metadata: Record<string, any> = {}): Promise<MemoryRecord> {
+    return this._insert(category, text, metadata, { layer: 'episodic' })
+  }
+
+  /**
+   * Replace a memory with a corrected statement. The old row is kept but
+   * marked superseded (and excluded from search); the new row records what
+   * it replaced. This is the honest alternative to deleting or overwriting —
+   * the history of what was believed remains auditable.
+   *
+   * @param {string} category - The category the memory belongs to
+   * @param {number} id - The id of the memory being corrected
+   * @param {string} newText - The corrected statement
+   * @param {Record<string, any>} metadata - Optional metadata for the new row
+   * @returns {Promise<MemoryRecord | null>} The new active memory, or null if the old id wasn't found
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory')
+   * await mem.revise('facts', 42, 'User now prefers claude-code over codex')
+   * ```
+   */
+  async revise(category: string, id: number, newText: string, metadata: Record<string, any> = {}): Promise<MemoryRecord | null> {
+    await this.ensureDb()
+
+    const existing = await this.get(category, id)
+    if (!existing) return null
+
+    const created = await this._insert(category, newText, metadata, {
+      layer: 'belief',
+      derivedFrom: [id],
+      confirmations: existing.confirmations,
+    })
+
+    await this.db.execute(
+      "UPDATE memories SET status = 'superseded', superseded_by = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+      [created.id, id, this.options.namespace]
+    )
+
+    return created
+  }
+
+  /**
+   * Mark a memory as retracted — no longer believed, but kept for audit.
+   * Retracted rows are excluded from search results.
+   *
+   * @param {string} category - The category the memory belongs to
+   * @param {number} id - The memory id
+   * @returns {Promise<boolean>} True if a row was retracted
+   */
+  async retract(category: string, id: number): Promise<boolean> {
+    await this.ensureDb()
+
+    const { changes } = await this.db.execute(
+      "UPDATE memories SET status = 'retracted', updated_at = datetime('now') WHERE id = ? AND namespace = ? AND category = ?",
+      [id, this.options.namespace, category]
+    )
+    return changes > 0
+  }
+
+  /** @internal Shared insert used by create/observe/revise/consolidate. */
+  private async _insert(
+    category: string,
+    text: string,
+    metadata: Record<string, any>,
+    opts: { layer?: 'episodic' | 'belief'; derivedFrom?: number[]; confirmations?: number } = {}
+  ): Promise<MemoryRecord> {
     await this.ensureDb()
 
     const embedding = await this.embed(text)
@@ -285,8 +463,14 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     const metaJson = JSON.stringify({ ...metadata, epoch: this.state.get('epoch') })
 
     const { lastInsertRowid } = await this.db.execute(
-      'INSERT INTO memories (namespace, category, document, metadata, embedding) VALUES (?, ?, ?, ?, ?)',
-      [this.options.namespace, category, text, metaJson, embeddingBlob]
+      'INSERT INTO memories (namespace, category, document, metadata, embedding, layer, confirmations, derived_from, reviewed_epoch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        this.options.namespace, category, text, metaJson, embeddingBlob,
+        opts.layer ?? 'belief',
+        opts.confirmations ?? 1,
+        JSON.stringify(opts.derivedFrom ?? []),
+        0, // reviewed_epoch: never reviewed — the next consolidate() pass judges it
+      ]
     )
 
     const id = Number(lastInsertRowid)
@@ -313,7 +497,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   async createUnique(category: string, text: string, metadata: Record<string, any> = {}, similarityThreshold = 0.95): Promise<MemoryRecord | null> {
     await this.ensureDb()
 
-    const results = await this.search(category, text, 1)
+    const results = await this.search(category, text, 1, { trackUsage: false })
     if (results.length > 0 && (1 - results[0]!.distance) >= similarityThreshold) {
       return null
     }
@@ -332,7 +516,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     await this.ensureDb()
 
     const rows = await this.db.query(
-      'SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? AND id = ?',
+      `SELECT ${MEMORY_COLUMNS} FROM memories WHERE namespace = ? AND category = ? AND id = ?`,
       [this.options.namespace, category, id]
     ) as any[]
 
@@ -356,7 +540,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     const { limit = 20, sortOrder = 'desc', filterMetadata } = options
 
     let rows = await this.db.query(
-      `SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? ORDER BY created_at ${sortOrder === 'asc' ? 'ASC' : 'DESC'} LIMIT ?`,
+      `SELECT ${MEMORY_COLUMNS} FROM memories WHERE namespace = ? AND category = ? ORDER BY created_at ${sortOrder === 'asc' ? 'ASC' : 'DESC'} LIMIT ?`,
       [this.options.namespace, category, limit]
     ) as any[]
 
@@ -518,15 +702,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {object} options - Additional search options
    * @param {number} options.maxDistance - Maximum cosine distance threshold (0-2, default none)
    * @param {Record<string, any>} options.filterMetadata - Filter by metadata key-value pairs
+   * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated rows (default false)
+   * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
    * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
    */
-  async search(category: string, query: string, nResults = 5, options: { maxDistance?: number; filterMetadata?: Record<string, any> } = {}): Promise<MemorySearchResult[]> {
+  async search(category: string, query: string, nResults = 5, options: { maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean } = {}): Promise<MemorySearchResult[]> {
     await this.ensureDb()
 
     const queryEmbedding = await this.embed(query)
 
+    const statusClause = options.includeInactive ? '' : " AND status = 'active'"
     const rows = await this.db.query(
-      'SELECT id, category, document, metadata, embedding, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? AND embedding IS NOT NULL',
+      `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND embedding IS NOT NULL${statusClause}`,
       [this.options.namespace, category]
     ) as any[]
 
@@ -548,7 +735,19 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     scored.sort((a: MemorySearchResult, b: MemorySearchResult) => a.distance - b.distance)
 
-    return scored.slice(0, nResults)
+    const results = scored.slice(0, nResults)
+
+    // Usage feeds the consolidation loop: recalled memories earn their keep,
+    // never-recalled ones become decay candidates.
+    if ((options.trackUsage ?? true) && results.length) {
+      const ids = results.map(r => r.id)
+      await this.db.execute(
+        `UPDATE memories SET usage_count = usage_count + 1, last_used_at = datetime('now') WHERE id IN (${ids.map(() => '?').join(', ')})`,
+        ids
+      )
+    }
+
+    return results
   }
 
   // --- Epoch / Events ---
@@ -607,6 +806,287 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return this.getAll('events', { limit: options.limit ?? 10, filterMetadata })
   }
 
+  // --- Consolidation (the sleep cycle) ---
+
+  /**
+   * Run a consolidation pass over this namespace — the memory's sleep cycle.
+   *
+   * Embedding similarity is used only to propose clusters of rows that are
+   * about the same thing; an LLM judge (created at runtime, or injected via
+   * options.judge) then decides what each cluster means: duplicates merge
+   * into one belief with summed confirmations, contradictions resolve by
+   * superseding the outdated row, patterns across observations become
+   * generalized beliefs, and everything else is left alone. Old, never-used
+   * episodic rows decay to dormant. Nothing is ever deleted — every outcome
+   * is a status change with an audit trail (superseded_by, derived_from),
+   * so a wrong judgment is always reversible.
+   *
+   * Finishing a pass increments the epoch, so epoch counts sleep cycles and
+   * reviewed_epoch records when each row was last considered.
+   *
+   * @param {MemoryConsolidateOptions} options - Pass configuration
+   * @returns {Promise<MemoryConsolidateReport>} What happened, cluster by cluster
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory', { namespace: 'my-assistant' })
+   * const report = await mem.consolidate({ provider: 'claude-code' })
+   * console.log(`epoch ${report.epoch}: merged ${report.merged}, superseded ${report.superseded}`)
+   * ```
+   */
+  async consolidate(options: MemoryConsolidateOptions = {}): Promise<MemoryConsolidateReport> {
+    await this.ensureDb()
+
+    const clusterThreshold = options.clusterThreshold ?? 0.7
+    const dormantAfterEpochs = options.dormantAfterEpochs ?? 3
+    const dryRun = options.dryRun ?? false
+    const epoch = this.getEpoch()
+    const judge = options.judge ?? this.defaultJudge(options)
+
+    const categories = options.categories ?? await this.categories()
+    const report: MemoryConsolidateReport = {
+      epoch, categories, rowsReviewed: 0, clusters: 0,
+      merged: 0, superseded: 0, generalized: 0, dormant: 0,
+      actions: [], warnings: [], dryRun,
+    }
+
+    for (const category of categories) {
+      const rows = await this.db.query(
+        `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND status = 'active' AND embedding IS NOT NULL`,
+        [this.options.namespace, category]
+      ) as any[]
+      if (!rows.length) continue
+
+      const records = rows.map((r: any) => ({ ...this.rowToMemory(r), vector: this.blobToFloat64(r.embedding) }))
+      report.rowsReviewed += records.length
+
+      const clusters = this.clusterBySimilarity(records, clusterThreshold, report.warnings)
+
+      for (const cluster of clusters) {
+        // Only clusters that need a decision cost a judge call: multi-row
+        // clusters (possible duplicates/contradictions) and lone episodic
+        // observations not yet reviewed (promote to belief, or leave?).
+        // A kept singleton is NOT re-stamped on later passes — it must earn
+        // usage or confirmations, or decay will eventually claim it.
+        const needsJudgment = cluster.length > 1
+          || (cluster[0]!.layer === 'episodic' && cluster[0]!.reviewed_epoch === 0)
+        if (!needsJudgment) continue
+
+        report.clusters++
+        let reply: string
+        try {
+          reply = await judge(this.clusterPrompt(category, cluster))
+        } catch (error) {
+          report.warnings.push(`judge failed for cluster [${cluster.map(m => m.id).join(', ')}] in ${category}: ${error}`)
+          continue
+        }
+
+        const actions = this.parseJudgeReply(reply, cluster, category, report.warnings)
+        for (const action of actions) {
+          report.actions.push(action)
+          if (!dryRun) await this.applyAction(action, epoch, report)
+          else this.tallyAction(action, report)
+        }
+      }
+    }
+
+    if (!dryRun && dormantAfterEpochs > 0) {
+      const { changes } = await this.db.execute(
+        `UPDATE memories SET status = 'dormant', updated_at = datetime('now')
+         WHERE namespace = ? AND status = 'active' AND layer = 'episodic'
+           AND usage_count = 0 AND confirmations <= 1
+           AND reviewed_epoch > 0 AND reviewed_epoch <= ?`,
+        [this.options.namespace, epoch - dormantAfterEpochs]
+      )
+      report.dormant = changes
+    }
+
+    if (!dryRun) await this.incrementEpoch()
+
+    return report
+  }
+
+  /** @internal Build the default runtime judge: a fresh, zero-temperature conversation per cluster. */
+  private defaultJudge(options: MemoryConsolidateOptions): (prompt: string) => Promise<string> {
+    return async (prompt: string) => {
+      const conversation = this.container.feature('conversation', {
+        id: `memory-consolidate-${this.container.utils.uuid()}`,
+        model: options.model,
+        provider: options.provider,
+        maxTokens: 1500,
+        temperature: 0,
+        history: [{ role: 'system', content: GARDENER_SYSTEM_PROMPT }],
+      })
+      return conversation.ask(prompt)
+    }
+  }
+
+  /** @internal Greedy single-link clustering on stored embeddings. Similarity proposes, it never decides. */
+  private clusterBySimilarity(
+    records: Array<MemoryRecord & { vector: number[] }>,
+    threshold: number,
+    warnings: string[]
+  ): Array<Array<MemoryRecord & { vector: number[] }>> {
+    const clusters: Array<Array<MemoryRecord & { vector: number[] }>> = []
+
+    for (const record of records) {
+      let placed = false
+      for (const cluster of clusters) {
+        try {
+          const similarity = 1 - this.cosineDistance(record.vector, cluster[0]!.vector)
+          if (similarity >= threshold) {
+            cluster.push(record)
+            placed = true
+            break
+          }
+        } catch {
+          // Dimension mismatch (embedding model changed mid-database). Leave
+          // the row unclustered rather than failing the whole pass.
+          warnings.push(`memory ${record.id} has a different embedding dimension — run reembedAll()`)
+          placed = true
+          break
+        }
+      }
+      if (!placed) clusters.push([record])
+    }
+
+    return clusters
+  }
+
+  /** @internal Render one cluster as a judgment prompt. */
+  private clusterPrompt(category: string, cluster: Array<MemoryRecord & { vector: number[] }>): string {
+    const rows = cluster.map(m => JSON.stringify({
+      id: m.id,
+      layer: m.layer,
+      text: m.document,
+      created_at: m.created_at,
+      confirmations: m.confirmations,
+      usage_count: m.usage_count,
+    }))
+    return `Category: ${category}\nMemories:\n${rows.join('\n')}\n\nRespond with the JSON verdict.`
+  }
+
+  /** @internal Extract and validate the judge's JSON actions. Anything malformed is skipped with a warning — the conservative failure mode is to change nothing. */
+  private parseJudgeReply(reply: string, cluster: MemoryRecord[], category: string, warnings: string[]): MemoryConsolidateAction[] {
+    const clusterIds = new Set(cluster.map(m => m.id))
+    const match = reply.match(/\{[\s\S]*\}/)
+    if (!match) {
+      warnings.push(`judge reply had no JSON for cluster [${[...clusterIds].join(', ')}]`)
+      return []
+    }
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(match[0])
+    } catch {
+      warnings.push(`judge reply was not valid JSON for cluster [${[...clusterIds].join(', ')}]`)
+      return []
+    }
+
+    const actions: MemoryConsolidateAction[] = []
+    for (const raw of Array.isArray(parsed?.actions) ? parsed.actions : []) {
+      const type = raw?.type
+      const ids = Array.isArray(raw?.ids) ? raw.ids.filter((id: any) => Number.isInteger(id)) : []
+      if (!['merge', 'supersede', 'generalize', 'keep'].includes(type)) {
+        warnings.push(`judge proposed unknown action type "${type}"`)
+        continue
+      }
+      if (!ids.length || !ids.every((id: number) => clusterIds.has(id))) {
+        warnings.push(`judge action "${type}" referenced ids outside the cluster — skipped`)
+        continue
+      }
+      actions.push({ type, category, ids, text: typeof raw.text === 'string' ? raw.text : undefined })
+    }
+    return actions
+  }
+
+  /** @internal Count an action into the report without applying it (dry run). */
+  private tallyAction(action: MemoryConsolidateAction, report: MemoryConsolidateReport) {
+    if (action.type === 'merge') report.merged++
+    if (action.type === 'supersede') report.superseded++
+    if (action.type === 'generalize') report.generalized++
+  }
+
+  /** @internal Apply one judged action. All outcomes are status changes plus audit links — never deletion. */
+  private async applyAction(action: MemoryConsolidateAction, epoch: number, report: MemoryConsolidateReport) {
+    const { category, ids, text } = action
+    const ns = this.options.namespace
+
+    if (action.type === 'keep') {
+      await this.stampReviewed(ids, epoch)
+      return
+    }
+
+    if (action.type === 'merge') {
+      const [keepId, ...absorbedIds] = ids as [number, ...number[]]
+      const keeper = await this.get(category, keepId)
+      if (!keeper) return
+
+      let confirmations = keeper.confirmations
+      const derivedFrom = new Set<number>(keeper.derived_from)
+      for (const id of absorbedIds) {
+        const absorbed = await this.get(category, id)
+        if (!absorbed) continue
+        confirmations += absorbed.confirmations
+        derivedFrom.add(id)
+        for (const src of absorbed.derived_from) derivedFrom.add(src)
+        await this.db.execute(
+          "UPDATE memories SET status = 'consolidated', superseded_by = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+          [keepId, id, ns]
+        )
+      }
+
+      // A merge always promotes the keeper to the belief layer — a confirmed
+      // observation is a belief. A rewritten canonical text re-embeds.
+      if (text && text !== keeper.document) {
+        const embedding = await this.embed(text)
+        await this.db.execute(
+          "UPDATE memories SET document = ?, embedding = ?, layer = 'belief', confirmations = ?, derived_from = ?, reviewed_epoch = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+          [text, this.float64ToBlob(embedding), confirmations, JSON.stringify([...derivedFrom]), epoch, keepId, ns]
+        )
+      } else {
+        await this.db.execute(
+          "UPDATE memories SET layer = 'belief', confirmations = ?, derived_from = ?, reviewed_epoch = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+          [confirmations, JSON.stringify([...derivedFrom]), epoch, keepId, ns]
+        )
+      }
+      report.merged++
+      return
+    }
+
+    if (action.type === 'supersede') {
+      const [winnerId, ...loserIds] = ids as [number, ...number[]]
+      for (const id of loserIds) {
+        await this.db.execute(
+          "UPDATE memories SET status = 'superseded', superseded_by = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+          [winnerId, id, ns]
+        )
+      }
+      await this.db.execute(
+        "UPDATE memories SET layer = 'belief', reviewed_epoch = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+        [epoch, winnerId, ns]
+      )
+      report.superseded++
+      return
+    }
+
+    if (action.type === 'generalize') {
+      if (!text) return
+      await this._insert(category, text, { source: 'consolidation' }, { layer: 'belief', derivedFrom: ids })
+      await this.stampReviewed(ids, epoch)
+      report.generalized++
+    }
+  }
+
+  /** @internal Mark rows as reviewed in the given epoch. */
+  private async stampReviewed(ids: number[], epoch: number) {
+    if (!ids.length) return
+    await this.db.execute(
+      `UPDATE memories SET reviewed_epoch = ? WHERE id IN (${ids.map(() => '?').join(', ')}) AND namespace = ?`,
+      [epoch, ...ids, this.options.namespace]
+    )
+  }
+
   /**
    * Re-embed every memory in this namespace with the currently configured
    * embedding model. Use this after changing embeddingModel or
@@ -649,7 +1129,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     await this.ensureDb()
 
     const rows = await this.db.query(
-      'SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? ORDER BY category, id',
+      `SELECT ${MEMORY_COLUMNS} FROM memories WHERE namespace = ? ORDER BY category, id`,
       [this.options.namespace]
     ) as any[]
 
@@ -747,6 +1227,14 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      layer: row.layer ?? 'belief',
+      status: row.status ?? 'active',
+      superseded_by: row.superseded_by ?? null,
+      confirmations: row.confirmations ?? 1,
+      usage_count: row.usage_count ?? 0,
+      last_used_at: row.last_used_at ?? null,
+      derived_from: typeof row.derived_from === 'string' ? JSON.parse(row.derived_from) : (row.derived_from ?? []),
+      reviewed_epoch: row.reviewed_epoch ?? 0,
     }
   }
 }
