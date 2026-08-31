@@ -428,7 +428,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         '',
         '**When the user contradicts a memory:** This is the moment that matters most. If the user says something that conflicts with a memory you recalled ("actually I switched to...", "that\'s not true anymore", "we changed that"), do NOT store it as a plain observation — call `remember` with intent "correction" and regarding set to the outdated memory\'s id. The old memory is superseded and stops being recalled. Storing a contradiction as an observation leaves both versions active, and you will answer from stale beliefs later.',
         '',
-        '**When the user re-affirms a memory:** Call `remember` with intent "confirmation" and the memory\'s id. Confirmed memories are trusted more and survive longer.',
+        '**When the user re-affirms a memory:** Call `remember` with intent "confirmation" and the memory\'s id — ESPECIALLY when the memory already exists. Do not skip this because "I already know that": an unconfirmed memory decays and is trusted less, so re-affirmation is new information even when the text is not. Seeing a recalled memory proven true again = call confirmation, every time.',
         '',
         '**Tending:** If recall returns memories that contradict each other, resolve it now — decide which is current (ask the user if unclear) and use correction/forget to fix it. If memory feels cluttered, run `consolidateMemory`.',
         '',
