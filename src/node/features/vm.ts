@@ -852,40 +852,26 @@ export class VM<
       // view, the same contract loadModule follows.
       const sharedExports: Record<string, any> = {}
 
-      const { result, console: calls } = await this.runCaptured(code, {
-        // Enabled features by bare name (`fs.readFile(...)`), matching what a
-        // human gets from `luca eval`. 'assistant' is stripped: extraContext
-        // owns that name, and a snippet must never mistake some feature for
-        // the assistant it thinks it is inspecting.
-        ...this._evalFeatureScope(),
+      // createContext already spreads container.context, which is where enabled
+      // features (`fs`, `proc`, …) and anything stashed via addContext come
+      // from — so `assistant` has to be pinned here rather than filtered out of
+      // that spread. A snippet asking about `assistant` must get the calling
+      // assistant or nothing, never a context entry that shares the name.
+      const scope: Record<string, any> = {
         container: this.container,
         require: this.createRequireFor(this.container.paths.resolve('__evalCode__.ts')),
         z,
         exports: sharedExports,
         module: { exports: sharedExports },
         ...extraContext,
-      })
+      }
+      if (!('assistant' in scope)) scope.assistant = undefined
+
+      const { result, console: calls } = await this.runCaptured(code, scope)
       return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map((a) => safeSerialize(a)) })) }
     } catch (err: any) {
       return { error: err?.message || String(err) }
     }
-  }
-
-  /**
-   * Enabled feature instances keyed by bare name, for the evalCode scope.
-   * Reserved names are dropped rather than allowed to shadow the bindings the
-   * snippet is guaranteed to have.
-   */
-  private _evalFeatureScope(): Record<string, any> {
-    const reserved = new Set(['assistant', 'container', 'require', 'z', 'module', 'exports', 'console'])
-    const scope: Record<string, any> = {}
-
-    for (const [name, instance] of Object.entries(this.container.enabledFeatures ?? {})) {
-      if (reserved.has(name)) continue
-      scope[name] = instance
-    }
-
-    return scope
   }
 
   /**
@@ -915,7 +901,7 @@ export class VM<
         '',
         '**The result is the last expression** — end with the value you want back. A snippet ending in a declaration, assignment, or loop returns null.',
         '',
-        '**Nothing persists between calls.** Every call gets a fresh context: your variables, and even writes to globalThis, are gone by the next one. Keep anything durable in container state, a feature, or a file.',
+        '**Nothing persists between calls.** Every call gets a fresh context: your variables, and even writes to globalThis, are gone by the next one. To carry something forward, stash it on the container — `container.addContext(\'scratch\', value)` — and it is in scope by that name in every later snippet. For anything that must outlive the process, use a file or container state.',
         '',
         '**`console.*` is captured, not printed** — it comes back beside the result.',
         '',

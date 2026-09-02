@@ -77,16 +77,33 @@ describe('vm evalCode tool', () => {
 		expect(out.result).toEqual(['function', 'function'])
 	})
 
-	it('never lets a feature occupy `assistant`', async () => {
-		// extraContext owns that name — a snippet inspecting `assistant` must
-		// get the assistant or nothing, never some feature that shares the name.
+	it('never lets container context occupy `assistant`', async () => {
+		// The snippet scope inherits container.context, so the name has to be
+		// pinned: a snippet inspecting `assistant` must get the calling
+		// assistant or nothing, never a context entry that shares the name.
 		const container = new NodeContainer()
 		const vm = container.feature('vm')
+		container.addContext('assistant' as any, { name: 'imposter' } as any)
+
 		const bare: any = await vm.evalCode({ code: 'typeof assistant' })
 		expect(bare.result).toBe('undefined')
 
 		const mounted: any = await vm.evalCode({ code: 'assistant.name' }, { assistant: { name: 'me' } })
 		expect(mounted.result).toBe('me')
+	})
+
+	it('carries values between calls when stashed with addContext', async () => {
+		// The documented escape hatch from the fresh-context-per-call rule.
+		const container = new NodeContainer()
+		const vm = container.feature('vm')
+
+		const gone: any = await vm.evalCode({ code: `globalThis.__scratch = 1; 'set'` })
+		expect(gone.result).toBe('set')
+		expect((await vm.evalCode({ code: 'typeof globalThis.__scratch' }) as any).result).toBe('undefined')
+
+		await vm.evalCode({ code: `container.addContext('scratch', { n: 7 }); 'stashed'` })
+		const kept: any = await vm.evalCode({ code: 'scratch.n' })
+		expect(kept.result).toBe(7)
 	})
 
 	it('setupToolsConsumer rebinds evalCode so `assistant` is the consumer', async () => {
