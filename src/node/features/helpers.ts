@@ -297,6 +297,17 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       vm.defineModule('lodash', { ...lodash, default: lodash })
     } catch {}
 
+    // contentbase — the document model library behind contentDb. Seeded here
+    // (not only by contentDb's own lazy seeding) so ANY VM-loaded file can
+    // `import { defineModel, z } from 'contentbase'` before contentDb has ever
+    // been touched, and so the id is on the external list for the bundling
+    // loader — otherwise a docs/models.ts bundled early inlines a second copy
+    // of the library and its models register against a different Collection.
+    try {
+      const contentbase = require('contentbase')
+      vm.defineModule('contentbase', { ...contentbase, default: contentbase })
+    } catch {}
+
     // Note: 'luca/web' is deliberately NOT seeded. The VM runs in node, and
     // importing the web barrel executes the web features' static
     // Feature.register blocks, which write into the same global registries as

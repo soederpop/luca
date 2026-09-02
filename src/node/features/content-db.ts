@@ -245,8 +245,13 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       helpers.seedVirtualModules()
     }
 
-    // Register contentbase barrel — everything the library exports
-    vm.defineModule('contentbase', contentbaseExports)
+    // Register contentbase barrel — everything the library exports.
+    // helpers.seedVirtualModules() normally seeds this already; only fill in
+    // when it didn't (e.g. the require there failed) so we never replace a
+    // richer registration with a thinner one.
+    if (!vm.modules.has('contentbase')) {
+      vm.defineModule('contentbase', contentbaseExports)
+    }
 
     // Ensure 'luca' resolves for models.ts — but never clobber the full barrel
     // helpers.seedVirtualModules() registers (schemas, classes, registries).
