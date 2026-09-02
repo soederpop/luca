@@ -81,7 +81,7 @@ export class VM<
 
   static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
     evalCode: {
-      description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` (and, when mounted by an assistant, that assistant as `assistant` — you). Top-level await works; the final expression is the result. Use it to inspect live state, prototype code, call any container feature, or add tools to yourself at runtime with assistant.addTool(name, handler, zodSchema). Nothing is sandboxed away from the real process — this is self-inspection, not a scratchpad.',
+      description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` and every enabled feature in scope by bare name. Top-level await works; the final expression is the result; console output is captured and returned with it. Use it to inspect live state, call any container feature, or prototype code against the real runtime. Nothing is sandboxed away from the real process — side effects are real, and no state carries over to the next call.',
       schema: z.object({
         code: z.string().describe('The snippet to run. `container` and every enabled feature (`fs`, `proc`, …) are in scope; TypeScript and `import { z } from "zod"` work. The last expression is returned — end with the value you want to see.'),
       }).describe('Execute a snippet in the live process with the container in scope.'),
@@ -889,9 +889,12 @@ export class VM<
   }
 
   /**
-   * When an assistant mounts the vm via `use()`, rebind evalCode so the
-   * snippet context includes that assistant as `assistant` — live eval becomes
-   * self-inspection — and inject usage guidance into its system prompt.
+   * When a consumer mounts the vm via `use()`, rebind evalCode so the snippet
+   * context includes that consumer as `assistant`, and inject the tool's
+   * operating notes — scope, quirks, and limits — into its system prompt.
+   * The guidance here is deliberately generic: what evalCode does and how it
+   * behaves. Doctrine about a particular JOB (authoring assistants, editing
+   * definitions) belongs on the feature that owns that job.
    */
   override setupToolsConsumer(consumer: any) {
     if (typeof consumer.addTool === 'function') {
@@ -902,15 +905,23 @@ export class VM<
     }
     if (typeof consumer.addSystemPromptExtension === 'function') {
       consumer.addSystemPromptExtension('vm', [
-        '## Live Eval',
+        '## Live Eval (evalCode)',
         '',
-        '`evalCode` runs snippets in YOUR OWN live process — `container` is the real container, `assistant` is you. This is your primary instrument: prefer it over shelling out to the luca CLI, which starts a separate amnesiac process.',
+        '`evalCode` runs a snippet in THIS process. It is not a sandbox — real container, real filesystem, real side effects. Prefer it over shelling out to the luca CLI, which starts a separate process that shares none of this state.',
         '',
-        '**Enabled features are in scope by bare name** — `fs.readFile(...)`, `proc.exec(...)` — same as `luca eval`. `container.feature(\'x\')` still works for anything not yet enabled.',
+        '**In scope:** `container`, every enabled feature by bare name (`fs.readFile(...)`, `proc.exec(...)`), `z` (zod), and `require`. Anything not enabled yet: `container.feature(\'x\')`.',
         '',
-        '**Inspect yourself:** `assistant.state.current`, `Object.keys(assistant.tools)`, `assistant.effectiveSystemPrompt`, `container.feature(\'assistantsManager\').instances`.',
+        '**The code is TypeScript.** Type annotations are fine, `import { x } from \'pkg\'` is rewritten to require, and top-level `await` works. `luca`, `zod`, `contentbase` and friends resolve with nothing installed.',
         '',
-        '**Author tools natively:** prototype the handler in evalCode first, then register it on yourself for this session: `assistant.addTool(\'myTool\', async (args) => {...}, z.object({...}).describe(\'...\'))` — it is live on your next turn. Persist it by writing it into a tools.ts afterward. Never use z.any().',
+        '**The result is the last expression** — end with the value you want back. A snippet ending in a declaration, assignment, or loop returns null.',
+        '',
+        '**Nothing persists between calls.** Every call gets a fresh context: your variables, and even writes to globalThis, are gone by the next one. Keep anything durable in container state, a feature, or a file.',
+        '',
+        '**`console.*` is captured, not printed** — it comes back beside the result.',
+        '',
+        '**Results are serialized shallowly**: past 4 levels deep collapses to `[object X]`, functions render as `[function name]`, cycles as `[circular]`, and arrays/objects stop at 100 entries. Return the specific values you need rather than a whole helper.',
+        '',
+        '**Errors are returned, not thrown** — a failing snippet gives you `{ error }`. Read it and retry.',
         '',
         '**Discover APIs from inside:** the runtime documents itself — never guess a method name. `(await container.describer.describeHelper(\'fs\')).text` returns the full docs for a helper, `describeHelper(\'fs.readFile\')` for one member, `describeRegistry(\'features\')` for the index of everything available.',
       ].join('\n'))
