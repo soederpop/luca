@@ -17765,7 +17765,7 @@ setBuildTimeData('features.vm', {
       ]
     },
     "setupToolsConsumer": {
-      "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+      "description": "When a consumer mounts the vm via `use()`, rebind evalCode so the snippet context includes that consumer as `assistant`, and inject the tool's operating notes — scope, quirks, and limits — into its system prompt. The guidance here is deliberately generic: what evalCode does and how it behaves. Doctrine about a particular JOB (authoring assistants, editing definitions) belongs on the feature that owns that job.",
       "parameters": {
         "consumer": {
           "type": "any",
@@ -36920,7 +36920,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "setupToolsConsumer": {
-        "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+        "description": "When a consumer mounts the vm via `use()`, rebind evalCode so the snippet context includes that consumer as `assistant`, and inject the tool's operating notes — scope, quirks, and limits — into its system prompt. The guidance here is deliberately generic: what evalCode does and how it behaves. Doctrine about a particular JOB (authoring assistants, editing definitions) belongs on the feature that owns that job.",
         "parameters": {
           "consumer": {
             "type": "any",

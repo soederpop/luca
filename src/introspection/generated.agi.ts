@@ -15955,10 +15955,10 @@ setBuildTimeData('features.memory', {
       ]
     },
     "remember": {
-      "description": "Tool handler: store a memory, deduplicating by similarity.",
+      "description": "Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id.",
       "parameters": {
         "args": {
-          "type": "{ category: string; text: string; metadata?: Record<string, any> }",
+          "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }",
           "description": "Parameter args"
         }
       },
@@ -15980,6 +15980,19 @@ setBuildTimeData('features.memory', {
       ],
       "returns": "void"
     },
+    "forget": {
+      "description": "Tool handler: retract one memory by id.",
+      "parameters": {
+        "args": {
+          "type": "{ category: string; id: number; reason?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "void"
+    },
     "forgetCategory": {
       "description": "Tool handler: wipe all memories in a category.",
       "parameters": {
@@ -15991,6 +16004,17 @@ setBuildTimeData('features.memory', {
       "required": [
         "args"
       ],
+      "returns": "void"
+    },
+    "consolidateMemory": {
+      "description": "Tool handler: run a consolidation pass (the assistant gardening its own memory).",
+      "parameters": {
+        "args": {
+          "type": "{ category?: string; dryRun?: boolean }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [],
       "returns": "void"
     },
     "listCategories": {
@@ -16039,6 +16063,103 @@ setBuildTimeData('features.memory', {
           "code": "const mem = container.feature('memory')\nawait mem.create('facts', 'The user lives in Austin', { confidence: 0.9 })"
         }
       ]
+    },
+    "observe": {
+      "description": "Append a raw observation to the episodic layer — no dedup, no judgment. This is the cheap write path: repeated observations are welcome (they become confirmation strength during consolidate()), and nothing is ever silently dropped. Consolidation later distills these into beliefs.",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "The category to store the observation in"
+        },
+        "text": {
+          "type": "string",
+          "description": "What was observed"
+        },
+        "metadata": {
+          "type": "Record<string, any>",
+          "description": "Optional metadata (e.g. provenance)"
+        }
+      },
+      "required": [
+        "category",
+        "text"
+      ],
+      "returns": "Promise<MemoryRecord>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mem = container.feature('memory')\nawait mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })"
+        }
+      ]
+    },
+    "revise": {
+      "description": "Replace a memory with a corrected statement. The old row is kept but marked superseded (and excluded from search); the new row records what it replaced. This is the honest alternative to deleting or overwriting — the history of what was believed remains auditable.",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "The category the memory belongs to"
+        },
+        "id": {
+          "type": "number",
+          "description": "The id of the memory being corrected"
+        },
+        "newText": {
+          "type": "string",
+          "description": "The corrected statement"
+        },
+        "metadata": {
+          "type": "Record<string, any>",
+          "description": "Optional metadata for the new row"
+        }
+      },
+      "required": [
+        "category",
+        "id",
+        "newText"
+      ],
+      "returns": "Promise<MemoryRecord | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mem = container.feature('memory')\nawait mem.revise('facts', 42, 'User now prefers claude-code over codex')"
+        }
+      ]
+    },
+    "retract": {
+      "description": "Mark a memory as retracted — no longer believed, but kept for audit. Retracted rows are excluded from search results.",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "The category the memory belongs to"
+        },
+        "id": {
+          "type": "number",
+          "description": "The memory id"
+        }
+      },
+      "required": [
+        "category",
+        "id"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "confirm": {
+      "description": "Strengthen an existing memory: the same thing was observed again. Increments confirmations instead of writing a duplicate row — repeated observation is evidence, and this is how it accrues.",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "The category the memory belongs to"
+        },
+        "id": {
+          "type": "number",
+          "description": "The memory id"
+        }
+      },
+      "required": [
+        "category",
+        "id"
+      ],
+      "returns": "Promise<MemoryRecord | null>"
     },
     "createUnique": {
       "description": "Create a memory only if no sufficiently similar memory exists.",
@@ -16224,7 +16345,7 @@ setBuildTimeData('features.memory', {
           "description": "Maximum number of results (default 5)"
         },
         "options": {
-          "type": "{ maxDistance?: number; filterMetadata?: Record<string, any> }",
+          "type": "{ maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean }",
           "description": "Additional search options",
           "properties": {
             "maxDistance": {
@@ -16234,6 +16355,14 @@ setBuildTimeData('features.memory', {
             "filterMetadata": {
               "type": "any",
               "description": "Filter by metadata key-value pairs"
+            },
+            "includeInactive": {
+              "type": "any",
+              "description": "Also return superseded/retracted/dormant/consolidated rows (default false)"
+            },
+            "trackUsage": {
+              "type": "any",
+              "description": "Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls"
             }
           }
         }
@@ -16307,6 +16436,53 @@ setBuildTimeData('features.memory', {
       "required": [],
       "returns": "Promise<MemoryRecord[]>"
     },
+    "consolidate": {
+      "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, and everything else is left alone. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
+      "parameters": {
+        "options": {
+          "type": "MemoryConsolidateOptions",
+          "description": "Pass configuration",
+          "properties": {
+            "categories": {
+              "type": "string[]",
+              "description": "Restrict the pass to these categories (default: all categories in the namespace)."
+            },
+            "clusterThreshold": {
+              "type": "number",
+              "description": "Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict)."
+            },
+            "dormantAfterEpochs": {
+              "type": "number",
+              "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay."
+            },
+            "dryRun": {
+              "type": "boolean",
+              "description": "Report what would happen without changing anything. The epoch is not advanced."
+            },
+            "judge": {
+              "type": "(prompt: string) => Promise<string>",
+              "description": "Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime."
+            },
+            "model": {
+              "type": "string",
+              "description": "Model for the default judge conversation."
+            },
+            "provider": {
+              "type": "any",
+              "description": "Provider preset or config for the default judge conversation (e.g. 'claude-code')."
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<MemoryConsolidateReport>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mem = container.feature('memory', { namespace: 'my-assistant' })\nconst report = await mem.consolidate({ provider: 'claude-code' })\nconsole.log(`epoch ${report.epoch}: merged ${report.merged}, superseded ${report.superseded}`)"
+        }
+      ]
+    },
     "reembedAll": {
       "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
       "parameters": {},
@@ -16379,7 +16555,7 @@ setBuildTimeData('features.memory', {
   ],
   "types": {
     "MemoryRecord": {
-      "description": "--- Types ---",
+      "description": "",
       "properties": {
         "id": {
           "type": "number",
@@ -16404,6 +16580,38 @@ setBuildTimeData('features.memory', {
         "updated_at": {
           "type": "string",
           "description": ""
+        },
+        "layer": {
+          "type": "'episodic' | 'belief'",
+          "description": "'episodic' rows are raw appended observations; 'belief' rows are curated knowledge."
+        },
+        "status": {
+          "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'",
+          "description": "Only 'active' rows are returned by search/recall. Other statuses preserve history."
+        },
+        "superseded_by": {
+          "type": "number | null",
+          "description": "When superseded, the id of the row that replaced this one."
+        },
+        "confirmations": {
+          "type": "number",
+          "description": "How many independent observations support this row. Merging duplicates sums them."
+        },
+        "usage_count": {
+          "type": "number",
+          "description": "How many times search() has returned this row."
+        },
+        "last_used_at": {
+          "type": "string | null",
+          "description": ""
+        },
+        "derived_from": {
+          "type": "number[]",
+          "description": "Ids of the rows this row was distilled from during consolidation."
+        },
+        "reviewed_epoch": {
+          "type": "number",
+          "description": "The epoch (sleep-cycle counter) this row was last reviewed in."
         }
       }
     },
@@ -16413,6 +16621,117 @@ setBuildTimeData('features.memory', {
         "distance": {
           "type": "number",
           "description": ""
+        }
+      }
+    },
+    "MemoryConsolidateOptions": {
+      "description": "",
+      "properties": {
+        "categories": {
+          "type": "string[]",
+          "description": "Restrict the pass to these categories (default: all categories in the namespace).",
+          "optional": true
+        },
+        "clusterThreshold": {
+          "type": "number",
+          "description": "Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict).",
+          "optional": true
+        },
+        "dormantAfterEpochs": {
+          "type": "number",
+          "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay.",
+          "optional": true
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "Report what would happen without changing anything. The epoch is not advanced.",
+          "optional": true
+        },
+        "judge": {
+          "type": "(prompt: string) => Promise<string>",
+          "description": "Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime.",
+          "optional": true
+        },
+        "model": {
+          "type": "string",
+          "description": "Model for the default judge conversation.",
+          "optional": true
+        },
+        "provider": {
+          "type": "any",
+          "description": "Provider preset or config for the default judge conversation (e.g. 'claude-code').",
+          "optional": true
+        }
+      }
+    },
+    "MemoryConsolidateReport": {
+      "description": "",
+      "properties": {
+        "epoch": {
+          "type": "number",
+          "description": ""
+        },
+        "categories": {
+          "type": "string[]",
+          "description": ""
+        },
+        "rowsReviewed": {
+          "type": "number",
+          "description": ""
+        },
+        "clusters": {
+          "type": "number",
+          "description": ""
+        },
+        "merged": {
+          "type": "number",
+          "description": ""
+        },
+        "superseded": {
+          "type": "number",
+          "description": ""
+        },
+        "generalized": {
+          "type": "number",
+          "description": ""
+        },
+        "dormant": {
+          "type": "number",
+          "description": ""
+        },
+        "actions": {
+          "type": "MemoryConsolidateAction[]",
+          "description": ""
+        },
+        "warnings": {
+          "type": "string[]",
+          "description": ""
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": ""
+        }
+      }
+    },
+    "MemoryConsolidateAction": {
+      "description": "",
+      "properties": {
+        "type": {
+          "type": "'merge' | 'supersede' | 'generalize' | 'keep'",
+          "description": ""
+        },
+        "category": {
+          "type": "string",
+          "description": ""
+        },
+        "ids": {
+          "type": "number[]",
+          "description": ""
+        },
+        "text": {
+          "type": "string",
+          "description": "",
+          "optional": true
         }
       }
     }
@@ -26270,7 +26589,7 @@ setBuildTimeData('features.vm', {
       ]
     },
     "setupToolsConsumer": {
-      "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+      "description": "When a consumer mounts the vm via `use()`, rebind evalCode so the snippet context includes that consumer as `assistant`, and inject the tool's operating notes — scope, quirks, and limits — into its system prompt. The guidance here is deliberately generic: what evalCode does and how it behaves. Doctrine about a particular JOB (authoring assistants, editing definitions) belongs on the feature that owns that job.",
       "parameters": {
         "consumer": {
           "type": "any",
@@ -43992,10 +44311,10 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "remember": {
-        "description": "Tool handler: store a memory, deduplicating by similarity.",
+        "description": "Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id.",
         "parameters": {
           "args": {
-            "type": "{ category: string; text: string; metadata?: Record<string, any> }",
+            "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }",
             "description": "Parameter args"
           }
         },
@@ -44017,6 +44336,19 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "forget": {
+        "description": "Tool handler: retract one memory by id.",
+        "parameters": {
+          "args": {
+            "type": "{ category: string; id: number; reason?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "void"
+      },
       "forgetCategory": {
         "description": "Tool handler: wipe all memories in a category.",
         "parameters": {
@@ -44028,6 +44360,17 @@ export const introspectionData: Record<string, any>[] = [
         "required": [
           "args"
         ],
+        "returns": "void"
+      },
+      "consolidateMemory": {
+        "description": "Tool handler: run a consolidation pass (the assistant gardening its own memory).",
+        "parameters": {
+          "args": {
+            "type": "{ category?: string; dryRun?: boolean }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [],
         "returns": "void"
       },
       "listCategories": {
@@ -44076,6 +44419,103 @@ export const introspectionData: Record<string, any>[] = [
             "code": "const mem = container.feature('memory')\nawait mem.create('facts', 'The user lives in Austin', { confidence: 0.9 })"
           }
         ]
+      },
+      "observe": {
+        "description": "Append a raw observation to the episodic layer — no dedup, no judgment. This is the cheap write path: repeated observations are welcome (they become confirmation strength during consolidate()), and nothing is ever silently dropped. Consolidation later distills these into beliefs.",
+        "parameters": {
+          "category": {
+            "type": "string",
+            "description": "The category to store the observation in"
+          },
+          "text": {
+            "type": "string",
+            "description": "What was observed"
+          },
+          "metadata": {
+            "type": "Record<string, any>",
+            "description": "Optional metadata (e.g. provenance)"
+          }
+        },
+        "required": [
+          "category",
+          "text"
+        ],
+        "returns": "Promise<MemoryRecord>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mem = container.feature('memory')\nawait mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })"
+          }
+        ]
+      },
+      "revise": {
+        "description": "Replace a memory with a corrected statement. The old row is kept but marked superseded (and excluded from search); the new row records what it replaced. This is the honest alternative to deleting or overwriting — the history of what was believed remains auditable.",
+        "parameters": {
+          "category": {
+            "type": "string",
+            "description": "The category the memory belongs to"
+          },
+          "id": {
+            "type": "number",
+            "description": "The id of the memory being corrected"
+          },
+          "newText": {
+            "type": "string",
+            "description": "The corrected statement"
+          },
+          "metadata": {
+            "type": "Record<string, any>",
+            "description": "Optional metadata for the new row"
+          }
+        },
+        "required": [
+          "category",
+          "id",
+          "newText"
+        ],
+        "returns": "Promise<MemoryRecord | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mem = container.feature('memory')\nawait mem.revise('facts', 42, 'User now prefers claude-code over codex')"
+          }
+        ]
+      },
+      "retract": {
+        "description": "Mark a memory as retracted — no longer believed, but kept for audit. Retracted rows are excluded from search results.",
+        "parameters": {
+          "category": {
+            "type": "string",
+            "description": "The category the memory belongs to"
+          },
+          "id": {
+            "type": "number",
+            "description": "The memory id"
+          }
+        },
+        "required": [
+          "category",
+          "id"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "confirm": {
+        "description": "Strengthen an existing memory: the same thing was observed again. Increments confirmations instead of writing a duplicate row — repeated observation is evidence, and this is how it accrues.",
+        "parameters": {
+          "category": {
+            "type": "string",
+            "description": "The category the memory belongs to"
+          },
+          "id": {
+            "type": "number",
+            "description": "The memory id"
+          }
+        },
+        "required": [
+          "category",
+          "id"
+        ],
+        "returns": "Promise<MemoryRecord | null>"
       },
       "createUnique": {
         "description": "Create a memory only if no sufficiently similar memory exists.",
@@ -44261,7 +44701,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Maximum number of results (default 5)"
           },
           "options": {
-            "type": "{ maxDistance?: number; filterMetadata?: Record<string, any> }",
+            "type": "{ maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean }",
             "description": "Additional search options",
             "properties": {
               "maxDistance": {
@@ -44271,6 +44711,14 @@ export const introspectionData: Record<string, any>[] = [
               "filterMetadata": {
                 "type": "any",
                 "description": "Filter by metadata key-value pairs"
+              },
+              "includeInactive": {
+                "type": "any",
+                "description": "Also return superseded/retracted/dormant/consolidated rows (default false)"
+              },
+              "trackUsage": {
+                "type": "any",
+                "description": "Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls"
               }
             }
           }
@@ -44344,6 +44792,53 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<MemoryRecord[]>"
       },
+      "consolidate": {
+        "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, and everything else is left alone. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
+        "parameters": {
+          "options": {
+            "type": "MemoryConsolidateOptions",
+            "description": "Pass configuration",
+            "properties": {
+              "categories": {
+                "type": "string[]",
+                "description": "Restrict the pass to these categories (default: all categories in the namespace)."
+              },
+              "clusterThreshold": {
+                "type": "number",
+                "description": "Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict)."
+              },
+              "dormantAfterEpochs": {
+                "type": "number",
+                "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay."
+              },
+              "dryRun": {
+                "type": "boolean",
+                "description": "Report what would happen without changing anything. The epoch is not advanced."
+              },
+              "judge": {
+                "type": "(prompt: string) => Promise<string>",
+                "description": "Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime."
+              },
+              "model": {
+                "type": "string",
+                "description": "Model for the default judge conversation."
+              },
+              "provider": {
+                "type": "any",
+                "description": "Provider preset or config for the default judge conversation (e.g. 'claude-code')."
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<MemoryConsolidateReport>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mem = container.feature('memory', { namespace: 'my-assistant' })\nconst report = await mem.consolidate({ provider: 'claude-code' })\nconsole.log(`epoch ${report.epoch}: merged ${report.merged}, superseded ${report.superseded}`)"
+          }
+        ]
+      },
       "reembedAll": {
         "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
         "parameters": {},
@@ -44416,7 +44911,7 @@ export const introspectionData: Record<string, any>[] = [
     ],
     "types": {
       "MemoryRecord": {
-        "description": "--- Types ---",
+        "description": "",
         "properties": {
           "id": {
             "type": "number",
@@ -44441,6 +44936,38 @@ export const introspectionData: Record<string, any>[] = [
           "updated_at": {
             "type": "string",
             "description": ""
+          },
+          "layer": {
+            "type": "'episodic' | 'belief'",
+            "description": "'episodic' rows are raw appended observations; 'belief' rows are curated knowledge."
+          },
+          "status": {
+            "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'",
+            "description": "Only 'active' rows are returned by search/recall. Other statuses preserve history."
+          },
+          "superseded_by": {
+            "type": "number | null",
+            "description": "When superseded, the id of the row that replaced this one."
+          },
+          "confirmations": {
+            "type": "number",
+            "description": "How many independent observations support this row. Merging duplicates sums them."
+          },
+          "usage_count": {
+            "type": "number",
+            "description": "How many times search() has returned this row."
+          },
+          "last_used_at": {
+            "type": "string | null",
+            "description": ""
+          },
+          "derived_from": {
+            "type": "number[]",
+            "description": "Ids of the rows this row was distilled from during consolidation."
+          },
+          "reviewed_epoch": {
+            "type": "number",
+            "description": "The epoch (sleep-cycle counter) this row was last reviewed in."
           }
         }
       },
@@ -44450,6 +44977,117 @@ export const introspectionData: Record<string, any>[] = [
           "distance": {
             "type": "number",
             "description": ""
+          }
+        }
+      },
+      "MemoryConsolidateOptions": {
+        "description": "",
+        "properties": {
+          "categories": {
+            "type": "string[]",
+            "description": "Restrict the pass to these categories (default: all categories in the namespace).",
+            "optional": true
+          },
+          "clusterThreshold": {
+            "type": "number",
+            "description": "Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict).",
+            "optional": true
+          },
+          "dormantAfterEpochs": {
+            "type": "number",
+            "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay.",
+            "optional": true
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Report what would happen without changing anything. The epoch is not advanced.",
+            "optional": true
+          },
+          "judge": {
+            "type": "(prompt: string) => Promise<string>",
+            "description": "Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime.",
+            "optional": true
+          },
+          "model": {
+            "type": "string",
+            "description": "Model for the default judge conversation.",
+            "optional": true
+          },
+          "provider": {
+            "type": "any",
+            "description": "Provider preset or config for the default judge conversation (e.g. 'claude-code').",
+            "optional": true
+          }
+        }
+      },
+      "MemoryConsolidateReport": {
+        "description": "",
+        "properties": {
+          "epoch": {
+            "type": "number",
+            "description": ""
+          },
+          "categories": {
+            "type": "string[]",
+            "description": ""
+          },
+          "rowsReviewed": {
+            "type": "number",
+            "description": ""
+          },
+          "clusters": {
+            "type": "number",
+            "description": ""
+          },
+          "merged": {
+            "type": "number",
+            "description": ""
+          },
+          "superseded": {
+            "type": "number",
+            "description": ""
+          },
+          "generalized": {
+            "type": "number",
+            "description": ""
+          },
+          "dormant": {
+            "type": "number",
+            "description": ""
+          },
+          "actions": {
+            "type": "MemoryConsolidateAction[]",
+            "description": ""
+          },
+          "warnings": {
+            "type": "string[]",
+            "description": ""
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": ""
+          }
+        }
+      },
+      "MemoryConsolidateAction": {
+        "description": "",
+        "properties": {
+          "type": {
+            "type": "'merge' | 'supersede' | 'generalize' | 'keep'",
+            "description": ""
+          },
+          "category": {
+            "type": "string",
+            "description": ""
+          },
+          "ids": {
+            "type": "number[]",
+            "description": ""
+          },
+          "text": {
+            "type": "string",
+            "description": "",
+            "optional": true
           }
         }
       }
@@ -54276,7 +54914,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "setupToolsConsumer": {
-        "description": "When an assistant mounts the vm via `use()`, rebind evalCode so the snippet context includes that assistant as `assistant` — live eval becomes self-inspection — and inject usage guidance into its system prompt.",
+        "description": "When a consumer mounts the vm via `use()`, rebind evalCode so the snippet context includes that consumer as `assistant`, and inject the tool's operating notes — scope, quirks, and limits — into its system prompt. The guidance here is deliberately generic: what evalCode does and how it behaves. Doctrine about a particular JOB (authoring assistants, editing definitions) belongs on the feature that owns that job.",
         "parameters": {
           "consumer": {
             "type": "any",

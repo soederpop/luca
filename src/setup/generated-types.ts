@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.10.0"
+export const typesBundleVersion = "3.10.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -91,7 +91,7 @@ import { OpenAPI } from "./features/openapi";
 import { SkillsLibrary } from "./features/skills-library";
 import { VoiceMode } from "./features/voice-mode";
 export { Memory } from "./features/agent-memory";
-export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } from "./features/agent-memory";
+export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
 export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
@@ -219,9 +219,59 @@ export interface MemoryRecord {
     metadata: Record<string, any>;
     created_at: string;
     updated_at: string;
+    /** 'episodic' rows are raw appended observations; 'belief' rows are curated knowledge. */
+    layer: 'episodic' | 'belief';
+    /** Only 'active' rows are returned by search/recall. Other statuses preserve history. */
+    status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated';
+    /** When superseded, the id of the row that replaced this one. */
+    superseded_by: number | null;
+    /** How many independent observations support this row. Merging duplicates sums them. */
+    confirmations: number;
+    /** How many times search() has returned this row. */
+    usage_count: number;
+    last_used_at: string | null;
+    /** Ids of the rows this row was distilled from during consolidation. */
+    derived_from: number[];
+    /** The epoch (sleep-cycle counter) this row was last reviewed in. */
+    reviewed_epoch: number;
 }
 export interface MemorySearchResult extends MemoryRecord {
     distance: number;
+}
+export interface MemoryConsolidateOptions {
+    /** Restrict the pass to these categories (default: all categories in the namespace). */
+    categories?: string[];
+    /** Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict). */
+    clusterThreshold?: number;
+    /** Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay. */
+    dormantAfterEpochs?: number;
+    /** Report what would happen without changing anything. The epoch is not advanced. */
+    dryRun?: boolean;
+    /** Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime. */
+    judge?: (prompt: string) => Promise<string>;
+    /** Model for the default judge conversation. */
+    model?: string;
+    /** Provider preset or config for the default judge conversation (e.g. 'claude-code'). */
+    provider?: any;
+}
+export interface MemoryConsolidateAction {
+    type: 'merge' | 'supersede' | 'generalize' | 'keep';
+    category: string;
+    ids: number[];
+    text?: string;
+}
+export interface MemoryConsolidateReport {
+    epoch: number;
+    categories: string[];
+    rowsReviewed: number;
+    clusters: number;
+    merged: number;
+    superseded: number;
+    generalized: number;
+    dormant: number;
+    actions: MemoryConsolidateAction[];
+    warnings: string[];
+    dryRun: boolean;
 }
 /**
  * Semantic memory storage and retrieval for AI agents.
@@ -302,21 +352,77 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
     initDb(): Promise<void>;
     /** @internal Ensure db is ready before any operation */
     private ensureDb;
-    /** Tool handler: store a memory, deduplicating by similarity. */
+    /** Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id. */
     remember(args: {
         category: string;
         text: string;
+        intent?: 'observation' | 'correction' | 'confirmation';
+        regarding?: number;
         metadata?: Record<string, any>;
     }): Promise<{
         stored: boolean;
         id: number;
         category: string;
+        superseded: number;
         reason?: undefined;
+        candidates?: undefined;
+        note?: undefined;
+        confirmed?: undefined;
+        confirmations?: undefined;
     } | {
         stored: boolean;
         reason: string;
         id?: undefined;
         category?: undefined;
+        superseded?: undefined;
+        candidates?: undefined;
+        note?: undefined;
+        confirmed?: undefined;
+        confirmations?: undefined;
+    } | {
+        stored: boolean;
+        reason: string;
+        candidates: {
+            id: number;
+            document: string;
+            created_at: string;
+        }[];
+        id?: undefined;
+        category?: undefined;
+        superseded?: undefined;
+        note?: undefined;
+        confirmed?: undefined;
+        confirmations?: undefined;
+    } | {
+        stored: boolean;
+        id: number;
+        category: string;
+        note: string;
+        superseded?: undefined;
+        reason?: undefined;
+        candidates?: undefined;
+        confirmed?: undefined;
+        confirmations?: undefined;
+    } | {
+        confirmed: boolean;
+        id: number;
+        confirmations: number;
+        stored?: undefined;
+        category?: undefined;
+        superseded?: undefined;
+        reason?: undefined;
+        candidates?: undefined;
+        note?: undefined;
+    } | {
+        stored: boolean;
+        id: number;
+        category: string;
+        superseded?: undefined;
+        reason?: undefined;
+        candidates?: undefined;
+        note?: undefined;
+        confirmed?: undefined;
+        confirmations?: undefined;
     }>;
     /** Tool handler: search memories by semantic similarity. */
     recall(args: {
@@ -324,17 +430,47 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         query: string;
         n_results?: number;
     }): Promise<{
+        id: number;
         document: string;
         metadata: Record<string, any>;
         distance: number;
         created_at: string;
+        confirmations: number;
     }[]>;
+    /** Tool handler: retract one memory by id. */
+    forget(args: {
+        category: string;
+        id: number;
+        reason?: string;
+    }): Promise<{
+        retracted: boolean;
+        id: number;
+        reason?: undefined;
+    } | {
+        retracted: boolean;
+        reason: string;
+        id?: undefined;
+    }>;
     /** Tool handler: wipe all memories in a category. */
     forgetCategory(args: {
         category: string;
     }): Promise<{
         deleted: number;
         category: string;
+    }>;
+    /** Tool handler: run a consolidation pass (the assistant gardening its own memory). */
+    consolidateMemory(args?: {
+        category?: string;
+        dryRun?: boolean;
+    }): Promise<{
+        epoch: number;
+        rowsReviewed: number;
+        merged: number;
+        superseded: number;
+        generalized: number;
+        dormant: number;
+        warnings: string[];
+        dryRun: boolean;
     }>;
     /** Tool handler: list all categories with counts. */
     listCategories(): Promise<{
@@ -359,6 +495,64 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * \`\`\`
      */
     create(category: string, text: string, metadata?: Record<string, any>): Promise<MemoryRecord>;
+    /**
+     * Append a raw observation to the episodic layer — no dedup, no judgment.
+     * This is the cheap write path: repeated observations are welcome (they
+     * become confirmation strength during consolidate()), and nothing is ever
+     * silently dropped. Consolidation later distills these into beliefs.
+     *
+     * @param {string} category - The category to store the observation in
+     * @param {string} text - What was observed
+     * @param {Record<string, any>} metadata - Optional metadata (e.g. provenance)
+     * @returns {Promise<MemoryRecord>} The created episodic memory
+     *
+     * @example
+     * \`\`\`typescript
+     * const mem = container.feature('memory')
+     * await mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })
+     * \`\`\`
+     */
+    observe(category: string, text: string, metadata?: Record<string, any>): Promise<MemoryRecord>;
+    /**
+     * Replace a memory with a corrected statement. The old row is kept but
+     * marked superseded (and excluded from search); the new row records what
+     * it replaced. This is the honest alternative to deleting or overwriting —
+     * the history of what was believed remains auditable.
+     *
+     * @param {string} category - The category the memory belongs to
+     * @param {number} id - The id of the memory being corrected
+     * @param {string} newText - The corrected statement
+     * @param {Record<string, any>} metadata - Optional metadata for the new row
+     * @returns {Promise<MemoryRecord | null>} The new active memory, or null if the old id wasn't found
+     *
+     * @example
+     * \`\`\`typescript
+     * const mem = container.feature('memory')
+     * await mem.revise('facts', 42, 'User now prefers claude-code over codex')
+     * \`\`\`
+     */
+    revise(category: string, id: number, newText: string, metadata?: Record<string, any>): Promise<MemoryRecord | null>;
+    /**
+     * Mark a memory as retracted — no longer believed, but kept for audit.
+     * Retracted rows are excluded from search results.
+     *
+     * @param {string} category - The category the memory belongs to
+     * @param {number} id - The memory id
+     * @returns {Promise<boolean>} True if a row was retracted
+     */
+    retract(category: string, id: number): Promise<boolean>;
+    /**
+     * Strengthen an existing memory: the same thing was observed again.
+     * Increments confirmations instead of writing a duplicate row — repeated
+     * observation is evidence, and this is how it accrues.
+     *
+     * @param {string} category - The category the memory belongs to
+     * @param {number} id - The memory id
+     * @returns {Promise<MemoryRecord | null>} The strengthened memory, or null if not found
+     */
+    confirm(category: string, id: number): Promise<MemoryRecord | null>;
+    /** @internal Shared insert used by create/observe/revise/consolidate. */
+    private _insert;
     /**
      * Create a memory only if no sufficiently similar memory exists.
      *
@@ -455,11 +649,15 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {object} options - Additional search options
      * @param {number} options.maxDistance - Maximum cosine distance threshold (0-2, default none)
      * @param {Record<string, any>} options.filterMetadata - Filter by metadata key-value pairs
+     * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated rows (default false)
+     * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
      * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
      */
     search(category: string, query: string, nResults?: number, options?: {
         maxDistance?: number;
         filterMetadata?: Record<string, any>;
+        includeInactive?: boolean;
+        trackUsage?: boolean;
     }): Promise<MemorySearchResult[]>;
     /**
      * Get the current epoch value.
@@ -497,6 +695,47 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         epoch?: number;
         limit?: number;
     }): Promise<MemoryRecord[]>;
+    /**
+     * Run a consolidation pass over this namespace — the memory's sleep cycle.
+     *
+     * Embedding similarity is used only to propose clusters of rows that are
+     * about the same thing; an LLM judge (created at runtime, or injected via
+     * options.judge) then decides what each cluster means: duplicates merge
+     * into one belief with summed confirmations, contradictions resolve by
+     * superseding the outdated row, patterns across observations become
+     * generalized beliefs, and everything else is left alone. Old, never-used
+     * episodic rows decay to dormant. Nothing is ever deleted — every outcome
+     * is a status change with an audit trail (superseded_by, derived_from),
+     * so a wrong judgment is always reversible.
+     *
+     * Finishing a pass increments the epoch, so epoch counts sleep cycles and
+     * reviewed_epoch records when each row was last considered.
+     *
+     * @param {MemoryConsolidateOptions} options - Pass configuration
+     * @returns {Promise<MemoryConsolidateReport>} What happened, cluster by cluster
+     *
+     * @example
+     * \`\`\`typescript
+     * const mem = container.feature('memory', { namespace: 'my-assistant' })
+     * const report = await mem.consolidate({ provider: 'claude-code' })
+     * console.log(\`epoch \${report.epoch}: merged \${report.merged}, superseded \${report.superseded}\`)
+     * \`\`\`
+     */
+    consolidate(options?: MemoryConsolidateOptions): Promise<MemoryConsolidateReport>;
+    /** @internal Build the default runtime judge: a fresh, zero-temperature conversation per cluster. */
+    private defaultJudge;
+    /** @internal Greedy single-link clustering on stored embeddings. Similarity proposes, it never decides. */
+    private clusterBySimilarity;
+    /** @internal Render one cluster as a judgment prompt. */
+    private clusterPrompt;
+    /** @internal Extract and validate the judge's JSON actions. Anything malformed is skipped with a warning — the conservative failure mode is to change nothing. */
+    private parseJudgeReply;
+    /** @internal Count an action into the report without applying it (dry run). */
+    private tallyAction;
+    /** @internal Apply one judged action. All outcomes are status changes plus audit links — never deletion. */
+    private applyAction;
+    /** @internal Mark rows as reviewed in the given epoch. */
+    private stampReviewed;
     /**
      * Re-embed every memory in this namespace with the currently configured
      * embedding model. Use this after changing embeddingModel or
@@ -29189,21 +29428,6 @@ export interface TransformResult {
  * LOOK like import/export statements inside string content.
  */
 export declare function computeNonCodeMask(code: string): Uint8Array;
-/**
- * Convert ESM import/export statements to CJS require/module.exports
- * so the code can run in a vm context that provides \`require\`.
- *
- * NOTE: whitespace between tokens is optional (\`\\s*\`) wherever a brace or
- * quote provides the token boundary. Bun's transpiler emits side-effect
- * imports without a space (\`import"./x.ts";\`) — a \`\\s+\` there silently
- * leaves the statement untransformed, which then blows up in the VM with
- * \`SyntaxError: ... import call expects one or two arguments.\`
- *
- * Statements are only rewritten at genuine code positions: lines that merely
- * look like import/export inside template literals, strings, or comments are
- * left verbatim (they used to get mangled, and the phantom appended
- * \`exports['x'] = x\` crashed the vm with "exports is not defined").
- */
 export declare function esmToCjs(code: string): string;
 /**
  * Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's
@@ -31046,9 +31270,12 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
         error: string;
     }>;
     /**
-     * When an assistant mounts the vm via \`use()\`, rebind evalCode so the
-     * snippet context includes that assistant as \`assistant\` — live eval becomes
-     * self-inspection — and inject usage guidance into its system prompt.
+     * When a consumer mounts the vm via \`use()\`, rebind evalCode so the snippet
+     * context includes that consumer as \`assistant\`, and inject the tool's
+     * operating notes — scope, quirks, and limits — into its system prompt.
+     * The guidance here is deliberately generic: what evalCode does and how it
+     * behaves. Doctrine about a particular JOB (authoring assistants, editing
+     * definitions) belongs on the feature that owns that job.
      */
     setupToolsConsumer(consumer: any): void;
 }

@@ -262,11 +262,12 @@ export class NodeContainer<
       const manifest = this.fs.readJson(packageJson);
 
       return manifest;
-    } catch (error) {
+    } catch (error: any) {
       return {
         name: basename(this.cwd),
         version: "0.0.0",
         type: "module",
+	_loadingError: error?.message
       };
     }
   }

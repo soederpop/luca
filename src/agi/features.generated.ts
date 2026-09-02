@@ -29,7 +29,7 @@ import { SkillsLibrary } from "./features/skills-library";
 import { VoiceMode } from "./features/voice-mode";
 
 export { Memory } from "./features/agent-memory";
-export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult } from "./features/agent-memory";
+export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
 export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
