@@ -68,6 +68,27 @@ describe('vm evalCode tool', () => {
 		expect(out.result).toBe(true)
 	})
 
+	it('puts enabled features in scope by bare name, like `luca eval`', async () => {
+		const container = new NodeContainer()
+		container.feature('diskCache', { enable: true } as any)
+		const out: any = await container.feature('vm').evalCode({
+			code: `[typeof fs.readFile, typeof diskCache.keys]`,
+		})
+		expect(out.result).toEqual(['function', 'function'])
+	})
+
+	it('never lets a feature occupy `assistant`', async () => {
+		// extraContext owns that name — a snippet inspecting `assistant` must
+		// get the assistant or nothing, never some feature that shares the name.
+		const container = new NodeContainer()
+		const vm = container.feature('vm')
+		const bare: any = await vm.evalCode({ code: 'typeof assistant' })
+		expect(bare.result).toBe('undefined')
+
+		const mounted: any = await vm.evalCode({ code: 'assistant.name' }, { assistant: { name: 'me' } })
+		expect(mounted.result).toBe('me')
+	})
+
 	it('setupToolsConsumer rebinds evalCode so `assistant` is the consumer', async () => {
 		const container = new NodeContainer()
 		const vm = container.feature('vm')

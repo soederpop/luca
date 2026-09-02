@@ -83,7 +83,7 @@ export class VM<
     evalCode: {
       description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` (and, when mounted by an assistant, that assistant as `assistant` — you). Top-level await works; the final expression is the result. Use it to inspect live state, prototype code, call any container feature, or add tools to yourself at runtime with assistant.addTool(name, handler, zodSchema). Nothing is sandboxed away from the real process — this is self-inspection, not a scratchpad.',
       schema: z.object({
-        code: z.string().describe('The snippet to run. `container` is in scope; `import { z } from "zod"` works. The last expression is returned — end with the value you want to see.'),
+        code: z.string().describe('The snippet to run. `container` and every enabled feature (`fs`, `proc`, …) are in scope; TypeScript and `import { z } from "zod"` work. The last expression is returned — end with the value you want to see.'),
       }).describe('Execute a snippet in the live process with the container in scope.'),
     },
   }
@@ -853,6 +853,11 @@ export class VM<
       const sharedExports: Record<string, any> = {}
 
       const { result, console: calls } = await this.runCaptured(code, {
+        // Enabled features by bare name (`fs.readFile(...)`), matching what a
+        // human gets from `luca eval`. 'assistant' is stripped: extraContext
+        // owns that name, and a snippet must never mistake some feature for
+        // the assistant it thinks it is inspecting.
+        ...this._evalFeatureScope(),
         container: this.container,
         require: this.createRequireFor(this.container.paths.resolve('__evalCode__.ts')),
         z,
@@ -864,6 +869,23 @@ export class VM<
     } catch (err: any) {
       return { error: err?.message || String(err) }
     }
+  }
+
+  /**
+   * Enabled feature instances keyed by bare name, for the evalCode scope.
+   * Reserved names are dropped rather than allowed to shadow the bindings the
+   * snippet is guaranteed to have.
+   */
+  private _evalFeatureScope(): Record<string, any> {
+    const reserved = new Set(['assistant', 'container', 'require', 'z', 'module', 'exports', 'console'])
+    const scope: Record<string, any> = {}
+
+    for (const [name, instance] of Object.entries(this.container.enabledFeatures ?? {})) {
+      if (reserved.has(name)) continue
+      scope[name] = instance
+    }
+
+    return scope
   }
 
   /**
@@ -883,6 +905,8 @@ export class VM<
         '## Live Eval',
         '',
         '`evalCode` runs snippets in YOUR OWN live process — `container` is the real container, `assistant` is you. This is your primary instrument: prefer it over shelling out to the luca CLI, which starts a separate amnesiac process.',
+        '',
+        '**Enabled features are in scope by bare name** — `fs.readFile(...)`, `proc.exec(...)` — same as `luca eval`. `container.feature(\'x\')` still works for anything not yet enabled.',
         '',
         '**Inspect yourself:** `assistant.state.current`, `Object.keys(assistant.tools)`, `assistant.effectiveSystemPrompt`, `container.feature(\'assistantsManager\').instances`.',
         '',
