@@ -107,16 +107,32 @@ function replaceInCode(code: string, regex: RegExp, replacer: (match: string, ..
  * left verbatim (they used to get mangled, and the phantom appended
  * `exports['x'] = x` crashed the vm with "exports is not defined").
  */
+/**
+ * Rewrite an import clause's bindings for destructuring: `{ a, b as c }` is
+ * valid import syntax but invalid in `const { ... } = require(...)`, where the
+ * rename operator is `:`. Emitting `as` here produced a SyntaxError for every
+ * VM-loaded file (and every assistant evalCode snippet) that aliased an import.
+ */
+function importNamesToBindings(names: string): string {
+  return names
+    .split(',')
+    .map((part) => {
+      const aliased = part.trim().match(/^(\w+)\s+as\s+(\w+)$/)
+      return aliased ? ` ${aliased[1]}: ${aliased[2]}` : part
+    })
+    .join(',')
+}
+
 export function esmToCjs(code: string): string {
   const exportedNames: string[] = []
 
   let result = code
   // import Foo, { bar, baz } from 'x' → const Foo = require('x').default ?? require('x'); const { bar, baz } = require('x')
   result = replaceInCode(result, /^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
-    (_m, name, names, spec) => `const ${name} = require(${spec}).default ?? require(${spec}); const {${names}} = require(${spec});`)
+    (_m, name, names, spec) => `const ${name} = require(${spec}).default ?? require(${spec}); const {${importNamesToBindings(names)}} = require(${spec});`)
   // import { a, b } from 'x' → const { a, b } = require('x')
   result = replaceInCode(result, /^import\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
-    (_m, names, spec) => `const {${names}} = require(${spec});`)
+    (_m, names, spec) => `const {${importNamesToBindings(names)}} = require(${spec});`)
   // import x from 'y' → const x = require('y').default ?? require('y')
   result = replaceInCode(result, /^import\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
     (_m, name, spec) => `const ${name} = require(${spec}).default ?? require(${spec});`)

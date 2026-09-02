@@ -830,8 +830,34 @@ export class VM<
    */
   async evalCode(args: { code: string }, extraContext: Record<string, any> = {}): Promise<{ result: any; console: Array<{ method: string; args: any[] }> } | { error: string }> {
     try {
-      const { result, console: calls } = await this.runCaptured(args.code, {
+      // Give the snippet the same environment `luca eval` gives a human:
+      // virtual modules seeded (so 'zod', 'luca', 'contentbase' resolve),
+      // `require` in scope, TS syntax accepted, and imports rewritten to
+      // require calls. Without this the tool's own description — "TypeScript,
+      // `import { z } from 'zod'` works" — was a promise it couldn't keep.
+      if (this.container.features.has('helpers')) {
+        const helpers = this.container.feature('helpers') as any
+        helpers.seedVirtualModules?.()
+      }
+
+      let code = args.code
+      try {
+        code = this.container.feature('transpiler').transformSync(code, { loader: 'ts', format: 'cjs' }).code
+      } catch {
+        // Leave the input as written — the run surfaces the real syntax error
+        // against the assistant's own code, not the transpiler's rewrite.
+      }
+
+      // Shared so a snippet that does export something sees one consistent
+      // view, the same contract loadModule follows.
+      const sharedExports: Record<string, any> = {}
+
+      const { result, console: calls } = await this.runCaptured(code, {
         container: this.container,
+        require: this.createRequireFor(this.container.paths.resolve('__evalCode__.ts')),
+        z,
+        exports: sharedExports,
+        module: { exports: sharedExports },
         ...extraContext,
       })
       return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map((a) => safeSerialize(a)) })) }

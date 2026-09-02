@@ -38,6 +38,36 @@ describe('vm evalCode tool', () => {
 		expect(out.result.fn).toMatch(/function/)
 	})
 
+	it('seeds virtual modules so imports and require resolve in the snippet', async () => {
+		// The tool's own description promises TypeScript and
+		// `import { z } from 'zod'`. Nothing else seeds the VM before an
+		// assistant's first call, so evalCode has to do it itself.
+		const container = new NodeContainer()
+		const vm = container.feature('vm')
+		expect(vm.modules.has('zod')).toBe(false)
+
+		const imported: any = await vm.evalCode({ code: `import { z } from 'zod'\ntypeof z.string` })
+		expect(imported.result).toBe('function')
+		expect(vm.modules.has('zod')).toBe(true)
+
+		const required: any = await vm.evalCode({ code: `const { defineModel } = require('contentbase'); typeof defineModel` })
+		expect(required.result).toBe('function')
+	})
+
+	it('accepts TypeScript syntax and aliased imports', async () => {
+		const container = new NodeContainer()
+		const out: any = await container.feature('vm').evalCode({
+			code: `import { z as zz } from 'zod'\nconst n: number = 41\nzz.number().parse(n) + 1`,
+		})
+		expect(out.result).toBe(42)
+	})
+
+	it('keeps z in scope without an import, like `luca eval` does', async () => {
+		const container = new NodeContainer()
+		const out: any = await container.feature('vm').evalCode({ code: `z.object({ a: z.string() }).safeParse({ a: 'x' }).success` })
+		expect(out.result).toBe(true)
+	})
+
 	it('setupToolsConsumer rebinds evalCode so `assistant` is the consumer', async () => {
 		const container = new NodeContainer()
 		const vm = container.feature('vm')

@@ -19,6 +19,19 @@ describe('esmToCjs', () => {
 			expect(out).toContain(`const foo = require('bar').default ?? require('bar'); const { a, b } = require('bar');`)
 		})
 
+		it('rewrites aliased named imports to destructuring renames', () => {
+			// `{ z as zz }` is import syntax; destructuring needs `{ z: zz }`.
+			// Emitting `as` here was a SyntaxError in every VM-loaded file.
+			const out = esmToCjs(`import { z as zz, ZodError } from 'zod'`)
+			expect(out).toContain(`const { z: zz, ZodError } = require('zod');`)
+			expect(out).not.toContain(' as ')
+		})
+
+		it('rewrites aliases in the default + named form too', () => {
+			const out = esmToCjs(`import foo, { a as b, c } from 'bar'`)
+			expect(out).toContain(`const { a: b, c } = require('bar');`)
+		})
+
 		it('converts namespace imports', () => {
 			const out = esmToCjs(`import * as ns from 'bar'`)
 			expect(out).toContain(`const ns = require('bar');`)
