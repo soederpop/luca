@@ -251,6 +251,14 @@ async function diagnoseError(_scriptPath: string, error: Error, _context: Contai
 
 export default async function run(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+
+	// Seed 'luca', 'zod', 'contentbase' & friends into the VM's module map.
+	// Idempotent, and required here: until now `run` only got them as a side
+	// effect of helper discovery, so a script in a folder with no commands/ or
+	// selectors/ to discover hit an empty map and fell through to Node's
+	// resolution — `import { z } from 'zod'` died with "Cannot find package".
+	container.helpers.seedVirtualModules()
+
 	const fileRef = container.argv._[1] as string
 
 	if (!fileRef) {
