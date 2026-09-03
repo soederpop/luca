@@ -16,6 +16,7 @@ export const PostgresStateSchema = FeatureStateSchema.extend({
 
 export const PostgresOptionsSchema = FeatureOptionsSchema.extend({
   url: z.string().min(1).optional().describe('Postgres connection URL, e.g. postgres://user:pass@host:5432/db'),
+  readOnly: z.boolean().optional().describe('Open the session read-only: sets default_transaction_read_only=on via the connection URL so the server rejects writes, and makes execute() throw locally. A determined SQL author can still SET it off — use a SELECT-only role for hard enforcement.'),
 })
 
 export type PostgresState = z.infer<typeof PostgresStateSchema>
@@ -59,6 +60,11 @@ export const PostgresEventsSchema = FeatureEventsSchema.extend({
  * const rows = await postgres.sql<{ id: number }>`
  *   select id from users where email = ${'hello@example.com'}
  * `
+ *
+ * // Read-only session: the server rejects writes and execute() throws locally.
+ * // Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a
+ * // SELECT-only role when the caller is untrusted (e.g. an AI assistant).
+ * const reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })
  * ```
  */
 export class Postgres extends Feature<PostgresState, PostgresOptions> {
@@ -91,12 +97,14 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
       throw new Error('Postgres feature requires options.url')
     }
 
-    this._client = new SQL(options.url)
+    const url = options.readOnly ? applyReadOnly(options.url) : options.url
+
+    this._client = new SQL(url)
     this.hide('_client')
 
     this.setState({
       connected: true,
-      url: options.url,
+      url,
     })
   }
 
@@ -163,7 +171,7 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
    * @param queryText - The SQL statement string with optional `$N` placeholders
    * @param params - Ordered array of values to bind to the placeholders
    * @returns Promise resolving to `{ rowCount }` indicating affected rows
-   * @throws {Error} When query text is empty or params contain `undefined`
+   * @throws {Error} When query text is empty, params contain `undefined`, or the instance was created with `readOnly: true`
    *
    * @example
    * ```typescript
@@ -176,6 +184,9 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
    * ```
    */
   async execute(queryText: string, params: SqlValue[] = []): Promise<{ rowCount: number }> {
+    if (this.options.readOnly) {
+      throw new Error('This postgres feature instance is read-only (options.readOnly) — execute() is disabled. Use query() for reads.')
+    }
     assertQueryText(queryText)
     assertParams(params)
 
@@ -285,6 +296,25 @@ function buildDollarQuery(strings: TemplateStringsArray, values: SqlValue[]) {
   }
 
   return { text: chunks.join(''), params: values }
+}
+
+/**
+ * Append `-c default_transaction_read_only=on` to the URL's libpq `options`
+ * startup parameter (preserving any options the caller already set), so the
+ * server opens every session read-only.
+ */
+function applyReadOnly(urlString: string): string {
+  const url = new URL(urlString)
+  const existing = url.searchParams.get('options')
+  const flag = '-c default_transaction_read_only=on'
+  const value = existing ? `${existing} ${flag}` : flag
+
+  // Percent-encode by hand: URLSearchParams serializes spaces as '+', which
+  // libpq-style URI parsing does not decode back to a space.
+  url.searchParams.delete('options')
+  const rest = url.searchParams.toString()
+  url.search = ''
+  return `${url.toString()}?${rest ? `${rest}&` : ''}options=${encodeURIComponent(value)}`
 }
 
 function resolveRowCount(result: any): number {

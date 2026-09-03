@@ -11276,7 +11276,7 @@ setBuildTimeData('features.postgres', {
   "examples": [
     {
       "language": "ts",
-      "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
+      "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`\n\n// Read-only session: the server rejects writes and execute() throws locally.\n// Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a\n// SELECT-only role when the caller is untrusted (e.g. an AI assistant).\nconst reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })"
     }
   ]
 });
@@ -30478,7 +30478,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
+        "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`\n\n// Read-only session: the server rejects writes and execute() throws locally.\n// Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a\n// SELECT-only role when the caller is untrusted (e.g. an AI assistant).\nconst reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })"
       }
     ]
   },
