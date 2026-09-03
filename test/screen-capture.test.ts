@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, spyOn } from 'bun:test'
+import { EventEmitter } from 'events'
 import { NodeContainer } from '../src/node/container'
 import { ScreenCaptureOptionsSchema } from '../src/node/features/screen-capture'
 
@@ -99,6 +100,25 @@ describe('screenCapture feature', () => {
     expect(await capture.stopRecording()).toBe('/tmp/b.mov')
     expect(await capture.stopRecording()).toBe('/tmp/a.mov')
     await expect(capture.stopRecording()).rejects.toThrow(/no recording in progress/)
+  })
+
+  it('record() fails at START when the recorder dies immediately (no TCC permission)', async () => {
+    if (process.platform !== 'darwin') return
+    const capture = container.feature('screenCapture')
+    const proc = container.feature('proc')
+
+    // Simulate screencapture -v exiting instantly, the no-permission signature
+    const fakeChild: any = new EventEmitter()
+    fakeChild.exitCode = 1
+    fakeChild.stderr = new EventEmitter()
+    fakeChild.kill = () => {}
+    const spy = spyOn(proc, 'spawn').mockReturnValue(fakeChild)
+
+    try {
+      await expect(capture.record({ duration: 2 })).rejects.toThrow(/failed to start.*Screen Recording permission/s)
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('rejects captureWindow for a window that does not exist', async () => {

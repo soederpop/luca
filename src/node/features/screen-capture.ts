@@ -354,6 +354,18 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
     let stderr = ''
     child.stderr?.on('data', (buf: Buffer) => { stderr += buf.toString() })
 
+    // Without the Screen Recording TCC permission (or any window-server
+    // access — daemons, SSH sessions), screencapture -v exits immediately
+    // instead of failing at stop time. Catch that here so the caller learns
+    // the recording never started, not minutes later when they stop it.
+    await this.container.utils.sleep(600)
+    if (child.exitCode !== null) {
+      throw new Error(
+        `record failed to start: screencapture exited ${child.exitCode} right away. ${stderr.trim()} ${PERMISSION_HINT} ` +
+        'The permission belongs to the HOST APP of this process (the terminal, app, or daemon that launched luca) — a process with no GUI session (launchd daemon, SSH) cannot record at all.'
+      )
+    }
+
     const done = new Promise<string>((resolve, reject) => {
       child.on('exit', async () => {
         // screencapture finalizes the movie after SIGINT; give the file a beat to land
