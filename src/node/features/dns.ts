@@ -143,7 +143,7 @@ export class Dns extends Feature<DnsState, DnsOptions> {
   get digPath(): string {
     if (this._resolvedDigPath) return this._resolvedDigPath
     try {
-      this._resolvedDigPath = this.proc.exec('which dig').trim()
+      this._resolvedDigPath = this.proc.execSync('which dig').trim()
     } catch {
       this._resolvedDigPath = 'dig'
     }

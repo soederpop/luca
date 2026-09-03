@@ -140,7 +140,7 @@ export class Git extends Feature {
         }
         
         
-        return this.container.feature('proc').exec(`${this.gitPath} ls-files ${baseDir} ${flags.join(' ')}`, { 
+        return this.container.feature('proc').execSync(`${this.gitPath} ls-files ${baseDir} ${flags.join(' ')}`, { 
             cwd: this.repoRoot,
             maxBuffer: 1024 * 1024 * 100,
         }).trim().split(/\r?\n/)
@@ -161,7 +161,7 @@ export class Git extends Feature {
      */
     get branch(): string | null {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec(`${this.gitPath} branch`).split(/\r?\n/).filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
+        return this.container.feature('proc').execSync(`${this.gitPath} branch`).split(/\r?\n/).filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
     }
     
     /**
@@ -179,7 +179,7 @@ export class Git extends Feature {
      */
     get sha(): string | null {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec(`${this.gitPath} rev-parse HEAD`, { cwd: this.repoRoot })
+        return this.container.feature('proc').execSync(`${this.gitPath} rev-parse HEAD`, { cwd: this.repoRoot })
     }
     
     /**
@@ -272,7 +272,7 @@ export class Git extends Feature {
         const separator = '---COMMIT---'
         const fieldSep = '---FIELD---'
 
-        const output = this.container.feature('proc').exec(
+        const output = this.container.feature('proc').execSync(
             `${this.gitPath} log -n ${numberOfChanges} --pretty=format:"%s${fieldSep}%b${fieldSep}%an${separator}"`,
             { cwd: this.repoRoot }
         )
@@ -318,7 +318,7 @@ export class Git extends Feature {
         const separator = '---COMMIT---'
         const fieldSep = '---FIELD---'
 
-        const output = proc.exec(
+        const output = proc.execSync(
             `${this.gitPath} log --pretty=format:"%H${fieldSep}%s${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
             { cwd: root }
         )
@@ -363,7 +363,7 @@ export class Git extends Feature {
         const from = compareFrom ?? this.sha!
         const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
 
-        return proc.exec(
+        return proc.execSync(
             `${this.gitPath} diff ${from} ${compareTo} -- "${resolved}"`,
             { cwd: root }
         ).trim()
@@ -553,7 +553,7 @@ export class Git extends Feature {
         const separator = '---COMMIT---'
         const fieldSep = '---FIELD---'
 
-        const output = proc.exec(
+        const output = proc.execSync(
             `${this.gitPath} log --pretty=format:"%H${fieldSep}%s${fieldSep}%b${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
             { cwd: root }
         )
@@ -580,7 +580,7 @@ export class Git extends Feature {
         })
 
         return commits.map(commit => {
-            const changedFiles = proc.exec(
+            const changedFiles = proc.execSync(
                 `${this.gitPath} diff-tree --no-commit-id --name-only -r ${commit.sha}`,
                 { cwd: root }
             ).trim().split(/\r?\n/).filter(Boolean)

@@ -895,7 +895,7 @@ export class VM<
         '',
         '`evalCode` runs a snippet in THIS process. It is not a sandbox — real container, real filesystem, real side effects. Prefer it over shelling out to the luca CLI, which starts a separate process that shares none of this state.',
         '',
-        '**In scope:** `container`, every enabled feature by bare name (`fs.readFile(...)`, `proc.exec(...)`), `z` (zod), and `require`. Anything not enabled yet: `container.feature(\'x\')`.',
+        '**In scope:** `container`, every enabled feature by bare name (`fs.readFile(...)`, `proc.execSync(...)`), `z` (zod), and `require`. Anything not enabled yet: `container.feature(\'x\')`.',
         '',
         '**The code is TypeScript.** Type annotations are fine, `import { x } from \'pkg\'` is rewritten to require, and top-level `await` works. `luca`, `zod`, `contentbase` and friends resolve with nothing installed.',
         '',

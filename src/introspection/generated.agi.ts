@@ -19790,7 +19790,7 @@ setBuildTimeData('features.proc', {
       ]
     },
     "spawnAndCapture": {
-      "description": "Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.",
+      "description": "Run a command to completion and get `{ stdout, stderr, exitCode, error }`. This is the default way to run a command. Failures are returned, not thrown — check `exitCode` (and `error`) on the result. Arguments are passed as an array, so nothing is split or shell-escaped. Pass `onOutput`/`onError` callbacks to also watch output live as it streams; the full output is still captured in the returned strings either way. Use `spawn()` instead only when you need the raw ChildProcess handle (streaming without waiting for exit, kill(), detached daemons).",
       "parameters": {
         "command": {
           "type": "string",
@@ -19851,7 +19851,7 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory, watching output as it streams\nconst buildResult = await proc.spawnAndCapture('ls', ['-1'], {\n cwd: 'src',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+          "code": "// Run a command, get the result — failures come back, they don't throw\nconst result = await proc.spawnAndCapture('node', ['--version'])\nif (result.exitCode === 0) {\n console.log(`Node version: ${result.stdout}`)\n} else {\n console.error('failed:', result.stderr)\n}\n\n// Watch output live while still capturing it all\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory\nconst listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })"
         }
       ]
     },
@@ -19908,31 +19908,8 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
-    "exec": {
-      "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
-      "parameters": {
-        "command": {
-          "type": "string",
-          "description": "The command to execute"
-        },
-        "options": {
-          "type": "any",
-          "description": "Options for command execution (cwd, encoding, etc.)"
-        }
-      },
-      "required": [
-        "command"
-      ],
-      "returns": "string",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
-        }
-      ]
-    },
     "execSync": {
-      "description": "Synchronous alias of `exec` — the two are identical. Note that `exec` itself is ALSO synchronous despite its node-flavored name; both run the command through a real shell, block until it completes, return trimmed stdout, and throw on a non-zero exit code. This alias exists so the sync behavior is discoverable by name. For an async, non-throwing variant, use `tryExec`.",
+      "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
       "parameters": {
         "command": {
           "type": "string",
@@ -19950,12 +19927,35 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')\n// identical to: proc.exec('git rev-parse --abbrev-ref HEAD')"
+          "code": "const greeting = proc.execSync('echo \"Hello World\"')\nconst version = proc.execSync('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.execSync('ls -1', { cwd: 'src' })\n\n// NOTE: execSync throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
+        }
+      ]
+    },
+    "exec": {
+      "description": "REMOVED — renamed to `execSync`. Calling this always throws with migration guidance. The old name read as async, so agents kept writing `await proc.exec(...)` and misreading its blocking, string-returning behavior. Use `execSync` (same semantics, honest name) or `tryExec` for the async, non-throwing variant.",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "Ignored; the call always throws"
+        },
+        "options": {
+          "type": "any",
+          "description": "Ignored; the call always throws"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "returns": "never",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// proc.exec('ls')            — throws: renamed\nconst listing = proc.execSync('ls')          // sync, trimmed stdout\nconst safe = await proc.tryExec('ls /maybe') // async, never throws"
         }
       ]
     },
     "tryExec": {
-      "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `exec`/`execSync`, which block), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
+      "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `execSync`, which blocks), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
       "parameters": {
         "cmd": {
           "type": "string",
@@ -20185,7 +20185,7 @@ setBuildTimeData('features.proc', {
   "examples": [
     {
       "language": "ts",
-      "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
+      "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.execSync('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// The default way to run a command: await completion, get the result.\n// Failures are returned (check exitCode), not thrown.\nconst { stdout, stderr, exitCode } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Optionally watch output live as it streams (still fully captured)\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
     }
   ],
   "types": {
@@ -22777,7 +22777,7 @@ setBuildTimeData('features.screenCapture', {
       ]
     },
     "record": {
-      "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. Without it, the recording runs until you call `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+      "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
       "parameters": {
         "options": {
           "type": "CaptureRecordOptions",
@@ -22789,7 +22789,7 @@ setBuildTimeData('features.screenCapture', {
             },
             "duration": {
               "type": "number",
-              "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop()."
+              "description": "Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop()."
             },
             "audio": {
               "type": "boolean",
@@ -22818,6 +22818,50 @@ setBuildTimeData('features.screenCapture', {
           "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\n\n// Fixed-length recording\nconst rec = await capture.record({ duration: 10, audio: true })\nconst movie = await rec.done\n\n// Open-ended: stop it yourself\nconst live = await capture.record({ showClicks: true })\n// ... do the thing being demonstrated ...\nconst path = await live.stop()"
         }
       ]
+    },
+    "trackRecording": {
+      "description": "Register a recording handle under a generated id so it can be stopped later by reference — across tool calls, or from a different code path than the one that started it. Used by the recordScreen agent tool; available to any caller juggling multiple recordings.",
+      "parameters": {
+        "recording": {
+          "type": "CaptureRecording",
+          "description": "The handle returned by record()",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Absolute path the movie will be written to"
+            },
+            "stop": {
+              "type": "() => Promise<string>",
+              "description": "Stop the recording; resolves to the movie path once the file is finalized"
+            },
+            "done": {
+              "type": "Promise<string>",
+              "description": "Resolves to the movie path when the recording ends (duration elapsed or stop() called)"
+            }
+          }
+        }
+      },
+      "required": [
+        "recording"
+      ],
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\nconst id = capture.trackRecording(await capture.record())\n// ... later, possibly elsewhere ...\nconst movie = await capture.stopRecording(id)"
+        }
+      ]
+    },
+    "stopRecording": {
+      "description": "Stop a tracked recording and return the finished movie's path. Safe to call on a fixed-duration recording that already stopped on its own — it just resolves with the finalized path.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The id from trackRecording. Omit for the most recently started recording"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
     }
   },
   "getters": {},
@@ -22920,7 +22964,7 @@ setBuildTimeData('features.screenCapture', {
         },
         "duration": {
           "type": "number",
-          "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop().",
+          "description": "Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop().",
           "optional": true
         },
         "audio": {
@@ -48565,7 +48609,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "spawnAndCapture": {
-        "description": "Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.",
+        "description": "Run a command to completion and get `{ stdout, stderr, exitCode, error }`. This is the default way to run a command. Failures are returned, not thrown — check `exitCode` (and `error`) on the result. Arguments are passed as an array, so nothing is split or shell-escaped. Pass `onOutput`/`onError` callbacks to also watch output live as it streams; the full output is still captured in the returned strings either way. Use `spawn()` instead only when you need the raw ChildProcess handle (streaming without waiting for exit, kill(), detached daemons).",
         "parameters": {
           "command": {
             "type": "string",
@@ -48626,7 +48670,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory, watching output as it streams\nconst buildResult = await proc.spawnAndCapture('ls', ['-1'], {\n cwd: 'src',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+            "code": "// Run a command, get the result — failures come back, they don't throw\nconst result = await proc.spawnAndCapture('node', ['--version'])\nif (result.exitCode === 0) {\n console.log(`Node version: ${result.stdout}`)\n} else {\n console.error('failed:', result.stderr)\n}\n\n// Watch output live while still capturing it all\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory\nconst listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })"
           }
         ]
       },
@@ -48683,31 +48727,8 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
-      "exec": {
-        "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
-        "parameters": {
-          "command": {
-            "type": "string",
-            "description": "The command to execute"
-          },
-          "options": {
-            "type": "any",
-            "description": "Options for command execution (cwd, encoding, etc.)"
-          }
-        },
-        "required": [
-          "command"
-        ],
-        "returns": "string",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
-          }
-        ]
-      },
       "execSync": {
-        "description": "Synchronous alias of `exec` — the two are identical. Note that `exec` itself is ALSO synchronous despite its node-flavored name; both run the command through a real shell, block until it completes, return trimmed stdout, and throw on a non-zero exit code. This alias exists so the sync behavior is discoverable by name. For an async, non-throwing variant, use `tryExec`.",
+        "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
         "parameters": {
           "command": {
             "type": "string",
@@ -48725,12 +48746,35 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')\n// identical to: proc.exec('git rev-parse --abbrev-ref HEAD')"
+            "code": "const greeting = proc.execSync('echo \"Hello World\"')\nconst version = proc.execSync('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.execSync('ls -1', { cwd: 'src' })\n\n// NOTE: execSync throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch, or better, use\n// tryExec() which runs through a real shell and never throws (the exit\n// code and stderr come back as data)."
+          }
+        ]
+      },
+      "exec": {
+        "description": "REMOVED — renamed to `execSync`. Calling this always throws with migration guidance. The old name read as async, so agents kept writing `await proc.exec(...)` and misreading its blocking, string-returning behavior. Use `execSync` (same semantics, honest name) or `tryExec` for the async, non-throwing variant.",
+        "parameters": {
+          "command": {
+            "type": "string",
+            "description": "Ignored; the call always throws"
+          },
+          "options": {
+            "type": "any",
+            "description": "Ignored; the call always throws"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "returns": "never",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// proc.exec('ls')            — throws: renamed\nconst listing = proc.execSync('ls')          // sync, trimmed stdout\nconst safe = await proc.tryExec('ls /maybe') // async, never throws"
           }
         ]
       },
       "tryExec": {
-        "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `exec`/`execSync`, which block), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
+        "description": "Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `execSync`, which blocks), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.",
         "parameters": {
           "cmd": {
             "type": "string",
@@ -48960,7 +49004,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
+        "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.execSync('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// The default way to run a command: await completion, get the result.\n// Failures are returned (check exitCode), not thrown.\nconst { stdout, stderr, exitCode } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Optionally watch output live as it streams (still fully captured)\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
       }
     ],
     "types": {
@@ -51545,7 +51589,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "record": {
-        "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. Without it, the recording runs until you call `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+        "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
         "parameters": {
           "options": {
             "type": "CaptureRecordOptions",
@@ -51557,7 +51601,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "duration": {
                 "type": "number",
-                "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop()."
+                "description": "Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop()."
               },
               "audio": {
                 "type": "boolean",
@@ -51586,6 +51630,50 @@ export const introspectionData: Record<string, any>[] = [
             "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\n\n// Fixed-length recording\nconst rec = await capture.record({ duration: 10, audio: true })\nconst movie = await rec.done\n\n// Open-ended: stop it yourself\nconst live = await capture.record({ showClicks: true })\n// ... do the thing being demonstrated ...\nconst path = await live.stop()"
           }
         ]
+      },
+      "trackRecording": {
+        "description": "Register a recording handle under a generated id so it can be stopped later by reference — across tool calls, or from a different code path than the one that started it. Used by the recordScreen agent tool; available to any caller juggling multiple recordings.",
+        "parameters": {
+          "recording": {
+            "type": "CaptureRecording",
+            "description": "The handle returned by record()",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path the movie will be written to"
+              },
+              "stop": {
+                "type": "() => Promise<string>",
+                "description": "Stop the recording; resolves to the movie path once the file is finalized"
+              },
+              "done": {
+                "type": "Promise<string>",
+                "description": "Resolves to the movie path when the recording ends (duration elapsed or stop() called)"
+              }
+            }
+          }
+        },
+        "required": [
+          "recording"
+        ],
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\nconst id = capture.trackRecording(await capture.record())\n// ... later, possibly elsewhere ...\nconst movie = await capture.stopRecording(id)"
+          }
+        ]
+      },
+      "stopRecording": {
+        "description": "Stop a tracked recording and return the finished movie's path. Safe to call on a fixed-duration recording that already stopped on its own — it just resolves with the finalized path.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "The id from trackRecording. Omit for the most recently started recording"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
       }
     },
     "getters": {},
@@ -51688,7 +51776,7 @@ export const introspectionData: Record<string, any>[] = [
           },
           "duration": {
             "type": "number",
-            "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop().",
+            "description": "Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop().",
             "optional": true
           },
           "audio": {

@@ -93,7 +93,7 @@ export class Grep extends Feature {
     get hasRipgrep(): boolean {
         if (this._hasRipgrep !== null) return this._hasRipgrep
         try {
-            this._rgPath = this.container.feature('proc').exec('which rg').trim()
+            this._rgPath = this.container.feature('proc').execSync('which rg').trim()
             this._hasRipgrep = true
         } catch {
             this._hasRipgrep = false
@@ -112,7 +112,7 @@ export class Grep extends Feature {
     get grepPath(): string {
         if (this._grepPath) return this._grepPath
         try {
-            this._grepPath = this.container.feature('proc').exec('which grep').trim()
+            this._grepPath = this.container.feature('proc').execSync('which grep').trim()
         } catch {
             this._grepPath = 'grep'
         }

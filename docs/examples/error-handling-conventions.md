@@ -20,7 +20,7 @@ The four to internalize:
 
 1. **`rest` returns errors** as values — try/catch catches nothing.
 2. **`diskCache.get` throws on a miss** — it does not return `undefined`.
-3. **`proc.exec` throws on failure; `proc.execAndCapture` never throws** — check `.error`.
+3. **`proc.execSync` throws on failure; `proc.execAndCapture` never throws** — check `.error`.
 4. **Registries are classes** — `Object.keys()` lies; use `.available`.
 
 ## 1. The rest client returns errors
@@ -74,15 +74,15 @@ console.log('guarded read after ensure():', val)
 
 ## 3. proc: exec throws, execAndCapture reports
 
-`proc.exec(cmd)` is synchronous, runs through a shell, and returns the **trimmed stdout as a plain string**. On a nonzero exit it **throws**, with the exit code at `err.status`.
+`proc.execSync(cmd)` is synchronous, runs through a shell, and returns the **trimmed stdout as a plain string**. On a nonzero exit it **throws**, with the exit code at `err.status`.
 
 ```ts
-const banner = proc.exec('echo hello')
+const banner = proc.execSync('echo hello')
 if (banner !== 'hello') throw new Error(`exec should return trimmed stdout, got ${JSON.stringify(banner)}`)
 
 let execError = null
 try {
-  proc.exec('exit 3')
+  proc.execSync('exit 3')
 } catch (err) {
   execError = err
 }
@@ -134,6 +134,6 @@ console.log('removed scratch cache dir', cacheDir)
 
 - **`rest` client** — failure is **returned** as a plain object. Detect: `result?.name === 'AxiosError'`, `result?.code`, `result?.status`.
 - **`diskCache.get`** — a miss **throws** `NotFoundError` (`code: 'ENOENT'`). Detect: try/catch, or guard with `has()` / `ensure()`.
-- **`proc.exec`** — failure **throws**, exit code at `err.status`. Detect: try/catch.
+- **`proc.execSync`** — failure **throws**, exit code at `err.status`. Detect: try/catch.
 - **`proc.execAndCapture`** — always **resolves**; failure reports the real `exitCode` and sets `.error`. Detect: `result.exitCode === 0` (or `result.error === null`) means success.
 - **Registries** — `Object.keys()` returns internals. Enumerate with `.available`.

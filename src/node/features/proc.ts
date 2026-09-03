@@ -53,14 +53,15 @@ interface RawSpawnOptions {
  * const proc = container.feature('proc')
  * 
  * // Execute a simple command synchronously
- * const result = proc.exec('echo "Hello World"')
+ * const result = proc.execSync('echo "Hello World"')
  * console.log(result) // 'Hello World'
  * 
- * // Execute and capture output asynchronously
- * const { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])
+ * // The default way to run a command: await completion, get the result.
+ * // Failures are returned (check exitCode), not thrown.
+ * const { stdout, stderr, exitCode } = await proc.spawnAndCapture('npm', ['--version'])
  * console.log(`npm version: ${stdout}`)
- * 
- * // Execute with callbacks for real-time output
+ *
+ * // Optionally watch output live as it streams (still fully captured)
  * await proc.spawnAndCapture('npm', ['install'], {
  *   onOutput: (data) => console.log('OUT:', data),
  *   onError: (data) => console.log('ERR:', data)
@@ -130,43 +131,45 @@ export class ChildProcess extends Feature {
   }
 
   /**
-   * Spawns a process and captures its output with real-time monitoring capabilities.
+   * Run a command to completion and get `{ stdout, stderr, exitCode, error }`.
    *
-   * This method provides comprehensive process execution with the ability to capture
-   * output, monitor real-time data streams, and handle process lifecycle events.
-   * It's ideal for long-running processes where you need to capture output as it happens.
-   * 
+   * This is the default way to run a command. Failures are returned, not thrown —
+   * check `exitCode` (and `error`) on the result. Arguments are passed as an array,
+   * so nothing is split or shell-escaped. Pass `onOutput`/`onError` callbacks to
+   * also watch output live as it streams; the full output is still captured in the
+   * returned strings either way.
+   *
+   * Use `spawn()` instead only when you need the raw ChildProcess handle
+   * (streaming without waiting for exit, kill(), detached daemons).
+   *
    * @param {string} command - The command to execute (e.g., 'node', 'npm', 'git')
    * @param {string[]} args - Array of arguments to pass to the command
    * @param {SpawnOptions} [options] - Options for process execution and monitoring
    * @param {string} [options.cwd] - Working directory for the process
-   * @param {Function} [options.onOutput] - Callback for stdout data
-   * @param {Function} [options.onError] - Callback for stderr data  
+   * @param {Function} [options.onOutput] - Callback for stdout data as it streams
+   * @param {Function} [options.onError] - Callback for stderr data as it streams
    * @param {Function} [options.onExit] - Callback for process exit
    * @returns {Promise<object>} Promise resolving to complete execution result
-   * 
+   *
    * @example
    * ```typescript
-   * // Basic usage
+   * // Run a command, get the result — failures come back, they don't throw
    * const result = await proc.spawnAndCapture('node', ['--version'])
-   * console.log(`Node version: ${result.stdout}`)
+   * if (result.exitCode === 0) {
+   *   console.log(`Node version: ${result.stdout}`)
+   * } else {
+   *   console.error('failed:', result.stderr)
+   * }
    *
-   * // With real-time output monitoring
+   * // Watch output live while still capturing it all
    * const monitored = await proc.spawnAndCapture('bun', ['--version'], {
    *   onOutput: (data) => console.log('OUT:', data.trim()),
    *   onError: (data) => console.error('ERR:', data.trim()),
    *   onExit: (code) => console.log(`Process exited with code ${code}`)
    * })
    *
-   * // Custom working directory, watching output as it streams
-   * const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
-   *   cwd: 'src',
-   *   onOutput: (data) => {
-   *     if (data.includes('error')) {
-   *       console.error('Build error detected:', data)
-   *     }
-   *   }
-   * })
+   * // Custom working directory
+   * const listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })
    * ```
    */
   async spawnAndCapture(
@@ -312,26 +315,26 @@ export class ChildProcess extends Feature {
    * Runs a shell command and waits for it to complete before returning.
    * Useful for simple commands where you need the result immediately.
    *
-   * @param command - The command to execute
-   * @param options - Options for command execution (cwd, encoding, etc.)
-   * @returns The trimmed stdout from the command execution
-   * @throws If the command fails or returns non-zero exit code
+   * @param {string} command - The command to execute through the shell
+   * @param {any} [options] - Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)
+   * @returns {string} The trimmed stdout from the command
+   * @throws If the command exits with a non-zero code (stderr is on the thrown error)
    *
    * @example
    * ```typescript
-   * const greeting = proc.exec('echo "Hello World"')
-   * const version = proc.exec('node --version')
+   * const greeting = proc.execSync('echo "Hello World"')
+   * const version = proc.execSync('node --version')
    *
    * // Run in a different directory without changing the container's cwd
-   * const listing = proc.exec('ls -1', { cwd: 'src' })
+   * const listing = proc.execSync('ls -1', { cwd: 'src' })
    *
-   * // NOTE: exec throws on a non-zero exit code — commands that can fail
+   * // NOTE: execSync throws on a non-zero exit code — commands that can fail
    * // (e.g. git outside a repository) belong in a try/catch, or better, use
    * // tryExec() which runs through a real shell and never throws (the exit
    * // code and stderr come back as data).
    * ```
    */
-  exec(command: string, options?: any): string {
+  execSync(command: string, options?: any): string {
     return execSync(command, {
       cwd: this.container.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -342,27 +345,30 @@ export class ChildProcess extends Feature {
   }
 
   /**
-   * Synchronous alias of `exec` — the two are identical.
+   * REMOVED — renamed to `execSync`. Calling this always throws with migration
+   * guidance. The old name read as async, so agents kept writing
+   * `await proc.exec(...)` and misreading its blocking, string-returning
+   * behavior. Use `execSync` (same semantics, honest name) or `tryExec` for the
+   * async, non-throwing variant.
    *
-   * Note that `exec` itself is ALSO synchronous despite its node-flavored name;
-   * both run the command through a real shell, block until it completes, return
-   * trimmed stdout, and throw on a non-zero exit code. This alias exists so the
-   * sync behavior is discoverable by name. For an async, non-throwing variant,
-   * use `tryExec`.
-   *
-   * @param {string} command - The command to execute through the shell
-   * @param {any} [options] - Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)
-   * @returns {string} The trimmed stdout from the command
-   * @throws If the command exits with a non-zero code (stderr is on the thrown error)
+   * @deprecated Use `execSync` instead.
+   * @param {string} command - Ignored; the call always throws
+   * @param {any} [options] - Ignored; the call always throws
+   * @returns {never} Never returns
+   * @throws Always — with a message pointing at `execSync` and `tryExec`
    *
    * @example
    * ```typescript
-   * const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')
-   * // identical to: proc.exec('git rev-parse --abbrev-ref HEAD')
+   * // proc.exec('ls')            — throws: renamed
+   * const listing = proc.execSync('ls')          // sync, trimmed stdout
+   * const safe = await proc.tryExec('ls /maybe') // async, never throws
    * ```
    */
-  execSync(command: string, options?: any): string {
-	  return this.exec(command,options)
+  exec(command: string, options?: any): never {
+    throw new Error(
+      "proc.exec was renamed to proc.execSync (it is synchronous: blocks, returns trimmed stdout as a string, throws on non-zero exit). " +
+      "Use proc.execSync(cmd) for the same behavior, or await proc.tryExec(cmd) for the async, non-throwing variant."
+    )
   }
 
   /**
@@ -370,7 +376,7 @@ export class ChildProcess extends Feature {
    *
    * This is the safe default for running commands that can fail: shell quoting
    * works (unlike `execAndCapture`, which splits naively on spaces), the call is
-   * async (unlike `exec`/`execSync`, which block), and a non-zero exit code is
+   * async (unlike `execSync`, which blocks), and a non-zero exit code is
    * returned as data instead of thrown. Inspect `exitCode` yourself.
    *
    * @param {string} cmd - The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work

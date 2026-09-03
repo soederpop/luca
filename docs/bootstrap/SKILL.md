@@ -228,7 +228,7 @@ Once you know what's available (describe) and how to build things (scaffold), us
 
 ```shell
 luca eval "container.features.available"
-luca eval "container.feature('proc').exec('ls')"
+luca eval "container.feature('proc').execSync('ls')"
 luca eval "container.feature('fs').readFile('package.json')"
 ```
 
@@ -237,7 +237,7 @@ The eval command boots a full container with all helpers discovered and register
 ```shell
 luca eval "fs.readFile('package.json')"
 luca eval "git.branch"
-luca eval "proc.exec('ls')"
+luca eval "proc.execSync('ls')"
 ```
 
 **Reach for eval when you're stuck.** It gives you full control of the container at runtime — you can test method calls, inspect state, verify event behavior, and debug issues that are hard to reason about from docs alone.

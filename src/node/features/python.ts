@@ -223,7 +223,7 @@ export class Python<
 
     /** Resolve a binary to its full path via `which`, falling back to the bare name. */
     const resolveBin = (name: string): string => {
-      try { return proc.exec(`which ${name}`).trim() } catch { return name }
+      try { return proc.execSync(`which ${name}`).trim() } catch { return name }
     }
 
     // Use explicitly provided Python path

@@ -87,7 +87,7 @@ describe('Integration: FS + Proc + OS working together', () => {
     c.fs.ensureFile(tempFile, 'integration test content')
     expect(c.fs.exists(tempFile)).toBe(true)
 
-    const content = c.proc.exec(`cat "${tempFile}"`)
+    const content = c.proc.execSync(`cat "${tempFile}"`)
     expect(content).toBe('integration test content')
 
     await c.fs.rm(tempFile)
@@ -96,7 +96,7 @@ describe('Integration: FS + Proc + OS working together', () => {
 
   it('proc.exec runs in the container cwd by default', () => {
     const c = new NodeContainer({ cwd: testDir })
-    const result = c.proc.exec('pwd')
+    const result = c.proc.execSync('pwd')
     expect(result).toBe(testDir)
   })
 
@@ -596,7 +596,7 @@ describe('Integration: Multi-feature data processing pipeline', () => {
 describe('Integration: Proc + FS for script execution', () => {
   it('proc.exec runs shell commands in the test dir', () => {
     const c = new NodeContainer({ cwd: testDir })
-    const result = c.proc.exec('ls src', { cwd: testDir })
+    const result = c.proc.execSync('ls src', { cwd: testDir })
     expect(result).toContain('index.ts')
     expect(result).toContain('utils.ts')
   })
@@ -610,7 +610,7 @@ describe('Integration: Proc + FS for script execution', () => {
 
   it('proc.exec result can be written to file by fs', async () => {
     const c = new NodeContainer({ cwd: testDir })
-    const listing = c.proc.exec('ls -la src', { cwd: testDir })
+    const listing = c.proc.execSync('ls -la src', { cwd: testDir })
     const outPath = join(testDir, 'listing.txt')
     await c.fs.writeFileAsync(outPath, listing)
     expect(c.fs.exists(outPath)).toBe(true)

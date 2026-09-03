@@ -166,11 +166,11 @@ Execute a command synchronously and return its output. Runs a shell command and 
 **Returns:** `string`
 
 ```ts
-const greeting = proc.exec('echo "Hello World"')
-const version = proc.exec('node --version')
+const greeting = proc.execSync('echo "Hello World"')
+const version = proc.execSync('node --version')
 
 // Run in a different directory without changing the container's cwd
-const listing = proc.exec('ls -1', { cwd: 'src' })
+const listing = proc.execSync('ls -1', { cwd: 'src' })
 
 // NOTE: exec throws on a non-zero exit code — commands that can fail
 // (e.g. git outside a repository) belong in a try/catch or execAndCapture
@@ -316,7 +316,7 @@ if (proc.isProcessRunning('afplay')) {
 const proc = container.feature('proc')
 
 // Execute a simple command synchronously
-const result = proc.exec('echo "Hello World"')
+const result = proc.execSync('echo "Hello World"')
 console.log(result) // 'Hello World'
 
 // Execute and capture output asynchronously
@@ -403,11 +403,11 @@ console.log('worker pid:', worker.pid)
 **exec**
 
 ```ts
-const greeting = proc.exec('echo "Hello World"')
-const version = proc.exec('node --version')
+const greeting = proc.execSync('echo "Hello World"')
+const version = proc.execSync('node --version')
 
 // Run in a different directory without changing the container's cwd
-const listing = proc.exec('ls -1', { cwd: 'src' })
+const listing = proc.execSync('ls -1', { cwd: 'src' })
 
 // NOTE: exec throws on a non-zero exit code — commands that can fail
 // (e.g. git outside a repository) belong in a try/catch or execAndCapture

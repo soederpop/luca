@@ -122,7 +122,7 @@ In eval and REPL contexts, core features are available as top-level variables â€
 ```bash
 luca eval "fs.readFile('package.json')"
 luca eval "git.branch"
-luca eval "proc.exec('ls')"
+luca eval "proc.execSync('ls')"
 luca eval "grep.search('.', 'TODO')"
 ```
 

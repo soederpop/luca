@@ -67,7 +67,7 @@
 #   #   - fs.*
 #   #   - grep.*
 #   # forbidTools:                # denylist, applied after allowTools
-#   #   - proc.exec
+#   #   - proc.execSync
 #   #
 #   # config: free-form settings the framework never interprets. Anything you
 #   # put here reaches the assistant's own code — tools.ts and hooks.ts read it

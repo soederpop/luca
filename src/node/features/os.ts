@@ -330,7 +330,7 @@ export class OS extends Feature {
     const proc = this.container.feature('proc')
     const cmd = this.isWindows ? `where ${bin}` : `which ${bin}`
     try {
-      const result = proc.exec(cmd).trim()
+      const result = proc.execSync(cmd).trim()
       // `where` on Windows can return multiple lines; take the first
       return result.split(/\r?\n/)[0]!.trim()
     } catch {
@@ -368,7 +368,7 @@ export class OS extends Feature {
   private _displayHandlers: Partial<Record<NodeJS.Platform, () => DisplayInfo[]>> = {
     darwin: (): DisplayInfo[] => {
       const proc = this.container.feature('proc')
-      const raw = proc.exec('system_profiler SPDisplaysDataType -json')
+      const raw = proc.execSync('system_profiler SPDisplaysDataType -json')
       const data = JSON.parse(raw)
       const displays: DisplayInfo[] = []
 

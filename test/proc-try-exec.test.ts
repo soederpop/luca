@@ -80,8 +80,11 @@ describe('proc.execSync', () => {
 	const container = new NodeContainer()
 	const proc = container.feature('proc')
 
-	it('is a synchronous alias of exec', () => {
-		expect(proc.execSync('echo hello')).toBe(proc.exec('echo hello'))
+	it('runs a command synchronously and returns trimmed stdout', () => {
 		expect(proc.execSync('echo hello')).toBe('hello')
+	})
+
+	it('exec is removed and throws with migration guidance', () => {
+		expect(() => (proc as any).exec('echo hello')).toThrow(/renamed to proc\.execSync/)
 	})
 })

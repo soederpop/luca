@@ -414,7 +414,7 @@ async function checkToolAvailability(ui: any, proc: any) {
 	for (const name of ['claude', 'codex']) {
 		let found = false
 		try {
-			const result = await proc.exec(`which ${name}`, { silent: true })
+			const result = proc.execSync(`which ${name}`, { silent: true })
 			found = result.exitCode === 0 && result.stdout.trim().length > 0
 		} catch {
 			found = false

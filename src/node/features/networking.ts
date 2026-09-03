@@ -255,7 +255,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   private resolveBin(name: string): string {
     if (this._binCache[name]) return this._binCache[name]
     try {
-      this._binCache[name] = this.proc.exec(`which ${name}`).trim()
+      this._binCache[name] = this.proc.execSync(`which ${name}`).trim()
     } catch {
       this._binCache[name] = name
     }

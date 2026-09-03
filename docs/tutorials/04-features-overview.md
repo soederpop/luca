@@ -73,10 +73,10 @@ Run external processes:
 const proc = container.proc
 
 // Execute a command synchronously and get output as a string
-const result = proc.exec('ls -la')
+const result = proc.execSync('ls -la')
 
 // Execute with options
-const output = proc.exec('npm test', {
+const output = proc.execSync('npm test', {
   cwd: '/path/to/project',
   env: { NODE_ENV: 'test' },
 })

@@ -1491,7 +1491,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
         const data = JSON.parse(raw)
         let alive = false
         try {
-          await proc.exec(`kill -0 ${data.pid}`)
+          proc.execSync(`kill -0 ${data.pid}`)
           alive = true
         } catch {
           alive = false

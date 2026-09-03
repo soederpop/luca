@@ -219,7 +219,7 @@ export default async function handler(options: any, context: ContainerContext) {
   container.ui.colors.green('Success!')
 
   // Run external processes (synchronous, returns string)
-  const result = container.proc.exec('ls -la')
+  const result = container.proc.execSync('ls -la')
 
   // Use any feature
   const cache = container.feature('diskCache', { path: './.cache' })

@@ -459,7 +459,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		if (this.isMuted || !this.isEnabled) return
 		const file = this.randomPhrase(tag)
 		if (!file) return
-		this.container.proc.exec(`afplay "${file}"`)
+		this.container.proc.execSync(`afplay "${file}"`)
 	}
 
 	// ── Public API: Tool Phrases ─────────────────────────────────────

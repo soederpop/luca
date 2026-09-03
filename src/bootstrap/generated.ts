@@ -235,7 +235,7 @@ Once you know what's available (describe) and how to build things (scaffold), us
 
 \`\`\`shell
 luca eval "container.features.available"
-luca eval "container.feature('proc').exec('ls')"
+luca eval "container.feature('proc').execSync('ls')"
 luca eval "container.feature('fs').readFile('package.json')"
 \`\`\`
 
@@ -244,7 +244,7 @@ The eval command boots a full container with all helpers discovered and register
 \`\`\`shell
 luca eval "fs.readFile('package.json')"
 luca eval "git.branch"
-luca eval "proc.exec('ls')"
+luca eval "proc.execSync('ls')"
 \`\`\`
 
 **Reach for eval when you're stuck.** It gives you full control of the container at runtime — you can test method calls, inspect state, verify event behavior, and debug issues that are hard to reason about from docs alone.
@@ -1831,7 +1831,7 @@ export const use = [
 #   #   - fs.*
 #   #   - grep.*
 #   # forbidTools:                # denylist, applied after allowTools
-#   #   - proc.exec
+#   #   - proc.execSync
 #   #
 #   # config: free-form settings the framework never interprets. Anything you
 #   # put here reaches the assistant's own code — tools.ts and hooks.ts read it
@@ -4692,7 +4692,7 @@ The four to internalize:
 
 1. **\`rest\` returns errors** as values — try/catch catches nothing.
 2. **\`diskCache.get\` throws on a miss** — it does not return \`undefined\`.
-3. **\`proc.exec\` throws on failure; \`proc.execAndCapture\` never throws** — check \`.error\`.
+3. **\`proc.execSync\` throws on failure; \`proc.execAndCapture\` never throws** — check \`.error\`.
 4. **Registries are classes** — \`Object.keys()\` lies; use \`.available\`.
 
 ## 1. The rest client returns errors
@@ -4746,15 +4746,15 @@ console.log('guarded read after ensure():', val)
 
 ## 3. proc: exec throws, execAndCapture reports
 
-\`proc.exec(cmd)\` is synchronous, runs through a shell, and returns the **trimmed stdout as a plain string**. On a nonzero exit it **throws**, with the exit code at \`err.status\`.
+\`proc.execSync(cmd)\` is synchronous, runs through a shell, and returns the **trimmed stdout as a plain string**. On a nonzero exit it **throws**, with the exit code at \`err.status\`.
 
 \`\`\`ts
-const banner = proc.exec('echo hello')
+const banner = proc.execSync('echo hello')
 if (banner !== 'hello') throw new Error(\`exec should return trimmed stdout, got \${JSON.stringify(banner)}\`)
 
 let execError = null
 try {
-  proc.exec('exit 3')
+  proc.execSync('exit 3')
 } catch (err) {
   execError = err
 }
@@ -4806,7 +4806,7 @@ console.log('removed scratch cache dir', cacheDir)
 
 - **\`rest\` client** — failure is **returned** as a plain object. Detect: \`result?.name === 'AxiosError'\`, \`result?.code\`, \`result?.status\`.
 - **\`diskCache.get\`** — a miss **throws** \`NotFoundError\` (\`code: 'ENOENT'\`). Detect: try/catch, or guard with \`has()\` / \`ensure()\`.
-- **\`proc.exec\`** — failure **throws**, exit code at \`err.status\`. Detect: try/catch.
+- **\`proc.execSync\`** — failure **throws**, exit code at \`err.status\`. Detect: try/catch.
 - **\`proc.execAndCapture\`** — always **resolves**; failure reports the real \`exitCode\` and sets \`.error\`. Detect: \`result.exitCode === 0\` (or \`result.error === null\`) means success.
 - **Registries** — \`Object.keys()\` returns internals. Enumerate with \`.available\`.
 `,
@@ -7708,10 +7708,10 @@ Run external processes:
 const proc = container.proc
 
 // Execute a command synchronously and get output as a string
-const result = proc.exec('ls -la')
+const result = proc.execSync('ls -la')
 
 // Execute with options
-const output = proc.exec('npm test', {
+const output = proc.execSync('npm test', {
   cwd: '/path/to/project',
   env: { NODE_ENV: 'test' },
 })
@@ -8509,7 +8509,7 @@ In eval and REPL contexts, core features are available as top-level variables �
 \`\`\`bash
 luca eval "fs.readFile('package.json')"
 luca eval "git.branch"
-luca eval "proc.exec('ls')"
+luca eval "proc.execSync('ls')"
 luca eval "grep.search('.', 'TODO')"
 \`\`\`
 
@@ -9037,7 +9037,7 @@ export default async function handler(options: any, context: ContainerContext) {
   container.ui.colors.green('Success!')
 
   // Run external processes (synchronous, returns string)
-  const result = container.proc.exec('ls -la')
+  const result = container.proc.execSync('ls -la')
 
   // Use any feature
   const cache = container.feature('diskCache', { path: './.cache' })
@@ -10798,7 +10798,7 @@ console.log(\`Processing \${images.length} images...\`)
 
 for (const image of images) {
   console.log(\`  Optimizing: \${image}\`)
-  proc.exec(\`optipng \${image}\`)
+  proc.execSync(\`optipng \${image}\`)
 }
 
 console.log('Done.')

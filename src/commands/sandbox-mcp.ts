@@ -121,7 +121,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'  container.introspectAsText()       — full container introspection',
 			'  fs.readFile(path)               — read a file',
 			'  fs.readdir(dir)                 — list directory contents',
-			'  proc.exec(cmd)                  — run a shell command',
+			'  proc.execSync(cmd)                  — run a shell command',
 		].join('\n'),
 		schema: z.object({
 			code: z.string().describe('JavaScript code to evaluate in the Luca container sandbox'),
@@ -275,7 +275,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				'fs.readFile("package.json")            // Read a file',
 				'fs.readdir("src")                         // List directory',
 				'git.log({ max: 5 })                    // Recent git commits',
-				'proc.exec("ls -la")                    // Run a shell command',
+				'proc.execSync("ls -la")                    // Run a shell command',
 				'```',
 			].join('\n'),
 		}],

@@ -158,7 +158,7 @@ console.log(`Processing ${images.length} images...`)
 
 for (const image of images) {
   console.log(`  Optimizing: ${image}`)
-  proc.exec(`optipng ${image}`)
+  proc.execSync(`optipng ${image}`)
 }
 
 console.log('Done.')

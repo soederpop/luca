@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.11.0"
+export const typesBundleVersion = "3.11.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -4654,6 +4654,7 @@ export declare const ConversationEventsSchema: z.ZodObject<{
     toolResult: z.ZodTuple<[z.ZodString, z.ZodString], null>;
     toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolCallsEnd: z.ZodTuple<[], null>;
+    toolImages: z.ZodTuple<[z.ZodString, z.ZodNumber], null>;
     chunk: z.ZodTuple<[z.ZodString], null>;
     reasoning: z.ZodTuple<[z.ZodString], null>;
     preview: z.ZodTuple<[z.ZodString], null>;
@@ -4908,6 +4909,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         toolResult: z.ZodTuple<[z.ZodString, z.ZodString], null>;
         toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolCallsEnd: z.ZodTuple<[], null>;
+        toolImages: z.ZodTuple<[z.ZodString, z.ZodNumber], null>;
         chunk: z.ZodTuple<[z.ZodString], null>;
         reasoning: z.ZodTuple<[z.ZodString], null>;
         preview: z.ZodTuple<[z.ZodString], null>;
@@ -4970,6 +4972,15 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * The Assistant replaces this to wire in beforeToolCall/afterToolCall interceptors.
      */
     toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null;
+    /**
+     * Optional transform applied to tool-returned image parts before they are
+     * injected into the conversation. The Assistant points this at its vision
+     * delegation (describeImages) so text-only models get text descriptions
+     * instead of image parts they can't process.
+     */
+    imageDelegate: ((parts: ContentPart[]) => Promise<ContentPart[]>) | null;
+    /** Image parts returned by tools this turn, waiting to be injected as a user message. */
+    private _pendingToolImages;
     /** The active structured output schema for the serialized ask() currently running. */
     private _activeSchema;
     /** Additional model instructions for the current ask() call only. */
@@ -5435,6 +5446,44 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         thread?: string;
         metadata?: Record<string, any>;
     }): Promise<import("./conversation-history").ConversationRecord>;
+    /**
+     * Serialize a tool handler's return value for the tool-role message, extracting
+     * any images it carries so they reach the model as real image input.
+     *
+     * The convention: a tool that wants the model to SEE something returns an
+     * object with an \`images\` array of strings — file paths, data: URLs, or
+     * http(s) URLs:
+     *
+     * \`\`\`ts
+     * // in an assistant tool handler
+     * const shot = await container.feature('screenCapture').captureScreen()
+     * return { path: shot, images: [shot] }
+     * \`\`\`
+     *
+     * Tool-role messages are text-only in the chat-completions wire format, so
+     * the images can't ride in the tool message itself. They're queued and
+     * injected as a user message (image_url parts) right after this turn's tool
+     * results, before the model's next turn, labeled with the tool's name. When
+     * \`imageDelegate\` is set (the Assistant's visionSupport), the parts pass
+     * through it first so text-only models get descriptions instead.
+     *
+     * File paths are inlined as base64 data URLs (png/jpg/gif/webp by
+     * extension). A path that can't be read is skipped, with the failure noted
+     * in the serialized result so the model knows the image is missing.
+     *
+     * @param toolName - The tool whose output is being serialized
+     * @param output - The raw return value from the tool handler
+     * @returns The string to place in the tool-role message
+     */
+    serializeToolResult(toolName: string, output: any): string;
+    /** Inline a file path as a base64 data URL; pass data:/http(s) URLs through untouched. */
+    private toImageUrl;
+    /**
+     * Drain this turn's queued tool images into content parts for the injected
+     * user message, running them through imageDelegate when set. Null when no
+     * tool attached images this batch.
+     */
+    private flushToolImages;
     /**
      * Execute a single tool call, routing through the pluggable toolExecutor
      * if one is set (e.g. by the Assistant's interceptor chain).
@@ -23915,7 +23964,7 @@ interface RawSpawnOptions {
  * const proc = container.feature('proc')
  *
  * // Execute a simple command synchronously
- * const result = proc.exec('echo "Hello World"')
+ * const result = proc.execSync('echo "Hello World"')
  * console.log(result) // 'Hello World'
  *
  * // Execute and capture output asynchronously
@@ -24077,35 +24126,6 @@ export declare class ChildProcess extends Feature {
      * Runs a shell command and waits for it to complete before returning.
      * Useful for simple commands where you need the result immediately.
      *
-     * @param command - The command to execute
-     * @param options - Options for command execution (cwd, encoding, etc.)
-     * @returns The trimmed stdout from the command execution
-     * @throws If the command fails or returns non-zero exit code
-     *
-     * @example
-     * \`\`\`typescript
-     * const greeting = proc.exec('echo "Hello World"')
-     * const version = proc.exec('node --version')
-     *
-     * // Run in a different directory without changing the container's cwd
-     * const listing = proc.exec('ls -1', { cwd: 'src' })
-     *
-     * // NOTE: exec throws on a non-zero exit code — commands that can fail
-     * // (e.g. git outside a repository) belong in a try/catch, or better, use
-     * // tryExec() which runs through a real shell and never throws (the exit
-     * // code and stderr come back as data).
-     * \`\`\`
-     */
-    exec(command: string, options?: any): string;
-    /**
-     * Synchronous alias of \`exec\` — the two are identical.
-     *
-     * Note that \`exec\` itself is ALSO synchronous despite its node-flavored name;
-     * both run the command through a real shell, block until it completes, return
-     * trimmed stdout, and throw on a non-zero exit code. This alias exists so the
-     * sync behavior is discoverable by name. For an async, non-throwing variant,
-     * use \`tryExec\`.
-     *
      * @param {string} command - The command to execute through the shell
      * @param {any} [options] - Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...)
      * @returns {string} The trimmed stdout from the command
@@ -24113,17 +24133,46 @@ export declare class ChildProcess extends Feature {
      *
      * @example
      * \`\`\`typescript
-     * const branch = proc.execSync('git rev-parse --abbrev-ref HEAD')
-     * // identical to: proc.exec('git rev-parse --abbrev-ref HEAD')
+     * const greeting = proc.execSync('echo "Hello World"')
+     * const version = proc.execSync('node --version')
+     *
+     * // Run in a different directory without changing the container's cwd
+     * const listing = proc.execSync('ls -1', { cwd: 'src' })
+     *
+     * // NOTE: execSync throws on a non-zero exit code — commands that can fail
+     * // (e.g. git outside a repository) belong in a try/catch, or better, use
+     * // tryExec() which runs through a real shell and never throws (the exit
+     * // code and stderr come back as data).
      * \`\`\`
      */
     execSync(command: string, options?: any): string;
+    /**
+     * REMOVED — renamed to \`execSync\`. Calling this always throws with migration
+     * guidance. The old name read as async, so agents kept writing
+     * \`await proc.exec(...)\` and misreading its blocking, string-returning
+     * behavior. Use \`execSync\` (same semantics, honest name) or \`tryExec\` for the
+     * async, non-throwing variant.
+     *
+     * @deprecated Use \`execSync\` instead.
+     * @param {string} command - Ignored; the call always throws
+     * @param {any} [options] - Ignored; the call always throws
+     * @returns {never} Never returns
+     * @throws Always — with a message pointing at \`execSync\` and \`tryExec\`
+     *
+     * @example
+     * \`\`\`typescript
+     * // proc.exec('ls')            — throws: renamed
+     * const listing = proc.execSync('ls')          // sync, trimmed stdout
+     * const safe = await proc.tryExec('ls /maybe') // async, never throws
+     * \`\`\`
+     */
+    exec(command: string, options?: any): never;
     /**
      * Execute a command string through a real shell, asynchronously, and NEVER throw.
      *
      * This is the safe default for running commands that can fail: shell quoting
      * works (unlike \`execAndCapture\`, which splits naively on spaces), the call is
-     * async (unlike \`exec\`/\`execSync\`, which block), and a non-zero exit code is
+     * async (unlike \`execSync\`, which blocks), and a non-zero exit code is
      * returned as data instead of thrown. Inspect \`exitCode\` yourself.
      *
      * @param {string} cmd - The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work
@@ -26607,7 +26656,7 @@ export interface CaptureImageOptions {
 export interface CaptureRecordOptions {
     /** Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file. */
     output?: string;
-    /** Stop automatically after this many seconds. Omit for open-ended recording via stop(). */
+    /** Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop(). */
     duration?: number;
     /** Record audio from the default input alongside the video (default false) */
     audio?: boolean;
@@ -26682,6 +26731,11 @@ export declare class ScreenCapture extends Feature<FeatureState, ScreenCaptureOp
         enable: z.ZodOptional<z.ZodBoolean>;
         outputDir: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+        handler?: Function;
+    }>;
     /**
      * Lists all visible windows known to the window server.
      *
@@ -26764,9 +26818,11 @@ export declare class ScreenCapture extends Feature<FeatureState, ScreenCaptureOp
     /**
      * Records the screen to a QuickTime movie (.mov).
      *
-     * With \`duration\`, the recording stops on its own — await \`done\`. Without
-     * it, the recording runs until you call \`stop()\`. Either way the resolved
-     * value is the absolute path to the finished movie.
+     * With \`duration\`, the recording stops on its own — await \`done\`. The
+     * default is 300 seconds (5 minutes), a safety cap so a recording nobody
+     * remembered to stop can't run forever; pass \`duration: 0\` to opt out and
+     * record until \`stop()\`. Either way the resolved value is the absolute
+     * path to the finished movie.
      *
      * Video is whole-screen or rect only — per-window video isn't supported by
      * the system tool.
@@ -26792,6 +26848,38 @@ export declare class ScreenCapture extends Feature<FeatureState, ScreenCaptureOp
      * \`\`\`
      */
     record(options?: CaptureRecordOptions): Promise<CaptureRecording>;
+    /** Recordings started through trackRecording, newest last, keyed by id. */
+    private _recordings;
+    /**
+     * Register a recording handle under a generated id so it can be stopped
+     * later by reference — across tool calls, or from a different code path
+     * than the one that started it. Used by the recordScreen agent tool;
+     * available to any caller juggling multiple recordings.
+     *
+     * @param recording - The handle returned by record()
+     * @returns The generated recording id
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) records the screen
+     * const capture = container.feature('screenCapture')
+     * const id = capture.trackRecording(await capture.record())
+     * // ... later, possibly elsewhere ...
+     * const movie = await capture.stopRecording(id)
+     * \`\`\`
+     */
+    trackRecording(recording: CaptureRecording): string;
+    /**
+     * Stop a tracked recording and return the finished movie's path. Safe to
+     * call on a fixed-duration recording that already stopped on its own — it
+     * just resolves with the finalized path.
+     *
+     * @param id - The id from trackRecording. Omit for the most recently started recording
+     * @returns Absolute path to the finalized movie
+     *
+     * @throws {Error} When the id is unknown, or no recording was ever started
+     */
+    stopRecording(id?: string): Promise<string>;
     /** Resolve an app name or title substring to the frontmost matching window's id. */
     private findWindowId;
     /** Run screencapture with the given mode args plus shared image options, verify output. */
@@ -33603,7 +33691,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

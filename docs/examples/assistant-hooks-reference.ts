@@ -105,7 +105,7 @@ export async function beforeInitialAsk(_assistant: Assistant, question: string) 
 export async function beforeAsk(_assistant: Assistant, question: string) {
   // Example: inject recent git context into every question
   const proc = container.feature('proc')
-  const { stdout } = await proc.exec('git log --oneline -5 2>/dev/null || true')
+  const { stdout } = await proc.execSync('git log --oneline -5 2>/dev/null || true')
 
   if (stdout.trim()) {
     return `${question}\n\n<context>\nRecent commits:\n${stdout.trim()}\n</context>`

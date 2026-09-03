@@ -10,7 +10,7 @@ import { writeFileSync, unlinkSync } from 'fs'
  * Previously no `detached` option was wired through to the underlying spawn
  * call, so a spawned child could never be put in its own process group and
  * always died with the parent — agents had to fall back to
- * proc.exec('nohup ... & echo $!') workarounds.
+ * proc.execSync('nohup ... & echo $!') workarounds.
  */
 
 const isAlive = (pid: number): boolean => {
@@ -53,7 +53,7 @@ describe('proc.spawn detached option', () => {
     expect(isAlive(child.pid!)).toBe(true)
 
     // Detached means its own process group: pgid === pid, not the parent's group
-    const pgid = proc.exec(`ps -o pgid= -p ${child.pid}`).trim()
+    const pgid = proc.execSync(`ps -o pgid= -p ${child.pid}`).trim()
     expect(Number(pgid)).toBe(child.pid!)
 
     reap(child.pid)
