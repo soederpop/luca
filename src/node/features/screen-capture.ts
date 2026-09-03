@@ -42,7 +42,7 @@ export interface CaptureImageOptions {
 export interface CaptureRecordOptions {
   /** Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file. */
   output?: string
-  /** Stop automatically after this many seconds. Omit for open-ended recording via stop(). */
+  /** Stop automatically after this many seconds. Defaults to 300 (5 minutes) so a forgotten recording can't run forever; pass 0 for a truly open-ended recording ended only by stop(). */
   duration?: number
   /** Record audio from the default input alongside the video (default false) */
   audio?: boolean
@@ -166,21 +166,22 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
       handler: (_args: {}, capture: ScreenCapture) => capture.listWindows(),
     },
     recordScreen: {
-      description: 'Start recording the screen to a .mov video file. Returns immediately with a recordingId — the recording continues in the background while you do other work. With duration set it stops on its own after that many seconds; either way, call stopRecording to finalize and get the finished file. NOTE: you cannot watch the video — report the path to the user.',
+      description: 'Start recording the screen to a .mov video file. Returns immediately with a recordingId — the recording continues in the background while you do other work. It stops on its own after duration seconds (default 300); call stopRecording earlier to end it, or afterwards to confirm the finished file. NOTE: you cannot watch the video — report the path to the user.',
       schema: z.object({
-        duration: z.number().optional().describe('Auto-stop after this many seconds. Omit for open-ended recording ended by stopRecording'),
+        duration: z.number().optional().describe('Auto-stop after this many seconds (default 300 — every recording has a time limit)'),
         audio: z.boolean().optional().describe('Also record audio from the default input (default false)'),
       }).describe('Start a background screen recording.'),
       handler: async (args: { duration?: number; audio?: boolean }, capture: ScreenCapture) => {
-        const recording = await capture.record({ duration: args.duration, audio: args.audio })
+        // No open-ended recordings from the tool layer: a forgotten one must
+        // always run out on its own, so 0/undefined becomes the default cap.
+        const duration = args.duration && args.duration > 0 ? args.duration : 300
+        const recording = await capture.record({ duration, audio: args.audio })
         const recordingId = capture.trackRecording(recording)
         return {
           recordingId,
           path: recording.path,
           status: 'recording',
-          note: args.duration
-            ? `Stops on its own after ${args.duration}s — call stopRecording with this recordingId to confirm the file is finished`
-            : 'Recording until you call stopRecording with this recordingId',
+          note: `Stops on its own after ${duration}s — call stopRecording with this recordingId to end it earlier or confirm the file is finished`,
         }
       },
     },
@@ -306,9 +307,11 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
   /**
    * Records the screen to a QuickTime movie (.mov).
    *
-   * With `duration`, the recording stops on its own — await `done`. Without
-   * it, the recording runs until you call `stop()`. Either way the resolved
-   * value is the absolute path to the finished movie.
+   * With `duration`, the recording stops on its own — await `done`. The
+   * default is 300 seconds (5 minutes), a safety cap so a recording nobody
+   * remembered to stop can't run forever; pass `duration: 0` to opt out and
+   * record until `stop()`. Either way the resolved value is the absolute
+   * path to the finished movie.
    *
    * Video is whole-screen or rect only — per-window video isn't supported by
    * the system tool.
@@ -339,7 +342,8 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
     const output = this.resolveOutput(options.output, 'mov')
 
     const args = ['-x', '-v']
-    if (options.duration) args.push(`-V${options.duration}`)
+    const duration = options.duration ?? 300
+    if (duration > 0) args.push(`-V${duration}`)
     if (options.audio) args.push('-g')
     if (options.showClicks) args.push('-k')
     if (options.display) args.push(`-D${options.display}`)

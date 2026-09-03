@@ -67,7 +67,8 @@ describe('screenCapture feature', () => {
       stop: async () => { stopped = true; return '/tmp/clip.mov' },
       done: new Promise<string>(() => {}), // never resolves — a blocking handler would hang here
     }
-    const fake = { record: async () => fakeRecording, trackRecording: capture.trackRecording.bind(capture), stopRecording: capture.stopRecording.bind(capture) }
+    const recordCalls: any[] = []
+    const fake = { record: async (opts: any) => { recordCalls.push(opts); return fakeRecording }, trackRecording: capture.trackRecording.bind(capture), stopRecording: capture.stopRecording.bind(capture) }
     const tools = (capture.constructor as any).tools
 
     const started = await tools.recordScreen.handler({ }, fake)
@@ -81,6 +82,13 @@ describe('screenCapture feature', () => {
 
     // The id is gone once stopped
     await expect(capture.stopRecording(started.recordingId)).rejects.toThrow(/no recording/)
+
+    // The tool never starts an unlimited recording — omitted or 0 duration
+    // becomes the 5-minute safety cap.
+    expect(recordCalls[0].duration).toBe(300)
+    const capped = await tools.recordScreen.handler({ duration: 0 }, fake)
+    expect(recordCalls[1].duration).toBe(300)
+    await tools.stopRecording.handler({ recordingId: capped.recordingId }, fake)
   })
 
   it('stopRecording without an id targets the most recent recording', async () => {
