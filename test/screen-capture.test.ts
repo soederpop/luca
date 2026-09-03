@@ -42,6 +42,23 @@ describe('screenCapture feature', () => {
     }
   })
 
+  it('exposes agent tools whose capture handlers attach images', () => {
+    const capture = container.feature('screenCapture')
+    const { schemas, handlers } = capture.toTools()
+    expect(Object.keys(schemas).sort()).toEqual(['captureScreen', 'captureWindow', 'listWindows', 'recordScreen'])
+    expect(Object.keys(handlers).sort()).toEqual(Object.keys(schemas).sort())
+  })
+
+  it('tool handlers wrap plain methods with the { images } convention', async () => {
+    const capture = container.feature('screenCapture')
+    const fake = { captureScreen: async () => '/tmp/shot.png' }
+    const handler = (capture.constructor as any).tools.captureScreen.handler
+    const result = await handler({}, fake)
+    // The instance method stays assistant-agnostic (plain path) — only the
+    // tool layer adds the images array that triggers conversation injection.
+    expect(result).toEqual({ path: '/tmp/shot.png', images: ['/tmp/shot.png'] })
+  })
+
   it('rejects captureWindow for a window that does not exist', async () => {
     if (process.platform !== 'darwin') return
     const capture = container.feature('screenCapture')

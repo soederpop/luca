@@ -134,6 +134,51 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
   static override optionsSchema = ScreenCaptureOptionsSchema
   static { Feature.register(this, 'screenCapture') }
 
+  // Agent tools, consumed only via assistant.use(screenCapture). Handlers wrap
+  // the plain instance methods and return { path, images: [path] } — the
+  // conversation's tool-image injection turns that into real image input, so a
+  // vision-capable assistant (or one with visionSupport) SEES the capture. The
+  // instance methods themselves stay assistant-agnostic and return plain paths.
+  static override tools: Record<string, { schema: z.ZodType; description?: string; handler?: Function }> = {
+    captureScreen: {
+      description: 'Capture the entire screen as an image. The screenshot is attached to the conversation so you can see it and describe or reason about what is on screen.',
+      schema: z.object({
+        display: z.number().optional().describe('1-based display number for multi-monitor setups (default: main display)'),
+      }).describe('Capture the entire screen and attach the image.'),
+      handler: async (args: { display?: number }, capture: ScreenCapture) => {
+        const path = await capture.captureScreen({ display: args.display })
+        return { path, images: [path] }
+      },
+    },
+    captureWindow: {
+      description: 'Capture a single application window as an image, even when it is behind other windows. The screenshot is attached to the conversation so you can see it. Use listWindows first if you are unsure what is open.',
+      schema: z.object({
+        target: z.string().describe('App name or window title to match, case-insensitive substring (e.g. "Safari", "Terminal")'),
+      }).describe('Capture one application window and attach the image.'),
+      handler: async (args: { target: string }, capture: ScreenCapture) => {
+        const path = await capture.captureWindow(args.target)
+        return { path, images: [path] }
+      },
+    },
+    listWindows: {
+      description: 'List the visible application windows (app name, window title, window id, position and size). Use this to find a capture target before captureWindow.',
+      schema: z.object({}).describe('List visible application windows.'),
+      handler: (_args: {}, capture: ScreenCapture) => capture.listWindows(),
+    },
+    recordScreen: {
+      description: 'Record the screen to a .mov video file for a fixed number of seconds and return its file path. NOTE: you cannot watch the video — report the path to the user.',
+      schema: z.object({
+        duration: z.number().describe('Recording length in seconds'),
+        audio: z.boolean().optional().describe('Also record audio from the default input (default false)'),
+      }).describe('Record the screen to a video file.'),
+      handler: async (args: { duration: number; audio?: boolean }, capture: ScreenCapture) => {
+        const recording = await capture.record({ duration: args.duration, audio: args.audio })
+        const path = await recording.done
+        return { path }
+      },
+    },
+  }
+
   /**
    * Lists all visible windows known to the window server.
    *
