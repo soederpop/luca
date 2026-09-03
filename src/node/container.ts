@@ -256,7 +256,7 @@ export class NodeContainer<
       const packageJson = this.fs.findUp("package.json");
 
       if (!packageJson) {
-        throw new Error("No packageon found");
+        throw new Error("No package.json found");
       }
 
       const manifest = this.fs.readJson(packageJson);
@@ -267,7 +267,7 @@ export class NodeContainer<
         name: basename(this.cwd),
         version: "0.0.0",
         type: "module",
-	_loadingError: error?.message
+        _loadingError: error?.message,
       };
     }
   }
