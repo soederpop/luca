@@ -17,12 +17,46 @@ function searcherFor(opts: Record<string, any>) {
 	return mem.searcher
 }
 
+/** Run fn with OPENAI_API_KEY / OPENAI_BASE_URL pinned to specific values (undefined = unset). */
+function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
+	const saved: Record<string, string | undefined> = {}
+	for (const [k, v] of Object.entries(vars)) {
+		saved[k] = process.env[k]
+		if (v === undefined) delete process.env[k]
+		else process.env[k] = v
+	}
+	try { fn() } finally {
+		for (const [k, v] of Object.entries(saved)) {
+			if (v === undefined) delete process.env[k]
+			else process.env[k] = v
+		}
+	}
+}
+
 describe('memory embedding backend wiring', () => {
-	it('defaults to the openai provider with the back-compat 3072-dim model', () => {
-		const s = searcherFor({ namespace: 'a' })
-		expect(s.options.embeddingProvider).toBe('openai')
-		expect(s.embeddingModel).toBe('text-embedding-3-large')
-		expect(s.dimensions).toBe(3072)
+	it('defaults to the openai provider (back-compat 3072-dim model) when a key is configured', () => {
+		withEnv({ OPENAI_API_KEY: 'sk-test' }, () => {
+			const s = searcherFor({ namespace: 'a' })
+			expect(s.options.embeddingProvider).toBe('openai')
+			expect(s.embeddingModel).toBe('text-embedding-3-large')
+			expect(s.dimensions).toBe(3072)
+		})
+	})
+
+	it('falls back to local embeddings on a keyless machine instead of a guaranteed failure', () => {
+		withEnv({ OPENAI_API_KEY: undefined, OPENAI_BASE_URL: undefined }, () => {
+			const s = searcherFor({ namespace: 'a2' })
+			expect(s.options.embeddingProvider).toBe('local')
+			expect(s.embeddingModel).toBe('embedding-gemma-300M-Q8_0')
+			expect(s.dimensions).toBe(768)
+		})
+	})
+
+	it('an explicit embeddingProvider always wins over the smart default', () => {
+		withEnv({ OPENAI_API_KEY: undefined, OPENAI_BASE_URL: undefined }, () => {
+			const s = searcherFor({ namespace: 'a3', embeddingProvider: 'openai' })
+			expect(s.options.embeddingProvider).toBe('openai')
+		})
 	})
 
 	it('resolves the local provider to embedding-gemma (not an openai model name)', () => {
@@ -33,7 +67,7 @@ describe('memory embedding backend wiring', () => {
 	})
 
 	it('honors an explicit embeddingModel over the provider default', () => {
-		const s = searcherFor({ namespace: 'c', embeddingModel: 'text-embedding-3-small' })
+		const s = searcherFor({ namespace: 'c', embeddingModel: 'text-embedding-3-small', embeddingApiKey: 'sk-test' })
 		expect(s.options.embeddingProvider).toBe('openai')
 		expect(s.embeddingModel).toBe('text-embedding-3-small')
 		expect(s.dimensions).toBe(1536)
@@ -298,5 +332,34 @@ describe('remember tool intent routing', () => {
 		const after = await mem.get('facts', row.id)
 		expect(after.status).toBe('retracted')
 		expect(after.metadata.retracted_reason).toBe('user said to drop it')
+	})
+})
+
+describe('memory feature-level judge/decay options', () => {
+	it('accepts provider, model, and dormantAfterEpochs as feature options', () => {
+		const c = makeContainer()
+		const mem = c.feature('memory', { namespace: 'opts', provider: 'deepseek-v4-local', model: 'x', dormantAfterEpochs: 5 }) as any
+		expect(mem.options.provider).toBe('deepseek-v4-local')
+		expect(mem.options.model).toBe('x')
+		expect(mem.options.dormantAfterEpochs).toBe(5)
+	})
+
+	it('consolidate uses the feature-level dormantAfterEpochs default', async () => {
+		const c = makeContainer()
+		const tmp = c.feature('os').tmpdir
+		const dbPath = c.paths.resolve(tmp, `agent-memory-test-${process.pid}-${Date.now()}-opts.db`)
+		const mem = c.feature('memory', { namespace: 'test', dbPath, dormantAfterEpochs: 1 }) as any
+		mem._searcher = { embed: async (texts: string[]) => texts.map(t => VECS[t] ?? [0.577, 0.577, 0.577]) }
+
+		const keepJudge = async (prompt: string) => {
+			const rows = prompt.split('\n').filter(l => l.startsWith('{')).map(l => JSON.parse(l))
+			return JSON.stringify({ actions: [{ type: 'keep', ids: rows.map(r => r.id) }] })
+		}
+
+		const row = await mem.observe('facts', 'User drinks black coffee')
+		await mem.consolidate({ judge: keepJudge })       // reviewed in epoch 1
+		await mem.setEpoch(3)
+		await mem.consolidate({ judge: keepJudge })       // 1 <= 3-1 → dormant
+		expect((await mem.get('facts', row.id)).status).toBe('dormant')
 	})
 })

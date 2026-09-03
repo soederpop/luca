@@ -21,9 +21,12 @@ export type MemoryState = z.infer<typeof MemoryStateSchema>
 export const MemoryOptionsSchema = FeatureOptionsSchema.extend({
   dbPath: z.string().optional().describe('Path to SQLite database file. Defaults to .luca/agent-memory/<hash>.db in home dir'),
   embeddingModel: z.string().optional().describe('Embedding model to use. When omitted, defaults to text-embedding-3-large for the openai provider, or the provider default for local. Note: changing this for an existing memory database mixes vector dimensions and breaks similarity search — wipe and re-index to switch models'),
-  embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server (fully offline, run `luca setup --local-embeddings` once); "openai" hits an OpenAI-compatible endpoint'),
+  embeddingProvider: z.enum(['local', 'openai']).optional().describe('Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server (fully offline, run `luca setup --local-embeddings` once); "openai" hits an OpenAI-compatible endpoint. When omitted: "openai" if an api key or embedding endpoint is configured, otherwise "local" — so a keyless machine falls back to local embeddings instead of failing'),
   embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var. Only used when embeddingProvider is "openai"'),
   embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
+  provider: z.any().optional().describe("Model provider preset id (e.g. a modelProviders preset like 'claude-code' or a registered local model) or inline provider config for the consolidation judge. consolidate() uses it when no judge or provider is passed to the call. Chat/judging only — embeddings are controlled by embeddingProvider"),
+  model: z.string().optional().describe('Model for the consolidation judge conversation. Usually unnecessary when provider is set (the preset carries its own model)'),
+  dormantAfterEpochs: z.number().optional().describe('Default decay horizon for consolidate(): never-used, never-confirmed episodic memories go dormant after this many unreviewed epochs (default 3; 0 disables decay)'),
   namespace: z.string().default('default').describe('Namespace to isolate memory sets (e.g. per-assistant)'),
 })
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>
@@ -204,19 +207,35 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return this._db
   }
 
+  /**
+   * @internal Resolve where embeddings come from when the caller didn't say.
+   * Prefer openai only when it can actually work (a key or a custom endpoint
+   * is configured); otherwise fall back to local embeddings rather than
+   * defaulting to a backend that is guaranteed to fail on a keyless machine.
+   */
+  private get resolvedEmbeddingProvider(): 'local' | 'openai' {
+    if (this.options.embeddingProvider) return this.options.embeddingProvider
+    const openaiConfigured = Boolean(
+      this.options.embeddingApiKey || this.options.embeddingBaseURL
+      || process.env.OPENAI_API_KEY || process.env.OPENAI_BASE_URL
+    )
+    return openaiConfigured ? 'openai' : 'local'
+  }
+
   /** @internal */
   private get searcher() {
     if (!this._searcher) {
+      const embeddingProvider = this.resolvedEmbeddingProvider
       // Preserve the historical openai default (text-embedding-3-large) so
       // existing memory databases keep the same 3072-dim vectors. For the
       // local provider, leave the model undefined so semanticSearch resolves
       // its own local default (embedding-gemma) rather than an openai name.
       const embeddingModel = this.options.embeddingModel
-        ?? (this.options.embeddingProvider === 'openai' ? 'text-embedding-3-large' : undefined)
+        ?? (embeddingProvider === 'openai' ? 'text-embedding-3-large' : undefined)
 
       this._searcher = this.container.feature('semanticSearch', {
         embeddingModel,
-        embeddingProvider: this.options.embeddingProvider,
+        embeddingProvider,
         embeddingBaseURL: this.options.embeddingBaseURL,
         embeddingApiKey: this.options.embeddingApiKey,
       })
@@ -943,10 +962,17 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     await this.ensureDb()
 
     const clusterThreshold = options.clusterThreshold ?? 0.7
-    const dormantAfterEpochs = options.dormantAfterEpochs ?? 3
+    const dormantAfterEpochs = options.dormantAfterEpochs ?? this.options.dormantAfterEpochs ?? 3
     const dryRun = options.dryRun ?? false
     const epoch = this.getEpoch()
-    const judge = options.judge ?? this.defaultJudge(options)
+    // Judge backend: per-call options win, then the feature's own
+    // provider/model options (so `container.feature('memory', { provider })`
+    // makes every consolidation — including the consolidateMemory tool — use it).
+    const judge = options.judge ?? this.defaultJudge({
+      ...options,
+      provider: options.provider ?? this.options.provider,
+      model: options.model ?? this.options.model,
+    })
 
     const categories = options.categories ?? await this.categories()
     const report: MemoryConsolidateReport = {
