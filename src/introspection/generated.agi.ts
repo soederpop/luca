@@ -22588,6 +22588,360 @@ setBuildTimeData('features.scheduler', {
   }
 });
 
+setBuildTimeData('features.screenCapture', {
+  "id": "features.screenCapture",
+  "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app.",
+  "shortcut": "features.screenCapture",
+  "className": "ScreenCapture",
+  "methods": {
+    "listWindows": {
+      "description": "Lists all visible windows known to the window server. Returns normal application windows only (layer 0 — menu bar items, docks, and overlays are filtered out), front-to-back. Use the `id` with captureWindow() for an exact capture, or just pass the app name. NOTE: `title` is empty for other apps' windows until the host app has the Screen Recording permission — `app`, `pid`, and `bounds` are always present.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<CaptureWindowInfo[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\nconst windows = await capture.listWindows()\nwindows.forEach(w => console.log(`${w.id} ${w.app} — ${w.title}`))"
+        }
+      ]
+    },
+    "captureScreen": {
+      "description": "Captures the entire screen to an image file.",
+      "parameters": {
+        "options": {
+          "type": "CaptureImageOptions",
+          "description": "Output path, format, display, cursor",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+            },
+            "format": {
+              "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+              "description": "Image format (default 'png')"
+            },
+            "display": {
+              "type": "number",
+              "description": "1-based display number for multi-monitor setups (screen captures only)"
+            },
+            "cursor": {
+              "type": "boolean",
+              "description": "Include the mouse cursor in the capture (default false)"
+            },
+            "shadow": {
+              "type": "boolean",
+              "description": "Include the window drop shadow in window captures (default true)"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\nconst shot = await capture.captureScreen()\nconst second = await capture.captureScreen({ display: 2, format: 'jpg', output: 'screen2.jpg' })"
+        }
+      ]
+    },
+    "captureWindow": {
+      "description": "Captures a single application window to an image file. Pass a window id (from listWindows()) for an exact match, or a string to match by app name or window title (case-insensitive substring). With a string, the frontmost matching window wins. The window is captured even when it's behind other windows — no need to bring it forward.",
+      "parameters": {
+        "target": {
+          "type": "string | number",
+          "description": "Window id, app name, or title substring (e.g. 'Safari', 81146)"
+        },
+        "options": {
+          "type": "CaptureImageOptions",
+          "description": "Output path, format, shadow",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+            },
+            "format": {
+              "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+              "description": "Image format (default 'png')"
+            },
+            "display": {
+              "type": "number",
+              "description": "1-based display number for multi-monitor setups (screen captures only)"
+            },
+            "cursor": {
+              "type": "boolean",
+              "description": "Include the mouse cursor in the capture (default false)"
+            },
+            "shadow": {
+              "type": "boolean",
+              "description": "Include the window drop shadow in window captures (default true)"
+            }
+          }
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\nconst shot = await capture.captureWindow('Terminal')\nconst noShadow = await capture.captureWindow('Safari', { shadow: false, output: 'safari.png' })"
+        }
+      ]
+    },
+    "captureRegion": {
+      "description": "Captures a rectangular region of the screen to an image file. Coordinates are in screen points with the origin at the top-left of the main display.",
+      "parameters": {
+        "rect": {
+          "type": "CaptureRect",
+          "description": "The region to capture",
+          "properties": {
+            "x": {
+              "type": "number",
+              "description": ""
+            },
+            "y": {
+              "type": "number",
+              "description": ""
+            },
+            "width": {
+              "type": "number",
+              "description": ""
+            },
+            "height": {
+              "type": "number",
+              "description": ""
+            }
+          }
+        },
+        "options": {
+          "type": "CaptureImageOptions",
+          "description": "Output path, format, cursor",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+            },
+            "format": {
+              "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+              "description": "Image format (default 'png')"
+            },
+            "display": {
+              "type": "number",
+              "description": "1-based display number for multi-monitor setups (screen captures only)"
+            },
+            "cursor": {
+              "type": "boolean",
+              "description": "Include the mouse cursor in the capture (default false)"
+            },
+            "shadow": {
+              "type": "boolean",
+              "description": "Include the window drop shadow in window captures (default true)"
+            }
+          }
+        }
+      },
+      "required": [
+        "rect"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\nconst shot = await capture.captureRegion({ x: 0, y: 0, width: 800, height: 600 })"
+        }
+      ]
+    },
+    "record": {
+      "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. Without it, the recording runs until you call `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+      "parameters": {
+        "options": {
+          "type": "CaptureRecordOptions",
+          "description": "Duration, audio, clicks, display, rect",
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file."
+            },
+            "duration": {
+              "type": "number",
+              "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop()."
+            },
+            "audio": {
+              "type": "boolean",
+              "description": "Record audio from the default input alongside the video (default false)"
+            },
+            "showClicks": {
+              "type": "boolean",
+              "description": "Visualize mouse clicks in the recording (default false)"
+            },
+            "display": {
+              "type": "number",
+              "description": "1-based display number for multi-monitor setups"
+            },
+            "rect": {
+              "type": "CaptureRect",
+              "description": "Restrict the recording to a screen rect instead of the full display"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<CaptureRecording>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\n\n// Fixed-length recording\nconst rec = await capture.record({ duration: 10, audio: true })\nconst movie = await rec.done\n\n// Open-ended: stop it yourself\nconst live = await capture.record({ showClicks: true })\n// ... do the thing being demonstrated ...\nconst path = await live.stop()"
+        }
+      ]
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "media-browser",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\n// Full screen to a temp file\nconst shot = await capture.captureScreen()\n\n// A specific app's frontmost window\nconst win = await capture.captureWindow('Safari', { output: 'safari.png' })\n\n// 10-second screen recording\nconst rec = await capture.record({ duration: 10 })\nconst movie = await rec.done"
+    }
+  ],
+  "types": {
+    "CaptureWindowInfo": {
+      "description": "Information about an on-screen window, from the macOS window server.",
+      "properties": {
+        "id": {
+          "type": "number",
+          "description": "The CGWindowID — pass this to captureWindow() for an exact capture"
+        },
+        "app": {
+          "type": "string",
+          "description": "The owning application's name (e.g. 'Safari', 'Terminal')"
+        },
+        "title": {
+          "type": "string",
+          "description": "The window title (empty when the app doesn't publish one without Screen Recording permission)"
+        },
+        "pid": {
+          "type": "number",
+          "description": "The owning application's process id"
+        },
+        "bounds": {
+          "type": "{ x: number; y: number; width: number; height: number }",
+          "description": "The window's frame in screen coordinates"
+        }
+      }
+    },
+    "CaptureImageOptions": {
+      "description": "Options shared by the still-image capture methods.",
+      "properties": {
+        "output": {
+          "type": "string",
+          "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file.",
+          "optional": true
+        },
+        "format": {
+          "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+          "description": "Image format (default 'png')",
+          "optional": true
+        },
+        "display": {
+          "type": "number",
+          "description": "1-based display number for multi-monitor setups (screen captures only)",
+          "optional": true
+        },
+        "cursor": {
+          "type": "boolean",
+          "description": "Include the mouse cursor in the capture (default false)",
+          "optional": true
+        },
+        "shadow": {
+          "type": "boolean",
+          "description": "Include the window drop shadow in window captures (default true)",
+          "optional": true
+        }
+      }
+    },
+    "CaptureRect": {
+      "description": "A rectangle in screen coordinates, origin at the top-left of the main display.",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": ""
+        },
+        "y": {
+          "type": "number",
+          "description": ""
+        },
+        "width": {
+          "type": "number",
+          "description": ""
+        },
+        "height": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "CaptureRecordOptions": {
+      "description": "Options for record().",
+      "properties": {
+        "output": {
+          "type": "string",
+          "description": "Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file.",
+          "optional": true
+        },
+        "duration": {
+          "type": "number",
+          "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop().",
+          "optional": true
+        },
+        "audio": {
+          "type": "boolean",
+          "description": "Record audio from the default input alongside the video (default false)",
+          "optional": true
+        },
+        "showClicks": {
+          "type": "boolean",
+          "description": "Visualize mouse clicks in the recording (default false)",
+          "optional": true
+        },
+        "display": {
+          "type": "number",
+          "description": "1-based display number for multi-monitor setups",
+          "optional": true
+        },
+        "rect": {
+          "type": "CaptureRect",
+          "description": "Restrict the recording to a screen rect instead of the full display",
+          "optional": true
+        }
+      }
+    },
+    "CaptureRecording": {
+      "description": "Handle returned by record() while a recording is in progress.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute path the movie will be written to"
+        },
+        "stop": {
+          "type": "() => Promise<string>",
+          "description": "Stop the recording; resolves to the movie path once the file is finalized"
+        },
+        "done": {
+          "type": "Promise<string>",
+          "description": "Resolves to the movie path when the recording ends (duration elapsed or stop() called)"
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
   "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, or an already-loaded ssh-agent identity. (A `password` option exists in the schema but is not wired into the ssh/scp command line — BatchMode suppresses password prompts.) Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected` based on whether the remote host responded.",
@@ -50974,6 +51328,359 @@ export const introspectionData: Record<string, any>[] = [
             "type": "(signal: string) => void | Promise<void>",
             "description": "Awaited after tasks stop, before run() resolves — put cleanup here",
             "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.screenCapture",
+    "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app.",
+    "shortcut": "features.screenCapture",
+    "className": "ScreenCapture",
+    "methods": {
+      "listWindows": {
+        "description": "Lists all visible windows known to the window server. Returns normal application windows only (layer 0 — menu bar items, docks, and overlays are filtered out), front-to-back. Use the `id` with captureWindow() for an exact capture, or just pass the app name. NOTE: `title` is empty for other apps' windows until the host app has the Screen Recording permission — `app`, `pid`, and `bounds` are always present.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<CaptureWindowInfo[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\nconst windows = await capture.listWindows()\nwindows.forEach(w => console.log(`${w.id} ${w.app} — ${w.title}`))"
+          }
+        ]
+      },
+      "captureScreen": {
+        "description": "Captures the entire screen to an image file.",
+        "parameters": {
+          "options": {
+            "type": "CaptureImageOptions",
+            "description": "Output path, format, display, cursor",
+            "properties": {
+              "output": {
+                "type": "string",
+                "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+              },
+              "format": {
+                "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+                "description": "Image format (default 'png')"
+              },
+              "display": {
+                "type": "number",
+                "description": "1-based display number for multi-monitor setups (screen captures only)"
+              },
+              "cursor": {
+                "type": "boolean",
+                "description": "Include the mouse cursor in the capture (default false)"
+              },
+              "shadow": {
+                "type": "boolean",
+                "description": "Include the window drop shadow in window captures (default true)"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\nconst shot = await capture.captureScreen()\nconst second = await capture.captureScreen({ display: 2, format: 'jpg', output: 'screen2.jpg' })"
+          }
+        ]
+      },
+      "captureWindow": {
+        "description": "Captures a single application window to an image file. Pass a window id (from listWindows()) for an exact match, or a string to match by app name or window title (case-insensitive substring). With a string, the frontmost matching window wins. The window is captured even when it's behind other windows — no need to bring it forward.",
+        "parameters": {
+          "target": {
+            "type": "string | number",
+            "description": "Window id, app name, or title substring (e.g. 'Safari', 81146)"
+          },
+          "options": {
+            "type": "CaptureImageOptions",
+            "description": "Output path, format, shadow",
+            "properties": {
+              "output": {
+                "type": "string",
+                "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+              },
+              "format": {
+                "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+                "description": "Image format (default 'png')"
+              },
+              "display": {
+                "type": "number",
+                "description": "1-based display number for multi-monitor setups (screen captures only)"
+              },
+              "cursor": {
+                "type": "boolean",
+                "description": "Include the mouse cursor in the capture (default false)"
+              },
+              "shadow": {
+                "type": "boolean",
+                "description": "Include the window drop shadow in window captures (default true)"
+              }
+            }
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\nconst shot = await capture.captureWindow('Terminal')\nconst noShadow = await capture.captureWindow('Safari', { shadow: false, output: 'safari.png' })"
+          }
+        ]
+      },
+      "captureRegion": {
+        "description": "Captures a rectangular region of the screen to an image file. Coordinates are in screen points with the origin at the top-left of the main display.",
+        "parameters": {
+          "rect": {
+            "type": "CaptureRect",
+            "description": "The region to capture",
+            "properties": {
+              "x": {
+                "type": "number",
+                "description": ""
+              },
+              "y": {
+                "type": "number",
+                "description": ""
+              },
+              "width": {
+                "type": "number",
+                "description": ""
+              },
+              "height": {
+                "type": "number",
+                "description": ""
+              }
+            }
+          },
+          "options": {
+            "type": "CaptureImageOptions",
+            "description": "Output path, format, cursor",
+            "properties": {
+              "output": {
+                "type": "string",
+                "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file."
+              },
+              "format": {
+                "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+                "description": "Image format (default 'png')"
+              },
+              "display": {
+                "type": "number",
+                "description": "1-based display number for multi-monitor setups (screen captures only)"
+              },
+              "cursor": {
+                "type": "boolean",
+                "description": "Include the mouse cursor in the capture (default false)"
+              },
+              "shadow": {
+                "type": "boolean",
+                "description": "Include the window drop shadow in window captures (default true)"
+              }
+            }
+          }
+        },
+        "required": [
+          "rect"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\nconst shot = await capture.captureRegion({ x: 0, y: 0, width: 800, height: 600 })"
+          }
+        ]
+      },
+      "record": {
+        "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. Without it, the recording runs until you call `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+        "parameters": {
+          "options": {
+            "type": "CaptureRecordOptions",
+            "description": "Duration, audio, clicks, display, rect",
+            "properties": {
+              "output": {
+                "type": "string",
+                "description": "Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file."
+              },
+              "duration": {
+                "type": "number",
+                "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop()."
+              },
+              "audio": {
+                "type": "boolean",
+                "description": "Record audio from the default input alongside the video (default false)"
+              },
+              "showClicks": {
+                "type": "boolean",
+                "description": "Visualize mouse clicks in the recording (default false)"
+              },
+              "display": {
+                "type": "number",
+                "description": "1-based display number for multi-monitor setups"
+              },
+              "rect": {
+                "type": "CaptureRect",
+                "description": "Restrict the recording to a screen rect instead of the full display"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<CaptureRecording>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) records the screen\nconst capture = container.feature('screenCapture')\n\n// Fixed-length recording\nconst rec = await capture.record({ duration: 10, audio: true })\nconst movie = await rec.done\n\n// Open-ended: stop it yourself\nconst live = await capture.record({ showClicks: true })\n// ... do the thing being demonstrated ...\nconst path = await live.stop()"
+          }
+        ]
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "media-browser",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// (no-run) interacts with the display server\nconst capture = container.feature('screenCapture')\n\n// Full screen to a temp file\nconst shot = await capture.captureScreen()\n\n// A specific app's frontmost window\nconst win = await capture.captureWindow('Safari', { output: 'safari.png' })\n\n// 10-second screen recording\nconst rec = await capture.record({ duration: 10 })\nconst movie = await rec.done"
+      }
+    ],
+    "types": {
+      "CaptureWindowInfo": {
+        "description": "Information about an on-screen window, from the macOS window server.",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "The CGWindowID — pass this to captureWindow() for an exact capture"
+          },
+          "app": {
+            "type": "string",
+            "description": "The owning application's name (e.g. 'Safari', 'Terminal')"
+          },
+          "title": {
+            "type": "string",
+            "description": "The window title (empty when the app doesn't publish one without Screen Recording permission)"
+          },
+          "pid": {
+            "type": "number",
+            "description": "The owning application's process id"
+          },
+          "bounds": {
+            "type": "{ x: number; y: number; width: number; height: number }",
+            "description": "The window's frame in screen coordinates"
+          }
+        }
+      },
+      "CaptureImageOptions": {
+        "description": "Options shared by the still-image capture methods.",
+        "properties": {
+          "output": {
+            "type": "string",
+            "description": "Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file.",
+            "optional": true
+          },
+          "format": {
+            "type": "'png' | 'jpg' | 'pdf' | 'tiff'",
+            "description": "Image format (default 'png')",
+            "optional": true
+          },
+          "display": {
+            "type": "number",
+            "description": "1-based display number for multi-monitor setups (screen captures only)",
+            "optional": true
+          },
+          "cursor": {
+            "type": "boolean",
+            "description": "Include the mouse cursor in the capture (default false)",
+            "optional": true
+          },
+          "shadow": {
+            "type": "boolean",
+            "description": "Include the window drop shadow in window captures (default true)",
+            "optional": true
+          }
+        }
+      },
+      "CaptureRect": {
+        "description": "A rectangle in screen coordinates, origin at the top-left of the main display.",
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": ""
+          },
+          "y": {
+            "type": "number",
+            "description": ""
+          },
+          "width": {
+            "type": "number",
+            "description": ""
+          },
+          "height": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "CaptureRecordOptions": {
+        "description": "Options for record().",
+        "properties": {
+          "output": {
+            "type": "string",
+            "description": "Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file.",
+            "optional": true
+          },
+          "duration": {
+            "type": "number",
+            "description": "Stop automatically after this many seconds. Omit for open-ended recording via stop().",
+            "optional": true
+          },
+          "audio": {
+            "type": "boolean",
+            "description": "Record audio from the default input alongside the video (default false)",
+            "optional": true
+          },
+          "showClicks": {
+            "type": "boolean",
+            "description": "Visualize mouse clicks in the recording (default false)",
+            "optional": true
+          },
+          "display": {
+            "type": "number",
+            "description": "1-based display number for multi-monitor setups",
+            "optional": true
+          },
+          "rect": {
+            "type": "CaptureRect",
+            "description": "Restrict the recording to a screen rect instead of the full display",
+            "optional": true
+          }
+        }
+      },
+      "CaptureRecording": {
+        "description": "Handle returned by record() while a recording is in progress.",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute path the movie will be written to"
+          },
+          "stop": {
+            "type": "() => Promise<string>",
+            "description": "Stop the recording; resolves to the movie path once the file is finalized"
+          },
+          "done": {
+            "type": "Promise<string>",
+            "description": "Resolves to the movie path when the recording ends (duration elapsed or stop() called)"
           }
         }
       }

@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.10.1"
+export const typesBundleVersion = "3.11.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -188,12 +188,15 @@ export declare const MemoryOptionsSchema: z.ZodObject<{
     enable: z.ZodOptional<z.ZodBoolean>;
     dbPath: z.ZodOptional<z.ZodString>;
     embeddingModel: z.ZodOptional<z.ZodString>;
-    embeddingProvider: z.ZodDefault<z.ZodEnum<{
+    embeddingProvider: z.ZodOptional<z.ZodEnum<{
         local: "local";
         openai: "openai";
     }>>;
     embeddingBaseURL: z.ZodOptional<z.ZodString>;
     embeddingApiKey: z.ZodOptional<z.ZodString>;
+    provider: z.ZodOptional<z.ZodAny>;
+    model: z.ZodOptional<z.ZodString>;
+    dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
     namespace: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>;
@@ -306,12 +309,15 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         enable: z.ZodOptional<z.ZodBoolean>;
         dbPath: z.ZodOptional<z.ZodString>;
         embeddingModel: z.ZodOptional<z.ZodString>;
-        embeddingProvider: z.ZodDefault<z.ZodEnum<{
+        embeddingProvider: z.ZodOptional<z.ZodEnum<{
             local: "local";
             openai: "openai";
         }>>;
         embeddingBaseURL: z.ZodOptional<z.ZodString>;
         embeddingApiKey: z.ZodOptional<z.ZodString>;
+        provider: z.ZodOptional<z.ZodAny>;
+        model: z.ZodOptional<z.ZodString>;
+        dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
         namespace: z.ZodDefault<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
@@ -337,6 +343,13 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
     private _searcher;
     /** @internal */
     private get db();
+    /**
+     * @internal Resolve where embeddings come from when the caller didn't say.
+     * Prefer openai only when it can actually work (a key or a custom endpoint
+     * is configured); otherwise fall back to local embeddings rather than
+     * defaulting to a backend that is guaranteed to fail on a keyless machine.
+     */
+    private get resolvedEmbeddingProvider();
     /** @internal */
     private get searcher();
     /**
@@ -16706,6 +16719,7 @@ export default Dns;
 //# sourceMappingURL=dns.d.ts.map`,
   "node/features/docker.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
+import type { Helper } from '../../helper.js';
 export declare const DockerContainerSchema: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
@@ -16823,6 +16837,16 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
         timeout: z.ZodOptional<z.ZodNumber>;
         autoRefresh: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+        handler?: Function;
+    }>;
+    /**
+     * When an assistant consumes these tools, inject usage guidance about
+     * container lifecycle and command execution.
+     */
+    setupToolsConsumer(consumer: Helper): void;
     get initialState(): DockerState;
     /**
      * Get the proc feature for executing shell commands
@@ -26519,6 +26543,7 @@ export default Scheduler;
 //# sourceMappingURL=scheduler.d.ts.map`,
   "node/features/secure-shell.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
+import type { Helper } from '../../helper.js';
 export declare const SecureShellStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     connected: z.ZodBoolean;
@@ -26598,6 +26623,16 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
         password: z.ZodOptional<z.ZodString>;
         key: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+        handler?: Function;
+    }>;
+    /**
+     * When an assistant consumes these tools, tell it which host it is talking
+     * to — the connection is fixed by the feature's options, not tool arguments.
+     */
+    setupToolsConsumer(consumer: Helper): void;
     get initialState(): SecureShellState;
     private _resolvedSshPath;
     private _resolvedScpPath;
@@ -33296,7 +33331,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.10.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.10.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
