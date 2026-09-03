@@ -7345,6 +7345,24 @@ setBuildTimeData('features.conversation', {
       "required": [],
       "returns": "void"
     },
+    "serializeToolResult": {
+      "description": "Serialize a tool handler's return value for the tool-role message, extracting any images it carries so they reach the model as real image input. The convention: a tool that wants the model to SEE something returns an object with an `images` array of strings — file paths, data: URLs, or http(s) URLs: ```ts // in an assistant tool handler const shot = await container.feature('screenCapture').captureScreen() return { path: shot, images: [shot] } ``` Tool-role messages are text-only in the chat-completions wire format, so the images can't ride in the tool message itself. They're queued and injected as a user message (image_url parts) right after this turn's tool results, before the model's next turn, labeled with the tool's name. When `imageDelegate` is set (the Assistant's visionSupport), the parts pass through it first so text-only models get descriptions instead. File paths are inlined as base64 data URLs (png/jpg/gif/webp by extension). A path that can't be read is skipped, with the failure noted in the serialized result so the model knows the image is missing.",
+      "parameters": {
+        "toolName": {
+          "type": "string",
+          "description": "The tool whose output is being serialized"
+        },
+        "output": {
+          "type": "any",
+          "description": "The raw return value from the tool handler"
+        }
+      },
+      "required": [
+        "toolName",
+        "output"
+      ],
+      "returns": "string"
+    },
     "pushMessage": {
       "description": "Append a message to the conversation state.",
       "parameters": {
@@ -7517,6 +7535,11 @@ setBuildTimeData('features.conversation', {
     },
     "response": {
       "name": "response",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolImages": {
+      "name": "toolImages",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -36132,6 +36155,24 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "void"
       },
+      "serializeToolResult": {
+        "description": "Serialize a tool handler's return value for the tool-role message, extracting any images it carries so they reach the model as real image input. The convention: a tool that wants the model to SEE something returns an object with an `images` array of strings — file paths, data: URLs, or http(s) URLs: ```ts // in an assistant tool handler const shot = await container.feature('screenCapture').captureScreen() return { path: shot, images: [shot] } ``` Tool-role messages are text-only in the chat-completions wire format, so the images can't ride in the tool message itself. They're queued and injected as a user message (image_url parts) right after this turn's tool results, before the model's next turn, labeled with the tool's name. When `imageDelegate` is set (the Assistant's visionSupport), the parts pass through it first so text-only models get descriptions instead. File paths are inlined as base64 data URLs (png/jpg/gif/webp by extension). A path that can't be read is skipped, with the failure noted in the serialized result so the model knows the image is missing.",
+        "parameters": {
+          "toolName": {
+            "type": "string",
+            "description": "The tool whose output is being serialized"
+          },
+          "output": {
+            "type": "any",
+            "description": "The raw return value from the tool handler"
+          }
+        },
+        "required": [
+          "toolName",
+          "output"
+        ],
+        "returns": "string"
+      },
       "pushMessage": {
         "description": "Append a message to the conversation state.",
         "parameters": {
@@ -36304,6 +36345,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "response": {
         "name": "response",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolImages": {
+        "name": "toolImages",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },

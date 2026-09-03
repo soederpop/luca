@@ -226,6 +226,7 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 	toolResult: z.tuple([z.string().describe('Tool name'), z.string().describe('Serialized result')]).describe('Fired after a tool handler returns successfully'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error object or message')]).describe('Fired when a tool handler throws or the tool is unknown'),
 	toolCallsEnd: z.tuple([]).describe('Fired after all tool calls in a turn have been executed'),
+	toolImages: z.tuple([z.string().describe('Tool name'), z.number().describe('Number of image parts queued')]).describe('Fired when a tool result carries images that will be injected as a user message before the next model turn'),
 	chunk: z.tuple([z.string().describe('Text delta from the stream')]).describe('Fired for each streaming text delta'),
 	reasoning: z.tuple([z.string().describe('Reasoning/thinking text delta from the stream')]).describe('Fired for each reasoning delta a thinking model streams before its answer. Never part of the response text or message history. What arrives is provider-shaped: local models stream raw thinking (reasoning_content or inline <think> tags), the OpenAI Responses API streams reasoning summaries only'),
 	preview: z.tuple([z.string().describe('Accumulated text so far')]).describe('Fired after each chunk with the full accumulated text'),
@@ -408,6 +409,17 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * The Assistant replaces this to wire in beforeToolCall/afterToolCall interceptors.
 	 */
 	toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null = null
+
+	/**
+	 * Optional transform applied to tool-returned image parts before they are
+	 * injected into the conversation. The Assistant points this at its vision
+	 * delegation (describeImages) so text-only models get text descriptions
+	 * instead of image parts they can't process.
+	 */
+	imageDelegate: ((parts: ContentPart[]) => Promise<ContentPart[]>) | null = null
+
+	/** Image parts returned by tools this turn, waiting to be injected as a user message. */
+	private _pendingToolImages: { tool: string; parts: ContentPart[] }[] = []
 
 	/** The active structured output schema for the serialized ask() currently running. */
 	private _activeSchema: z.ZodType | null = null
@@ -1411,6 +1423,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * written before the error propagates — see `recordFailedTurn`.
 	 */
 	private async runProviderTurn(): Promise<string> {
+		// A turn that failed mid-tool-batch may have queued images that were
+		// never injected — they belong to that dead turn, not this one.
+		this._pendingToolImages = []
 		const inputIndex = this.messages.length - 1
 		const content = this.messages[inputIndex]!.content as string | ContentPart[]
 		// Continuation handles as they stood before this turn ran. If the turn
@@ -1753,6 +1768,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				const result = await this.executeTool(call.name, call.rawArguments ?? JSON.stringify(call.arguments ?? {}))
 				this.pushMessage({ role: 'tool', tool_call_id: call.id || '', content: result })
 			}
+			const imageParts = await this.flushToolImages()
+			if (imageParts) this.pushMessage({ role: 'user', content: imageParts as any })
 			this.emit('toolCallsEnd')
 		}
 
@@ -1841,6 +1858,98 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
+	 * Serialize a tool handler's return value for the tool-role message, extracting
+	 * any images it carries so they reach the model as real image input.
+	 *
+	 * The convention: a tool that wants the model to SEE something returns an
+	 * object with an `images` array of strings — file paths, data: URLs, or
+	 * http(s) URLs:
+	 *
+	 * ```ts
+	 * // in an assistant tool handler
+	 * const shot = await container.feature('screenCapture').captureScreen()
+	 * return { path: shot, images: [shot] }
+	 * ```
+	 *
+	 * Tool-role messages are text-only in the chat-completions wire format, so
+	 * the images can't ride in the tool message itself. They're queued and
+	 * injected as a user message (image_url parts) right after this turn's tool
+	 * results, before the model's next turn, labeled with the tool's name. When
+	 * `imageDelegate` is set (the Assistant's visionSupport), the parts pass
+	 * through it first so text-only models get descriptions instead.
+	 *
+	 * File paths are inlined as base64 data URLs (png/jpg/gif/webp by
+	 * extension). A path that can't be read is skipped, with the failure noted
+	 * in the serialized result so the model knows the image is missing.
+	 *
+	 * @param toolName - The tool whose output is being serialized
+	 * @param output - The raw return value from the tool handler
+	 * @returns The string to place in the tool-role message
+	 */
+	serializeToolResult(toolName: string, output: any): string {
+		if (typeof output === 'string') return output
+		if (!output || typeof output !== 'object' || Array.isArray(output) || !Array.isArray(output.images)) {
+			return JSON.stringify(output)
+		}
+
+		const { images, ...rest } = output as { images: any[] }
+		const parts: ContentPart[] = []
+		const failures: string[] = []
+
+		for (const entry of images) {
+			if (typeof entry !== 'string') continue
+			try {
+				parts.push({ type: 'image_url', image_url: { url: this.toImageUrl(entry) } })
+			} catch (err: any) {
+				failures.push(`${entry}: ${err?.message || err}`)
+			}
+		}
+
+		if (parts.length) {
+			this._pendingToolImages.push({ tool: toolName, parts })
+			this.emit('toolImages', toolName, parts.length)
+		}
+
+		return JSON.stringify({
+			...rest,
+			...(parts.length ? { images: `[${parts.length} image(s) attached — they follow in the next user message]` } : {}),
+			...(failures.length ? { imageErrors: failures } : {}),
+		})
+	}
+
+	/** Inline a file path as a base64 data URL; pass data:/http(s) URLs through untouched. */
+	private toImageUrl(source: string): string {
+		if (source.startsWith('data:') || source.startsWith('http://') || source.startsWith('https://')) return source
+		const path = this.container.paths.resolve(source)
+		const buffer = this.container.fs.readFile(path, null) as Buffer
+		const ext = path.split('.').pop()?.toLowerCase()
+		const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+			: ext === 'gif' ? 'image/gif'
+			: ext === 'webp' ? 'image/webp'
+			: 'image/png'
+		return `data:${mime};base64,${buffer.toString('base64')}`
+	}
+
+	/**
+	 * Drain this turn's queued tool images into content parts for the injected
+	 * user message, running them through imageDelegate when set. Null when no
+	 * tool attached images this batch.
+	 */
+	private async flushToolImages(): Promise<ContentPart[] | null> {
+		if (!this._pendingToolImages.length) return null
+		const pending = this._pendingToolImages
+		this._pendingToolImages = []
+
+		const tools = [...new Set(pending.map(p => p.tool))].join(', ')
+		let parts: ContentPart[] = [
+			{ type: 'text', text: `[Image(s) returned by tool call(s): ${tools}]` },
+			...pending.flatMap(p => p.parts),
+		]
+		if (this.imageDelegate) parts = await this.imageDelegate(parts)
+		return parts
+	}
+
+	/**
 	 * Execute a single tool call, routing through the pluggable toolExecutor
 	 * if one is set (e.g. by the Assistant's interceptor chain).
 	 */
@@ -1871,7 +1980,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		try {
 			this.emit('toolCall', toolName, args)
 			const output = await this.abortable(Promise.resolve(tool.handler(args)), this.state.get('lastResponse') || '')
-			const result = typeof output === 'string' ? output : JSON.stringify(output)
+			const result = this.serializeToolResult(toolName, output)
 			this.emit('toolResult', toolName, result)
 			return result
 		} catch (err: any) {
@@ -2057,13 +2166,20 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				})
 			}
 
+			const nextInput: OpenAI.Responses.ResponseInput = [...functionOutputs]
+			const imageParts = await this.flushToolImages()
+			if (imageParts) {
+				this.pushMessage({ role: 'user', content: imageParts as any })
+				nextInput.push(toResponsesUserMessage(imageParts))
+			}
+
 			this.emit('toolCallsEnd')
 			this.emit('turnEnd', { turn, hasToolCalls: true })
 
 			return this.runResponsesLoop({
 				turn: turn + 1,
 				accumulated,
-				input: functionOutputs,
+				input: nextInput,
 				previousResponseId: finalResponse.id,
 			})
 		}
@@ -2247,6 +2363,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				}
 				this.pushMessage(toolMessage)
 			}
+
+			const imageParts = await this.flushToolImages()
+			if (imageParts) this.pushMessage({ role: 'user', content: imageParts as any })
 
 			this.emit('toolCallsEnd')
 			this.emit('turnEnd', { turn, hasToolCalls: true })

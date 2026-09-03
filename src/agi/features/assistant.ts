@@ -1811,7 +1811,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				await this.triggerHook('toolCall', ctx.name, ctx.args)
 				this.emit('toolCall', ctx.name, ctx.args)
 				const output = await handler(ctx.args)
-				ctx.result = typeof output === 'string' ? output : JSON.stringify(output)
+				// Route through the conversation's serializer so tool results that
+				// carry an `images` array get queued for injection as image input.
+				ctx.result = conversation.serializeToolResult(ctx.name, output)
 			} catch (err: any) {
 				ctx.error = err
 				ctx.result = JSON.stringify({ error: err.message || String(err) })
@@ -1831,6 +1833,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 			return ctx.result!
 		}
+
+		// Tool-returned images pass through vision delegation before injection,
+		// so a text-only model gets descriptions. No-op when visionSupport is off.
+		this.conversation.imageDelegate = (parts) => this.describeImages(parts)
 
 		// Load conversation history for non-lifecycle modes
 		await this.loadConversationHistory()
