@@ -510,7 +510,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 | **Dev Tools** | `docker`, `git`, `packageFinder`, `python`, `transpiler`, `typescript`, `vm` | Version control, containers, bundling, sandboxed execution |
 | **Content & NLP** | `docsReader`, `jsonTree`, `nlp`, `semanticSearch`, `skillsLibrary`, `yamlTree` | Document Q&A, text analysis, semantic search, structured file ingestion |
 | **UI & Output** | `ink`, `ui`, `yaml` | Terminal UI, colors, ascii art, structured data display |
-| **Media & Browser** | `browserUse`, `cipherSocial`, `downloader`, `opener`, `telegram`, `tts` | Browser automation, text-to-speech, downloads, messaging |
+| **Media & Browser** | `browserUse`, `cipherSocial`, `downloader`, `opener`, `screenCapture`, `telegram`, `tts` | Browser automation, text-to-speech, downloads, messaging |
 | **System** | `containerLink`, `helpers`, `introspectionScanner`, `os`, `repl`, `runpod`, `socketRepl`, `vault` | OS info, secrets, runtime introspection, remote container linking |
 
 ### Clients

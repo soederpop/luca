@@ -517,7 +517,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 | **Dev Tools** | \`docker\`, \`git\`, \`packageFinder\`, \`python\`, \`transpiler\`, \`typescript\`, \`vm\` | Version control, containers, bundling, sandboxed execution |
 | **Content & NLP** | \`docsReader\`, \`jsonTree\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, structured file ingestion |
 | **UI & Output** | \`ink\`, \`ui\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
-| **Media & Browser** | \`browserUse\`, \`cipherSocial\`, \`downloader\`, \`opener\`, \`telegram\`, \`tts\` | Browser automation, text-to-speech, downloads, messaging |
+| **Media & Browser** | \`browserUse\`, \`cipherSocial\`, \`downloader\`, \`opener\`, \`screenCapture\`, \`telegram\`, \`tts\` | Browser automation, text-to-speech, downloads, messaging |
 | **System** | \`containerLink\`, \`helpers\`, \`introspectionScanner\`, \`os\`, \`repl\`, \`runpod\`, \`socketRepl\`, \`vault\` | OS info, secrets, runtime introspection, remote container linking |
 
 ### Clients
@@ -11749,6 +11749,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`repl\` | feature | system | stable | REPL feature — provides an interactive read-eval-print loop with tab completion and history. |
 | \`runpod\` | feature | system | experimental | RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. |
 | \`scheduler\` | feature | process | stable | In-process task scheduler: recurring intervals, cron expressions, and one-shot timers as named, observable, stoppable tasks — plus the daemon lifecycle (\`run()\`) that keeps a long-running command alive until SIGINT/SIGTERM. |
+| \`screenCapture\` | feature | media-browser | experimental | The ScreenCapture feature takes screenshots and screen recordings on macOS. |
 | \`secureShell\` | feature | process | stable | SecureShell Feature -- SSH command execution and SCP file transfers. |
 | \`semanticSearch\` | feature | content-nlp | experimental | Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. |
 | \`skillsLibrary\` | feature | content-nlp | stable | Manages a registry of skill locations — folders containing SKILL.md files. |

@@ -14593,6 +14593,7 @@ import "./features/redis";
 import "./features/repl";
 import "./features/runpod";
 import "./features/scheduler";
+import "./features/screen-capture";
 import "./features/secure-shell";
 import "./features/semantic-search";
 import "./features/socket-repl";
@@ -14644,6 +14645,7 @@ import type { RedisFeature } from "./features/redis";
 import type { Repl } from "./features/repl";
 import type { Runpod } from "./features/runpod";
 import type { Scheduler } from "./features/scheduler";
+import type { ScreenCapture } from "./features/screen-capture";
 import type { SecureShell } from "./features/secure-shell";
 import type { SemanticSearch } from "./features/semantic-search";
 import type { SocketRepl } from "./features/socket-repl";
@@ -14695,6 +14697,7 @@ export type { RedisState, RedisOptions, RedisFeature, Redis } from "./features/r
 export type { ReplState, ReplOptions, Repl } from "./features/repl";
 export type { RunpodState, RunpodOptions, Runpod } from "./features/runpod";
 export type { SchedulerState, SchedulerOptions, ScheduledTaskInfo, TaskHandle, ScheduleTaskOptions, EveryTaskOptions, SchedulerRunOptions, Scheduler } from "./features/scheduler";
+export type { CaptureWindowInfo, CaptureRect, CaptureImageOptions, CaptureRecordOptions, CaptureRecording, ScreenCaptureOptions, ScreenCapture } from "./features/screen-capture";
 export type { SecureShellState, SecureShellOptions, SecureShell } from "./features/secure-shell";
 export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, SemanticSearchQueryOptions, HybridSearchOptions, IndexStatus, DocumentInput, SemanticSearch } from "./features/semantic-search";
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
@@ -14747,6 +14750,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     repl: typeof Repl;
     runpod: typeof Runpod;
     scheduler: typeof Scheduler;
+    screenCapture: typeof ScreenCapture;
     secureShell: typeof SecureShell;
     semanticSearch: typeof SemanticSearch;
     socketRepl: typeof SocketRepl;
@@ -23671,6 +23675,7 @@ export default PackageFinder;
 import { SQL } from 'bun';
 import { Feature } from '../feature.js';
 import type { ContainerContext } from '../../container.js';
+import type { Helper } from '../../helper.js';
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null;
 export declare const PostgresStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
@@ -23686,6 +23691,7 @@ export declare const PostgresOptionsSchema: z.ZodObject<{
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     url: z.ZodOptional<z.ZodString>;
+    readOnly: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export type PostgresState = z.infer<typeof PostgresStateSchema>;
 export type PostgresOptions = z.infer<typeof PostgresOptionsSchema>;
@@ -23720,6 +23726,11 @@ export declare const PostgresEventsSchema: z.ZodObject<{
  * const rows = await postgres.sql<{ id: number }>\`
  *   select id from users where email = \${'hello@example.com'}
  * \`
+ *
+ * // Read-only session: the server rejects writes and execute() throws locally.
+ * // Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a
+ * // SELECT-only role when the caller is untrusted (e.g. an AI assistant).
+ * const reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })
  * \`\`\`
  */
 export declare class Postgres extends Feature<PostgresState, PostgresOptions> {
@@ -23740,6 +23751,7 @@ export declare class Postgres extends Feature<PostgresState, PostgresOptions> {
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         url: z.ZodOptional<z.ZodString>;
+        readOnly: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -23749,6 +23761,16 @@ export declare class Postgres extends Feature<PostgresState, PostgresOptions> {
         error: z.ZodTuple<[z.ZodAny], null>;
         closed: z.ZodTuple<[], null>;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+        handler?: Function;
+    }>;
+    /**
+     * When an assistant consumes these tools, inject guidance about the
+     * placeholder style, the read/write tool split, and read-only mode.
+     */
+    setupToolsConsumer(consumer: Helper): void;
     private _client;
     /**
      * Default state for the Postgres feature before a connection is established.
@@ -23789,7 +23811,7 @@ export declare class Postgres extends Feature<PostgresState, PostgresOptions> {
      * @param queryText - The SQL statement string with optional \`$N\` placeholders
      * @param params - Ordered array of values to bind to the placeholders
      * @returns Promise resolving to \`{ rowCount }\` indicating affected rows
-     * @throws {Error} When query text is empty or params contain \`undefined\`
+     * @throws {Error} When query text is empty, params contain \`undefined\`, or the instance was created with \`readOnly: true\`
      *
      * @example
      * \`\`\`typescript
@@ -26541,6 +26563,245 @@ export declare class Scheduler extends Feature<SchedulerState, SchedulerOptions>
 }
 export default Scheduler;
 //# sourceMappingURL=scheduler.d.ts.map`,
+  "node/features/screen-capture.d.ts": `import { Feature, type FeatureState } from '../feature.js';
+import { z } from 'zod';
+/** Information about an on-screen window, from the macOS window server. */
+export interface CaptureWindowInfo {
+    /** The CGWindowID — pass this to captureWindow() for an exact capture */
+    id: number;
+    /** The owning application's name (e.g. 'Safari', 'Terminal') */
+    app: string;
+    /** The window title (empty when the app doesn't publish one without Screen Recording permission) */
+    title: string;
+    /** The owning application's process id */
+    pid: number;
+    /** The window's frame in screen coordinates */
+    bounds: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+}
+/** A rectangle in screen coordinates, origin at the top-left of the main display. */
+export interface CaptureRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+/** Options shared by the still-image capture methods. */
+export interface CaptureImageOptions {
+    /** Where to save the image. Relative paths resolve against container.cwd. Defaults to a temp file. */
+    output?: string;
+    /** Image format (default 'png') */
+    format?: 'png' | 'jpg' | 'pdf' | 'tiff';
+    /** 1-based display number for multi-monitor setups (screen captures only) */
+    display?: number;
+    /** Include the mouse cursor in the capture (default false) */
+    cursor?: boolean;
+    /** Include the window drop shadow in window captures (default true) */
+    shadow?: boolean;
+}
+/** Options for record(). */
+export interface CaptureRecordOptions {
+    /** Where to save the movie (.mov). Relative paths resolve against container.cwd. Defaults to a temp file. */
+    output?: string;
+    /** Stop automatically after this many seconds. Omit for open-ended recording via stop(). */
+    duration?: number;
+    /** Record audio from the default input alongside the video (default false) */
+    audio?: boolean;
+    /** Visualize mouse clicks in the recording (default false) */
+    showClicks?: boolean;
+    /** 1-based display number for multi-monitor setups */
+    display?: number;
+    /** Restrict the recording to a screen rect instead of the full display */
+    rect?: CaptureRect;
+}
+/** Handle returned by record() while a recording is in progress. */
+export interface CaptureRecording {
+    /** Absolute path the movie will be written to */
+    path: string;
+    /** Stop the recording; resolves to the movie path once the file is finalized */
+    stop: () => Promise<string>;
+    /** Resolves to the movie path when the recording ends (duration elapsed or stop() called) */
+    done: Promise<string>;
+}
+export declare const ScreenCaptureOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    outputDir: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type ScreenCaptureOptions = z.infer<typeof ScreenCaptureOptionsSchema>;
+/**
+ * The ScreenCapture feature takes screenshots and screen recordings on macOS.
+ *
+ * It wraps the system \`/usr/sbin/screencapture\` tool (no dependencies, nothing
+ * to install) and the window server's window list, so it can capture the full
+ * screen, a region, or a single application window by name — plus video
+ * recordings with optional audio.
+ *
+ * macOS only. Every method throws a clear error on other platforms.
+ *
+ * The first capture from a new host app needs the Screen Recording permission
+ * (System Settings → Privacy & Security). Without it, captures still "succeed"
+ * but come back black or wallpaper-only — window titles in listWindows() also
+ * arrive empty. Grant the permission once and restart the host app.
+ *
+ * @example
+ * \`\`\`typescript
+ * // (no-run) interacts with the display server
+ * const capture = container.feature('screenCapture')
+ *
+ * // Full screen to a temp file
+ * const shot = await capture.captureScreen()
+ *
+ * // A specific app's frontmost window
+ * const win = await capture.captureWindow('Safari', { output: 'safari.png' })
+ *
+ * // 10-second screen recording
+ * const rec = await capture.record({ duration: 10 })
+ * const movie = await rec.done
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
+    static shortcut: "features.screenCapture";
+    static stability: "experimental";
+    static category: "media-browser";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        outputDir: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    /**
+     * Lists all visible windows known to the window server.
+     *
+     * Returns normal application windows only (layer 0 — menu bar items, docks,
+     * and overlays are filtered out), front-to-back. Use the \`id\` with
+     * captureWindow() for an exact capture, or just pass the app name.
+     *
+     * NOTE: \`title\` is empty for other apps' windows until the host app has the
+     * Screen Recording permission — \`app\`, \`pid\`, and \`bounds\` are always present.
+     *
+     * @returns {Promise<CaptureWindowInfo[]>} Visible windows, frontmost first
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) interacts with the display server
+     * const capture = container.feature('screenCapture')
+     * const windows = await capture.listWindows()
+     * windows.forEach(w => console.log(\`\${w.id} \${w.app} — \${w.title}\`))
+     * \`\`\`
+     */
+    listWindows(): Promise<CaptureWindowInfo[]>;
+    /**
+     * Captures the entire screen to an image file.
+     *
+     * @param {CaptureImageOptions} [options] - Output path, format, display, cursor
+     * @returns {Promise<string>} Absolute path to the saved image
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) interacts with the display server
+     * const capture = container.feature('screenCapture')
+     *
+     * const shot = await capture.captureScreen()
+     * const second = await capture.captureScreen({ display: 2, format: 'jpg', output: 'screen2.jpg' })
+     * \`\`\`
+     */
+    captureScreen(options?: CaptureImageOptions): Promise<string>;
+    /**
+     * Captures a single application window to an image file.
+     *
+     * Pass a window id (from listWindows()) for an exact match, or a string to
+     * match by app name or window title (case-insensitive substring). With a
+     * string, the frontmost matching window wins. The window is captured even
+     * when it's behind other windows — no need to bring it forward.
+     *
+     * @param {string | number} target - Window id, app name, or title substring (e.g. 'Safari', 81146)
+     * @param {CaptureImageOptions} [options] - Output path, format, shadow
+     * @returns {Promise<string>} Absolute path to the saved image
+     *
+     * @throws {Error} When no visible window matches the target
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) interacts with the display server
+     * const capture = container.feature('screenCapture')
+     *
+     * const shot = await capture.captureWindow('Terminal')
+     * const noShadow = await capture.captureWindow('Safari', { shadow: false, output: 'safari.png' })
+     * \`\`\`
+     */
+    captureWindow(target: string | number, options?: CaptureImageOptions): Promise<string>;
+    /**
+     * Captures a rectangular region of the screen to an image file.
+     *
+     * Coordinates are in screen points with the origin at the top-left of the
+     * main display.
+     *
+     * @param {CaptureRect} rect - The region to capture
+     * @param {CaptureImageOptions} [options] - Output path, format, cursor
+     * @returns {Promise<string>} Absolute path to the saved image
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) interacts with the display server
+     * const capture = container.feature('screenCapture')
+     * const shot = await capture.captureRegion({ x: 0, y: 0, width: 800, height: 600 })
+     * \`\`\`
+     */
+    captureRegion(rect: CaptureRect, options?: CaptureImageOptions): Promise<string>;
+    /**
+     * Records the screen to a QuickTime movie (.mov).
+     *
+     * With \`duration\`, the recording stops on its own — await \`done\`. Without
+     * it, the recording runs until you call \`stop()\`. Either way the resolved
+     * value is the absolute path to the finished movie.
+     *
+     * Video is whole-screen or rect only — per-window video isn't supported by
+     * the system tool.
+     *
+     * @param {CaptureRecordOptions} [options] - Duration, audio, clicks, display, rect
+     * @returns {Promise<CaptureRecording>} Handle with \`path\`, \`stop()\`, and \`done\`
+     *
+     * @throws {Error} When the recorder exits without producing a file (usually the Screen Recording permission)
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) records the screen
+     * const capture = container.feature('screenCapture')
+     *
+     * // Fixed-length recording
+     * const rec = await capture.record({ duration: 10, audio: true })
+     * const movie = await rec.done
+     *
+     * // Open-ended: stop it yourself
+     * const live = await capture.record({ showClicks: true })
+     * // ... do the thing being demonstrated ...
+     * const path = await live.stop()
+     * \`\`\`
+     */
+    record(options?: CaptureRecordOptions): Promise<CaptureRecording>;
+    /** Resolve an app name or title substring to the frontmost matching window's id. */
+    private findWindowId;
+    /** Run screencapture with the given mode args plus shared image options, verify output. */
+    private runCapture;
+    /** Resolve the output path: explicit path (relative to cwd), or a temp file. */
+    private resolveOutput;
+    private assertMac;
+}
+export default ScreenCapture;
+//# sourceMappingURL=screen-capture.d.ts.map`,
   "node/features/secure-shell.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import type { Helper } from '../../helper.js';
@@ -27135,6 +27396,7 @@ export default SocketRepl;
 import { Database } from 'bun:sqlite';
 import { Feature } from '../feature.js';
 import type { ContainerContext } from '../../container.js';
+import type { Helper } from '../../helper.js';
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null;
 export declare const SqliteStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
@@ -27225,6 +27487,16 @@ export declare class Sqlite extends Feature<SqliteState, SqliteOptions> {
         error: z.ZodTuple<[z.ZodAny], null>;
         closed: z.ZodTuple<[], null>;
     }, z.core.$strip>;
+    static tools: Record<string, {
+        schema: z.ZodType;
+        description?: string;
+        handler?: Function;
+    }>;
+    /**
+     * When an assistant consumes these tools, inject guidance about the
+     * placeholder style and the read/write tool split.
+     */
+    setupToolsConsumer(consumer: Helper): void;
     private _db;
     /**
      * Default state for the SQLite feature before a database is opened.
@@ -33331,7 +33603,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.10.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
