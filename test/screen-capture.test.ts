@@ -45,7 +45,7 @@ describe('screenCapture feature', () => {
   it('exposes agent tools whose capture handlers attach images', () => {
     const capture = container.feature('screenCapture')
     const { schemas, handlers } = capture.toTools()
-    expect(Object.keys(schemas).sort()).toEqual(['captureScreen', 'captureWindow', 'listWindows', 'recordScreen'])
+    expect(Object.keys(schemas).sort()).toEqual(['captureScreen', 'captureWindow', 'listWindows', 'recordScreen', 'stopRecording'])
     expect(Object.keys(handlers).sort()).toEqual(Object.keys(schemas).sort())
   })
 
@@ -57,6 +57,40 @@ describe('screenCapture feature', () => {
     // The instance method stays assistant-agnostic (plain path) — only the
     // tool layer adds the images array that triggers conversation injection.
     expect(result).toEqual({ path: '/tmp/shot.png', images: ['/tmp/shot.png'] })
+  })
+
+  it('recordScreen tool returns immediately; stopRecording finalizes by id', async () => {
+    const capture = container.feature('screenCapture')
+    let stopped = false
+    const fakeRecording = {
+      path: '/tmp/clip.mov',
+      stop: async () => { stopped = true; return '/tmp/clip.mov' },
+      done: new Promise<string>(() => {}), // never resolves — a blocking handler would hang here
+    }
+    const fake = { record: async () => fakeRecording, trackRecording: capture.trackRecording.bind(capture), stopRecording: capture.stopRecording.bind(capture) }
+    const tools = (capture.constructor as any).tools
+
+    const started = await tools.recordScreen.handler({ }, fake)
+    expect(started.status).toBe('recording')
+    expect(typeof started.recordingId).toBe('string')
+    expect(stopped).toBe(false)
+
+    const result = await tools.stopRecording.handler({ recordingId: started.recordingId }, fake)
+    expect(result).toEqual({ path: '/tmp/clip.mov', status: 'stopped' })
+    expect(stopped).toBe(true)
+
+    // The id is gone once stopped
+    await expect(capture.stopRecording(started.recordingId)).rejects.toThrow(/no recording/)
+  })
+
+  it('stopRecording without an id targets the most recent recording', async () => {
+    const capture = container.feature('screenCapture')
+    const make = (path: string) => ({ path, stop: async () => path, done: new Promise<string>(() => {}) })
+    capture.trackRecording(make('/tmp/a.mov') as any)
+    capture.trackRecording(make('/tmp/b.mov') as any)
+    expect(await capture.stopRecording()).toBe('/tmp/b.mov')
+    expect(await capture.stopRecording()).toBe('/tmp/a.mov')
+    await expect(capture.stopRecording()).rejects.toThrow(/no recording in progress/)
   })
 
   it('rejects captureWindow for a window that does not exist', async () => {

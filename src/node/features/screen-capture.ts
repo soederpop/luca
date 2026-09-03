@@ -166,15 +166,32 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
       handler: (_args: {}, capture: ScreenCapture) => capture.listWindows(),
     },
     recordScreen: {
-      description: 'Record the screen to a .mov video file for a fixed number of seconds and return its file path. NOTE: you cannot watch the video — report the path to the user.',
+      description: 'Start recording the screen to a .mov video file. Returns immediately with a recordingId — the recording continues in the background while you do other work. With duration set it stops on its own after that many seconds; either way, call stopRecording to finalize and get the finished file. NOTE: you cannot watch the video — report the path to the user.',
       schema: z.object({
-        duration: z.number().describe('Recording length in seconds'),
+        duration: z.number().optional().describe('Auto-stop after this many seconds. Omit for open-ended recording ended by stopRecording'),
         audio: z.boolean().optional().describe('Also record audio from the default input (default false)'),
-      }).describe('Record the screen to a video file.'),
-      handler: async (args: { duration: number; audio?: boolean }, capture: ScreenCapture) => {
+      }).describe('Start a background screen recording.'),
+      handler: async (args: { duration?: number; audio?: boolean }, capture: ScreenCapture) => {
         const recording = await capture.record({ duration: args.duration, audio: args.audio })
-        const path = await recording.done
-        return { path }
+        const recordingId = capture.trackRecording(recording)
+        return {
+          recordingId,
+          path: recording.path,
+          status: 'recording',
+          note: args.duration
+            ? `Stops on its own after ${args.duration}s — call stopRecording with this recordingId to confirm the file is finished`
+            : 'Recording until you call stopRecording with this recordingId',
+        }
+      },
+    },
+    stopRecording: {
+      description: 'Stop a screen recording started by recordScreen (or confirm a fixed-duration one finished) and return the path of the finalized video file.',
+      schema: z.object({
+        recordingId: z.string().optional().describe('The id returned by recordScreen. Omit to stop the most recently started recording'),
+      }).describe('Stop a screen recording and finalize the video file.'),
+      handler: async (args: { recordingId?: string }, capture: ScreenCapture) => {
+        const path = await capture.stopRecording(args.recordingId)
+        return { path, status: 'stopped' }
       },
     },
   }
@@ -357,6 +374,57 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
         return done
       },
     }
+  }
+
+  /** Recordings started through trackRecording, newest last, keyed by id. */
+  private _recordings = new Map<string, CaptureRecording>()
+
+  /**
+   * Register a recording handle under a generated id so it can be stopped
+   * later by reference — across tool calls, or from a different code path
+   * than the one that started it. Used by the recordScreen agent tool;
+   * available to any caller juggling multiple recordings.
+   *
+   * @param recording - The handle returned by record()
+   * @returns The generated recording id
+   *
+   * @example
+   * ```typescript
+   * // (no-run) records the screen
+   * const capture = container.feature('screenCapture')
+   * const id = capture.trackRecording(await capture.record())
+   * // ... later, possibly elsewhere ...
+   * const movie = await capture.stopRecording(id)
+   * ```
+   */
+  trackRecording(recording: CaptureRecording): string {
+    const id = this.container.utils.uuid().slice(0, 8)
+    this._recordings.set(id, recording)
+    return id
+  }
+
+  /**
+   * Stop a tracked recording and return the finished movie's path. Safe to
+   * call on a fixed-duration recording that already stopped on its own — it
+   * just resolves with the finalized path.
+   *
+   * @param id - The id from trackRecording. Omit for the most recently started recording
+   * @returns Absolute path to the finalized movie
+   *
+   * @throws {Error} When the id is unknown, or no recording was ever started
+   */
+  async stopRecording(id?: string): Promise<string> {
+    const key = id ?? [...this._recordings.keys()].pop()
+    const recording = key ? this._recordings.get(key) : undefined
+
+    if (!recording) {
+      const active = [...this._recordings.keys()].join(', ') || 'none'
+      throw new Error(`stopRecording: no recording ${id ? `with id '${id}'` : 'in progress'} (tracked: ${active})`)
+    }
+
+    const path = await recording.stop()
+    this._recordings.delete(key!)
+    return path
   }
 
   /** Resolve an app name or title substring to the frontmost matching window's id. */
