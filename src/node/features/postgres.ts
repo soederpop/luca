@@ -3,6 +3,7 @@ import { SQL } from 'bun'
 import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
+import type { Helper } from '../../helper.js'
 
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null
 
@@ -75,6 +76,78 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
   static override optionsSchema = PostgresOptionsSchema
   static override eventsSchema = PostgresEventsSchema
   static { Feature.register(this, 'postgres') }
+
+  // Read and write are separate tools so consumers can scope access
+  // structurally: toTools({ only: ['pgQuery', 'pgListTables', 'pgDescribeTable'] }).
+  // pgQuery's leading-keyword check is best-effort — postgres allows DML inside
+  // a WITH clause — so pair `only` scoping with `readOnly: true` (or a
+  // SELECT-only role) when the caller must not write.
+  static override tools: Record<string, { schema: z.ZodType; description?: string; handler?: Function }> = {
+    pgQuery: {
+      description: 'Run a read-only SQL query (SELECT, WITH, EXPLAIN, SHOW) and get rows back as JSON. Use $1, $2, ... placeholders with params for values. Writes are rejected — use pgExecute for those.',
+      schema: z.object({
+        sql: z.string().describe('SQL query using $N placeholders, e.g. "SELECT * FROM users WHERE active = $1"'),
+        params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().describe('Values bound to the $N placeholders, in order'),
+      }).describe('Run a read-only SQL query and get rows back as JSON.'),
+      handler: async (args: { sql: string; params?: any[] }, pg: Postgres) => {
+        if (!isReadStatement(args.sql)) {
+          return 'Error: pgQuery only accepts read statements (SELECT, WITH, EXPLAIN, SHOW). Use pgExecute for writes and DDL.'
+        }
+        return jsonify(await pg.query(args.sql, args.params ?? []))
+      },
+    },
+    pgExecute: {
+      description: 'Run a write or DDL statement (INSERT, UPDATE, DELETE, CREATE TABLE, ...). Use $1, $2, ... placeholders with params for values. Returns { rowCount }. Fails on a readOnly feature instance.',
+      schema: z.object({
+        sql: z.string().describe('SQL statement using $N placeholders, e.g. "INSERT INTO users (email) VALUES ($1)"'),
+        params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().describe('Values bound to the $N placeholders, in order'),
+      }).describe('Run a write or DDL statement.'),
+      handler: async (args: { sql: string; params?: any[] }, pg: Postgres) =>
+        jsonify(await pg.execute(args.sql, args.params ?? [])),
+    },
+    pgListTables: {
+      description: 'List tables and views in a schema (default: public). Start here — never guess table names.',
+      schema: z.object({
+        schema: z.string().optional().describe('Schema to list (default: "public")'),
+      }).describe('List tables and views in a schema.'),
+      handler: async (args: { schema?: string }, pg: Postgres) =>
+        jsonify(await pg.query(
+          "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name",
+          [args.schema ?? 'public'],
+        )),
+    },
+    pgDescribeTable: {
+      description: 'Get the columns of a table: name, type, nullability, and default. Use before writing queries against an unfamiliar table.',
+      schema: z.object({
+        table: z.string().describe('Table name (from pgListTables)'),
+        schema: z.string().optional().describe('Schema the table lives in (default: "public")'),
+      }).describe('Get the columns of a table.'),
+      handler: async (args: { table: string; schema?: string }, pg: Postgres) =>
+        jsonify(await pg.query(
+          'SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position',
+          [args.schema ?? 'public', args.table],
+        )),
+    },
+  }
+
+  /**
+   * When an assistant consumes these tools, inject guidance about the
+   * placeholder style, the read/write tool split, and read-only mode.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('postgres', [
+        '## Postgres Tools',
+        '',
+        'Start with `pgListTables` and `pgDescribeTable` — never guess table or column names.',
+        '',
+        'Always pass values via `params` with `$1, $2, ...` placeholders, never interpolated into the SQL string.',
+        '',
+        '`pgQuery` is for reads only and rejects writes; `pgExecute` is for INSERT/UPDATE/DELETE/DDL and returns `{ rowCount }`.',
+        ...(this.options.readOnly ? ['', 'This connection is READ-ONLY: the server rejects all writes and pgExecute is disabled.'] : []),
+      ].join('\n'))
+    }
+  }
 
   private _client: SQL
 
@@ -315,6 +388,30 @@ function applyReadOnly(urlString: string): string {
   const rest = url.searchParams.toString()
   url.search = ''
   return `${url.toString()}?${rest ? `${rest}&` : ''}options=${encodeURIComponent(value)}`
+}
+
+/** JSON.stringify that survives bigint values (e.g. count() results). */
+function jsonify(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => typeof v === 'bigint' ? v.toString() : v)
+}
+
+/**
+ * Whether a SQL statement's leading keyword (after whitespace and comments)
+ * is read-shaped. Best-effort only: postgres permits DML inside WITH clauses,
+ * so hard read-only enforcement belongs to `readOnly: true` or a SELECT-only role.
+ */
+function isReadStatement(queryText: string): boolean {
+  let text = queryText
+  for (;;) {
+    const before = text
+    text = text.replace(/^\s+/, '')
+    text = text.replace(/^--[^\n]*(\n|$)/, '')
+    text = text.replace(/^\/\*[\s\S]*?\*\//, '')
+    if (text === before) break
+  }
+
+  const keyword = /^[a-zA-Z]+/.exec(text)?.[0]?.toUpperCase()
+  return keyword === 'SELECT' || keyword === 'WITH' || keyword === 'EXPLAIN' || keyword === 'SHOW'
 }
 
 function resolveRowCount(result: any): number {

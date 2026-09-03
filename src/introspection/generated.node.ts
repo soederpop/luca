@@ -11157,6 +11157,19 @@ setBuildTimeData('features.postgres', {
   "shortcut": "features.postgres",
   "className": "Postgres",
   "methods": {
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes these tools, inject guidance about the placeholder style, the read/write tool split, and read-only mode.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
     "query": {
       "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
       "parameters": {
@@ -15062,6 +15075,19 @@ setBuildTimeData('features.sqlite', {
   "shortcut": "features.sqlite",
   "className": "Sqlite",
   "methods": {
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes these tools, inject guidance about the placeholder style and the read/write tool split.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
     "query": {
       "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
       "parameters": {
@@ -30359,6 +30385,19 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.postgres",
     "className": "Postgres",
     "methods": {
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes these tools, inject guidance about the placeholder style, the read/write tool split, and read-only mode.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
       "query": {
         "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
         "parameters": {
@@ -34253,6 +34292,19 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.sqlite",
     "className": "Sqlite",
     "methods": {
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes these tools, inject guidance about the placeholder style and the read/write tool split.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
       "query": {
         "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
         "parameters": {

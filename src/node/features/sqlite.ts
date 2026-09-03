@@ -3,6 +3,7 @@ import { Database } from 'bun:sqlite'
 import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
+import type { Helper } from '../../helper.js'
 
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null
 
@@ -79,6 +80,69 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   static override optionsSchema = SqliteOptionsSchema
   static override eventsSchema = SqliteEventsSchema
   static { Feature.register(this, 'sqlite') }
+
+  // Read and write are separate tools so consumers can scope access
+  // structurally: toTools({ only: ['sqliteQuery', 'sqliteListTables', 'sqliteDescribeTable'] }).
+  // sqliteQuery rejects non-read statements itself — bun:sqlite's .all() would
+  // otherwise happily execute an INSERT, which would make that scoping a lie.
+  static override tools: Record<string, { schema: z.ZodType; description?: string; handler?: Function }> = {
+    sqliteQuery: {
+      description: 'Run a read-only SQL query (SELECT, WITH, PRAGMA, EXPLAIN) and get rows back as JSON. Use ? placeholders with params for values. Writes are rejected — use sqliteExecute for those.',
+      schema: z.object({
+        sql: z.string().describe('SQL query using ? placeholders, e.g. "SELECT * FROM users WHERE active = ?"'),
+        params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().describe('Values bound to the ? placeholders, in order'),
+      }).describe('Run a read-only SQL query and get rows back as JSON.'),
+      handler: async (args: { sql: string; params?: any[] }, db: Sqlite) => {
+        if (!isRowReturningStatement(args.sql)) {
+          return 'Error: sqliteQuery only accepts read statements (SELECT, WITH, PRAGMA, EXPLAIN). Use sqliteExecute for writes and DDL.'
+        }
+        return jsonify(await db.query(args.sql, args.params ?? []))
+      },
+    },
+    sqliteExecute: {
+      description: 'Run a write or DDL statement (INSERT, UPDATE, DELETE, CREATE TABLE, ...). Use ? placeholders with params for values. Returns { changes, lastInsertRowid }.',
+      schema: z.object({
+        sql: z.string().describe('SQL statement using ? placeholders, e.g. "INSERT INTO users (email) VALUES (?)"'),
+        params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().describe('Values bound to the ? placeholders, in order'),
+      }).describe('Run a write or DDL statement.'),
+      handler: async (args: { sql: string; params?: any[] }, db: Sqlite) =>
+        jsonify(await db.execute(args.sql, args.params ?? [])),
+    },
+    sqliteListTables: {
+      description: 'List all tables and views in the database with their SQL definitions. Start here — never guess table names.',
+      schema: z.object({}).describe('List all tables and views in the database.'),
+      handler: async (_args: {}, db: Sqlite) =>
+        jsonify(await db.query("SELECT name, type, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name")),
+    },
+    sqliteDescribeTable: {
+      description: 'Get the columns of a table: name, type, nullability, default, and primary key. Use before writing queries against an unfamiliar table.',
+      schema: z.object({
+        table: z.string().describe('Table name (from sqliteListTables)'),
+      }).describe('Get the columns of a table.'),
+      handler: async (args: { table: string }, db: Sqlite) =>
+        jsonify(await db.query('SELECT name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)', [args.table])),
+    },
+  }
+
+  /**
+   * When an assistant consumes these tools, inject guidance about the
+   * placeholder style and the read/write tool split.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('sqlite', [
+        '## SQLite Tools',
+        '',
+        `Database: ${this.state.current.path}`,
+        '',
+        'Start with `sqliteListTables` and `sqliteDescribeTable` — never guess table or column names.',
+        '',
+        'Always pass values via `params` with `?` placeholders, never interpolated into the SQL string.',
+        '',
+        '`sqliteQuery` is for reads only and rejects writes; `sqliteExecute` is for INSERT/UPDATE/DELETE/DDL and returns `{ changes, lastInsertRowid }`.',
+      ].join('\n'))
+    }
+  }
 
   private _db: Database
 
@@ -429,6 +493,11 @@ function isRowReturningStatement(queryText: string): boolean {
 
   const keyword = /^[a-zA-Z]+/.exec(text)?.[0]?.toUpperCase()
   return keyword === 'SELECT' || keyword === 'WITH' || keyword === 'PRAGMA' || keyword === 'EXPLAIN'
+}
+
+/** JSON.stringify that survives bigint values (e.g. lastInsertRowid). */
+function jsonify(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => typeof v === 'bigint' ? v.toString() : v)
 }
 
 function buildQuestionQuery(strings: TemplateStringsArray, values: SqlValue[]) {

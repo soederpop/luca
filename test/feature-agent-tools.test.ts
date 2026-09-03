@@ -111,6 +111,94 @@ describe('docker agent tools', () => {
 	})
 })
 
+describe('sqlite agent tools', () => {
+	const makeDb = () => new NodeContainer().feature('sqlite') // in-memory
+
+	it('exposes the sqlite tool surface', () => {
+		const bundle = makeDb().toTools()
+		for (const name of ['sqliteQuery', 'sqliteExecute', 'sqliteListTables', 'sqliteDescribeTable']) {
+			expect(Object.keys(bundle.schemas)).toContain(name)
+			expect(typeof bundle.handlers[name]).toBe('function')
+		}
+	})
+
+	it('supports a full write-then-read round trip against a real database', async () => {
+		const db = makeDb()
+		const { handlers } = db.toTools()
+
+		const created = await handlers.sqliteExecute!({ sql: 'CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)' })
+		expect(JSON.parse(created).changes).toBe(0)
+
+		const inserted = await handlers.sqliteExecute!({ sql: 'INSERT INTO users (email) VALUES (?)', params: ['hello@example.com'] })
+		expect(JSON.parse(inserted).lastInsertRowid).toBe(1)
+
+		const rows = JSON.parse(await handlers.sqliteQuery!({ sql: 'SELECT * FROM users WHERE email = ?', params: ['hello@example.com'] }))
+		expect(rows).toEqual([{ id: 1, email: 'hello@example.com' }])
+
+		const tables = JSON.parse(await handlers.sqliteListTables!({}))
+		expect(tables.map((t: any) => t.name)).toEqual(['users'])
+
+		const columns = JSON.parse(await handlers.sqliteDescribeTable!({ table: 'users' }))
+		expect(columns.map((c: any) => c.name)).toEqual(['id', 'email'])
+	})
+
+	it('sqliteQuery rejects write statements instead of silently executing them', async () => {
+		const db = makeDb()
+		const { handlers } = db.toTools()
+		await handlers.sqliteExecute!({ sql: 'CREATE TABLE t (id INTEGER)' })
+
+		const result = await handlers.sqliteQuery!({ sql: 'INSERT INTO t (id) VALUES (1)' })
+		expect(result).toContain('only accepts read statements')
+
+		// The insert must NOT have happened
+		const rows = JSON.parse(await handlers.sqliteQuery!({ sql: 'SELECT count(*) as n FROM t' }))
+		expect(rows[0].n).toBe(0)
+	})
+})
+
+describe('postgres agent tools', () => {
+	const makePg = () => new NodeContainer().feature('postgres', { url: 'postgres://user@localhost:5432/testdb' })
+
+	it('exposes the postgres tool surface', () => {
+		const bundle = makePg().toTools()
+		for (const name of ['pgQuery', 'pgExecute', 'pgListTables', 'pgDescribeTable']) {
+			expect(Object.keys(bundle.schemas)).toContain(name)
+			expect(typeof bundle.handlers[name]).toBe('function')
+		}
+	})
+
+	it('pgQuery rejects write statements before touching the connection', async () => {
+		const pg = makePg()
+		const result = await makeBundleHandler(pg, 'pgQuery')({ sql: 'DELETE FROM users' })
+		expect(result).toContain('only accepts read statements')
+	})
+
+	it('pgQuery delegates read statements with params', async () => {
+		const pg = makePg()
+		let seen: any = null
+		;(pg as any).query = async (sql: string, params: any[]) => { seen = { sql, params }; return [{ id: 1 }] }
+		const result = await makeBundleHandler(pg, 'pgQuery')({ sql: 'SELECT * FROM users WHERE id = $1', params: [1] })
+		expect(seen.params).toEqual([1])
+		expect(JSON.parse(result)).toEqual([{ id: 1 }])
+	})
+
+	it('pgListTables queries information_schema with the schema param', async () => {
+		const pg = makePg()
+		let seen: any = null
+		;(pg as any).query = async (sql: string, params: any[]) => { seen = { sql, params }; return [] }
+		await makeBundleHandler(pg, 'pgListTables')({})
+		expect(seen.sql).toContain('information_schema.tables')
+		expect(seen.params).toEqual(['public'])
+	})
+
+	it('readOnly instances mention it in the prompt extension', () => {
+		const pg = new NodeContainer().feature('postgres', { url: 'postgres://user@localhost:5432/testdb', readOnly: true })
+		const extensions: Record<string, string> = {}
+		pg.setupToolsConsumer({ addSystemPromptExtension: (name: string, text: string) => { extensions[name] = text } } as any)
+		expect(extensions.postgres).toContain('READ-ONLY')
+	})
+})
+
 // Rebuild the bundle after stubbing an instance method, since handlers close
 // over the helper instance at toTools() time
 function makeBundleHandler(helper: any, name: string) {
