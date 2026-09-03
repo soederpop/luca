@@ -9248,6 +9248,19 @@ setBuildTimeData('features.docker', {
   "shortcut": "features.docker",
   "className": "Docker",
   "methods": {
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes these tools, inject usage guidance about container lifecycle and command execution.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
     "checkDockerAvailability": {
       "description": "Check if Docker is available and working.",
       "parameters": {},
@@ -22568,6 +22581,19 @@ setBuildTimeData('features.secureShell', {
   "shortcut": "features.secureShell",
   "className": "SecureShell",
   "methods": {
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes these tools, tell it which host it is talking to — the connection is fixed by the feature's options, not tool arguments.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
     "testConnection": {
       "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
       "parameters": {},
@@ -37625,6 +37651,19 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.docker",
     "className": "Docker",
     "methods": {
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes these tools, inject usage guidance about container lifecycle and command execution.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
       "checkDockerAvailability": {
         "description": "Check if Docker is available and working.",
         "parameters": {},
@@ -50907,6 +50946,19 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.secureShell",
     "className": "SecureShell",
     "methods": {
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes these tools, tell it which host it is talking to — the connection is fixed by the feature's options, not tool arguments.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
       "testConnection": {
         "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
         "parameters": {},

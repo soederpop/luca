@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
+import type { Helper } from '../../helper.js'
 
 export const DockerContainerSchema = z.object({
   /** Container ID */
@@ -90,6 +91,155 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   static override stateSchema = DockerStateSchema
   static override optionsSchema = DockerOptionsSchema
   static { Feature.register(this, 'docker') }
+
+  static override tools: Record<string, { schema: z.ZodType; description?: string; handler?: Function }> = {
+    listContainers: {
+      description: 'List Docker containers as JSON. By default only running containers; pass all: true to include stopped ones.',
+      schema: z.object({
+        all: z.boolean().optional().describe('Include stopped containers (default: false)'),
+      }).describe('List Docker containers as JSON.'),
+      handler: async (args: { all?: boolean }, docker: Docker) =>
+        JSON.stringify(await docker.listContainers({ all: args.all })),
+    },
+    listImages: {
+      description: 'List locally available Docker images as JSON (repository, tag, id, size, created).',
+      schema: z.object({}).describe('List locally available Docker images as JSON.'),
+      handler: async (_args: {}, docker: Docker) => JSON.stringify(await docker.listImages()),
+    },
+    runContainer: {
+      description: 'Create and run a new container from an image. With detach: true it returns the new container ID immediately; without it, the call blocks until the container exits and returns its stdout.',
+      schema: z.object({
+        image: z.string().describe('Image to run, e.g. "nginx:latest" or "node:20-alpine"'),
+        name: z.string().optional().describe('Name for the container'),
+        detach: z.boolean().optional().describe('Run in the background and return the container ID (recommended for services)'),
+        ports: z.array(z.string()).optional().describe('Port mappings in "host:container" format, e.g. ["8080:80"]'),
+        volumes: z.array(z.string()).optional().describe('Volume mounts in "host:container" format, e.g. ["./data:/app/data"]'),
+        environment: z.record(z.string(), z.string()).optional().describe('Environment variables as key-value pairs'),
+        command: z.array(z.string()).optional().describe('Command and arguments to run instead of the image default, e.g. ["sleep", "infinity"]'),
+        workdir: z.string().optional().describe('Working directory inside the container'),
+        entrypoint: z.string().optional().describe('Override the image entrypoint'),
+        network: z.string().optional().describe('Network to connect the container to'),
+      }).describe('Create and run a new container from an image.'),
+      handler: (args: { image: string } & Record<string, any>, docker: Docker) => {
+        const { image, ...options } = args
+        return docker.runContainer(image, options)
+      },
+    },
+    execInContainer: {
+      description: 'Run a shell command inside a running container (via sh -c). Returns JSON with stdout, stderr, and exitCode — always check exitCode.',
+      schema: z.object({
+        container: z.string().describe('Container ID or name'),
+        command: z.string().describe('Shell command to run inside the container, e.g. "ls -la /app"'),
+        workdir: z.string().optional().describe('Working directory inside the container'),
+        user: z.string().optional().describe('Username or UID to run as'),
+      }).describe('Run a shell command inside a running container (via sh -c).'),
+      handler: async (args: { container: string; command: string; workdir?: string; user?: string }, docker: Docker) =>
+        JSON.stringify(await docker.execCommand(args.container, ['sh', '-c', args.command], {
+          workdir: args.workdir,
+          user: args.user,
+        })),
+    },
+    getContainerLogs: {
+      description: 'Fetch logs from a container. Use tail to limit output — logs can be very large.',
+      schema: z.object({
+        container: z.string().describe('Container ID or name'),
+        tail: z.number().optional().describe('Number of lines from the end of the logs (recommended, e.g. 100)'),
+        since: z.string().optional().describe('Only logs since a relative time or timestamp, e.g. "10m"'),
+        timestamps: z.boolean().optional().describe('Prepend a timestamp to each line'),
+      }).describe('Fetch logs from a container.'),
+      handler: (args: { container: string; tail?: number; since?: string; timestamps?: boolean }, docker: Docker) =>
+        docker.getLogs(args.container, { tail: args.tail, since: args.since, timestamps: args.timestamps }),
+    },
+    startContainer: {
+      description: 'Start a stopped container.',
+      schema: z.object({
+        container: z.string().describe('Container ID or name'),
+      }).describe('Start a stopped container.'),
+      handler: async (args: { container: string }, docker: Docker) => {
+        await docker.startContainer(args.container)
+        return `Started ${args.container}`
+      },
+    },
+    stopContainer: {
+      description: 'Stop a running container gracefully (SIGTERM, then SIGKILL after the timeout).',
+      schema: z.object({
+        container: z.string().describe('Container ID or name'),
+        timeout: z.number().optional().describe('Seconds to wait before killing the container'),
+      }).describe('Stop a running container gracefully.'),
+      handler: async (args: { container: string; timeout?: number }, docker: Docker) => {
+        await docker.stopContainer(args.container, args.timeout)
+        return `Stopped ${args.container}`
+      },
+    },
+    removeContainer: {
+      description: 'Remove a container. A running container needs force: true. This is destructive — the container and its writable layer are gone.',
+      schema: z.object({
+        container: z.string().describe('Container ID or name'),
+        force: z.boolean().optional().describe('Force removal of a running container'),
+      }).describe('Remove a container.'),
+      handler: async (args: { container: string; force?: boolean }, docker: Docker) => {
+        await docker.removeContainer(args.container, { force: args.force })
+        return `Removed ${args.container}`
+      },
+    },
+    pullImage: {
+      description: 'Pull an image from a registry. Can take a while for large images.',
+      schema: z.object({
+        image: z.string().describe('Full image reference, e.g. "node:20-alpine" or "ghcr.io/org/repo:tag"'),
+      }).describe('Pull an image from a registry.'),
+      handler: async (args: { image: string }, docker: Docker) => {
+        await docker.pullImage(args.image)
+        return `Pulled ${args.image}`
+      },
+    },
+    removeImage: {
+      description: 'Remove a local image. Fails if a container uses it unless force: true.',
+      schema: z.object({
+        image: z.string().describe('Image ID, repository, or repository:tag'),
+        force: z.boolean().optional().describe('Force removal even if the image is in use'),
+      }).describe('Remove a local image.'),
+      handler: async (args: { image: string; force?: boolean }, docker: Docker) => {
+        await docker.removeImage(args.image, { force: args.force })
+        return `Removed image ${args.image}`
+      },
+    },
+    buildImage: {
+      description: 'Build an image from a Dockerfile in the given context directory.',
+      schema: z.object({
+        contextPath: z.string().describe('Path to the build context directory (where the Dockerfile lives)'),
+        tag: z.string().optional().describe('Tag for the resulting image, e.g. "my-app:latest"'),
+        dockerfile: z.string().optional().describe('Path to an alternate Dockerfile'),
+        buildArgs: z.record(z.string(), z.string()).optional().describe('Build-time variables as key-value pairs'),
+        target: z.string().optional().describe('Target stage in a multi-stage Dockerfile'),
+        nocache: z.boolean().optional().describe('Build without using the layer cache'),
+      }).describe('Build an image from a Dockerfile in the given context directory.'),
+      handler: async (args: { contextPath: string } & Record<string, any>, docker: Docker) => {
+        const { contextPath, ...options } = args
+        await docker.buildImage(contextPath, options)
+        return `Built image from ${contextPath}${args.tag ? ` as ${args.tag}` : ''}`
+      },
+    },
+  }
+
+  /**
+   * When an assistant consumes these tools, inject usage guidance about
+   * container lifecycle and command execution.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('docker', [
+        '## Docker Tools',
+        '',
+        'Containers are addressed by ID or name — use `listContainers` (with all: true to see stopped ones) to find them rather than guessing names.',
+        '',
+        'For services, use `runContainer` with detach: true and check readiness with `getContainerLogs` — a run without detach blocks until the container exits. Always pass tail to `getContainerLogs`; unbounded logs can be huge.',
+        '',
+        '`execInContainer` returns JSON with stdout, stderr, and exitCode — a failed command does NOT throw, so check exitCode yourself.',
+        '',
+        '`removeContainer` and `removeImage` are destructive and not undoable. Prefer `stopContainer` unless the container is truly disposable.',
+      ].join('\n'))
+    }
+  }
 
   override get initialState(): DockerState {
     return {

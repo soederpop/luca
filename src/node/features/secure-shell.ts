@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
+import type { Helper } from '../../helper.js'
 
 export const SecureShellStateSchema = FeatureStateSchema.extend({
 	/** Whether an SSH connection is currently active */
@@ -72,6 +73,59 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
   static override stateSchema = SecureShellStateSchema
   static override optionsSchema = SecureShellOptionsSchema
   static { Feature.register(this, 'secureShell') }
+
+	// Tool names are ssh-prefixed so they stay unambiguous when an assistant
+	// combines this bundle with other exec-shaped tools (docker, proc, etc.)
+	static override tools: Record<string, { schema: z.ZodType; description?: string; handler?: Function }> = {
+		sshExec: {
+			description: 'Run a shell command on the remote host over SSH and return its stdout. The command string reaches the remote shell verbatim — $VARS and $(...) expand on the remote host. Fails (never hangs) if authentication would require an interactive prompt.',
+			schema: z.object({
+				command: z.string().describe('The command to run on the remote host, e.g. "uptime" or "tail -n 50 /var/log/app.log"'),
+			}).describe('Run a shell command on the remote host over SSH and return its stdout.'),
+			handler: (args: { command: string }, ssh: SecureShell) => ssh.exec(args.command),
+		},
+		sshTestConnection: {
+			description: 'Check whether the remote host is reachable and authentication works. Returns "connected" or "not connected" — never throws. Use this before a batch of sshExec calls.',
+			schema: z.object({}).describe('Check whether the remote host is reachable and authentication works.'),
+			handler: async (_args: {}, ssh: SecureShell) =>
+				(await ssh.testConnection()) ? 'connected' : 'not connected',
+		},
+		sshUpload: {
+			description: 'Upload a local file to the remote host via SCP. Remote paths are absolute, or relative to the remote user\'s home directory.',
+			schema: z.object({
+				source: z.string().describe('Local file path to upload'),
+				target: z.string().describe('Destination path on the remote host'),
+			}).describe('Upload a local file to the remote host via SCP.'),
+			handler: (args: { source: string; target: string }, ssh: SecureShell) => ssh.upload(args.source, args.target),
+		},
+		sshDownload: {
+			description: 'Download a file from the remote host to the local machine via SCP. Remote paths are absolute, or relative to the remote user\'s home directory.',
+			schema: z.object({
+				source: z.string().describe('File path on the remote host'),
+				target: z.string().describe('Local destination path'),
+			}).describe('Download a file from the remote host to the local machine via SCP.'),
+			handler: (args: { source: string; target: string }, ssh: SecureShell) => ssh.download(args.source, args.target),
+		},
+	}
+
+	/**
+	 * When an assistant consumes these tools, tell it which host it is talking
+	 * to — the connection is fixed by the feature's options, not tool arguments.
+	 */
+	override setupToolsConsumer(consumer: Helper) {
+		if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+			const { host, port = 22, username } = this.options
+			;(consumer as any).addSystemPromptExtension('secureShell', [
+				'## SSH Tools',
+				'',
+				`All ssh tools operate on a single pre-configured remote host: ${username ?? '?'}@${host ?? '?'} (port ${port}). You cannot change the target host — it is fixed by configuration.`,
+				'',
+				'Commands run non-interactively (BatchMode). Anything that would prompt — sudo passwords, host key confirmations, interactive editors — fails immediately instead of hanging. Prefer flags like `-y`/`--no-pager` and avoid interactive programs.',
+				'',
+				'`sshExec` returns stdout only; a non-zero exit code surfaces as an error with stderr attached. Use `sshTestConnection` first when reachability is uncertain.',
+			].join('\n'))
+		}
+	}
 
 	override get initialState(): SecureShellState {
 		return {
