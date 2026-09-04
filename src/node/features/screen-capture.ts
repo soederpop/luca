@@ -176,22 +176,42 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
         return { path, images: [path] }
       },
     },
+    captureRegion: {
+      description: 'Capture a rectangular region of the screen as an image (coordinates in screen points, origin at the top-left of the main display). The screenshot is attached to the conversation so you can see it. Use listWindows to find window bounds when targeting an area like "the right half" or "where Safari is".',
+      schema: z.object({
+        x: z.number().describe('Left edge of the region, in screen points'),
+        y: z.number().describe('Top edge of the region, in screen points'),
+        width: z.number().describe('Width of the region, in screen points'),
+        height: z.number().describe('Height of the region, in screen points'),
+      }).describe('Capture a screen region and attach the image.'),
+      handler: async (args: { x: number; y: number; width: number; height: number }, capture: ScreenCapture) => {
+        const path = await capture.captureRegion(args)
+        return { path, images: [path] }
+      },
+    },
     listWindows: {
       description: 'List the visible application windows (app name, window title, window id, position and size). Use this to find a capture target before captureWindow.',
       schema: z.object({}).describe('List visible application windows.'),
       handler: (_args: {}, capture: ScreenCapture) => capture.listWindows(),
     },
     recordScreen: {
-      description: 'Start recording the screen to a .mov video file. Returns immediately with a recordingId — the recording continues in the background while you do other work. It stops on its own after duration seconds (default 300); call stopRecording earlier to end it, or afterwards to confirm the finished file. NOTE: you cannot watch the video — report the path to the user.',
+      description: 'Start recording the screen (or a region of it) to a .mov video file. Returns immediately with a recordingId — the recording continues in the background while you do other work. It stops on its own after duration seconds (default 300); call stopRecording earlier to end it, or afterwards to confirm the finished file. To record an area like "the right half" or one app\'s area, use listWindows for bounds and pass a rect — window z-order does not matter, the recording shows the screen as the user sees it. NOTE: you cannot watch the video — report the path to the user.',
       schema: z.object({
         duration: z.number().optional().describe('Auto-stop after this many seconds (default 300 — every recording has a time limit)'),
         audio: z.boolean().optional().describe('Also record audio from the default input (default false)'),
+        rect: z.object({
+          x: z.number().describe('Left edge, in screen points'),
+          y: z.number().describe('Top edge, in screen points'),
+          width: z.number().describe('Width, in screen points'),
+          height: z.number().describe('Height, in screen points'),
+        }).optional().describe('Restrict the recording to this screen region (origin at the top-left of the main display); omit for the full screen'),
+        display: z.number().optional().describe('1-based display number for multi-monitor setups (default: main display)'),
       }).describe('Start a background screen recording.'),
-      handler: async (args: { duration?: number; audio?: boolean }, capture: ScreenCapture) => {
+      handler: async (args: { duration?: number; audio?: boolean; rect?: CaptureRect; display?: number }, capture: ScreenCapture) => {
         // No open-ended recordings from the tool layer: a forgotten one must
         // always run out on its own, so 0/undefined becomes the default cap.
         const duration = args.duration && args.duration > 0 ? args.duration : 300
-        const recording = await capture.record({ duration, audio: args.audio })
+        const recording = await capture.record({ duration, audio: args.audio, rect: args.rect, display: args.display })
         const recordingId = capture.trackRecording(recording)
         return {
           recordingId,

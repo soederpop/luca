@@ -46,7 +46,7 @@ describe('screenCapture feature', () => {
   it('exposes agent tools whose capture handlers attach images', () => {
     const capture = container.feature('screenCapture')
     const { schemas, handlers } = capture.toTools()
-    expect(Object.keys(schemas).sort()).toEqual(['captureScreen', 'captureWindow', 'listWindows', 'recordScreen', 'stopRecording'])
+    expect(Object.keys(schemas).sort()).toEqual(['captureRegion', 'captureScreen', 'captureWindow', 'listWindows', 'recordScreen', 'stopRecording'])
     expect(Object.keys(handlers).sort()).toEqual(Object.keys(schemas).sort())
   })
 
