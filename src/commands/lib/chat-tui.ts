@@ -103,7 +103,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		showThinking: false,
 		// Only surface the ctrl+t hint once a model has actually streamed reasoning
 		sawReasoning: false,
-		mode: 'input' as 'input' | 'picker' | 'console',
+		mode: 'input' as 'input' | 'picker' | 'console' | 'ui',
 		picker: null as null | {
 			title: string
 			items: Array<{ label: string; hint?: string; value: string }>
@@ -111,6 +111,12 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			onPick: (value: string) => void | Promise<void>
 			/** Called when the picker is dismissed (esc, or the turn aborts). */
 			onCancel?: () => void
+		},
+		/** Assistant-authored ink component mounted by the renderUi tool. */
+		ui: null as null | {
+			Component: any
+			title: string
+			settle: (result: { value: unknown } | { cancelled: true } | { error: string }) => void
 		},
 		notice: '',
 		exitRequested: false,
@@ -153,6 +159,66 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		return lines
 	}
 
+	// renderUi: compile assistant-authored TSX against the session's single
+	// React/ink instance. A second React copy breaks every hook, so imports of
+	// 'react'/'ink' are resolved to the live modules via this require shim —
+	// never to node_modules.
+	const uiModuleShim: Record<string, any> = {}
+	function uiRequire(id: string) {
+		if (id === 'react') return React
+		if (id === 'ink') {
+			if (!uiModuleShim.ink) uiModuleShim.ink = { ...ink.components, ...ink.hooks }
+			return uiModuleShim.ink
+		}
+		throw new Error(`import "${id}" is not available in renderUi — only "react" and "ink" can be imported`)
+	}
+
+	function compileUiComponent(source: string): any {
+		const transpiler = container.feature('transpiler')
+		const out = transpiler.transformSync(source, { loader: 'tsx', format: 'cjs' })
+		// Classic JSX compiles to React.createElement calls. If the source
+		// imported React itself the CJS transform already declared it — injecting
+		// our own binding then would be a duplicate-declaration SyntaxError, so
+		// only add the prelude when the code doesn't bind React.
+		const bindsReact = /\b(?:const|let|var|function|class)\s+React\b/.test(out.code)
+		const code = (bindsReact ? '' : "const React = require('react');\n") + out.code
+		const moduleRef = { exports: {} as any }
+		const factory = new Function('module', 'exports', 'require', 'container', code)
+		factory(moduleRef, moduleRef.exports, uiRequire, container)
+		const exported = moduleRef.exports
+		const Component = exported?.default ?? exported?.Widget ?? (typeof exported === 'function' ? exported : null)
+		if (typeof Component !== 'function') {
+			throw new Error('source must export default a function component (or export one named Widget)')
+		}
+		return Component
+	}
+
+	// Class error boundary: a render crash inside assistant-authored UI settles
+	// the tool call with the error instead of taking down the whole chat app.
+	class UiErrorBoundary extends (React.Component as any) {
+		state = { failed: false }
+		static getDerivedStateFromError() { return { failed: true } }
+		componentDidCatch(err: any) {
+			settleUi({ error: `component crashed while rendering: ${err?.message || err}` })
+		}
+		render() {
+			return (this.state as any).failed ? null : (this.props as any).children
+		}
+	}
+
+	function settleUi(result: { value: unknown } | { cancelled: true } | { error: string }) {
+		const active = store.ui
+		if (!active) return
+		store.ui = null
+		store.mode = 'input'
+		const outcome = 'error' in result
+			? colors.red(result.error)
+			: 'cancelled' in result ? colors.yellow('cancelled') : colors.cyan('done')
+		store.transcript.push({ id: uid(), kind: 'system', lines: [colors.dim(`◫ ${active.title} → `) + outcome] })
+		bump()
+		active.settle(result)
+	}
+
 	const inkSurface = createInkSurface({
 		show(spec) {
 			store.transcript.push({ id: uid(), kind: 'system', lines: renderWidget(spec) })
@@ -186,6 +252,24 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 					onPick: (value) => settle({ value, label: items.find((item) => item.value === value)?.label ?? value }),
 					onCancel: () => settle({ cancelled: true }),
 				}
+				bump()
+			})
+		},
+		renderUi(spec) {
+			return new Promise((resolve) => {
+				if (store.mode !== 'input') {
+					resolve({ error: `cannot mount UI while the terminal is in ${store.mode} mode` })
+					return
+				}
+				let Component: any
+				try {
+					Component = compileUiComponent(spec.source)
+				} catch (err: any) {
+					resolve({ error: `failed to compile component: ${err?.message || err}` })
+					return
+				}
+				store.mode = 'ui'
+				store.ui = { Component, title: spec.title || 'custom ui', settle: resolve }
 				bump()
 			})
 		},
@@ -340,8 +424,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	}
 
 	function abortActive() {
-		// A pending askUser widget holds the turn open — settle it first so the
-		// tool promise resolves and the abort doesn't leave it dangling.
+		// A pending askUser/renderUi widget holds the turn open — settle it first
+		// so the tool promise resolves and the abort doesn't leave it dangling.
 		if (store.mode === 'picker' && store.picker?.onCancel) {
 			const cancel = store.picker.onCancel
 			store.mode = 'input'
@@ -349,6 +433,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			bump()
 			cancel()
 		}
+		if (store.mode === 'ui' && store.ui) settleUi({ cancelled: true })
 		const target = store.current?.who || store.target
 		if (!target) return
 		const cell = cells.get(target)
@@ -915,6 +1000,13 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				return
 			}
 
+			if (store.mode === 'ui') {
+				// The assistant's component owns the keyboard (its own useInput
+				// hooks receive every key) — the app only keeps the escape hatch.
+				if (key.ctrl && input === 'c') settleUi({ cancelled: true })
+				return
+			}
+
 			if (key.ctrl && input === 'c') {
 				if (store.busy) return abortActive()
 				if (value) return setInput('', 0)
@@ -1038,7 +1130,17 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`working… ${elapsed}s · esc to interrupt`)}`)] : []),
 			...store.queue.map((queued, index) => h(Text, { key: `q${index}`, dimColor: true }, `  ⧗ queued: ${queued.text.split('\n')[0]}`)),
 			...(store.mode === 'picker' && store.picker ? [h(Picker, {})] : []),
-			...(store.mode !== 'picker' ? [h(Box, { marginTop: 1 }, h(Text, null, promptSymbol + rendered.split('\n').join('\n' + colors.dim('… ')))) ] : []),
+			...(store.mode === 'ui' && store.ui ? [h(Box, { flexDirection: 'column', marginTop: 1 },
+				h(UiErrorBoundary, {},
+					h(store.ui.Component, {
+						done: (value: unknown) => settleUi({ value: value === undefined ? null : value }),
+						cancel: () => settleUi({ cancelled: true }),
+						container,
+					}),
+				),
+				h(Text, { dimColor: true }, '  ctrl+c dismisses'),
+			)] : []),
+			...(store.mode !== 'picker' && store.mode !== 'ui' ? [h(Box, { marginTop: 1 }, h(Text, null, promptSymbol + rendered.split('\n').join('\n' + colors.dim('… ')))) ] : []),
 			...(store.notice ? [h(Text, { dimColor: true }, '  ' + store.notice)] : []),
 			h(StatusLine, {}),
 		)

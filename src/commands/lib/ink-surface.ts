@@ -21,6 +21,8 @@ export interface InkSurfaceDeps {
 	show: (spec: ShowWidgetArgs) => void
 	/** Present an interactive prompt; resolves with the user's answer. */
 	ask: (spec: AskUserArgs) => Promise<AskUserResult>
+	/** Compile and mount an assistant-authored ink component; resolves when it calls done()/cancel(). */
+	renderUi: (spec: RenderUiArgs) => Promise<RenderUiResult>
 }
 
 export const showWidgetSchema = z.object({
@@ -42,15 +44,32 @@ export const askUserSchema = z.object({
 	})).optional().describe("Choices for kind 'select' (2-10 recommended). Ignored for 'confirm'."),
 }).describe("Present an interactive prompt in the terminal and wait for the user's keyboard answer. The result is what they chose, or { cancelled: true } if they pressed escape — respect a cancellation, do not immediately re-ask.")
 
+export const renderUiSchema = z.object({
+	source: z.string().describe(
+		'TypeScript/JSX source for an ink component. Must export default a function component (or define one named Widget). ' +
+		'React and ink are already loaded — import from "react" and "ink" normally (Box, Text, useInput, useState, ...), but never call render() yourself. ' +
+		'The component receives props { done, cancel }: call done(result) with any JSON-serializable value to finish and return that result to you; ' +
+		'the user can back out with ctrl+c, which resolves as { cancelled: true }. ' +
+		'Always wire a way to finish (useInput handling enter/escape, a final selection, etc.) — the conversation is blocked until done() or cancel() is called.',
+	),
+	title: z.string().optional().describe('Short label for the transcript line recording that this UI ran'),
+}).describe('Build and mount a fully custom interactive ink UI in the terminal (forms, dashboards, games, multi-step wizards — anything ink can render). Heavier than askUser; prefer askUser for a simple choice.')
+
 export type ShowWidgetArgs = z.infer<typeof showWidgetSchema>
 export type AskUserArgs = z.infer<typeof askUserSchema>
 export type AskUserResult = { value: string; label: string } | { cancelled: true }
+export type RenderUiArgs = z.infer<typeof renderUiSchema>
+export type RenderUiResult = { value: unknown } | { cancelled: true } | { error: string }
 
 const PROMPT_EXTENSION = [
-	'You are running inside an interactive terminal chat UI and have two UI tools.',
+	'You are running inside an interactive terminal chat UI and have three UI tools.',
 	'Use showWidget to present structured information (tables, lists, rendered markdown) instead of large text dumps.',
 	'Use askUser when you need the human to decide something — it renders a keyboard-driven menu and returns their choice as the tool result.',
-	'askUser blocks until they answer; if the result is { cancelled: true } they dismissed it, so continue without that answer instead of re-asking.',
+	'Use renderUi to build any custom interactive terminal UI: you write an ink (React for terminals) component and it is compiled and mounted live.',
+	'renderUi contract: export default a function component; React and ink imports work normally (useState, Box, Text, useInput, ...); never call render(); ',
+	'call props.done(result) to finish — the result becomes your tool result — and always give the user a keyboard path to done() or props.cancel().',
+	'All interactive tools block until answered; if the result is { cancelled: true } the user dismissed it, so continue without that answer instead of re-asking.',
+	'If renderUi returns { error }, fix the component source and try once more.',
 ].join(' ')
 
 /**
@@ -65,6 +84,7 @@ export function createInkSurface(deps: InkSurfaceDeps) {
 		schemas: {
 			showWidget: showWidgetSchema,
 			askUser: askUserSchema,
+			renderUi: renderUiSchema,
 		},
 		handlers: {
 			showWidget(args: ShowWidgetArgs) {
@@ -87,6 +107,10 @@ export function createInkSurface(deps: InkSurfaceDeps) {
 					return { error: "kind 'select' requires options" }
 				}
 				return deps.ask(parsed)
+			},
+			async renderUi(args: RenderUiArgs) {
+				const parsed = renderUiSchema.parse(args)
+				return deps.renderUi(parsed)
 			},
 		},
 		setup(assistant: any) {
