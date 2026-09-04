@@ -275,6 +275,63 @@ export class VM<
       ...options
     })
   }
+
+  /**
+   * Detect the engine's "return outside a function" SyntaxError. Detection is
+   * the parser's own verdict, never a source regex: strings, comments, and
+   * nested functions make pattern-matching `return` unreliable. The check is
+   * by error NAME rather than instanceof — the error is constructed inside
+   * the vm context's realm, whose SyntaxError is a different constructor.
+   * Message text covers both engines (JSC under bun, V8 under node).
+   */
+  private _isTopLevelReturnError(err: any): boolean {
+    return err?.name === 'SyntaxError' &&
+      /return statements are only valid inside functions|illegal return statement/i.test(err?.message || '')
+  }
+
+  /**
+   * Run a script, recovering from a top-level `return` by re-running the
+   * snippet as an IIFE body — where the `return` is legal and produces the
+   * completion value the user meant. REPL users write `return x` constantly
+   * because it IS legal in a function body; meeting them there beats a
+   * SyntaxError.
+   *
+   * Recovery happens at run time because bun's vm.Script defers parsing to
+   * runInContext — a parse error there means NO user code executed, so the
+   * wrapped re-run cannot double side effects. If the wrapped form still
+   * fails to parse, the ORIGINAL error is rethrown so genuine syntax
+   * mistakes surface unchanged. When recovery fires, declarations stay
+   * inside the wrapper instead of landing on a shared context — previously
+   * the snippet didn't run at all, so nothing regresses.
+   */
+  private async _runInContextWithReturnRecovery<T>(code: string, context: vm.Context, opts: VMRunOptions): Promise<T> {
+    try {
+      return (await this.createScript(code, this._scriptOptions(opts)).runInContext(context)) as T
+    } catch (err: any) {
+      if (!this._isTopLevelReturnError(err)) throw err
+      const wrapped = `(async () => {\n${code}\n})()`
+      try {
+        return (await this.createScript(wrapped, this._scriptOptions(opts)).runInContext(context)) as T
+      } catch (retryErr: any) {
+        throw retryErr?.name === 'SyntaxError' ? err : retryErr
+      }
+    }
+  }
+
+  /** Synchronous twin of {@link _runInContextWithReturnRecovery} (plain IIFE, no await support). */
+  private _runInContextSyncWithReturnRecovery<T>(code: string, context: vm.Context, opts: VMRunOptions): T {
+    try {
+      return this.createScript(code, this._scriptOptions(opts)).runInContext(context) as T
+    } catch (err: any) {
+      if (!this._isTopLevelReturnError(err)) throw err
+      const wrapped = `(() => {\n${code}\n})()`
+      try {
+        return this.createScript(wrapped, this._scriptOptions(opts)).runInContext(context) as T
+      } catch (retryErr: any) {
+        throw retryErr?.name === 'SyntaxError' ? err : retryErr
+      }
+    }
+  }
  
   /**
    * Check whether an object has already been contextified by `vm.createContext()`.
@@ -528,10 +585,9 @@ export class VM<
    */
   async run<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<T> {
     const wrapped = this.wrapTopLevelAwait(code)
-    const script = this.createScript(wrapped, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return (await script.runInContext(context)) as T
+    return this._runInContextWithReturnRecovery<T>(wrapped, context, opts)
   }
 
   /**
@@ -575,9 +631,8 @@ export class VM<
     if (isExisting) ctx.console = captureConsole
 
     const wrapped = this.wrapTopLevelAwait(code)
-    const script = this.createScript(wrapped, this._scriptOptions(opts))
     try {
-      const result = (await script.runInContext(context)) as T
+      const result = await this._runInContextWithReturnRecovery<T>(wrapped, context, opts)
       return { result, console: calls, context }
     } finally {
       if (isExisting) ctx.console = prevConsole
@@ -599,10 +654,9 @@ export class VM<
    * ```
    */
   runSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): T {
-    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return script.runInContext(context) as T
+    return this._runInContextSyncWithReturnRecovery<T>(code, context, opts)
   }
 
   /**
@@ -624,10 +678,9 @@ export class VM<
    * ```
    */
   async perform<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<{ result: T, context: vm.Context }> {
-    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return { result: (await script.runInContext(context)) as T, context }
+    return { result: await this._runInContextWithReturnRecovery<T>(code, context, opts), context }
   }
 
   /**
@@ -654,10 +707,9 @@ export class VM<
    * ```
    */
   performSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): { result: T, context: vm.Context } {
-    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return { result: script.runInContext(context) as T, context }
+    return { result: this._runInContextSyncWithReturnRecovery<T>(code, context, opts), context }
   }
 
   /**
