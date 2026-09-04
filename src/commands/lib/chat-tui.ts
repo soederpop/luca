@@ -189,6 +189,21 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		throw new Error(`import "${id}" is not available in renderUi — only "react" and "ink" can be imported`)
 	}
 
+	// Scope proxy backing the `with` block in compiled UI components: resolves
+	// bare identifiers against container.context on every lookup. Names our
+	// factory already binds are excluded so context keys can never shadow the
+	// tool contract (done/cancel/require/...).
+	const UI_SCOPE_RESERVED = new Set(['module', 'exports', 'require', 'container', 'done', 'cancel', 'React'])
+	function makeContextScope() {
+		return new Proxy({}, {
+			has: (_target, key) => typeof key === 'string' && !UI_SCOPE_RESERVED.has(key) && key in (container.context ?? {}),
+			get: (_target, key) => {
+				if (key === Symbol.unscopables) return undefined
+				return (container.context as any)?.[key]
+			},
+		})
+	}
+
 	function compileUiComponent(source: string, scope: { done: (value: unknown) => void; cancel: () => void }): any {
 		const transpiler = container.feature('transpiler')
 		const out = transpiler.transformSync(source, { loader: 'tsx', format: 'cjs' })
@@ -197,13 +212,26 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		// our own binding then would be a duplicate-declaration SyntaxError, so
 		// only add the prelude when the code doesn't bind React.
 		const bindsReact = /\b(?:const|let|var|function|class)\s+React\b/.test(out.code)
-		const code = (bindsReact ? '' : "const React = require('react');\n") + out.code
+		// Strip a leading "use strict" — the context scope below relies on
+		// sloppy-mode `with`, and the directive would make it a SyntaxError.
+		const userCode = out.code.replace(/^\s*(['"])use strict\1;?\s*/, '')
+		const code = (bindsReact ? '' : "const React = require('react');\n") + userCode
 		const moduleRef = { exports: {} as any }
 		// done/cancel are in module scope as well as props: a component that
 		// forgets to destructure its props and calls bare done() still settles
 		// the tool call instead of throwing "done is not defined" mid-keystroke.
-		const factory = new Function('module', 'exports', 'require', 'container', 'done', 'cancel', code)
-		factory(moduleRef, moduleRef.exports, uiRequire, container, scope.done, scope.cancel)
+		//
+		// The `with` block spreads container.context into scope by NAME: every
+		// feature instance and everything added via container.addContext resolves
+		// as a bare identifier, live (values added after compile are seen too,
+		// since the proxy consults container.context per lookup). Unlike injecting
+		// context keys as parameters, the component's own `const ui = ...` simply
+		// shadows a context key instead of being a duplicate-declaration error.
+		const factory = new Function(
+			'module', 'exports', 'require', 'container', 'done', 'cancel', '__containerContext',
+			`with (__containerContext) {\n${code}\n}`,
+		)
+		factory(moduleRef, moduleRef.exports, uiRequire, container, scope.done, scope.cancel, makeContextScope())
 		const exported = moduleRef.exports
 		const Component = exported?.default ?? exported?.Widget ?? (typeof exported === 'function' ? exported : null)
 		if (typeof Component !== 'function') {

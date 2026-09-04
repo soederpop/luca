@@ -51,7 +51,9 @@ export const renderUiSchema = z.object({
 		'Call done(result) with any JSON-serializable value to finish — that result becomes your tool result; cancel() dismisses. ' +
 		'Always wire a keyboard path to done() or cancel() (e.g. useInput handling enter/escape) — the conversation is blocked until one is called, ' +
 		'and the user can force-dismiss with ctrl+c, which resolves as { cancelled: true }. ' +
-		'React and ink are already loaded — import from "react" and "ink" normally (Box, Text, useInput, useState, ...), but never call render() yourself.',
+		'React and ink are already loaded — import from "react" and "ink" normally (Box, Text, useInput, useState, ...), but never call render() yourself. ' +
+		'The luca container is in scope as `container`, and everything on container.context is also in scope by bare name — ' +
+		'feature instances and any values registered via container.addContext resolve directly (e.g. a context key `stats` is just `stats`).',
 	),
 	title: z.string().optional().describe('Short label for the transcript line recording that this UI ran'),
 }).describe('Build and mount a fully custom interactive ink UI in the terminal (forms, dashboards, games, multi-step wizards — anything ink can render). Heavier than askUser; prefer askUser for a simple choice.')
@@ -68,6 +70,7 @@ const PROMPT_EXTENSION = [
 	'Use askUser when you need the human to decide something — it renders a keyboard-driven menu and returns their choice as the tool result.',
 	'Use renderUi to build any custom interactive terminal UI: you write an ink (React for terminals) component and it is compiled and mounted live.',
 	'renderUi contract: `export default function Widget({ done, cancel })` — done/cancel are PROPS, destructure them; React and ink imports work normally (useState, Box, Text, useInput, ...); never call render(); ',
+	'inside renderUi source, `container` and every key on container.context (feature instances, container.addContext values) are in scope by bare name; ',
 	'call done(result) to finish — the result becomes your tool result — and always give the user a keyboard path to done() or cancel().',
 	'All interactive tools block until answered; if the result is { cancelled: true } the user dismissed it, so continue without that answer instead of re-asking.',
 	'If renderUi returns { error }, fix the component source and try once more.',
