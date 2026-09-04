@@ -79,7 +79,9 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
    * standalone (assistant: null, no start()) — it talks straight to the
    * Telnyx API. Deployment verbs (start/stop/wiring) are deliberately absent:
    * deploys are config-driven and process-bound, not something a chat model
-   * should do live. Consumers trim with toTools({ only }) / ({ except }).
+   * should do live — and so is anything that spends money (searchNumbers /
+   * purchaseNumber stay CLI-only). Consumers trim further with
+   * toTools({ only }) / ({ except }).
    */
   static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
     dial: {
@@ -156,25 +158,6 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
         phoneNumber: z.string().describe('E.164 number, e.g. +13125552200'),
       }).describe('Voice and messaging configuration for one phone number on the account, or null if not found.'),
       handler: (args: any, self: any) => self.getPhoneNumber(args.phoneNumber),
-    },
-    searchNumbers: {
-      schema: z.object({
-        areaCode: z.string().optional().describe("Three-digit national destination code, e.g. '312'"),
-        locality: z.string().optional().describe("City name, e.g. 'Chicago'"),
-        administrativeArea: z.string().optional().describe("US state / CA province, e.g. 'IL'"),
-        countryCode: z.string().optional().describe("ISO country code; defaults to 'US'"),
-        features: z.array(z.enum(['sms', 'mms', 'voice', 'fax', 'emergency', 'hd_voice', 'international_sms', 'local_calling'])).optional().describe("Required features, e.g. ['sms', 'voice']"),
-        limit: z.number().optional().describe('Max results; defaults to 10'),
-      }).describe('Search Telnyx inventory for purchasable phone numbers. Read-only — nothing is bought.'),
-    },
-    purchaseNumber: {
-      schema: z.object({
-        phoneNumber: z.string().describe('E.164 number from searchNumbers results'),
-        customerReference: z.string().optional().describe('Free-form reference stored on the order'),
-      }).describe('Purchase a phone number from Telnyx inventory. THIS SPENDS REAL MONEY and adds a recurring monthly charge. Never call it unless the user has explicitly confirmed this exact number in this conversation.'),
-      handler: (args: any, self: any) => self.purchaseNumber(args.phoneNumber, {
-        customerReference: args.customerReference,
-      }),
     },
     listVoices: {
       schema: z.object({
