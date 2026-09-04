@@ -55,6 +55,18 @@ abstract class Registry<T extends Helper> {
     return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, '')).sort()
   }
 
+  /**
+   * Lists the keys of helpers whose class declares static tools — the ones an
+   * assistant can use() as a tool provider. Inherited tools count, since
+   * toTools() collects them up the prototype chain.
+  */
+  get availableToolsProviders() : string[] {
+    return this.available.filter(id => {
+      const Constructor = this.lookup(id) as any
+      return Object.keys(Constructor.tools ?? {}).length > 0
+    })
+  }
+
   /** 
    * Register a new helper in this registry.
    * 

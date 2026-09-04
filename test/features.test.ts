@@ -27,6 +27,18 @@ describe('Features', () => {
       const FSClass = c.features.lookup('fs')
       expect(typeof FSClass).toBe('function')
     })
+
+    it('availableToolsProviders lists only helpers with static tools', () => {
+      const c = new NodeContainer()
+      const providers = c.features.availableToolsProviders
+      expect(providers).toContain('sqlite')
+      expect(providers).toContain('contentDb')
+      expect(providers).not.toContain('fs')
+      expect(providers).not.toContain('yaml')
+      for (const id of providers) {
+        expect(Object.keys((c.features.lookup(id) as any).tools).length).toBeGreaterThan(0)
+      }
+    })
   })
 
   describe('core features are auto-enabled', () => {
