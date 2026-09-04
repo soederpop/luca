@@ -26494,6 +26494,92 @@ setBuildTimeData('features.ui', {
         }
       ]
     },
+    "canvas": {
+      "description": "Creates a truecolor pixel canvas that renders to terminal characters. The high-fidelity tier above `asciiArt`/`banner`: instead of pre-drawn figlet glyphs you get an RGB framebuffer with drawing primitives (set, line, rect, circle, fillGradient) that renders in two modes: - `render('half')` — each cell is 2 vertical pixels (`▀` with 24-bit fg + bg). Full color; resolution = width x height/2 cells. - `render('braille')` — each cell packs 2x4 pixels (`⠁`-`⣿`), 4x the dot density but one averaged color per cell. Best for line art and plots. Dimensions are in PIXELS, not terminal cells. For a canvas spanning N columns use width N (half mode) or N*2 (braille mode). NOTE: colors rely on chalk, which strips ANSI when stdout is not a TTY — set FORCE_COLOR=1 to keep color through pipes.",
+      "parameters": {
+        "width": {
+          "type": "number",
+          "description": "Canvas width in pixels"
+        },
+        "height": {
+          "type": "number",
+          "description": "Canvas height in pixels (even for half mode, multiple of 4 for braille)"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "returns": "TerminalCanvas",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\n\n// A gradient panel with a circle, at 2-pixels-per-cell resolution\nconst canvas = ui.canvas(60, 20)\ncanvas.fillGradient('#1a1a2e', '#e94560', 'diagonal')\ncanvas.circle(30, 10, 7, '#ffd166', { fill: true })\nconsole.log(canvas.render('half'))\n\n// A sine wave in braille (2x4 dots per cell)\nconst wave = ui.canvas(120, 24)\nfor (let x = 0; x < 120; x++) {\n wave.set(x, 12 + Math.round(Math.sin(x / 8) * 10), '#4ecdc4')\n}\nconsole.log(wave.render('braille'))"
+        }
+      ]
+    },
+    "lerpColor": {
+      "description": "Linearly interpolate between two colors. Accepts hex strings, [r,g,b] tuples, or {r,g,b} objects; returns an {r,g,b} object usable with `ui.colors.rgb()` or `canvas.set()`.",
+      "parameters": {
+        "from": {
+          "type": "CanvasColor",
+          "description": "Start color"
+        },
+        "to": {
+          "type": "CanvasColor",
+          "description": "End color"
+        },
+        "t": {
+          "type": "number",
+          "description": "Blend position, 0 (from) to 1 (to), clamped"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "t"
+      ],
+      "returns": "{ r: number; g: number; b: number }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\nconst mid = ui.lerpColor('#ff0000', '#0000ff', 0.5)\nconsole.log(ui.colors.rgb(mid.r, mid.g, mid.b)('purple-ish'))"
+        }
+      ]
+    },
+    "animate": {
+      "description": "Runs a frame-rendering loop that redraws in place, for animated banners, gradient sweeps, and live canvas scenes. Each tick your callback returns the full frame as a string; the previous frame is overwritten in place with ANSI cursor movement (no flicker, no scrollback spam). The cursor is hidden while running and restored on stop. **Non-TTY behavior:** when stdout is not a TTY (pipes, CI), the first frame is rendered once and the animation resolves immediately — output stays clean and nothing busy-loops. Frames should keep a constant line count; when a frame has fewer lines than the previous one, each rewritten line is cleared but extra old lines below are not.",
+      "parameters": {
+        "renderFrame": {
+          "type": "(frame: number) => string",
+          "description": "Called with the frame number; returns the frame text"
+        },
+        "options": {
+          "type": "{ fps?: number; frames?: number }",
+          "description": "Animation options",
+          "properties": {
+            "fps": {
+              "type": "any",
+              "description": "Frames per second (default 20)"
+            },
+            "frames": {
+              "type": "any",
+              "description": "Total frames to render; omit to run until stop() is called"
+            }
+          }
+        }
+      },
+      "required": [
+        "renderFrame"
+      ],
+      "returns": "{ stop: () => void; done: Promise<void> }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\n\n// Animated gradient sweep across a banner (finite, awaitable)\nconst art = ui.asciiArt('LUCA', 'Big')\nconst { done } = ui.animate(\n (frame) => ui.applyGradient(art, ['cyan', 'blue', 'magenta'], 'horizontal', frame),\n { fps: 24, frames: 48 }\n)\nawait done\n\n// Open-ended canvas scene — stop it yourself\nconst anim = ui.animate((frame) => {\n const c = ui.canvas(60, 16)\n c.fillGradient('#16213e', '#0f3460')\n c.circle(10 + (frame % 40), 8, 5, '#e94560', { fill: true })\n return c.render('half')\n})\nsetTimeout(() => anim.stop(), 100)\nawait anim.done"
+        }
+      ]
+    },
     "endent": {
       "description": "Dedent and format a tagged template literal using endent. Strips leading indentation while preserving relative indentation.",
       "parameters": {
@@ -26521,6 +26607,10 @@ setBuildTimeData('features.ui', {
         "direction": {
           "type": "\"horizontal\" | \"vertical\"",
           "description": "Gradient direction: 'horizontal' or 'vertical'"
+        },
+        "offset": {
+          "type": "any",
+          "description": "Phase offset shifting where the color cycle starts — increment it per frame (e.g. inside `ui.animate`) for a sweeping animation"
         }
       },
       "required": [
@@ -26544,6 +26634,10 @@ setBuildTimeData('features.ui', {
         "lineColors": {
           "type": "Color[]",
           "description": "Array of colors to cycle through"
+        },
+        "offset": {
+          "type": "any",
+          "description": "Phase offset shifting where the cycle starts (animate by incrementing per frame)"
         }
       },
       "required": [
@@ -26567,6 +26661,10 @@ setBuildTimeData('features.ui', {
         "lineColors": {
           "type": "Color[]",
           "description": "Array of colors to cycle through for each line"
+        },
+        "offset": {
+          "type": "any",
+          "description": "Phase offset shifting where the cycle starts (animate by incrementing per frame)"
         }
       },
       "required": [
@@ -55368,6 +55466,92 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "canvas": {
+        "description": "Creates a truecolor pixel canvas that renders to terminal characters. The high-fidelity tier above `asciiArt`/`banner`: instead of pre-drawn figlet glyphs you get an RGB framebuffer with drawing primitives (set, line, rect, circle, fillGradient) that renders in two modes: - `render('half')` — each cell is 2 vertical pixels (`▀` with 24-bit fg + bg). Full color; resolution = width x height/2 cells. - `render('braille')` — each cell packs 2x4 pixels (`⠁`-`⣿`), 4x the dot density but one averaged color per cell. Best for line art and plots. Dimensions are in PIXELS, not terminal cells. For a canvas spanning N columns use width N (half mode) or N*2 (braille mode). NOTE: colors rely on chalk, which strips ANSI when stdout is not a TTY — set FORCE_COLOR=1 to keep color through pipes.",
+        "parameters": {
+          "width": {
+            "type": "number",
+            "description": "Canvas width in pixels"
+          },
+          "height": {
+            "type": "number",
+            "description": "Canvas height in pixels (even for half mode, multiple of 4 for braille)"
+          }
+        },
+        "required": [
+          "width",
+          "height"
+        ],
+        "returns": "TerminalCanvas",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\n\n// A gradient panel with a circle, at 2-pixels-per-cell resolution\nconst canvas = ui.canvas(60, 20)\ncanvas.fillGradient('#1a1a2e', '#e94560', 'diagonal')\ncanvas.circle(30, 10, 7, '#ffd166', { fill: true })\nconsole.log(canvas.render('half'))\n\n// A sine wave in braille (2x4 dots per cell)\nconst wave = ui.canvas(120, 24)\nfor (let x = 0; x < 120; x++) {\n wave.set(x, 12 + Math.round(Math.sin(x / 8) * 10), '#4ecdc4')\n}\nconsole.log(wave.render('braille'))"
+          }
+        ]
+      },
+      "lerpColor": {
+        "description": "Linearly interpolate between two colors. Accepts hex strings, [r,g,b] tuples, or {r,g,b} objects; returns an {r,g,b} object usable with `ui.colors.rgb()` or `canvas.set()`.",
+        "parameters": {
+          "from": {
+            "type": "CanvasColor",
+            "description": "Start color"
+          },
+          "to": {
+            "type": "CanvasColor",
+            "description": "End color"
+          },
+          "t": {
+            "type": "number",
+            "description": "Blend position, 0 (from) to 1 (to), clamped"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "t"
+        ],
+        "returns": "{ r: number; g: number; b: number }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\nconst mid = ui.lerpColor('#ff0000', '#0000ff', 0.5)\nconsole.log(ui.colors.rgb(mid.r, mid.g, mid.b)('purple-ish'))"
+          }
+        ]
+      },
+      "animate": {
+        "description": "Runs a frame-rendering loop that redraws in place, for animated banners, gradient sweeps, and live canvas scenes. Each tick your callback returns the full frame as a string; the previous frame is overwritten in place with ANSI cursor movement (no flicker, no scrollback spam). The cursor is hidden while running and restored on stop. **Non-TTY behavior:** when stdout is not a TTY (pipes, CI), the first frame is rendered once and the animation resolves immediately — output stays clean and nothing busy-loops. Frames should keep a constant line count; when a frame has fewer lines than the previous one, each rewritten line is cleared but extra old lines below are not.",
+        "parameters": {
+          "renderFrame": {
+            "type": "(frame: number) => string",
+            "description": "Called with the frame number; returns the frame text"
+          },
+          "options": {
+            "type": "{ fps?: number; frames?: number }",
+            "description": "Animation options",
+            "properties": {
+              "fps": {
+                "type": "any",
+                "description": "Frames per second (default 20)"
+              },
+              "frames": {
+                "type": "any",
+                "description": "Total frames to render; omit to run until stop() is called"
+              }
+            }
+          }
+        },
+        "required": [
+          "renderFrame"
+        ],
+        "returns": "{ stop: () => void; done: Promise<void> }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\n\n// Animated gradient sweep across a banner (finite, awaitable)\nconst art = ui.asciiArt('LUCA', 'Big')\nconst { done } = ui.animate(\n (frame) => ui.applyGradient(art, ['cyan', 'blue', 'magenta'], 'horizontal', frame),\n { fps: 24, frames: 48 }\n)\nawait done\n\n// Open-ended canvas scene — stop it yourself\nconst anim = ui.animate((frame) => {\n const c = ui.canvas(60, 16)\n c.fillGradient('#16213e', '#0f3460')\n c.circle(10 + (frame % 40), 8, 5, '#e94560', { fill: true })\n return c.render('half')\n})\nsetTimeout(() => anim.stop(), 100)\nawait anim.done"
+          }
+        ]
+      },
       "endent": {
         "description": "Dedent and format a tagged template literal using endent. Strips leading indentation while preserving relative indentation.",
         "parameters": {
@@ -55395,6 +55579,10 @@ export const introspectionData: Record<string, any>[] = [
           "direction": {
             "type": "\"horizontal\" | \"vertical\"",
             "description": "Gradient direction: 'horizontal' or 'vertical'"
+          },
+          "offset": {
+            "type": "any",
+            "description": "Phase offset shifting where the color cycle starts — increment it per frame (e.g. inside `ui.animate`) for a sweeping animation"
           }
         },
         "required": [
@@ -55418,6 +55606,10 @@ export const introspectionData: Record<string, any>[] = [
           "lineColors": {
             "type": "Color[]",
             "description": "Array of colors to cycle through"
+          },
+          "offset": {
+            "type": "any",
+            "description": "Phase offset shifting where the cycle starts (animate by incrementing per frame)"
           }
         },
         "required": [
@@ -55441,6 +55633,10 @@ export const introspectionData: Record<string, any>[] = [
           "lineColors": {
             "type": "Color[]",
             "description": "Array of colors to cycle through for each line"
+          },
+          "offset": {
+            "type": "any",
+            "description": "Phase offset shifting where the cycle starts (animate by incrementing per frame)"
           }
         },
         "required": [
