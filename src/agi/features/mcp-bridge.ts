@@ -6,6 +6,45 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv-provider.js'
+
+// Servers written against protobuf/OpenAPI conventions (cua-driver, for one)
+// annotate numbers with formats Ajv has never heard of. Ajv logs
+// "unknown format ... ignored in schema" for every occurrence, which buries a
+// connect in noise. Teach it the numeric formats rather than muting the logger,
+// so a genuinely malformed schema still warns.
+//
+// We extend the SDK's own Ajv instance instead of importing ajv here: the
+// hoisted top-level ajv is a different major than the one the SDK bundles, and
+// a validator built from the wrong major silently fails to apply.
+const NUMERIC_FORMATS: Record<string, { type: 'number'; validate: (n: number) => boolean }> = {
+	int32: { type: 'number', validate: n => Number.isInteger(n) && n >= -2147483648 && n <= 2147483647 },
+	uint32: { type: 'number', validate: n => Number.isInteger(n) && n >= 0 && n <= 4294967295 },
+	int64: { type: 'number', validate: n => Number.isInteger(n) },
+	uint64: { type: 'number', validate: n => Number.isInteger(n) && n >= 0 },
+	float: { type: 'number', validate: () => true },
+	double: { type: 'number', validate: () => true },
+}
+
+let _schemaValidator: AjvJsonSchemaValidator | undefined
+
+function schemaValidator(): AjvJsonSchemaValidator {
+	if (_schemaValidator) return _schemaValidator
+
+	const validator = new AjvJsonSchemaValidator()
+	const ajv = (validator as any)._ajv
+
+	// Private field — if the SDK ever renames it, fall back to the stock
+	// validator (noisy, but correct) rather than throwing on every connect.
+	if (ajv && typeof ajv.addFormat === 'function') {
+		for (const [name, def] of Object.entries(NUMERIC_FORMATS)) {
+			if (!ajv.formats?.[name]) ajv.addFormat(name, def)
+		}
+	}
+
+	_schemaValidator = validator
+	return validator
+}
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -224,7 +263,10 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 			throw err
 		}
 
-		const client = new Client({ name: `luca-mcp-bridge/${name}`, version: '1.0.0' })
+		const client = new Client(
+			{ name: `luca-mcp-bridge/${name}`, version: '1.0.0' },
+			{ jsonSchemaValidator: schemaValidator() },
+		)
 
 		try {
 			await client.connect(transport)

@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.11.1"
+export const typesBundleVersion = "3.11.2"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -12078,6 +12078,137 @@ export interface ChatTuiResult {
 }
 export declare function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult>;
 //# sourceMappingURL=chat-tui.d.ts.map`,
+  "commands/lib/ink-surface.d.ts": `import { z } from 'zod';
+/**
+ * Assistant-facing UI tools for the \`luca chat\` TUI.
+ *
+ * This is deliberately NOT a registered container feature: it only makes
+ * sense inside a live ink chat session, so the chat TUI builds one per
+ * session with closures over its own store and mounts it on every
+ * assistant via \`assistant.use(bundle)\`.
+ *
+ * Two tools, two surfaces:
+ *  - showWidget: renders a static block (table/list/markdown/banner) into
+ *    the transcript scrollback. Fire-and-forget.
+ *  - askUser: takes over the live input region with an interactive picker
+ *    and blocks the turn until the human answers. The selection (or a
+ *    cancellation) becomes the tool result.
+ */
+export interface InkSurfaceDeps {
+    /** Render a static widget block into the transcript. */
+    show: (spec: ShowWidgetArgs) => void;
+    /** Present an interactive prompt; resolves with the user's answer. */
+    ask: (spec: AskUserArgs) => Promise<AskUserResult>;
+    /** Compile and mount an assistant-authored ink component; resolves when it calls done()/cancel(). */
+    renderUi: (spec: RenderUiArgs) => Promise<RenderUiResult>;
+}
+export declare const showWidgetSchema: z.ZodObject<{
+    widget: z.ZodEnum<{
+        banner: "banner";
+        list: "list";
+        table: "table";
+        markdown: "markdown";
+    }>;
+    title: z.ZodOptional<z.ZodString>;
+    text: z.ZodOptional<z.ZodString>;
+    columns: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    rows: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodString>>>;
+    items: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export declare const askUserSchema: z.ZodObject<{
+    kind: z.ZodEnum<{
+        confirm: "confirm";
+        select: "select";
+    }>;
+    question: z.ZodString;
+    options: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        value: z.ZodOptional<z.ZodString>;
+        hint: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>>;
+}, z.core.$strip>;
+export declare const renderUiSchema: z.ZodObject<{
+    source: z.ZodString;
+    title: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type ShowWidgetArgs = z.infer<typeof showWidgetSchema>;
+export type AskUserArgs = z.infer<typeof askUserSchema>;
+export type AskUserResult = {
+    value: string;
+    label: string;
+} | {
+    cancelled: true;
+};
+export type RenderUiArgs = z.infer<typeof renderUiSchema>;
+export type RenderUiResult = {
+    value: unknown;
+} | {
+    cancelled: true;
+} | {
+    error: string;
+};
+/**
+ * Build the tools bundle the chat TUI mounts on each assistant.
+ * The returned object satisfies the plain \`{ schemas, handlers }\` shape
+ * that \`assistant.use()\` accepts; \`setup()\` is invoked by use() and adds
+ * a system-prompt extension so the model knows the surface exists.
+ */
+export declare function createInkSurface(deps: InkSurfaceDeps): {
+    provider: {
+        name: string;
+    };
+    schemas: {
+        showWidget: z.ZodObject<{
+            widget: z.ZodEnum<{
+                banner: "banner";
+                list: "list";
+                table: "table";
+                markdown: "markdown";
+            }>;
+            title: z.ZodOptional<z.ZodString>;
+            text: z.ZodOptional<z.ZodString>;
+            columns: z.ZodOptional<z.ZodArray<z.ZodString>>;
+            rows: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodString>>>;
+            items: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        }, z.core.$strip>;
+        askUser: z.ZodObject<{
+            kind: z.ZodEnum<{
+                confirm: "confirm";
+                select: "select";
+            }>;
+            question: z.ZodString;
+            options: z.ZodOptional<z.ZodArray<z.ZodObject<{
+                label: z.ZodString;
+                value: z.ZodOptional<z.ZodString>;
+                hint: z.ZodOptional<z.ZodString>;
+            }, z.core.$strip>>>;
+        }, z.core.$strip>;
+        renderUi: z.ZodObject<{
+            source: z.ZodString;
+            title: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>;
+    };
+    handlers: {
+        showWidget(args: ShowWidgetArgs): {
+            error: string;
+            shown?: undefined;
+        } | {
+            shown: boolean;
+            error?: undefined;
+        };
+        askUser(args: AskUserArgs): Promise<{
+            value: string;
+            label: string;
+        } | {
+            cancelled: true;
+        } | {
+            error: string;
+        }>;
+        renderUi(args: RenderUiArgs): Promise<RenderUiResult>;
+    };
+    setup(assistant: any): void;
+};
+//# sourceMappingURL=ink-surface.d.ts.map`,
   "commands/lib/markdown-eval.d.ts": `/**
  * Shared eval-mode policy for markdown documents with fenced code blocks.
  *
@@ -14748,7 +14879,7 @@ export type { ReplState, ReplOptions, Repl } from "./features/repl";
 export type { RunpodState, RunpodOptions, Runpod } from "./features/runpod";
 export type { SchedulerState, SchedulerOptions, ScheduledTaskInfo, TaskHandle, ScheduleTaskOptions, EveryTaskOptions, SchedulerRunOptions, Scheduler } from "./features/scheduler";
 export type { CaptureWindowInfo, CaptureRect, CaptureImageOptions, CaptureRecordOptions, CaptureRecording, ScreenCaptureOptions, ScreenCapture } from "./features/screen-capture";
-export type { SecureShellState, SecureShellOptions, SecureShell } from "./features/secure-shell";
+export type { SecureShellState, SecureShellOptions, SshConfigHost, SecureShell } from "./features/secure-shell";
 export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, SemanticSearchQueryOptions, HybridSearchOptions, IndexStatus, DocumentInput, SemanticSearch } from "./features/semantic-search";
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
@@ -26913,6 +27044,7 @@ import type { Helper } from '../../helper.js';
 export declare const SecureShellStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     connected: z.ZodBoolean;
+    currentHost: z.ZodOptional<z.ZodString>;
 }, z.core.$loose>;
 export type SecureShellState = z.infer<typeof SecureShellStateSchema>;
 export declare const SecureShellOptionsSchema: z.ZodObject<{
@@ -26923,10 +27055,23 @@ export declare const SecureShellOptionsSchema: z.ZodObject<{
     host: z.ZodOptional<z.ZodString>;
     port: z.ZodOptional<z.ZodNumber>;
     username: z.ZodOptional<z.ZodString>;
-    password: z.ZodOptional<z.ZodString>;
     key: z.ZodOptional<z.ZodString>;
+    configPath: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>;
+/** One \`Host\` entry parsed from the ssh client config */
+export interface SshConfigHost {
+    /** The Host alias — what you pass to \`useHost()\` or on the ssh command line */
+    host: string;
+    /** The real address ssh connects to (HostName directive) */
+    hostname?: string;
+    /** Username (User directive) */
+    user?: string;
+    /** Port (Port directive) */
+    port?: number;
+    /** Private key path (IdentityFile directive) */
+    identityFile?: string;
+}
 /**
  * SecureShell Feature -- SSH command execution and SCP file transfers.
  *
@@ -26936,36 +27081,33 @@ export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>;
  * All connections run with \`BatchMode=yes\`, so a command that would require an
  * interactive prompt fails immediately instead of hanging. In practice this
  * means authentication must be non-interactive: a \`key\` option pointing at a
- * private key file, or an already-loaded ssh-agent identity. (A \`password\`
- * option exists in the schema but is not wired into the ssh/scp command line —
- * BatchMode suppresses password prompts.)
+ * private key file, an IdentityFile in the ssh config, or an already-loaded
+ * ssh-agent identity.
+ *
+ * The feature can be created with no host at all. The \`hosts\` getter parses
+ * the ssh client config (\`~/.ssh/config\` by default, including \`Include\`d
+ * files) and lists every concrete Host entry, and \`useHost()\` switches the
+ * active target at any time — to a config alias, or to a literal
+ * \`user@host\` destination. When the target is a config alias, only the alias
+ * is passed to ssh/scp so the user's real config resolution (User, Port,
+ * IdentityFile, ProxyJump, ...) applies in full.
  *
  * Connection state is tracked on the feature: \`testConnection()\` and \`exec()\`
- * update \`state.connected\` based on whether the remote host responded.
+ * update \`state.connected\`, and \`state.currentHost\` reflects the active target.
  *
  * @example
  * \`\`\`typescript
  * // (no-run) requires a reachable SSH host
- * const ssh = container.feature('secureShell', {
- *   host: '192.168.1.100',
- *   port: 22,                  // default: 22
- *   username: 'deploy',
- *   key: '~/.ssh/id_ed25519',
- * })
+ * // No host needed up front — discover targets from ~/.ssh/config
+ * const ssh = container.feature('secureShell')
+ * console.log(ssh.hosts) // [{ host: 'chief', hostname: '10.0.0.5', user: 'jon', ... }]
  *
- * // Verify reachability before doing real work — never throws
- * if (await ssh.testConnection()) {
- *   console.log('connected:', ssh.state.get('connected')) // true
+ * ssh.useHost('chief')             // config alias — ssh config resolves the rest
+ * const uptime = await ssh.exec('uptime')
  *
- *   // exec() returns the command's trimmed stdout
- *   const uptime = await ssh.exec('uptime')
- *   console.log(uptime)
- *
- *   // SCP round-trip. Remote paths are absolute, or relative to
- *   // the remote user's home directory.
- *   await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
- *   await ssh.download('/var/log/app.log', './logs/app.log')
- * }
+ * ssh.useHost('deploy@192.168.1.100') // or a literal destination
+ * await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
+ * await ssh.download('/var/log/app.log', './logs/app.log')
  * \`\`\`
  *
  * @extends Feature
@@ -26977,6 +27119,7 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodBoolean;
+        currentHost: z.ZodOptional<z.ZodString>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -26986,8 +27129,8 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
         host: z.ZodOptional<z.ZodString>;
         port: z.ZodOptional<z.ZodNumber>;
         username: z.ZodOptional<z.ZodString>;
-        password: z.ZodOptional<z.ZodString>;
         key: z.ZodOptional<z.ZodString>;
+        configPath: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     static tools: Record<string, {
         schema: z.ZodType;
@@ -26995,13 +27138,14 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
         handler?: Function;
     }>;
     /**
-     * When an assistant consumes these tools, tell it which host it is talking
-     * to — the connection is fixed by the feature's options, not tool arguments.
+     * When an assistant consumes these tools, tell it what the current target
+     * is (if any) and that it can list and switch hosts itself.
      */
     setupToolsConsumer(consumer: Helper): void;
     get initialState(): SecureShellState;
     private _resolvedSshPath;
     private _resolvedScpPath;
+    private _connection;
     /**
      * Get the proc feature for executing shell commands
      */
@@ -27010,12 +27154,72 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
     get sshPath(): string;
     /** Resolved path to the scp binary */
     get scpPath(): string;
+    /** Path to the ssh client config file being parsed (default: ~/.ssh/config) */
+    get configPath(): string;
     /**
-     * Validate that required options are provided
+     * The hosts defined in the ssh client config. Re-parses the config on every
+     * access so edits to ~/.ssh/config are picked up immediately.
      */
-    private validateOptions;
+    get hosts(): SshConfigHost[];
     /**
-     * Build the ssh argv (flags + user@host) with authentication options.
+     * Parse the ssh client config into a list of concrete Host entries.
+     *
+     * Follows \`Include\` directives (with simple \`*\` globs, resolved relative to
+     * the config file's directory). Wildcard/negated Host patterns (\`*\`, \`?\`,
+     * \`!\`) are skipped — they are pattern defaults, not connectable hosts, and
+     * ssh applies them itself when we connect by alias. This parser is a
+     * listing aid; it does not replicate full ssh_config semantics (no \`Match\`,
+     * no cross-block option merging).
+     *
+     * @param configPath - Config file to parse (default: the feature's \`configPath\`)
+     * @returns One entry per concrete Host alias, in file order
+     *
+     * @example
+     * \`\`\`typescript
+     * const ssh = container.feature('secureShell')
+     * for (const h of ssh.parseSshConfig()) {
+     *   console.log(h.host, h.hostname ?? '', h.user ?? '')
+     * }
+     * \`\`\`
+     */
+    parseSshConfig(configPath?: string): SshConfigHost[];
+    private parseConfigFile;
+    /** Expand an Include path: \`~\`, relative-to-config-dir, and simple \`*\` globs */
+    private resolveIncludePaths;
+    /**
+     * Switch the target host for all subsequent exec/upload/download calls.
+     *
+     * If the name matches a Host alias in the ssh config, only the alias is
+     * passed to ssh/scp from then on — the user's real ssh config resolution
+     * supplies User, Port, IdentityFile, ProxyJump, etc. Otherwise the name is
+     * treated as a literal destination (\`host\` or \`user@host\`), keeping the
+     * feature's \`port\` and \`key\` options as defaults.
+     *
+     * Updates \`state.currentHost\`. Does not test reachability — call
+     * \`testConnection()\` after switching.
+     *
+     * @param name - A Host alias from the ssh config, or a literal \`host\` / \`user@host\`
+     * @returns The config entry when the name matched one, else the literal parts used
+     *
+     * @example
+     * \`\`\`typescript
+     * // (no-run) requires a reachable SSH host
+     * const ssh = container.feature('secureShell')
+     * ssh.useHost('chief')                 // alias from ~/.ssh/config
+     * ssh.useHost('deploy@192.168.1.100')  // literal destination
+     * if (await ssh.testConnection()) console.log(await ssh.exec('hostname'))
+     * \`\`\`
+     */
+    useHost(name: string): SshConfigHost | {
+        host: string;
+        username?: string;
+    };
+    /** The active connection target — options until useHost() overrides them */
+    private get connection();
+    /** The destination argument for ssh, and the prefix for scp remote paths */
+    private get remoteDestination();
+    /**
+     * Build the ssh argv (flags + destination) with authentication options.
      * Argv arrays go straight to the binary — no local shell, no quoting layer.
      */
     private buildSshArgs;
@@ -27050,7 +27254,7 @@ export declare class SecureShell extends Feature<SecureShellState, SecureShellOp
      *
      * @param command - The command to execute on the remote shell — the string reaches the remote shell verbatim
      * @returns The trimmed stdout output of the command
-     * @throws {Error} When the SSH command exits with a non-zero code
+     * @throws {Error} When the SSH command exits with a non-zero code, or no host is selected
      *
      * @example
      * \`\`\`typescript
@@ -28884,6 +29088,19 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         callScreened: z.ZodTuple<[z.ZodString], null>;
         stopped: z.ZodTuple<[], null>;
     }, z.core.$strip>;
+    /**
+     * Assistant tools: the account-side admin surface. Everything here works
+     * standalone (assistant: null, no start()) — it talks straight to the
+     * Telnyx API. Deployment verbs (start/stop/wiring) are deliberately absent:
+     * deploys are config-driven and process-bound, not something a chat model
+     * should do live — and so is anything that spends money (searchNumbers /
+     * purchaseNumber stay CLI-only). Consumers trim further with
+     * toTools({ only }) / ({ except }).
+     */
+    static tools: Record<string, {
+        schema: z.ZodType;
+        handler?: Function;
+    }>;
     private _log;
     private _server;
     private _tunnelProcess;
@@ -31389,6 +31606,33 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      */
     createScript(code: string, options?: vm.ScriptOptions): vm.Script;
     /**
+     * Detect the engine's "return outside a function" SyntaxError. Detection is
+     * the parser's own verdict, never a source regex: strings, comments, and
+     * nested functions make pattern-matching \`return\` unreliable. The check is
+     * by error NAME rather than instanceof — the error is constructed inside
+     * the vm context's realm, whose SyntaxError is a different constructor.
+     * Message text covers both engines (JSC under bun, V8 under node).
+     */
+    private _isTopLevelReturnError;
+    /**
+     * Run a script, recovering from a top-level \`return\` by re-running the
+     * snippet as an IIFE body — where the \`return\` is legal and produces the
+     * completion value the user meant. REPL users write \`return x\` constantly
+     * because it IS legal in a function body; meeting them there beats a
+     * SyntaxError.
+     *
+     * Recovery happens at run time because bun's vm.Script defers parsing to
+     * runInContext — a parse error there means NO user code executed, so the
+     * wrapped re-run cannot double side effects. If the wrapped form still
+     * fails to parse, the ORIGINAL error is rethrown so genuine syntax
+     * mistakes surface unchanged. When recovery fires, declarations stay
+     * inside the wrapper instead of landing on a shared context — previously
+     * the snippet didn't run at all, so nothing regresses.
+     */
+    private _runInContextWithReturnRecovery;
+    /** Synchronous twin of {@link _runInContextWithReturnRecovery} (plain IIFE, no await support). */
+    private _runInContextSyncWithReturnRecovery;
+    /**
      * Check whether an object has already been contextified by \`vm.createContext()\`.
      *
      * Useful to avoid double-contextifying when you're not sure if the caller
@@ -33714,7 +33958,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
