@@ -121,6 +121,46 @@ describe('screenCapture feature', () => {
     }
   })
 
+  it('stop() presses the stop hotkey instead of signalling the recorder', async () => {
+    if (process.platform !== 'darwin') return
+    const capture = container.feature('screenCapture')
+    const proc = container.feature('proc')
+
+    // A signal would kill screencapture without finalizing the movie (macOS 15+),
+    // so stop() must go through the ⌃⌘Esc hotkey and never call child.kill().
+    const output = `${(process.env.TMPDIR ?? '/tmp').replace(/\/$/, '')}/luca-test-stop-${Date.now()}.mov`
+    const fakeChild: any = new EventEmitter()
+    fakeChild.exitCode = null
+    fakeChild.stderr = new EventEmitter()
+    let killedWith: string | null = null
+    fakeChild.kill = (sig: string) => { killedWith = sig }
+    const spawnSpy = spyOn(proc, 'spawn').mockReturnValue(fakeChild)
+    const hotkeyCalls: any[] = []
+    const captureSpy = spyOn(proc, 'spawnAndCapture').mockImplementation(async (cmd: string, args: string[] = []) => {
+      hotkeyCalls.push([cmd, args])
+      // the hotkey lands: screencapture writes the movie and exits cleanly
+      const { writeFileSync } = await import('fs')
+      writeFileSync(output, 'movie')
+      fakeChild.exitCode = 0
+      fakeChild.emit('exit', 0, null)
+      return { exitCode: 0, stdout: '', stderr: '' } as any
+    })
+
+    try {
+      const rec = await capture.record({ duration: 60, output })
+      expect(await rec.stop()).toBe(output)
+      expect(hotkeyCalls).toHaveLength(1)
+      expect(hotkeyCalls[0][0]).toBe('osascript')
+      expect(hotkeyCalls[0][1].join(' ')).toContain('key code 53')
+      expect(killedWith).toBeNull()
+    } finally {
+      spawnSpy.mockRestore()
+      captureSpy.mockRestore()
+      const { rmSync } = await import('fs')
+      rmSync(output, { force: true })
+    }
+  })
+
   it('rejects captureWindow for a window that does not exist', async () => {
     if (process.platform !== 'darwin') return
     const capture = container.feature('screenCapture')

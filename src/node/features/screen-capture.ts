@@ -58,7 +58,13 @@ export interface CaptureRecordOptions {
 export interface CaptureRecording {
   /** Absolute path the movie will be written to */
   path: string
-  /** Stop the recording; resolves to the movie path once the file is finalized */
+  /**
+   * Stop the recording early; resolves to the movie path once the file is
+   * finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) —
+   * signals kill screencapture without saving — so the host app needs the
+   * Accessibility permission. On failure it throws and leaves the recording
+   * running, to be finalized by its duration cap.
+   */
   stop: () => Promise<string>
   /** Resolves to the movie path when the recording ends (duration elapsed or stop() called) */
   done: Promise<string>
@@ -74,6 +80,14 @@ export type ScreenCaptureOptions = z.infer<typeof ScreenCaptureOptionsSchema>
 const PERMISSION_HINT =
   'If the image is black or shows only the wallpaper, the host app (your terminal or the luca binary) ' +
   'needs Screen Recording permission: System Settings → Privacy & Security → Screen & System Audio Recording.'
+
+// ⌃⌘Esc — the system-wide "stop screen recording" hotkey. Since macOS 15
+// (Sequoia), EVERY POSIX signal kills `screencapture -v` without finalizing
+// the movie (verified empirically: SIGINT, SIGTERM, SIGHUP, SIGUSR1, SIGUSR2
+// all leave no file behind — only a -V duration expiring writes one). Pressing
+// this hotkey through System Events is the one way to stop a recording early
+// and keep the footage. It needs the Accessibility permission.
+const STOP_HOTKEY_SCRIPT = 'tell application "System Events" to key code 53 using {control down, command down}'
 
 // JXA one-liner: enumerate on-screen windows via CGWindowListCopyWindowInfo.
 // castRefToObject is required — deepUnwrap on the raw CFArrayRef segfaults osascript.
@@ -106,7 +120,9 @@ JSON.stringify(list.filter(w => w.kCGWindowLayer === 0).map(w => ({
  * The first capture from a new host app needs the Screen Recording permission
  * (System Settings → Privacy & Security). Without it, captures still "succeed"
  * but come back black or wallpaper-only — window titles in listWindows() also
- * arrive empty. Grant the permission once and restart the host app.
+ * arrive empty. Grant the permission once and restart the host app. Stopping
+ * a recording early additionally needs the Accessibility permission (stop()
+ * presses the system ⌃⌘Esc hotkey — signals would discard the footage).
  *
  * @example
  * ```typescript
@@ -316,6 +332,13 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
    * Video is whole-screen or rect only — per-window video isn't supported by
    * the system tool.
    *
+   * Stopping early (`stop()`) presses the system stop-recording hotkey
+   * (⌃⌘Esc) via System Events — since macOS 15 every signal kills
+   * `screencapture` without saving the movie. That keystroke needs the
+   * Accessibility permission for the host app, and only one recording can
+   * run at a time (the hotkey is global). Letting the duration expire needs
+   * no extra permission.
+   *
    * @param {CaptureRecordOptions} [options] - Duration, audio, clicks, display, rect
    * @returns {Promise<CaptureRecording>} Handle with `path`, `stop()`, and `done`
    *
@@ -368,9 +391,10 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
 
     const done = new Promise<string>((resolve, reject) => {
       child.on('exit', async () => {
-        // screencapture finalizes the movie after SIGINT; give the file a beat to land
+        // screencapture finalizes the movie just after exiting; give the file
+        // a few seconds to land (longer recordings take longer to write)
         const fs = this.container.fs
-        for (let i = 0; i < 20 && !fs.exists(output); i++) {
+        for (let i = 0; i < 50 && !fs.exists(output); i++) {
           await this.container.utils.sleep(100)
         }
         if (!fs.exists(output)) {
@@ -382,14 +406,36 @@ export class ScreenCapture extends Feature<FeatureState, ScreenCaptureOptions> {
       child.on('error', (err: Error) => reject(new Error(`record failed to start: ${err.message}`)))
     })
 
-    return {
-      path: output,
-      done,
-      stop: () => {
-        child.kill('SIGINT')
-        return done
-      },
+    const stillRunning = duration > 0
+      ? `The recording is still running and will finalize on its own after its ${duration}s duration cap.`
+      : 'The recording is still running (no duration cap) — it can only finalize via the hotkey or the menu-bar stop button.'
+
+    const stop = async (): Promise<string> => {
+      if (child.exitCode === null) {
+        // Signals abort screencapture without writing the movie (see
+        // STOP_HOTKEY_SCRIPT above) — press the system hotkey instead. Note
+        // it is global: it ends whatever screen recording is active, so don't
+        // run two at once. On failure we deliberately do NOT kill the child:
+        // the -V duration cap will still salvage the footage.
+        const result = await proc.spawnAndCapture('osascript', ['-e', STOP_HOTKEY_SCRIPT])
+        if (result.exitCode !== 0) {
+          throw new Error(
+            `stop failed: could not press the stop-recording hotkey (osascript exited ${result.exitCode}: ${result.stderr?.trim()}). ` +
+            'Sending keystrokes needs the Accessibility permission for the host app: System Settings → Privacy & Security → Accessibility. ' +
+            stillRunning
+          )
+        }
+        for (let i = 0; i < 50 && child.exitCode === null; i++) {
+          await this.container.utils.sleep(100)
+        }
+        if (child.exitCode === null) {
+          throw new Error(`stop failed: the stop-recording hotkey had no effect after 5s. ${stillRunning}`)
+        }
+      }
+      return done
     }
+
+    return { path: output, done, stop }
   }
 
   /** Recordings started through trackRecording, newest last, keyed by id. */
