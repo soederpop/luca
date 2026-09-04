@@ -17,7 +17,7 @@ export const ContentDbStateSchema = FeatureStateSchema.extend({
 })
 
 export const ContentDbOptionsSchema = FeatureOptionsSchema.extend({
-  rootPath: z.string().describe('Root directory path containing the structured markdown collection'),
+  rootPath: z.string().default('docs').describe('Root directory path containing the structured markdown collection (resolved against the container cwd)'),
 })
 
 export type ContentDbState = z.infer<typeof ContentDbStateSchema>
