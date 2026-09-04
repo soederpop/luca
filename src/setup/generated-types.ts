@@ -14505,6 +14505,8 @@ export declare const vm: import("./node").VM<{
 export declare const proc: import("./node").ChildProcess;
 export { servers, features, clients };
 export { Feature };
+export { TerminalCanvas, toRGB, lerpColor } from './node/features/terminal-canvas';
+export type { CanvasColor, CanvasRGB, CanvasRenderer, CanvasRenderMode } from './node/features/terminal-canvas';
 export { Container } from './container';
 export { Helper } from './helper';
 export { Bus } from './bus';
@@ -29648,6 +29650,109 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
 }
 export default TelnyxConnector;
 //# sourceMappingURL=telnyx-connector.d.ts.map`,
+  "node/features/terminal-canvas.d.ts": `/**
+ * An RGB color value used by the terminal canvas.
+ */
+export interface CanvasRGB {
+    r: number;
+    g: number;
+    b: number;
+}
+/** Any value the canvas accepts as a color: hex string, [r,g,b] tuple, or {r,g,b} object. */
+export type CanvasColor = string | [number, number, number] | CanvasRGB;
+/** Rendering mode for TerminalCanvas.render(). Built-ins are 'half' and 'braille'; external features can register more via TerminalCanvas.registerRenderer(). */
+export type CanvasRenderMode = "half" | "braille" | (string & {});
+/**
+ * A pluggable canvas renderer: takes the canvas, returns the printable string.
+ * Read pixels with canvas.get(x, y) or grab the whole buffer with canvas.toRGBA().
+ */
+export type CanvasRenderer = (canvas: TerminalCanvas) => string;
+/**
+ * Normalize any accepted color form into an RGB object.
+ * Accepts "#rrggbb" (with or without #), [r,g,b], or {r,g,b}.
+ */
+export declare function toRGB(color: CanvasColor): CanvasRGB;
+/**
+ * Linearly interpolate between two colors. \`t\` is clamped to [0, 1].
+ */
+export declare function lerpColor(from: CanvasColor, to: CanvasColor, t: number): CanvasRGB;
+/**
+ * A truecolor pixel framebuffer that renders to terminal characters.
+ *
+ * Two render modes:
+ * - \`half\` (default): each terminal cell shows 2 vertical pixels via \`▀\` with
+ *   a 24-bit foreground (top pixel) and background (bottom pixel). Full RGB
+ *   per pixel; resolution = width x height pixels in width x height/2 cells.
+ * - \`braille\`: each cell packs 2x4 pixels into a braille character (\`⠁\`-\`⣿\`).
+ *   4x the dot density of half blocks, but one color per cell (set pixels in
+ *   a cell are averaged). Best for line art, plots, waveforms.
+ *
+ * Dimensions are in PIXELS, not cells. For clean output make height even
+ * (half mode) or a multiple of 4 (braille mode); partial cells still render.
+ *
+ * Colors rely on chalk, which strips ANSI when stdout is not a TTY — piped
+ * output renders as bare characters. Set FORCE_COLOR=1 to override.
+ */
+export declare class TerminalCanvas {
+    /**
+     * Externally registered render modes (beyond the built-in 'half' and
+     * 'braille'). Static so a plugin or project feature can register a backend
+     * at import time — e.g. a kitty-graphics renderer for Ghostty — and every
+     * canvas in the process can render(mode) with it, including canvases created
+     * by code that has no idea the backend exists.
+     */
+    private static renderers;
+    /** Register (or replace) a named render mode usable with canvas.render(name). */
+    static registerRenderer(name: string, renderer: CanvasRenderer): void;
+    /** Every render mode currently usable with render(): built-ins plus registered ones. */
+    static get renderModes(): string[];
+    readonly width: number;
+    readonly height: number;
+    private pixels;
+    constructor(width: number, height: number);
+    /** Set one pixel. Out-of-bounds coordinates are silently ignored so drawing code doesn't need clipping. */
+    set(x: number, y: number, color: CanvasColor): this;
+    /** Read one pixel, or null if unset / out of bounds. */
+    get(x: number, y: number): CanvasRGB | null;
+    /** Clear every pixel — to a color, or back to transparent (rendered as spaces). */
+    clear(color?: CanvasColor): this;
+    /** Draw a line between two points (Bresenham). */
+    line(x0: number, y0: number, x1: number, y1: number, color: CanvasColor): this;
+    /** Draw a rectangle. \`fill: true\` paints the interior, otherwise just the outline. */
+    rect(x: number, y: number, w: number, h: number, color: CanvasColor, options?: {
+        fill?: boolean;
+    }): this;
+    /** Draw a circle (midpoint algorithm). \`fill: true\` paints the disk. */
+    circle(cx: number, cy: number, radius: number, color: CanvasColor, options?: {
+        fill?: boolean;
+    }): this;
+    /**
+     * Fill the whole canvas with a smooth two-color gradient.
+     * Direction 'horizontal' blends left→right, 'vertical' top→bottom,
+     * 'diagonal' corner→corner.
+     */
+    fillGradient(from: CanvasColor, to: CanvasColor, direction?: "horizontal" | "vertical" | "diagonal"): this;
+    /**
+     * Export the framebuffer as raw RGBA bytes (width * height * 4, row-major).
+     * Unset pixels are fully transparent. This is the interchange format for
+     * pixel-level render backends — e.g. the kitty graphics protocol transmits
+     * exactly this, base64-encoded.
+     */
+    toRGBA(): Uint8Array;
+    /**
+     * Render the framebuffer to a printable string.
+     * \`half\` mode uses ▀/▄ with truecolor fg+bg (2 pixels per cell);
+     * \`braille\` packs 2x4 pixels per cell with one averaged color.
+     * Any other name looks up an externally registered renderer
+     * (TerminalCanvas.registerRenderer) and throws with the available
+     * modes when nothing matches.
+     */
+    render(mode?: CanvasRenderMode): string;
+    private renderHalfBlocks;
+    private renderBraille;
+}
+export default TerminalCanvas;
+//# sourceMappingURL=terminal-canvas.d.ts.map`,
   "node/features/tmux.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 export declare const TmuxStateSchema: z.ZodObject<{
@@ -30643,6 +30748,7 @@ export default TypeScriptAst;
 import { Feature } from "../feature.js";
 import colors from "chalk";
 import type { FontName as Fonts } from "figlet";
+import { TerminalCanvas, type CanvasColor, type CanvasRenderer } from "./terminal-canvas.js";
 /**
  * Zod schema for the UI feature state.
  * Manages terminal UI configuration and cached data.
@@ -31051,6 +31157,216 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
         colors: Color[];
     }): string;
     /**
+     * Creates a truecolor pixel canvas that renders to terminal characters.
+     *
+     * The high-fidelity tier above \`asciiArt\`/\`banner\`: instead of pre-drawn
+     * figlet glyphs you get an RGB framebuffer with drawing primitives (set,
+     * line, rect, circle, fillGradient) that renders in two modes:
+     *
+     * - \`render('half')\` — each cell is 2 vertical pixels (\`▀\` with 24-bit
+     *   fg + bg). Full color; resolution = width x height/2 cells.
+     * - \`render('braille')\` — each cell packs 2x4 pixels (\`⠁\`-\`⣿\`), 4x the
+     *   dot density but one averaged color per cell. Best for line art and plots.
+     *
+     * Dimensions are in PIXELS, not terminal cells. For a canvas spanning
+     * N columns use width N (half mode) or N*2 (braille mode).
+     *
+     * NOTE: colors rely on chalk, which strips ANSI when stdout is not a TTY —
+     * set FORCE_COLOR=1 to keep color through pipes.
+     *
+     * @param width - Canvas width in pixels
+     * @param height - Canvas height in pixels (even for half mode, multiple of 4 for braille)
+     * @returns A TerminalCanvas instance
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     *
+     * // A gradient panel with a circle, at 2-pixels-per-cell resolution
+     * const canvas = ui.canvas(60, 20)
+     * canvas.fillGradient('#1a1a2e', '#e94560', 'diagonal')
+     * canvas.circle(30, 10, 7, '#ffd166', { fill: true })
+     * console.log(canvas.render('half'))
+     *
+     * // A sine wave in braille (2x4 dots per cell)
+     * const wave = ui.canvas(120, 24)
+     * for (let x = 0; x < 120; x++) {
+     *   wave.set(x, 12 + Math.round(Math.sin(x / 8) * 10), '#4ecdc4')
+     * }
+     * console.log(wave.render('braille'))
+     * \`\`\`
+     */
+    canvas(width: number, height: number): TerminalCanvas;
+    /**
+     * Registers a canvas render mode from outside luca core, making
+     * \`canvas.render(name)\` work process-wide — including for canvases created
+     * by code that doesn't know the backend exists (e.g. \`luca chat\` output).
+     *
+     * This is the extension point for terminal-specific pixel backends: a
+     * project feature or plugin detects its terminal (Ghostty, Kitty, WezTerm)
+     * and registers a renderer that emits that terminal's protocol. The
+     * renderer receives the canvas and returns the string to print — read
+     * pixels with \`canvas.get(x, y)\` or grab the raw buffer with
+     * \`canvas.toRGBA()\` (RGBA bytes, the kitty graphics interchange format).
+     *
+     * Registering an existing name replaces it. Built-ins ('half', 'braille')
+     * cannot be replaced.
+     *
+     * @param name - The mode name callers pass to canvas.render()
+     * @param renderer - Function receiving the canvas, returning the printable string
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     * ui.registerRenderMode('dots', (canvas) => {
+     *   let out = ''
+     *   for (let y = 0; y < canvas.height; y++) {
+     *     for (let x = 0; x < canvas.width; x++) out += canvas.get(x, y) ? '•' : ' '
+     *     out += '\\n'
+     *   }
+     *   return out.trimEnd()
+     * })
+     * const c = ui.canvas(4, 1)
+     * c.set(1, 0, '#fff')
+     * console.log(c.render('dots')) // ' •'
+     * console.log(ui.renderModes)   // ['half', 'braille', 'dots']
+     * \`\`\`
+     */
+    registerRenderMode(name: string, renderer: CanvasRenderer): void;
+    /**
+     * Every canvas render mode currently available: the built-ins plus
+     * anything registered via registerRenderMode.
+     *
+     * @returns Array of mode names usable with canvas.render()
+     */
+    get renderModes(): string[];
+    /**
+     * Declares a named terminal capability with a detector function, so
+     * feature code can branch on what the running terminal supports without
+     * knowing which plugin provides the knowledge.
+     *
+     * Detectors run lazily on the first \`hasCapability\` check and the result
+     * is cached for the process (terminals don't change mid-run). Registering
+     * the same name again replaces the detector and clears the cached result.
+     *
+     * @param name - Capability name, e.g. 'kittyGraphics', 'syncOutput'
+     * @param detect - Returns true when the running terminal supports it
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     * ui.registerCapability('kittyGraphics', () => process.env.TERM_PROGRAM === 'ghostty')
+     *
+     * const mode = ui.hasCapability('kittyGraphics') ? 'kitty' : 'half'
+     * \`\`\`
+     */
+    registerCapability(name: string, detect: () => boolean): void;
+    /**
+     * Checks a declared terminal capability. Unknown names are simply false —
+     * callers can probe optimistically without coordinating with the plugin
+     * that may or may not have registered the capability.
+     *
+     * @param name - The capability name to check
+     * @returns true when a registered detector exists and reports support
+     */
+    hasCapability(name: string): boolean;
+    /**
+     * Registers a decorator applied to every frame \`ui.animate\` writes. The
+     * decorator receives the full payload for one frame (cursor movement plus
+     * frame text) and returns the string actually written — the hook for
+     * terminal protocols that wrap output, like DEC 2026 synchronized updates
+     * (flicker-free repaints in Ghostty/Kitty/WezTerm).
+     *
+     * Decorators are keyed by name: registering the same name replaces it,
+     * and multiple named decorators apply in registration order.
+     *
+     * @param name - Unique decorator name (replaces any previous registration)
+     * @param decorate - Receives the frame payload, returns what gets written
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     * // Wrap every animation frame in a synchronized-update block
+     * ui.registerFrameDecorator('syncOutput', (payload) =>
+     *   \`\\x1b[?2026h\${payload}\\x1b[?2026l\`)
+     * \`\`\`
+     */
+    registerFrameDecorator(name: string, decorate: (payload: string) => string): void;
+    /**
+     * Linearly interpolate between two colors. Accepts hex strings, [r,g,b]
+     * tuples, or {r,g,b} objects; returns an {r,g,b} object usable with
+     * \`ui.colors.rgb()\` or \`canvas.set()\`.
+     *
+     * @param from - Start color
+     * @param to - End color
+     * @param t - Blend position, 0 (from) to 1 (to), clamped
+     * @returns The interpolated {r,g,b} color
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     * const mid = ui.lerpColor('#ff0000', '#0000ff', 0.5)
+     * console.log(ui.colors.rgb(mid.r, mid.g, mid.b)('purple-ish'))
+     * \`\`\`
+     */
+    lerpColor(from: CanvasColor, to: CanvasColor, t: number): {
+        r: number;
+        g: number;
+        b: number;
+    };
+    /**
+     * Runs a frame-rendering loop that redraws in place, for animated banners,
+     * gradient sweeps, and live canvas scenes.
+     *
+     * Each tick your callback returns the full frame as a string; the previous
+     * frame is overwritten in place with ANSI cursor movement (no flicker, no
+     * scrollback spam). The cursor is hidden while running and restored on stop.
+     *
+     * **Non-TTY behavior:** when stdout is not a TTY (pipes, CI), the first
+     * frame is rendered once and the animation resolves immediately — output
+     * stays clean and nothing busy-loops.
+     *
+     * Frames should keep a constant line count; when a frame has fewer lines
+     * than the previous one, each rewritten line is cleared but extra old lines
+     * below are not.
+     *
+     * @param renderFrame - Called with the frame number; returns the frame text
+     * @param options - Animation options
+     * @param options.fps - Frames per second (default 20)
+     * @param options.frames - Total frames to render; omit to run until stop() is called
+     * @returns \`{ stop, done }\` — call stop() to end early; done resolves when the animation finishes
+     *
+     * @example
+     * \`\`\`typescript
+     * const ui = container.feature('ui')
+     *
+     * // Animated gradient sweep across a banner (finite, awaitable)
+     * const art = ui.asciiArt('LUCA', 'Big')
+     * const { done } = ui.animate(
+     *   (frame) => ui.applyGradient(art, ['cyan', 'blue', 'magenta'], 'horizontal', frame),
+     *   { fps: 24, frames: 48 }
+     * )
+     * await done
+     *
+     * // Open-ended canvas scene — stop it yourself
+     * const anim = ui.animate((frame) => {
+     *   const c = ui.canvas(60, 16)
+     *   c.fillGradient('#16213e', '#0f3460')
+     *   c.circle(10 + (frame % 40), 8, 5, '#e94560', { fill: true })
+     *   return c.render('half')
+     * })
+     * setTimeout(() => anim.stop(), 100)
+     * await anim.done
+     * \`\`\`
+     */
+    animate(renderFrame: (frame: number) => string, options?: {
+        fps?: number;
+        frames?: number;
+    }): {
+        stop: () => void;
+        done: Promise<void>;
+    };
+    /**
      * Dedent and format a tagged template literal using endent.
      * Strips leading indentation while preserving relative indentation.
      *
@@ -31074,6 +31390,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      * @param text - The text content to apply gradients to
      * @param lineColors - Array of colors to cycle through in the gradient
      * @param direction - Gradient direction: 'horizontal' or 'vertical'
+     * @param offset - Phase offset shifting where the color cycle starts — increment it per frame (e.g. inside \`ui.animate\`) for a sweeping animation
      * @returns The text with applied color gradients
      *
      * @example
@@ -31098,7 +31415,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      * const ocean = ui.applyGradient('OCEAN', ['blue', 'cyan', 'white'], 'vertical');
      * \`\`\`
      */
-    applyGradient(text: string, lineColors?: Color[], direction?: "horizontal" | "vertical"): string;
+    applyGradient(text: string, lineColors?: Color[], direction?: "horizontal" | "vertical", offset?: number): string;
     /**
      * Applies horizontal color gradients character by character.
      *
@@ -31114,6 +31431,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      *
      * @param text - The text to apply horizontal gradients to
      * @param lineColors - Array of colors to cycle through
+     * @param offset - Phase offset shifting where the cycle starts (animate by incrementing per frame)
      * @returns Text with horizontal color gradients applied
      *
      * @example
@@ -31131,7 +31449,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      * const coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);
      * \`\`\`
      */
-    applyHorizontalGradient(text: string, lineColors?: Color[]): string;
+    applyHorizontalGradient(text: string, lineColors?: Color[], offset?: number): string;
     /**
      * Applies vertical color gradients line by line.
      *
@@ -31147,6 +31465,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      *
      * @param text - The text to apply vertical gradients to (supports newlines)
      * @param lineColors - Array of colors to cycle through for each line
+     * @param offset - Phase offset shifting where the cycle starts (animate by incrementing per frame)
      * @returns Text with vertical color gradients applied
      *
      * @example
@@ -31166,7 +31485,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
      * const ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);
      * \`\`\`
      */
-    applyVerticalGradient(text: string, lineColors?: Color[]): string;
+    applyVerticalGradient(text: string, lineColors?: Color[], offset?: number): string;
     /**
      * Pads text on the left to reach the specified length.
      *
