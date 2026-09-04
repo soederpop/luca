@@ -10,7 +10,6 @@ import type { Helper } from '../../helper.js'
 const { defineModel } = contentbaseExports
 
 export const ContentDbStateSchema = FeatureStateSchema.extend({
-  loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
   tableOfContents: z.string().default('').describe('Generated table of contents string for the collection'),
   modelSummary: z.string().default('').describe('Summary of all discovered content models and their document counts'),
   modelLoadError: z.string().nullable().default(null).describe('Error message when the collection\'s models file exists but failed to evaluate during load(); null when models loaded cleanly'),
@@ -176,7 +175,6 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   override get initialState(): ContentDbState {
     return {
       ...super.initialState,
-      loaded: false,
       modelLoadError: null
     }
   }
