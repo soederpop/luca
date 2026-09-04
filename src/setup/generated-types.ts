@@ -15262,7 +15262,6 @@ import type { GrepOptions } from './grep.js';
 import type { Helper } from '../../helper.js';
 export declare const ContentDbStateSchema: contentbaseExports.z.ZodObject<{
     enabled: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
-    loaded: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
     tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
     modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
     modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
@@ -15272,7 +15271,7 @@ export declare const ContentDbOptionsSchema: contentbaseExports.z.ZodObject<{
     _cacheKey: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
     cached: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
     enable: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-    rootPath: contentbaseExports.z.ZodString;
+    rootPath: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
 }, contentbaseExports.z.core.$strip>;
 export type ContentDbState = z.infer<typeof ContentDbStateSchema>;
 export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>;
@@ -15302,7 +15301,6 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     static category: "data-storage";
     static stateSchema: contentbaseExports.z.ZodObject<{
         enabled: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
-        loaded: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
         tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
         modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
         modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
@@ -15312,7 +15310,7 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
         _cacheKey: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
         cached: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
         enable: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-        rootPath: contentbaseExports.z.ZodString;
+        rootPath: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
     }, contentbaseExports.z.core.$strip>;
     static eventsSchema: contentbaseExports.z.ZodObject<{
         stateChange: contentbaseExports.z.ZodTuple<[contentbaseExports.z.ZodAny], null>;
@@ -26675,7 +26673,13 @@ export interface CaptureRecordOptions {
 export interface CaptureRecording {
     /** Absolute path the movie will be written to */
     path: string;
-    /** Stop the recording; resolves to the movie path once the file is finalized */
+    /**
+     * Stop the recording early; resolves to the movie path once the file is
+     * finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) —
+     * signals kill screencapture without saving — so the host app needs the
+     * Accessibility permission. On failure it throws and leaves the recording
+     * running, to be finalized by its duration cap.
+     */
     stop: () => Promise<string>;
     /** Resolves to the movie path when the recording ends (duration elapsed or stop() called) */
     done: Promise<string>;
@@ -26701,7 +26705,9 @@ export type ScreenCaptureOptions = z.infer<typeof ScreenCaptureOptionsSchema>;
  * The first capture from a new host app needs the Screen Recording permission
  * (System Settings → Privacy & Security). Without it, captures still "succeed"
  * but come back black or wallpaper-only — window titles in listWindows() also
- * arrive empty. Grant the permission once and restart the host app.
+ * arrive empty. Grant the permission once and restart the host app. Stopping
+ * a recording early additionally needs the Accessibility permission (stop()
+ * presses the system ⌃⌘Esc hotkey — signals would discard the footage).
  *
  * @example
  * \`\`\`typescript
@@ -26830,6 +26836,13 @@ export declare class ScreenCapture extends Feature<FeatureState, ScreenCaptureOp
      *
      * Video is whole-screen or rect only — per-window video isn't supported by
      * the system tool.
+     *
+     * Stopping early (\`stop()\`) presses the system stop-recording hotkey
+     * (⌃⌘Esc) via System Events — since macOS 15 every signal kills
+     * \`screencapture\` without saving the movie. That keystroke needs the
+     * Accessibility permission for the host app, and only one recording can
+     * run at a time (the hotkey is global). Letting the duration expire needs
+     * no extra permission.
      *
      * @param {CaptureRecordOptions} [options] - Duration, audio, clicks, display, rect
      * @returns {Promise<CaptureRecording>} Handle with \`path\`, \`stop()\`, and \`done\`
@@ -32079,6 +32092,12 @@ declare abstract class Registry<T extends Helper> {
      * Lists the keys of all available helpers in this registry.
     */
     get available(): string[];
+    /**
+     * Lists the keys of helpers whose class declares static tools — the ones an
+     * assistant can use() as a tool provider. Inherited tools count, since
+     * toTools() collects them up the prototype chain.
+    */
+    get availableToolsProviders(): string[];
     /**
      * Register a new helper in this registry.
      *

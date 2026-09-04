@@ -14147,7 +14147,7 @@ setBuildTimeData('features.scheduler', {
 
 setBuildTimeData('features.screenCapture', {
   "id": "features.screenCapture",
-  "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app.",
+  "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app. Stopping a recording early additionally needs the Accessibility permission (stop() presses the system ⌃⌘Esc hotkey — signals would discard the footage).",
   "shortcut": "features.screenCapture",
   "className": "ScreenCapture",
   "methods": {
@@ -14311,7 +14311,7 @@ setBuildTimeData('features.screenCapture', {
       ]
     },
     "record": {
-      "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+      "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool. Stopping early (`stop()`) presses the system stop-recording hotkey (⌃⌘Esc) via System Events — since macOS 15 every signal kills `screencapture` without saving the movie. That keystroke needs the Accessibility permission for the host app, and only one recording can run at a time (the hotkey is global). Letting the duration expire needs no extra permission.",
       "parameters": {
         "options": {
           "type": "CaptureRecordOptions",
@@ -14366,7 +14366,7 @@ setBuildTimeData('features.screenCapture', {
             },
             "stop": {
               "type": "() => Promise<string>",
-              "description": "Stop the recording; resolves to the movie path once the file is finalized"
+              "description": "Stop the recording early; resolves to the movie path once the file is finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) — signals kill screencapture without saving — so the host app needs the Accessibility permission. On failure it throws and leaves the recording running, to be finalized by its duration cap."
             },
             "done": {
               "type": "Promise<string>",
@@ -14532,7 +14532,7 @@ setBuildTimeData('features.screenCapture', {
         },
         "stop": {
           "type": "() => Promise<string>",
-          "description": "Stop the recording; resolves to the movie path once the file is finalized"
+          "description": "Stop the recording early; resolves to the movie path once the file is finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) — signals kill screencapture without saving — so the host app needs the Accessibility permission. On failure it throws and leaves the recording running, to be finalized by its duration cap."
         },
         "done": {
           "type": "Promise<string>",
@@ -33765,7 +33765,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.screenCapture",
-    "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app.",
+    "description": "The ScreenCapture feature takes screenshots and screen recordings on macOS. It wraps the system `/usr/sbin/screencapture` tool (no dependencies, nothing to install) and the window server's window list, so it can capture the full screen, a region, or a single application window by name — plus video recordings with optional audio. macOS only. Every method throws a clear error on other platforms. The first capture from a new host app needs the Screen Recording permission (System Settings → Privacy & Security). Without it, captures still \"succeed\" but come back black or wallpaper-only — window titles in listWindows() also arrive empty. Grant the permission once and restart the host app. Stopping a recording early additionally needs the Accessibility permission (stop() presses the system ⌃⌘Esc hotkey — signals would discard the footage).",
     "shortcut": "features.screenCapture",
     "className": "ScreenCapture",
     "methods": {
@@ -33929,7 +33929,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "record": {
-        "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool.",
+        "description": "Records the screen to a QuickTime movie (.mov). With `duration`, the recording stops on its own — await `done`. The default is 300 seconds (5 minutes), a safety cap so a recording nobody remembered to stop can't run forever; pass `duration: 0` to opt out and record until `stop()`. Either way the resolved value is the absolute path to the finished movie. Video is whole-screen or rect only — per-window video isn't supported by the system tool. Stopping early (`stop()`) presses the system stop-recording hotkey (⌃⌘Esc) via System Events — since macOS 15 every signal kills `screencapture` without saving the movie. That keystroke needs the Accessibility permission for the host app, and only one recording can run at a time (the hotkey is global). Letting the duration expire needs no extra permission.",
         "parameters": {
           "options": {
             "type": "CaptureRecordOptions",
@@ -33984,7 +33984,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "stop": {
                 "type": "() => Promise<string>",
-                "description": "Stop the recording; resolves to the movie path once the file is finalized"
+                "description": "Stop the recording early; resolves to the movie path once the file is finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) — signals kill screencapture without saving — so the host app needs the Accessibility permission. On failure it throws and leaves the recording running, to be finalized by its duration cap."
               },
               "done": {
                 "type": "Promise<string>",
@@ -34150,7 +34150,7 @@ export const introspectionData: Record<string, any>[] = [
           },
           "stop": {
             "type": "() => Promise<string>",
-            "description": "Stop the recording; resolves to the movie path once the file is finalized"
+            "description": "Stop the recording early; resolves to the movie path once the file is finalized. Works by pressing the system stop-recording hotkey (⌃⌘Esc) — signals kill screencapture without saving — so the host app needs the Accessibility permission. On failure it throws and leaves the recording running, to be finalized by its duration cap."
           },
           "done": {
             "type": "Promise<string>",
