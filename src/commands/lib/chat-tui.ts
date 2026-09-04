@@ -1,5 +1,6 @@
 import * as readline from 'readline'
 import * as util from 'util'
+import { createInkSurface, type ShowWidgetArgs, type AskUserResult } from './ink-surface'
 
 /**
  * The interactive chat TUI behind `luca chat`.
@@ -108,6 +109,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			items: Array<{ label: string; hint?: string; value: string }>
 			index: number
 			onPick: (value: string) => void | Promise<void>
+			/** Called when the picker is dismissed (esc, or the turn aborts). */
+			onCancel?: () => void
 		},
 		notice: '',
 		exitRequested: false,
@@ -128,6 +131,66 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		bump()
 	}
 
+	// ── assistant UI surface (showWidget / askUser tools) ─────────────────────
+	function renderWidget(spec: ShowWidgetArgs): string[] {
+		const lines: string[] = []
+		if (spec.title) lines.push(colors.bold(spec.title))
+		if (spec.widget === 'banner') {
+			lines.push(colors.cyan(colors.bold(spec.text ?? '')))
+		} else if (spec.widget === 'markdown') {
+			lines.push(...md(spec.text ?? '').split('\n'))
+		} else if (spec.widget === 'list') {
+			for (const item of spec.items ?? []) lines.push(`  ${colors.dim('•')} ${item}`)
+		} else if (spec.widget === 'table') {
+			const columns = spec.columns ?? []
+			const rows = spec.rows ?? []
+			const widths = columns.map((col, i) => Math.max(col.length, ...rows.map((row) => (row[i] ?? '').length)))
+			const pad = (cell: string, i: number) => cell.padEnd(widths[i] ?? cell.length)
+			lines.push('  ' + colors.dim(columns.map(pad).join('  ')))
+			lines.push('  ' + colors.dim(widths.map((w) => '─'.repeat(w)).join('  ')))
+			for (const row of rows) lines.push('  ' + columns.map((_, i) => pad(row[i] ?? '', i)).join('  '))
+		}
+		return lines
+	}
+
+	const inkSurface = createInkSurface({
+		show(spec) {
+			store.transcript.push({ id: uid(), kind: 'system', lines: renderWidget(spec) })
+			bump()
+		},
+		ask(spec) {
+			return new Promise((resolve) => {
+				if (store.mode === 'picker') {
+					// Another widget already owns the keyboard — fail the tool call
+					// instead of silently replacing what the user is looking at.
+					resolve({ cancelled: true })
+					return
+				}
+				const items = spec.kind === 'confirm'
+					? [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]
+					: (spec.options ?? []).map((opt) => ({ label: opt.label, value: opt.value ?? opt.label, hint: opt.hint }))
+				const settle = (result: AskUserResult) => {
+					store.transcript.push({
+						id: uid(),
+						kind: 'system',
+						lines: [colors.dim(`? ${spec.question} → `) + ('cancelled' in result ? colors.yellow('cancelled') : colors.cyan(result.label))],
+					})
+					bump()
+					resolve(result)
+				}
+				store.mode = 'picker'
+				store.picker = {
+					title: spec.question,
+					items,
+					index: 0,
+					onPick: (value) => settle({ value, label: items.find((item) => item.value === value)?.label ?? value }),
+					onCancel: () => settle({ cancelled: true }),
+				}
+				bump()
+			})
+		},
+	})
+
 	// ── assistants ────────────────────────────────────────────────────────────
 	type Cell = { assistant: any; started: boolean; startPromise: Promise<void> | null }
 	const cells = new Map<string, Cell>()
@@ -137,6 +200,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		if (cell) return cell
 		const assistant = manager.create(name, { ...createOptions })
 		options.setupAssistant?.(assistant)
+		assistant.use(inkSurface)
 		wireAssistant(name, assistant)
 		cell = { assistant, started: false, startPromise: null }
 		cells.set(name, cell)
@@ -276,6 +340,15 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	}
 
 	function abortActive() {
+		// A pending askUser widget holds the turn open — settle it first so the
+		// tool promise resolves and the abort doesn't leave it dangling.
+		if (store.mode === 'picker' && store.picker?.onCancel) {
+			const cancel = store.picker.onCancel
+			store.mode = 'input'
+			store.picker = null
+			bump()
+			cancel()
+		}
 		const target = store.current?.who || store.target
 		if (!target) return
 		const cell = cells.get(target)
@@ -823,7 +896,14 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				const picker = store.picker
 				if (key.upArrow) { picker.index = Math.max(0, picker.index - 1); bump(); return }
 				if (key.downArrow) { picker.index = Math.min(picker.items.length - 1, picker.index + 1); bump(); return }
-				if (key.escape) { store.mode = 'input'; store.picker = null; bump(); return }
+				if (key.escape) {
+					const cancel = picker.onCancel
+					store.mode = 'input'
+					store.picker = null
+					bump()
+					cancel?.()
+					return
+				}
 				if (key.return) {
 					const chosen = picker.items[picker.index]
 					store.mode = 'input'
