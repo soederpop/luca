@@ -1,36 +1,27 @@
-// The luca container is a global inside tools.ts — no import needed.
+import { z } from 'zod'
+
 declare const container: any
 
-// The default assistant learns the framework the same way you would: by driving
-// the `luca` CLI and reading the bundled skill docs on demand. That keeps its
-// tool surface tiny — just processManager's runCommand — which matters most on
-// local models with small context windows.
-//
-// processManager provides:
-//   - runCommand   run a shell command to completion (luca describe, rg, cat, builds, tests)
-//   - spawnProcess / listProcesses / getProcessOutput / killProcess
-//                  start and manage long-running background processes (servers, watchers)
-//
-// The system prompt (CORE.md) tells the assistant to search with
-// `luca describe --query "..."`, read full API docs with `luca describe <name>`,
-// and grep/read the tutorials under .claude/skills/luca-framework/ — no heavy
-// document-Q&A tool surface required.
 export const use = [
-	container.feature('processManager'),
+	container.feature('vm'),
+	container.feature('skillsLibrary'),
 ]
 
-// Add your own tools by exporting functions plus a matching `schemas` object:
-//
-// import { z } from 'zod'
-// export const schemas = {
-// 	greet: z.object({ name: z.string().describe('Who to greet') }).describe('Say hello'),
-// }
-// export function greet(options: { name: string }) {
-// 	return `Hello, ${options.name}!`
-// }
-//
-// Prefer CLI-driven discovery over hard-wired tools. If you truly need rich,
-// synthesized document Q&A, `container.feature('docsReader', { contentDb:
-// '.claude/skills/luca-framework' })` adds an askDocs tool — but it spins up a
-// nested assistant and a larger tool surface, so reach for it only when the
-// model has a generous context window.
+
+export const schemas = {
+	searchDocs: z.object({
+		query: z.string().describe('Natural-language or keyword query, e.g. "how do I retry with backoff?" or "watch files for changes"'),
+		limit: z.number().optional().describe('Maximum results (default 8)'),
+	}).describe('Semantic search over every luca helper, example, and tutorial — the same engine as `luca describe --query`, run in-process. Each result carries a `describe` ref: follow up with evalCode `(await container.describer.describeHelper(ref)).text` for the full docs. Use this FIRST when you don\'t know which helper solves a problem.'),
+
+	README: z.object({}).describe("Call this function immediately to learn about the global `container` object that you have available to you when you eval code.  It will describe all of the Luca framework helper components available to you to use to build whatever solution you can think of."),
+}
+
+export async function searchDocs(options: z.infer<typeof schemas.searchDocs>) {
+	return await container.describer.query(options.query, { limit: options.limit })
+}
+
+export async function README(options: z.infer<typeof schemas.README>) {
+	const docs = container.introspectAsText()
+	return docs
+}
