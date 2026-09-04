@@ -125,4 +125,116 @@ describe('secureShell scp argv construction', () => {
 		expect(argv[0]).toBe('-p')
 		expect(argv[1]).toBe('22') // default port
 	})
+
+	it('omits user@ when no username is configured', async () => {
+		const container = new NodeContainer()
+		const ssh = shimBinaries(container.feature('secureShell', { host: 'example.test' }))
+		const output = await ssh.exec('true')
+		const argv = output.split('\n')
+		expect(argv[argv.length - 2]).toBe('example.test')
+	})
+})
+
+describe('secureShell ssh config parsing and host switching', () => {
+	let configDir: string
+	let configPath: string
+
+	beforeAll(() => {
+		configDir = mkdtempSync(join(tmpdir(), 'luca-sshconf-'))
+		mkdirSync(join(configDir, 'config.d'))
+		writeFileSync(join(configDir, 'config.d', 'extra.conf'), 'Host extra\n  HostName extra.internal\n')
+		writeFileSync(join(configDir, 'config'), [
+			'Include config.d/*.conf',
+			'',
+			'# a comment',
+			'Host chief',
+			'  HostName 10.0.0.5',
+			'  User jon',
+			'  Port 2200',
+			'  IdentityFile ~/.ssh/id_chief',
+			'',
+			'Host web1 web2',
+			'  User deploy',
+			'',
+			'Host *',
+			'  ServerAliveInterval 60',
+		].join('\n'))
+	})
+
+	afterAll(() => {
+		rmSync(configDir, { recursive: true, force: true })
+	})
+
+	function makeConfigShell(options: Record<string, unknown> = {}) {
+		const container = new NodeContainer()
+		return shimBinaries(container.feature('secureShell', {
+			configPath: join(configDir, 'config'),
+			...options,
+		}))
+	}
+
+	it('parses Host entries, follows Include globs, and skips wildcard patterns', () => {
+		const ssh = makeConfigShell()
+		const hosts = ssh.hosts
+		expect(hosts.map((h: any) => h.host)).toEqual(['extra', 'chief', 'web1', 'web2'])
+		const chief = hosts.find((h: any) => h.host === 'chief')
+		expect(chief).toEqual({ host: 'chief', hostname: '10.0.0.5', user: 'jon', port: 2200, identityFile: '~/.ssh/id_chief' })
+		// multi-alias blocks share their directives
+		expect(hosts.find((h: any) => h.host === 'web2')?.user).toBe('deploy')
+	})
+
+	it('can be created with no host, and exec fails with a helpful error until one is selected', async () => {
+		const ssh = makeConfigShell()
+		expect(ssh.state.get('currentHost')).toBeUndefined()
+		await expect(ssh.exec('true')).rejects.toThrow(/no host selected/)
+	})
+
+	it('useHost with a config alias passes only the alias — ssh config resolves the rest', async () => {
+		const ssh = makeConfigShell()
+		ssh.useHost('chief')
+		expect(ssh.state.get('currentHost')).toBe('chief')
+		const output = await ssh.exec('uptime')
+		expect(output.split('\n')).toEqual([
+			'-o', 'BatchMode=yes',
+			'-o', 'StrictHostKeyChecking=no',
+			'chief',
+			'uptime',
+		])
+	})
+
+	it('useHost with a config alias applies to scp transfers too', async () => {
+		const ssh = makeConfigShell()
+		ssh.useHost('chief')
+		const output = await ssh.download('/var/log/app.log', '/local/app.log')
+		expect(output.split('\n')).toEqual([
+			'-o', 'BatchMode=yes',
+			'-o', 'StrictHostKeyChecking=no',
+			'chief:/var/log/app.log',
+			'/local/app.log',
+		])
+	})
+
+	it('useHost with a literal user@host keeps the feature key/port options as defaults', async () => {
+		const ssh = makeConfigShell({ port: 2222, key: '/keys/id_test' })
+		ssh.useHost('deploy@192.168.1.50')
+		expect(ssh.state.get('currentHost')).toBe('deploy@192.168.1.50')
+		const output = await ssh.exec('true')
+		expect(output.split('\n')).toEqual([
+			'-p', '2222',
+			'-i', '/keys/id_test',
+			'-o', 'BatchMode=yes',
+			'-o', 'StrictHostKeyChecking=no',
+			'deploy@192.168.1.50',
+			'true',
+		])
+	})
+
+	it('useHost can switch away from an options-configured host at any time', async () => {
+		const ssh = makeConfigShell({ host: 'example.test', username: 'deploy' })
+		expect(ssh.state.get('currentHost')).toBe('example.test')
+		ssh.useHost('chief')
+		const output = await ssh.exec('true')
+		expect(output.split('\n')).toContain('chief')
+		expect(output.split('\n')).not.toContain('deploy@example.test')
+	})
 })

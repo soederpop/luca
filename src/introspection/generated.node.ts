@@ -14545,12 +14545,12 @@ setBuildTimeData('features.screenCapture', {
 
 setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
-  "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, or an already-loaded ssh-agent identity. (A `password` option exists in the schema but is not wired into the ssh/scp command line — BatchMode suppresses password prompts.) Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected` based on whether the remote host responded.",
+  "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, an IdentityFile in the ssh config, or an already-loaded ssh-agent identity. The feature can be created with no host at all. The `hosts` getter parses the ssh client config (`~/.ssh/config` by default, including `Include`d files) and lists every concrete Host entry, and `useHost()` switches the active target at any time — to a config alias, or to a literal `user@host` destination. When the target is a config alias, only the alias is passed to ssh/scp so the user's real config resolution (User, Port, IdentityFile, ProxyJump, ...) applies in full. Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected`, and `state.currentHost` reflects the active target.",
   "shortcut": "features.secureShell",
   "className": "SecureShell",
   "methods": {
     "setupToolsConsumer": {
-      "description": "When an assistant consumes these tools, tell it which host it is talking to — the connection is fixed by the feature's options, not tool arguments.",
+      "description": "When an assistant consumes these tools, tell it what the current target is (if any) and that it can list and switch hosts itself.",
       "parameters": {
         "consumer": {
           "type": "Helper",
@@ -14561,6 +14561,42 @@ setBuildTimeData('features.secureShell', {
         "consumer"
       ],
       "returns": "void"
+    },
+    "parseSshConfig": {
+      "description": "Parse the ssh client config into a list of concrete Host entries. Follows `Include` directives (with simple `*` globs, resolved relative to the config file's directory). Wildcard/negated Host patterns (`*`, `?`, `!`) are skipped — they are pattern defaults, not connectable hosts, and ssh applies them itself when we connect by alias. This parser is a listing aid; it does not replicate full ssh_config semantics (no `Match`, no cross-block option merging).",
+      "parameters": {
+        "configPath": {
+          "type": "string",
+          "description": "Config file to parse (default: the feature's `configPath`)"
+        }
+      },
+      "required": [],
+      "returns": "SshConfigHost[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ssh = container.feature('secureShell')\nfor (const h of ssh.parseSshConfig()) {\n console.log(h.host, h.hostname ?? '', h.user ?? '')\n}"
+        }
+      ]
+    },
+    "useHost": {
+      "description": "Switch the target host for all subsequent exec/upload/download calls. If the name matches a Host alias in the ssh config, only the alias is passed to ssh/scp from then on — the user's real ssh config resolution supplies User, Port, IdentityFile, ProxyJump, etc. Otherwise the name is treated as a literal destination (`host` or `user@host`), keeping the feature's `port` and `key` options as defaults. Updates `state.currentHost`. Does not test reachability — call `testConnection()` after switching.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "A Host alias from the ssh config, or a literal `host` / `user@host`"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "SshConfigHost | { host: string; username?: string }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell')\nssh.useHost('chief')                 // alias from ~/.ssh/config\nssh.useHost('deploy@192.168.1.100')  // literal destination\nif (await ssh.testConnection()) console.log(await ssh.exec('hostname'))"
+        }
+      ]
     },
     "testConnection": {
       "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
@@ -14650,6 +14686,14 @@ setBuildTimeData('features.secureShell', {
     "scpPath": {
       "description": "Resolved path to the scp binary",
       "returns": "string"
+    },
+    "configPath": {
+      "description": "Path to the ssh client config file being parsed (default: ~/.ssh/config)",
+      "returns": "string"
+    },
+    "hosts": {
+      "description": "The hosts defined in the ssh client config. Re-parses the config on every access so edits to ~/.ssh/config are picked up immediately.",
+      "returns": "SshConfigHost[]"
     }
   },
   "events": {},
@@ -14661,9 +14705,40 @@ setBuildTimeData('features.secureShell', {
   "examples": [
     {
       "language": "ts",
-      "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n port: 22,                  // default: 22\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\n// Verify reachability before doing real work — never throws\nif (await ssh.testConnection()) {\n console.log('connected:', ssh.state.get('connected')) // true\n\n // exec() returns the command's trimmed stdout\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n\n // SCP round-trip. Remote paths are absolute, or relative to\n // the remote user's home directory.\n await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\n await ssh.download('/var/log/app.log', './logs/app.log')\n}"
+      "code": "// (no-run) requires a reachable SSH host\n// No host needed up front — discover targets from ~/.ssh/config\nconst ssh = container.feature('secureShell')\nconsole.log(ssh.hosts) // [{ host: 'chief', hostname: '10.0.0.5', user: 'jon', ... }]\n\nssh.useHost('chief')             // config alias — ssh config resolves the rest\nconst uptime = await ssh.exec('uptime')\n\nssh.useHost('deploy@192.168.1.100') // or a literal destination\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\nawait ssh.download('/var/log/app.log', './logs/app.log')"
     }
-  ]
+  ],
+  "types": {
+    "SshConfigHost": {
+      "description": "One `Host` entry parsed from the ssh client config",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "The Host alias — what you pass to `useHost()` or on the ssh command line"
+        },
+        "hostname": {
+          "type": "string",
+          "description": "The real address ssh connects to (HostName directive)",
+          "optional": true
+        },
+        "user": {
+          "type": "string",
+          "description": "Username (User directive)",
+          "optional": true
+        },
+        "port": {
+          "type": "number",
+          "description": "Port (Port directive)",
+          "optional": true
+        },
+        "identityFile": {
+          "type": "string",
+          "description": "Private key path (IdentityFile directive)",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.semanticSearch', {
@@ -34162,12 +34237,12 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.secureShell",
-    "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, or an already-loaded ssh-agent identity. (A `password` option exists in the schema but is not wired into the ssh/scp command line — BatchMode suppresses password prompts.) Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected` based on whether the remote host responded.",
+    "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, an IdentityFile in the ssh config, or an already-loaded ssh-agent identity. The feature can be created with no host at all. The `hosts` getter parses the ssh client config (`~/.ssh/config` by default, including `Include`d files) and lists every concrete Host entry, and `useHost()` switches the active target at any time — to a config alias, or to a literal `user@host` destination. When the target is a config alias, only the alias is passed to ssh/scp so the user's real config resolution (User, Port, IdentityFile, ProxyJump, ...) applies in full. Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected`, and `state.currentHost` reflects the active target.",
     "shortcut": "features.secureShell",
     "className": "SecureShell",
     "methods": {
       "setupToolsConsumer": {
-        "description": "When an assistant consumes these tools, tell it which host it is talking to — the connection is fixed by the feature's options, not tool arguments.",
+        "description": "When an assistant consumes these tools, tell it what the current target is (if any) and that it can list and switch hosts itself.",
         "parameters": {
           "consumer": {
             "type": "Helper",
@@ -34178,6 +34253,42 @@ export const introspectionData: Record<string, any>[] = [
           "consumer"
         ],
         "returns": "void"
+      },
+      "parseSshConfig": {
+        "description": "Parse the ssh client config into a list of concrete Host entries. Follows `Include` directives (with simple `*` globs, resolved relative to the config file's directory). Wildcard/negated Host patterns (`*`, `?`, `!`) are skipped — they are pattern defaults, not connectable hosts, and ssh applies them itself when we connect by alias. This parser is a listing aid; it does not replicate full ssh_config semantics (no `Match`, no cross-block option merging).",
+        "parameters": {
+          "configPath": {
+            "type": "string",
+            "description": "Config file to parse (default: the feature's `configPath`)"
+          }
+        },
+        "required": [],
+        "returns": "SshConfigHost[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ssh = container.feature('secureShell')\nfor (const h of ssh.parseSshConfig()) {\n console.log(h.host, h.hostname ?? '', h.user ?? '')\n}"
+          }
+        ]
+      },
+      "useHost": {
+        "description": "Switch the target host for all subsequent exec/upload/download calls. If the name matches a Host alias in the ssh config, only the alias is passed to ssh/scp from then on — the user's real ssh config resolution supplies User, Port, IdentityFile, ProxyJump, etc. Otherwise the name is treated as a literal destination (`host` or `user@host`), keeping the feature's `port` and `key` options as defaults. Updates `state.currentHost`. Does not test reachability — call `testConnection()` after switching.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "A Host alias from the ssh config, or a literal `host` / `user@host`"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "SshConfigHost | { host: string; username?: string }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell')\nssh.useHost('chief')                 // alias from ~/.ssh/config\nssh.useHost('deploy@192.168.1.100')  // literal destination\nif (await ssh.testConnection()) console.log(await ssh.exec('hostname'))"
+          }
+        ]
       },
       "testConnection": {
         "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
@@ -34267,6 +34378,14 @@ export const introspectionData: Record<string, any>[] = [
       "scpPath": {
         "description": "Resolved path to the scp binary",
         "returns": "string"
+      },
+      "configPath": {
+        "description": "Path to the ssh client config file being parsed (default: ~/.ssh/config)",
+        "returns": "string"
+      },
+      "hosts": {
+        "description": "The hosts defined in the ssh client config. Re-parses the config on every access so edits to ~/.ssh/config are picked up immediately.",
+        "returns": "SshConfigHost[]"
       }
     },
     "events": {},
@@ -34278,9 +34397,40 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n port: 22,                  // default: 22\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\n// Verify reachability before doing real work — never throws\nif (await ssh.testConnection()) {\n console.log('connected:', ssh.state.get('connected')) // true\n\n // exec() returns the command's trimmed stdout\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n\n // SCP round-trip. Remote paths are absolute, or relative to\n // the remote user's home directory.\n await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\n await ssh.download('/var/log/app.log', './logs/app.log')\n}"
+        "code": "// (no-run) requires a reachable SSH host\n// No host needed up front — discover targets from ~/.ssh/config\nconst ssh = container.feature('secureShell')\nconsole.log(ssh.hosts) // [{ host: 'chief', hostname: '10.0.0.5', user: 'jon', ... }]\n\nssh.useHost('chief')             // config alias — ssh config resolves the rest\nconst uptime = await ssh.exec('uptime')\n\nssh.useHost('deploy@192.168.1.100') // or a literal destination\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\nawait ssh.download('/var/log/app.log', './logs/app.log')"
       }
-    ]
+    ],
+    "types": {
+      "SshConfigHost": {
+        "description": "One `Host` entry parsed from the ssh client config",
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "The Host alias — what you pass to `useHost()` or on the ssh command line"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "The real address ssh connects to (HostName directive)",
+            "optional": true
+          },
+          "user": {
+            "type": "string",
+            "description": "Username (User directive)",
+            "optional": true
+          },
+          "port": {
+            "type": "number",
+            "description": "Port (Port directive)",
+            "optional": true
+          },
+          "identityFile": {
+            "type": "string",
+            "description": "Private key path (IdentityFile directive)",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.semanticSearch",

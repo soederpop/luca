@@ -17,7 +17,7 @@ describe('secureShell agent tools', () => {
 
 	it('exposes the ssh tool surface with matching schemas and handlers', () => {
 		const bundle = makeSsh().toTools()
-		const expected = ['sshExec', 'sshTestConnection', 'sshUpload', 'sshDownload']
+		const expected = ['sshListHosts', 'sshUseHost', 'sshExec', 'sshTestConnection', 'sshUpload', 'sshDownload']
 		for (const name of expected) {
 			expect(Object.keys(bundle.schemas)).toContain(name)
 			expect(typeof bundle.handlers[name]).toBe('function')
@@ -41,14 +41,26 @@ describe('secureShell agent tools', () => {
 		expect(seen).toEqual(['./a.txt', '/tmp/a.txt'])
 	})
 
-	it('setupToolsConsumer injects the host into the prompt extension', () => {
+	it('setupToolsConsumer injects the current host into the prompt extension', () => {
 		const ssh = makeSsh()
 		const extensions: Record<string, string> = {}
 		const consumer: any = {
 			addSystemPromptExtension: (name: string, text: string) => { extensions[name] = text },
 		}
 		ssh.setupToolsConsumer(consumer)
-		expect(extensions.secureShell).toContain('deploy@example.test')
+		expect(extensions.secureShell).toContain('The current target host is: example.test')
+		expect(extensions.secureShell).toContain('sshUseHost')
+	})
+
+	it('setupToolsConsumer tells the assistant to pick a host when none is configured', () => {
+		const ssh = new NodeContainer().feature('secureShell')
+		const extensions: Record<string, string> = {}
+		const consumer: any = {
+			addSystemPromptExtension: (name: string, text: string) => { extensions[name] = text },
+		}
+		ssh.setupToolsConsumer(consumer)
+		expect(extensions.secureShell).toContain('No target host is selected yet')
+		expect(extensions.secureShell).toContain('sshListHosts')
 	})
 })
 

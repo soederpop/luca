@@ -152,7 +152,7 @@ export type { ReplState, ReplOptions, Repl } from "./features/repl";
 export type { RunpodState, RunpodOptions, Runpod } from "./features/runpod";
 export type { SchedulerState, SchedulerOptions, ScheduledTaskInfo, TaskHandle, ScheduleTaskOptions, EveryTaskOptions, SchedulerRunOptions, Scheduler } from "./features/scheduler";
 export type { CaptureWindowInfo, CaptureRect, CaptureImageOptions, CaptureRecordOptions, CaptureRecording, ScreenCaptureOptions, ScreenCapture } from "./features/screen-capture";
-export type { SecureShellState, SecureShellOptions, SecureShell } from "./features/secure-shell";
+export type { SecureShellState, SecureShellOptions, SshConfigHost, SecureShell } from "./features/secure-shell";
 export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, SemanticSearchQueryOptions, HybridSearchOptions, IndexStatus, DocumentInput, SemanticSearch } from "./features/semantic-search";
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
