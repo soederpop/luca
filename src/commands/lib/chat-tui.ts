@@ -167,7 +167,23 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	function uiRequire(id: string) {
 		if (id === 'react') return React
 		if (id === 'ink') {
-			if (!uiModuleShim.ink) uiModuleShim.ink = { ...ink.components, ...ink.hooks }
+			if (!uiModuleShim.ink) {
+				// The error boundary catches render/effect crashes, but React never
+				// routes event-handler errors through boundaries — and useInput
+				// callbacks are where most assistant UI code runs. Wrap the hook so
+				// a throw mid-keystroke settles the tool call as { error } (which
+				// the assistant sees and can fix) instead of escaping ink's input
+				// loop and taking the app down.
+				const realUseInput = ink.hooks.useInput
+				const guardedUseInput = (handler: any, opts?: any) => realUseInput((input: string, key: any) => {
+					try {
+						handler(input, key)
+					} catch (err: any) {
+						settleUi({ error: `component crashed in input handler: ${err?.message || err}` })
+					}
+				}, opts)
+				uiModuleShim.ink = { ...ink.components, ...ink.hooks, useInput: guardedUseInput }
+			}
 			return uiModuleShim.ink
 		}
 		throw new Error(`import "${id}" is not available in renderUi — only "react" and "ink" can be imported`)
