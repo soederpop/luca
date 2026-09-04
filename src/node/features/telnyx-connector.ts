@@ -74,6 +74,117 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   static override eventsSchema = TelnyxConnectorEventsSchema
   static { Feature.register(this, 'telnyxConnector') }
 
+  /**
+   * Assistant tools: the account-side admin surface. Everything here works
+   * standalone (assistant: null, no start()) — it talks straight to the
+   * Telnyx API. Deployment verbs (start/stop/wiring) are deliberately absent:
+   * deploys are config-driven and process-bound, not something a chat model
+   * should do live. Consumers trim with toTools({ only }) / ({ except }).
+   */
+  static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+    dial: {
+      schema: z.object({
+        to: z.string().describe('Number to call, E.164 format (e.g. +13125550000)'),
+        from: z.string().optional().describe("Calling number in E.164. Omit to use the connector's configured phoneNumber. Must be a number on this Telnyx account wired to a deployed AI assistant."),
+        greeting: z.string().optional().describe('First thing the assistant says when the call is answered'),
+        context: z.string().optional().describe('Why the assistant is calling — injected into its instructions for this call only'),
+        assistantId: z.string().optional().describe("Telnyx assistant ID to place the call as. Omit to resolve from the from-number's wiring."),
+      }).describe('Place an outbound phone call from a deployed AI assistant, with a per-call greeting and purpose. The call is handled by the deployed assistant, not by you — set greeting and context to steer it.'),
+      handler: (args: any, self: any) => self.dial(args.to, {
+        from: args.from,
+        greeting: args.greeting,
+        context: args.context,
+        assistantId: args.assistantId,
+      }),
+    },
+    listConversations: {
+      schema: z.object({
+        limit: z.number().optional().describe('Max conversations to return (default 50)'),
+        assistantId: z.string().optional().describe('Only conversations handled by this Telnyx assistant ID'),
+      }).describe('List recent AI phone conversations, newest first. Each result carries metadata (from, to, call_session_id, assistant_id) for joining to transcripts, recordings, and costs.'),
+    },
+    getConversationMessages: {
+      schema: z.object({
+        conversationId: z.string().describe('Conversation ID from listConversations'),
+      }).describe('Full transcript of one conversation, oldest message first. Message text may contain inline <emotion .../> control tags — strip them before showing a transcript.'),
+      handler: (args: any, self: any) => self.getConversationMessages(args.conversationId),
+    },
+    getConversationInsights: {
+      schema: z.object({
+        conversationId: z.string().describe('Conversation ID from listConversations'),
+      }).describe('Post-call AI insights (summary) for a conversation. The human-readable summary is the result field on each record.'),
+      handler: (args: any, self: any) => self.getConversationInsights(args.conversationId),
+    },
+    getConversationCost: {
+      schema: z.object({
+        conversationId: z.string().describe('Conversation ID from listConversations'),
+      }).describe('Cost, duration, and model metadata for one call, from its detail record. Returns null if billing has not caught up yet (can lag a completed call by a few minutes).'),
+      handler: (args: any, self: any) => self.getConversationCost(args.conversationId),
+    },
+    getRecordingUrl: {
+      schema: z.object({
+        callSessionId: z.string().describe('call_session_id from a conversation\'s metadata'),
+      }).describe('A fresh signed MP3 download URL for a call recording, or null if none exists. URLs expire quickly — fetch on demand, never store them.'),
+      handler: (args: any, self: any) => self.getRecordingUrl(args.callSessionId),
+    },
+    handoffToHuman: {
+      schema: z.object({
+        conversationId: z.string().describe('Conversation ID from listConversations'),
+      }).describe('Disable AI responses on a conversation so a human agent can take over. Reverse with handoffToAI.'),
+      handler: (args: any, self: any) => self.handoffToHuman(args.conversationId),
+    },
+    handoffToAI: {
+      schema: z.object({
+        conversationId: z.string().describe('Conversation ID from listConversations'),
+      }).describe('Re-enable AI responses on a conversation after a human handoff.'),
+      handler: (args: any, self: any) => self.handoffToAI(args.conversationId),
+    },
+    listAssistants: {
+      schema: z.object({}).describe('List all deployed Telnyx AI assistants on the account, with their models, features, and telephony settings.'),
+    },
+    getAssistant: {
+      schema: z.object({
+        assistantId: z.string().describe('Telnyx assistant ID from listAssistants'),
+      }).describe('Full configuration of one deployed Telnyx AI assistant.'),
+      handler: (args: any, self: any) => self.getAssistant(args.assistantId),
+    },
+    listPhoneNumbers: {
+      schema: z.object({}).describe('List all phone numbers on the Telnyx account with their status and connection wiring.'),
+    },
+    getPhoneNumber: {
+      schema: z.object({
+        phoneNumber: z.string().describe('E.164 number, e.g. +13125552200'),
+      }).describe('Voice and messaging configuration for one phone number on the account, or null if not found.'),
+      handler: (args: any, self: any) => self.getPhoneNumber(args.phoneNumber),
+    },
+    searchNumbers: {
+      schema: z.object({
+        areaCode: z.string().optional().describe("Three-digit national destination code, e.g. '312'"),
+        locality: z.string().optional().describe("City name, e.g. 'Chicago'"),
+        administrativeArea: z.string().optional().describe("US state / CA province, e.g. 'IL'"),
+        countryCode: z.string().optional().describe("ISO country code; defaults to 'US'"),
+        features: z.array(z.enum(['sms', 'mms', 'voice', 'fax', 'emergency', 'hd_voice', 'international_sms', 'local_calling'])).optional().describe("Required features, e.g. ['sms', 'voice']"),
+        limit: z.number().optional().describe('Max results; defaults to 10'),
+      }).describe('Search Telnyx inventory for purchasable phone numbers. Read-only — nothing is bought.'),
+    },
+    purchaseNumber: {
+      schema: z.object({
+        phoneNumber: z.string().describe('E.164 number from searchNumbers results'),
+        customerReference: z.string().optional().describe('Free-form reference stored on the order'),
+      }).describe('Purchase a phone number from Telnyx inventory. THIS SPENDS REAL MONEY and adds a recurring monthly charge. Never call it unless the user has explicitly confirmed this exact number in this conversation.'),
+      handler: (args: any, self: any) => self.purchaseNumber(args.phoneNumber, {
+        customerReference: args.customerReference,
+      }),
+    },
+    listVoices: {
+      schema: z.object({
+        provider: z.string().optional().describe("Filter by provider, e.g. 'Telnyx' or 'ElevenLabs'"),
+        apiKeyRef: z.string().optional().describe('Integration secret ref for ElevenLabs — includes your personal ElevenLabs voices in the results'),
+        filter: z.string().optional().describe('Substring match on voice name or ID'),
+      }).describe('List TTS voices available to the account.'),
+    },
+  }
+
   private _log(...args: any[]) {
     if (this.options.debug) console.log(...args)
   }
