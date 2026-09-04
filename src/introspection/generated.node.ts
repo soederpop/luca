@@ -19658,8 +19658,8 @@ setContainerBuildTimeData('NodeContainer', {
       "returns": "{ parse: (uri: string) => url.UrlWithStringQuery }"
     },
     "paths": {
-      "description": "Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse).",
-      "returns": "{ dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse }"
+      "description": "Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse).",
+      "returns": "{ cwd: string; dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse }"
     }
   },
   "events": {}
@@ -39256,8 +39256,8 @@ export const containerIntrospectionData: Record<string, any>[] = [
         "returns": "{ parse: (uri: string) => url.UrlWithStringQuery }"
       },
       "paths": {
-        "description": "Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse).",
-        "returns": "{ dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse }"
+        "description": "Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse).",
+        "returns": "{ cwd: string; dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse }"
       }
     },
     "events": {}

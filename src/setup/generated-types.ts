@@ -14568,8 +14568,9 @@ export declare class NodeContainer<Features extends NodeFeatures = NodeFeatures,
     get urlUtils(): {
         parse: (uri: string) => url.UrlWithStringQuery;
     };
-    /** Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse). */
+    /** Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse). */
     get paths(): {
+        cwd: string;
         dirname: (path: string) => string;
         join: (...paths: string[]) => string;
         resolve: (...paths: string[]) => string;
@@ -23967,11 +23968,12 @@ interface RawSpawnOptions {
  * const result = proc.execSync('echo "Hello World"')
  * console.log(result) // 'Hello World'
  *
- * // Execute and capture output asynchronously
- * const { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])
+ * // The default way to run a command: await completion, get the result.
+ * // Failures are returned (check exitCode), not thrown.
+ * const { stdout, stderr, exitCode } = await proc.spawnAndCapture('npm', ['--version'])
  * console.log(\`npm version: \${stdout}\`)
  *
- * // Execute with callbacks for real-time output
+ * // Optionally watch output live as it streams (still fully captured)
  * await proc.spawnAndCapture('npm', ['install'], {
  *   onOutput: (data) => console.log('OUT:', data),
  *   onError: (data) => console.log('ERR:', data)
@@ -24038,43 +24040,45 @@ export declare class ChildProcess extends Feature {
         pid: number | null;
     }>;
     /**
-     * Spawns a process and captures its output with real-time monitoring capabilities.
+     * Run a command to completion and get \`{ stdout, stderr, exitCode, error }\`.
      *
-     * This method provides comprehensive process execution with the ability to capture
-     * output, monitor real-time data streams, and handle process lifecycle events.
-     * It's ideal for long-running processes where you need to capture output as it happens.
+     * This is the default way to run a command. Failures are returned, not thrown —
+     * check \`exitCode\` (and \`error\`) on the result. Arguments are passed as an array,
+     * so nothing is split or shell-escaped. Pass \`onOutput\`/\`onError\` callbacks to
+     * also watch output live as it streams; the full output is still captured in the
+     * returned strings either way.
+     *
+     * Use \`spawn()\` instead only when you need the raw ChildProcess handle
+     * (streaming without waiting for exit, kill(), detached daemons).
      *
      * @param {string} command - The command to execute (e.g., 'node', 'npm', 'git')
      * @param {string[]} args - Array of arguments to pass to the command
      * @param {SpawnOptions} [options] - Options for process execution and monitoring
      * @param {string} [options.cwd] - Working directory for the process
-     * @param {Function} [options.onOutput] - Callback for stdout data
-     * @param {Function} [options.onError] - Callback for stderr data
+     * @param {Function} [options.onOutput] - Callback for stdout data as it streams
+     * @param {Function} [options.onError] - Callback for stderr data as it streams
      * @param {Function} [options.onExit] - Callback for process exit
      * @returns {Promise<object>} Promise resolving to complete execution result
      *
      * @example
      * \`\`\`typescript
-     * // Basic usage
+     * // Run a command, get the result — failures come back, they don't throw
      * const result = await proc.spawnAndCapture('node', ['--version'])
-     * console.log(\`Node version: \${result.stdout}\`)
+     * if (result.exitCode === 0) {
+     *   console.log(\`Node version: \${result.stdout}\`)
+     * } else {
+     *   console.error('failed:', result.stderr)
+     * }
      *
-     * // With real-time output monitoring
+     * // Watch output live while still capturing it all
      * const monitored = await proc.spawnAndCapture('bun', ['--version'], {
      *   onOutput: (data) => console.log('OUT:', data.trim()),
      *   onError: (data) => console.error('ERR:', data.trim()),
      *   onExit: (code) => console.log(\`Process exited with code \${code}\`)
      * })
      *
-     * // Custom working directory, watching output as it streams
-     * const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
-     *   cwd: 'src',
-     *   onOutput: (data) => {
-     *     if (data.includes('error')) {
-     *       console.error('Build error detected:', data)
-     *     }
-     *   }
-     * })
+     * // Custom working directory
+     * const listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })
      * \`\`\`
      */
     spawnAndCapture(command: string, args: string[], options?: SpawnOptions): Promise<{

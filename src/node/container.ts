@@ -340,10 +340,12 @@ export class NodeContainer<
     }
   }
 
-  /** Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse). */
-  get paths(): { dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse } {
+  /** Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse). */
+  get paths(): { cwd: string; dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse } {
     const { cwd } = this;
     return {
+      // Agents reach for paths.cwd instead of container.cwd — make both work.
+      cwd,
       // Node's dirname semantics: dirname('foo.txt') === '.' (never '' —
       // parse(path).dir returns '' for bare filenames, which is falsy and
       // silently breaks branches like `if (paths.dirname(f))`).
