@@ -5,7 +5,7 @@ import colors from "chalk";
 import type { FontName as Fonts } from "figlet";
 import { figlet, fontNames } from "./figlet-fonts.js";
 import inquirer from "inquirer";
-import { TerminalCanvas, type CanvasColor, lerpColor } from "./terminal-canvas.js";
+import { TerminalCanvas, type CanvasColor, type CanvasRenderer, lerpColor } from "./terminal-canvas.js";
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
 import _endent from 'endent';
@@ -29,6 +29,16 @@ type UIState = z.infer<typeof UIStateSchema>
 
 /** Global registry tracking assigned colors to prevent duplicates */
 const _assignedColors: Record<string, string> = {};
+
+/**
+ * Module-level extension registries — like _assignedColors, these are
+ * process-wide so an external feature or plugin registering an upgrade
+ * (a terminal capability, an animation frame decorator) upgrades every
+ * ui consumer in the process, whichever container instance they hold.
+ */
+const _capabilities = new Map<string, () => boolean>();
+const _capabilityResults = new Map<string, boolean>();
+const _frameDecorators = new Map<string, (payload: string) => string>();
 
 /** Type representing available chalk color functions */
 type Color = keyof typeof colors;
@@ -597,6 +607,121 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   }
 
   /**
+   * Registers a canvas render mode from outside luca core, making
+   * `canvas.render(name)` work process-wide — including for canvases created
+   * by code that doesn't know the backend exists (e.g. `luca chat` output).
+   *
+   * This is the extension point for terminal-specific pixel backends: a
+   * project feature or plugin detects its terminal (Ghostty, Kitty, WezTerm)
+   * and registers a renderer that emits that terminal's protocol. The
+   * renderer receives the canvas and returns the string to print — read
+   * pixels with `canvas.get(x, y)` or grab the raw buffer with
+   * `canvas.toRGBA()` (RGBA bytes, the kitty graphics interchange format).
+   *
+   * Registering an existing name replaces it. Built-ins ('half', 'braille')
+   * cannot be replaced.
+   *
+   * @param name - The mode name callers pass to canvas.render()
+   * @param renderer - Function receiving the canvas, returning the printable string
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * ui.registerRenderMode('dots', (canvas) => {
+   *   let out = ''
+   *   for (let y = 0; y < canvas.height; y++) {
+   *     for (let x = 0; x < canvas.width; x++) out += canvas.get(x, y) ? '•' : ' '
+   *     out += '\n'
+   *   }
+   *   return out.trimEnd()
+   * })
+   * const c = ui.canvas(4, 1)
+   * c.set(1, 0, '#fff')
+   * console.log(c.render('dots')) // ' •'
+   * console.log(ui.renderModes)   // ['half', 'braille', 'dots']
+   * ```
+   */
+  registerRenderMode(name: string, renderer: CanvasRenderer): void {
+    TerminalCanvas.registerRenderer(name, renderer);
+  }
+
+  /**
+   * Every canvas render mode currently available: the built-ins plus
+   * anything registered via registerRenderMode.
+   *
+   * @returns Array of mode names usable with canvas.render()
+   */
+  get renderModes(): string[] {
+    return TerminalCanvas.renderModes;
+  }
+
+  /**
+   * Declares a named terminal capability with a detector function, so
+   * feature code can branch on what the running terminal supports without
+   * knowing which plugin provides the knowledge.
+   *
+   * Detectors run lazily on the first `hasCapability` check and the result
+   * is cached for the process (terminals don't change mid-run). Registering
+   * the same name again replaces the detector and clears the cached result.
+   *
+   * @param name - Capability name, e.g. 'kittyGraphics', 'syncOutput'
+   * @param detect - Returns true when the running terminal supports it
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * ui.registerCapability('kittyGraphics', () => process.env.TERM_PROGRAM === 'ghostty')
+   *
+   * const mode = ui.hasCapability('kittyGraphics') ? 'kitty' : 'half'
+   * ```
+   */
+  registerCapability(name: string, detect: () => boolean): void {
+    _capabilities.set(name, detect);
+    _capabilityResults.delete(name);
+  }
+
+  /**
+   * Checks a declared terminal capability. Unknown names are simply false —
+   * callers can probe optimistically without coordinating with the plugin
+   * that may or may not have registered the capability.
+   *
+   * @param name - The capability name to check
+   * @returns true when a registered detector exists and reports support
+   */
+  hasCapability(name: string): boolean {
+    if (_capabilityResults.has(name)) return _capabilityResults.get(name)!;
+    const detect = _capabilities.get(name);
+    const result = detect ? !!detect() : false;
+    _capabilityResults.set(name, result);
+    return result;
+  }
+
+  /**
+   * Registers a decorator applied to every frame `ui.animate` writes. The
+   * decorator receives the full payload for one frame (cursor movement plus
+   * frame text) and returns the string actually written — the hook for
+   * terminal protocols that wrap output, like DEC 2026 synchronized updates
+   * (flicker-free repaints in Ghostty/Kitty/WezTerm).
+   *
+   * Decorators are keyed by name: registering the same name replaces it,
+   * and multiple named decorators apply in registration order.
+   *
+   * @param name - Unique decorator name (replaces any previous registration)
+   * @param decorate - Receives the frame payload, returns what gets written
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * // Wrap every animation frame in a synchronized-update block
+   * ui.registerFrameDecorator('syncOutput', (payload) =>
+   *   `\x1b[?2026h${payload}\x1b[?2026l`)
+   * ```
+   */
+  registerFrameDecorator(name: string, decorate: (payload: string) => string): void {
+    _frameDecorators.set(name, decorate);
+  }
+
+  /**
    * Linearly interpolate between two colors. Accepts hex strings, [r,g,b]
    * tuples, or {r,g,b} objects; returns an {r,g,b} object usable with
    * `ui.colors.rgb()` or `canvas.set()`.
@@ -679,8 +804,11 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
       const lines = text.split("\n");
       // \x1b[K clears each line's tail so shorter lines don't leave residue
       const output = lines.map((line) => line + "\x1b[K").join("\n") + "\n";
-      if (prevLines > 0) out.write(`\x1b[${prevLines}A`);
-      out.write(output);
+      // One payload per frame (cursor move + text) so registered frame
+      // decorators can wrap the whole repaint — e.g. DEC 2026 sync markers.
+      let payload = (prevLines > 0 ? `\x1b[${prevLines}A` : "") + output;
+      for (const decorate of _frameDecorators.values()) payload = decorate(payload);
+      out.write(payload);
       prevLines = lines.length;
     };
 

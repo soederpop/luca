@@ -26518,6 +26518,91 @@ setBuildTimeData('features.ui', {
         }
       ]
     },
+    "registerRenderMode": {
+      "description": "Registers a canvas render mode from outside luca core, making `canvas.render(name)` work process-wide — including for canvases created by code that doesn't know the backend exists (e.g. `luca chat` output). This is the extension point for terminal-specific pixel backends: a project feature or plugin detects its terminal (Ghostty, Kitty, WezTerm) and registers a renderer that emits that terminal's protocol. The renderer receives the canvas and returns the string to print — read pixels with `canvas.get(x, y)` or grab the raw buffer with `canvas.toRGBA()` (RGBA bytes, the kitty graphics interchange format). Registering an existing name replaces it. Built-ins ('half', 'braille') cannot be replaced.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The mode name callers pass to canvas.render()"
+        },
+        "renderer": {
+          "type": "CanvasRenderer",
+          "description": "Function receiving the canvas, returning the printable string"
+        }
+      },
+      "required": [
+        "name",
+        "renderer"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\nui.registerRenderMode('dots', (canvas) => {\n let out = ''\n for (let y = 0; y < canvas.height; y++) {\n   for (let x = 0; x < canvas.width; x++) out += canvas.get(x, y) ? '•' : ' '\n   out += '\\n'\n }\n return out.trimEnd()\n})\nconst c = ui.canvas(4, 1)\nc.set(1, 0, '#fff')\nconsole.log(c.render('dots')) // ' •'\nconsole.log(ui.renderModes)   // ['half', 'braille', 'dots']"
+        }
+      ]
+    },
+    "registerCapability": {
+      "description": "Declares a named terminal capability with a detector function, so feature code can branch on what the running terminal supports without knowing which plugin provides the knowledge. Detectors run lazily on the first `hasCapability` check and the result is cached for the process (terminals don't change mid-run). Registering the same name again replaces the detector and clears the cached result.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Capability name, e.g. 'kittyGraphics', 'syncOutput'"
+        },
+        "detect": {
+          "type": "() => boolean",
+          "description": "Returns true when the running terminal supports it"
+        }
+      },
+      "required": [
+        "name",
+        "detect"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\nui.registerCapability('kittyGraphics', () => process.env.TERM_PROGRAM === 'ghostty')\n\nconst mode = ui.hasCapability('kittyGraphics') ? 'kitty' : 'half'"
+        }
+      ]
+    },
+    "hasCapability": {
+      "description": "Checks a declared terminal capability. Unknown names are simply false — callers can probe optimistically without coordinating with the plugin that may or may not have registered the capability.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The capability name to check"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "boolean"
+    },
+    "registerFrameDecorator": {
+      "description": "Registers a decorator applied to every frame `ui.animate` writes. The decorator receives the full payload for one frame (cursor movement plus frame text) and returns the string actually written — the hook for terminal protocols that wrap output, like DEC 2026 synchronized updates (flicker-free repaints in Ghostty/Kitty/WezTerm). Decorators are keyed by name: registering the same name replaces it, and multiple named decorators apply in registration order.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Unique decorator name (replaces any previous registration)"
+        },
+        "decorate": {
+          "type": "(payload: string) => string",
+          "description": "Receives the frame payload, returns what gets written"
+        }
+      },
+      "required": [
+        "name",
+        "decorate"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\n// Wrap every animation frame in a synchronized-update block\nui.registerFrameDecorator('syncOutput', (payload) =>\n `\\x1b[?2026h${payload}\\x1b[?2026l`)"
+        }
+      ]
+    },
     "lerpColor": {
       "description": "Linearly interpolate between two colors. Accepts hex strings, [r,g,b] tuples, or {r,g,b} objects; returns an {r,g,b} object usable with `ui.colors.rgb()` or `canvas.set()`.",
       "parameters": {
@@ -26769,6 +26854,10 @@ setBuildTimeData('features.ui', {
           "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
         }
       ]
+    },
+    "renderModes": {
+      "description": "Every canvas render mode currently available: the built-ins plus anything registered via registerRenderMode.",
+      "returns": "string[]"
     }
   },
   "events": {},
@@ -55490,6 +55579,91 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "registerRenderMode": {
+        "description": "Registers a canvas render mode from outside luca core, making `canvas.render(name)` work process-wide — including for canvases created by code that doesn't know the backend exists (e.g. `luca chat` output). This is the extension point for terminal-specific pixel backends: a project feature or plugin detects its terminal (Ghostty, Kitty, WezTerm) and registers a renderer that emits that terminal's protocol. The renderer receives the canvas and returns the string to print — read pixels with `canvas.get(x, y)` or grab the raw buffer with `canvas.toRGBA()` (RGBA bytes, the kitty graphics interchange format). Registering an existing name replaces it. Built-ins ('half', 'braille') cannot be replaced.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The mode name callers pass to canvas.render()"
+          },
+          "renderer": {
+            "type": "CanvasRenderer",
+            "description": "Function receiving the canvas, returning the printable string"
+          }
+        },
+        "required": [
+          "name",
+          "renderer"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\nui.registerRenderMode('dots', (canvas) => {\n let out = ''\n for (let y = 0; y < canvas.height; y++) {\n   for (let x = 0; x < canvas.width; x++) out += canvas.get(x, y) ? '•' : ' '\n   out += '\\n'\n }\n return out.trimEnd()\n})\nconst c = ui.canvas(4, 1)\nc.set(1, 0, '#fff')\nconsole.log(c.render('dots')) // ' •'\nconsole.log(ui.renderModes)   // ['half', 'braille', 'dots']"
+          }
+        ]
+      },
+      "registerCapability": {
+        "description": "Declares a named terminal capability with a detector function, so feature code can branch on what the running terminal supports without knowing which plugin provides the knowledge. Detectors run lazily on the first `hasCapability` check and the result is cached for the process (terminals don't change mid-run). Registering the same name again replaces the detector and clears the cached result.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Capability name, e.g. 'kittyGraphics', 'syncOutput'"
+          },
+          "detect": {
+            "type": "() => boolean",
+            "description": "Returns true when the running terminal supports it"
+          }
+        },
+        "required": [
+          "name",
+          "detect"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\nui.registerCapability('kittyGraphics', () => process.env.TERM_PROGRAM === 'ghostty')\n\nconst mode = ui.hasCapability('kittyGraphics') ? 'kitty' : 'half'"
+          }
+        ]
+      },
+      "hasCapability": {
+        "description": "Checks a declared terminal capability. Unknown names are simply false — callers can probe optimistically without coordinating with the plugin that may or may not have registered the capability.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The capability name to check"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "boolean"
+      },
+      "registerFrameDecorator": {
+        "description": "Registers a decorator applied to every frame `ui.animate` writes. The decorator receives the full payload for one frame (cursor movement plus frame text) and returns the string actually written — the hook for terminal protocols that wrap output, like DEC 2026 synchronized updates (flicker-free repaints in Ghostty/Kitty/WezTerm). Decorators are keyed by name: registering the same name replaces it, and multiple named decorators apply in registration order.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Unique decorator name (replaces any previous registration)"
+          },
+          "decorate": {
+            "type": "(payload: string) => string",
+            "description": "Receives the frame payload, returns what gets written"
+          }
+        },
+        "required": [
+          "name",
+          "decorate"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\n// Wrap every animation frame in a synchronized-update block\nui.registerFrameDecorator('syncOutput', (payload) =>\n `\\x1b[?2026h${payload}\\x1b[?2026l`)"
+          }
+        ]
+      },
       "lerpColor": {
         "description": "Linearly interpolate between two colors. Accepts hex strings, [r,g,b] tuples, or {r,g,b} objects; returns an {r,g,b} object usable with `ui.colors.rgb()` or `canvas.set()`.",
         "parameters": {
@@ -55741,6 +55915,10 @@ export const introspectionData: Record<string, any>[] = [
             "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
           }
         ]
+      },
+      "renderModes": {
+        "description": "Every canvas render mode currently available: the built-ins plus anything registered via registerRenderMode.",
+        "returns": "string[]"
       }
     },
     "events": {},

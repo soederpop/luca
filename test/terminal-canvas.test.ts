@@ -93,3 +93,41 @@ describe("TerminalCanvas drawing primitives", () => {
     expect(c.get(2, 0)).toEqual({ r: 255, g: 255, b: 255 });
   });
 });
+
+describe("extension registry", () => {
+  it("registers external render modes and lists them", () => {
+    TerminalCanvas.registerRenderer("dots", (canvas) => {
+      let out = "";
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) out += canvas.get(x, y) ? "•" : " ";
+        out += "\n";
+      }
+      return out.trimEnd();
+    });
+    expect(TerminalCanvas.renderModes).toContain("dots");
+    const c = new TerminalCanvas(3, 1);
+    c.set(1, 0, "#fff");
+    expect(c.render("dots")).toBe(" •");
+  });
+
+  it("throws with the available modes for an unknown mode", () => {
+    const c = new TerminalCanvas(2, 2);
+    expect(() => c.render("nope")).toThrow(/Available: half, braille/);
+  });
+
+  it("built-in modes are not shadowed by registrations", () => {
+    TerminalCanvas.registerRenderer("half", () => "hijacked");
+    const c = new TerminalCanvas(2, 2);
+    c.set(0, 0, "#fff");
+    expect(stripAnsi(c.render("half"))).toBe("▀ ");
+  });
+});
+
+describe("toRGBA", () => {
+  it("exports row-major RGBA with transparent unset pixels", () => {
+    const c = new TerminalCanvas(2, 1);
+    c.set(1, 0, "#ff8000");
+    const rgba = c.toRGBA();
+    expect(Array.from(rgba)).toEqual([0, 0, 0, 0, 255, 128, 0, 255]);
+  });
+});

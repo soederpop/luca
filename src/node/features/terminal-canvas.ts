@@ -12,8 +12,14 @@ export interface CanvasRGB {
 /** Any value the canvas accepts as a color: hex string, [r,g,b] tuple, or {r,g,b} object. */
 export type CanvasColor = string | [number, number, number] | CanvasRGB;
 
-/** Rendering mode for TerminalCanvas.render(). */
-export type CanvasRenderMode = "half" | "braille";
+/** Rendering mode for TerminalCanvas.render(). Built-ins are 'half' and 'braille'; external features can register more via TerminalCanvas.registerRenderer(). */
+export type CanvasRenderMode = "half" | "braille" | (string & {});
+
+/**
+ * A pluggable canvas renderer: takes the canvas, returns the printable string.
+ * Read pixels with canvas.get(x, y) or grab the whole buffer with canvas.toRGBA().
+ */
+export type CanvasRenderer = (canvas: TerminalCanvas) => string;
 
 /**
  * Normalize any accepted color form into an RGB object.
@@ -76,6 +82,25 @@ const BRAILLE_BITS = [
  * output renders as bare characters. Set FORCE_COLOR=1 to override.
  */
 export class TerminalCanvas {
+  /**
+   * Externally registered render modes (beyond the built-in 'half' and
+   * 'braille'). Static so a plugin or project feature can register a backend
+   * at import time — e.g. a kitty-graphics renderer for Ghostty — and every
+   * canvas in the process can render(mode) with it, including canvases created
+   * by code that has no idea the backend exists.
+   */
+  private static renderers = new Map<string, CanvasRenderer>();
+
+  /** Register (or replace) a named render mode usable with canvas.render(name). */
+  static registerRenderer(name: string, renderer: CanvasRenderer): void {
+    this.renderers.set(name, renderer);
+  }
+
+  /** Every render mode currently usable with render(): built-ins plus registered ones. */
+  static get renderModes(): string[] {
+    return ["half", "braille", ...this.renderers.keys()];
+  }
+
   readonly width: number;
   readonly height: number;
   private pixels: (CanvasRGB | null)[];
@@ -181,12 +206,40 @@ export class TerminalCanvas {
   }
 
   /**
+   * Export the framebuffer as raw RGBA bytes (width * height * 4, row-major).
+   * Unset pixels are fully transparent. This is the interchange format for
+   * pixel-level render backends — e.g. the kitty graphics protocol transmits
+   * exactly this, base64-encoded.
+   */
+  toRGBA(): Uint8Array {
+    const out = new Uint8Array(this.width * this.height * 4);
+    for (let i = 0; i < this.pixels.length; i++) {
+      const pixel = this.pixels[i];
+      if (!pixel) continue;
+      const o = i * 4;
+      out[o] = pixel.r; out[o + 1] = pixel.g; out[o + 2] = pixel.b; out[o + 3] = 255;
+    }
+    return out;
+  }
+
+  /**
    * Render the framebuffer to a printable string.
    * `half` mode uses ▀/▄ with truecolor fg+bg (2 pixels per cell);
    * `braille` packs 2x4 pixels per cell with one averaged color.
+   * Any other name looks up an externally registered renderer
+   * (TerminalCanvas.registerRenderer) and throws with the available
+   * modes when nothing matches.
    */
   render(mode: CanvasRenderMode = "half"): string {
-    return mode === "braille" ? this.renderBraille() : this.renderHalfBlocks();
+    if (mode === "half") return this.renderHalfBlocks();
+    if (mode === "braille") return this.renderBraille();
+    const renderer = TerminalCanvas.renderers.get(mode);
+    if (!renderer) {
+      throw new Error(
+        `Unknown canvas render mode "${mode}". Available: ${TerminalCanvas.renderModes.join(", ")}`
+      );
+    }
+    return renderer(this);
   }
 
   private renderHalfBlocks(): string {

@@ -34,6 +34,8 @@ export { servers, features, clients }
 
 // Core classes
 export { Feature }
+export { TerminalCanvas, toRGB, lerpColor } from './node/features/terminal-canvas'
+export type { CanvasColor, CanvasRGB, CanvasRenderer, CanvasRenderMode } from './node/features/terminal-canvas'
 export { Container } from './container'
 export { Helper } from './helper'
 export { Bus } from './bus'
