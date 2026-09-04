@@ -3,6 +3,7 @@ import { commands } from '../command'
 import { CommandOptionsSchema } from '../schemas/base'
 import type { ContainerContext } from '../container'
 import { runChatTui } from './lib/chat-tui'
+import { runChatSplash } from './lib/chat-splash'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -23,6 +24,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	use: z.union([z.string(), z.array(z.string())]).optional().describe('Feature(s) to inject into the assistant via .use(). Supports options: --use "contentDb:rootPath=/tmp;lazy=true"'),
 	forbidTool: z.union([z.string(), z.array(z.string())]).optional().describe('Tool name patterns to exclude (supports * glob). Can be specified multiple times.'),
 	allowTool: z.union([z.string(), z.array(z.string())]).optional().describe('Tool name patterns to allow (strict allowlist, supports * glob). Can be specified multiple times.'),
+	noSplash: z.boolean().optional().describe('Skip the animated splash screen (--no-splash works too; also: LUCA_NO_SPLASH env var)'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -143,6 +145,11 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 			assistant.use(feature)
 		}
 	}
+
+	// minimist turns `--no-splash` into `splash: false` (its --no- negation
+	// runs before our noSplash field is consulted), so honor both spellings
+	const splashDisabled = options.noSplash || container.argv?.splash === false
+	if (!splashDisabled) await runChatSplash(container)
 
 	const result = await runChatTui({
 		container,
