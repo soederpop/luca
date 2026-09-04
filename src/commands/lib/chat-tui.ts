@@ -1183,6 +1183,14 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	]
 	store.transcript.unshift({ id: uid(), kind: 'system', lines: bootLines })
 
+	// Bottom-anchor the session: pad the viewport so the input line starts at
+	// the bottom of the terminal and the transcript grows upward, chat-app
+	// style. Deliberately NOT the alternate screen buffer — <Static> scrollback
+	// keeps finished turns in the terminal's native scrollback (mouse scroll,
+	// copy, search), which alt-screen would forfeit.
+	const viewportRows = process.stdout.rows || 24
+	process.stdout.write('\n'.repeat(Math.max(0, viewportRows - 1)))
+
 	const instance = await ink.render(h(App, {}), { patchConsole: false, exitOnCtrlC: false })
 	await instance.waitUntilExit()
 	ink.unmount()
