@@ -173,7 +173,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		throw new Error(`import "${id}" is not available in renderUi — only "react" and "ink" can be imported`)
 	}
 
-	function compileUiComponent(source: string): any {
+	function compileUiComponent(source: string, scope: { done: (value: unknown) => void; cancel: () => void }): any {
 		const transpiler = container.feature('transpiler')
 		const out = transpiler.transformSync(source, { loader: 'tsx', format: 'cjs' })
 		// Classic JSX compiles to React.createElement calls. If the source
@@ -183,8 +183,11 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		const bindsReact = /\b(?:const|let|var|function|class)\s+React\b/.test(out.code)
 		const code = (bindsReact ? '' : "const React = require('react');\n") + out.code
 		const moduleRef = { exports: {} as any }
-		const factory = new Function('module', 'exports', 'require', 'container', code)
-		factory(moduleRef, moduleRef.exports, uiRequire, container)
+		// done/cancel are in module scope as well as props: a component that
+		// forgets to destructure its props and calls bare done() still settles
+		// the tool call instead of throwing "done is not defined" mid-keystroke.
+		const factory = new Function('module', 'exports', 'require', 'container', 'done', 'cancel', code)
+		factory(moduleRef, moduleRef.exports, uiRequire, container, scope.done, scope.cancel)
 		const exported = moduleRef.exports
 		const Component = exported?.default ?? exported?.Widget ?? (typeof exported === 'function' ? exported : null)
 		if (typeof Component !== 'function') {
@@ -263,7 +266,10 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				}
 				let Component: any
 				try {
-					Component = compileUiComponent(spec.source)
+					Component = compileUiComponent(spec.source, {
+						done: (value) => settleUi({ value: value === undefined ? null : value }),
+						cancel: () => settleUi({ cancelled: true }),
+					})
 				} catch (err: any) {
 					resolve({ error: `failed to compile component: ${err?.message || err}` })
 					return

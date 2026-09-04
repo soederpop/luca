@@ -46,11 +46,12 @@ export const askUserSchema = z.object({
 
 export const renderUiSchema = z.object({
 	source: z.string().describe(
-		'TypeScript/JSX source for an ink component. Must export default a function component (or define one named Widget). ' +
-		'React and ink are already loaded — import from "react" and "ink" normally (Box, Text, useInput, useState, ...), but never call render() yourself. ' +
-		'The component receives props { done, cancel }: call done(result) with any JSON-serializable value to finish and return that result to you; ' +
-		'the user can back out with ctrl+c, which resolves as { cancelled: true }. ' +
-		'Always wire a way to finish (useInput handling enter/escape, a final selection, etc.) — the conversation is blocked until done() or cancel() is called.',
+		'TypeScript/JSX source for an ink component. Required signature: `export default function Widget({ done, cancel }) { ... }` — ' +
+		'done and cancel arrive as PROPS (they are also available as module-scope globals as a fallback, but destructure the props). ' +
+		'Call done(result) with any JSON-serializable value to finish — that result becomes your tool result; cancel() dismisses. ' +
+		'Always wire a keyboard path to done() or cancel() (e.g. useInput handling enter/escape) — the conversation is blocked until one is called, ' +
+		'and the user can force-dismiss with ctrl+c, which resolves as { cancelled: true }. ' +
+		'React and ink are already loaded — import from "react" and "ink" normally (Box, Text, useInput, useState, ...), but never call render() yourself.',
 	),
 	title: z.string().optional().describe('Short label for the transcript line recording that this UI ran'),
 }).describe('Build and mount a fully custom interactive ink UI in the terminal (forms, dashboards, games, multi-step wizards — anything ink can render). Heavier than askUser; prefer askUser for a simple choice.')
@@ -66,8 +67,8 @@ const PROMPT_EXTENSION = [
 	'Use showWidget to present structured information (tables, lists, rendered markdown) instead of large text dumps.',
 	'Use askUser when you need the human to decide something — it renders a keyboard-driven menu and returns their choice as the tool result.',
 	'Use renderUi to build any custom interactive terminal UI: you write an ink (React for terminals) component and it is compiled and mounted live.',
-	'renderUi contract: export default a function component; React and ink imports work normally (useState, Box, Text, useInput, ...); never call render(); ',
-	'call props.done(result) to finish — the result becomes your tool result — and always give the user a keyboard path to done() or props.cancel().',
+	'renderUi contract: `export default function Widget({ done, cancel })` — done/cancel are PROPS, destructure them; React and ink imports work normally (useState, Box, Text, useInput, ...); never call render(); ',
+	'call done(result) to finish — the result becomes your tool result — and always give the user a keyboard path to done() or cancel().',
 	'All interactive tools block until answered; if the result is { cancelled: true } the user dismissed it, so continue without that answer instead of re-asking.',
 	'If renderUi returns { error }, fix the component source and try once more.',
 ].join(' ')
