@@ -5,6 +5,7 @@ import colors from "chalk";
 import type { FontName as Fonts } from "figlet";
 import { figlet, fontNames } from "./figlet-fonts.js";
 import inquirer from "inquirer";
+import { TerminalCanvas, type CanvasColor, lerpColor } from "./terminal-canvas.js";
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
 import _endent from 'endent';
@@ -552,6 +553,162 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   }
 
   /**
+   * Creates a truecolor pixel canvas that renders to terminal characters.
+   *
+   * The high-fidelity tier above `asciiArt`/`banner`: instead of pre-drawn
+   * figlet glyphs you get an RGB framebuffer with drawing primitives (set,
+   * line, rect, circle, fillGradient) that renders in two modes:
+   *
+   * - `render('half')` — each cell is 2 vertical pixels (`▀` with 24-bit
+   *   fg + bg). Full color; resolution = width x height/2 cells.
+   * - `render('braille')` — each cell packs 2x4 pixels (`⠁`-`⣿`), 4x the
+   *   dot density but one averaged color per cell. Best for line art and plots.
+   *
+   * Dimensions are in PIXELS, not terminal cells. For a canvas spanning
+   * N columns use width N (half mode) or N*2 (braille mode).
+   *
+   * NOTE: colors rely on chalk, which strips ANSI when stdout is not a TTY —
+   * set FORCE_COLOR=1 to keep color through pipes.
+   *
+   * @param width - Canvas width in pixels
+   * @param height - Canvas height in pixels (even for half mode, multiple of 4 for braille)
+   * @returns A TerminalCanvas instance
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   *
+   * // A gradient panel with a circle, at 2-pixels-per-cell resolution
+   * const canvas = ui.canvas(60, 20)
+   * canvas.fillGradient('#1a1a2e', '#e94560', 'diagonal')
+   * canvas.circle(30, 10, 7, '#ffd166', { fill: true })
+   * console.log(canvas.render('half'))
+   *
+   * // A sine wave in braille (2x4 dots per cell)
+   * const wave = ui.canvas(120, 24)
+   * for (let x = 0; x < 120; x++) {
+   *   wave.set(x, 12 + Math.round(Math.sin(x / 8) * 10), '#4ecdc4')
+   * }
+   * console.log(wave.render('braille'))
+   * ```
+   */
+  canvas(width: number, height: number): TerminalCanvas {
+    return new TerminalCanvas(width, height);
+  }
+
+  /**
+   * Linearly interpolate between two colors. Accepts hex strings, [r,g,b]
+   * tuples, or {r,g,b} objects; returns an {r,g,b} object usable with
+   * `ui.colors.rgb()` or `canvas.set()`.
+   *
+   * @param from - Start color
+   * @param to - End color
+   * @param t - Blend position, 0 (from) to 1 (to), clamped
+   * @returns The interpolated {r,g,b} color
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * const mid = ui.lerpColor('#ff0000', '#0000ff', 0.5)
+   * console.log(ui.colors.rgb(mid.r, mid.g, mid.b)('purple-ish'))
+   * ```
+   */
+  lerpColor(from: CanvasColor, to: CanvasColor, t: number): { r: number; g: number; b: number } {
+    return lerpColor(from, to, t);
+  }
+
+  /**
+   * Runs a frame-rendering loop that redraws in place, for animated banners,
+   * gradient sweeps, and live canvas scenes.
+   *
+   * Each tick your callback returns the full frame as a string; the previous
+   * frame is overwritten in place with ANSI cursor movement (no flicker, no
+   * scrollback spam). The cursor is hidden while running and restored on stop.
+   *
+   * **Non-TTY behavior:** when stdout is not a TTY (pipes, CI), the first
+   * frame is rendered once and the animation resolves immediately — output
+   * stays clean and nothing busy-loops.
+   *
+   * Frames should keep a constant line count; when a frame has fewer lines
+   * than the previous one, each rewritten line is cleared but extra old lines
+   * below are not.
+   *
+   * @param renderFrame - Called with the frame number; returns the frame text
+   * @param options - Animation options
+   * @param options.fps - Frames per second (default 20)
+   * @param options.frames - Total frames to render; omit to run until stop() is called
+   * @returns `{ stop, done }` — call stop() to end early; done resolves when the animation finishes
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   *
+   * // Animated gradient sweep across a banner (finite, awaitable)
+   * const art = ui.asciiArt('LUCA', 'Big')
+   * const { done } = ui.animate(
+   *   (frame) => ui.applyGradient(art, ['cyan', 'blue', 'magenta'], 'horizontal', frame),
+   *   { fps: 24, frames: 48 }
+   * )
+   * await done
+   *
+   * // Open-ended canvas scene — stop it yourself
+   * const anim = ui.animate((frame) => {
+   *   const c = ui.canvas(60, 16)
+   *   c.fillGradient('#16213e', '#0f3460')
+   *   c.circle(10 + (frame % 40), 8, 5, '#e94560', { fill: true })
+   *   return c.render('half')
+   * })
+   * setTimeout(() => anim.stop(), 100)
+   * await anim.done
+   * ```
+   */
+  animate(
+    renderFrame: (frame: number) => string,
+    options: { fps?: number; frames?: number } = {}
+  ): { stop: () => void; done: Promise<void> } {
+    const fps = options.fps ?? 20;
+    const out = process.stdout;
+    let frame = 0;
+    let prevLines = 0;
+    let stopped = false;
+    let resolveDone!: () => void;
+    const done = new Promise<void>((resolve) => { resolveDone = resolve; });
+
+    const drawFrame = () => {
+      const text = renderFrame(frame++);
+      const lines = text.split("\n");
+      // \x1b[K clears each line's tail so shorter lines don't leave residue
+      const output = lines.map((line) => line + "\x1b[K").join("\n") + "\n";
+      if (prevLines > 0) out.write(`\x1b[${prevLines}A`);
+      out.write(output);
+      prevLines = lines.length;
+    };
+
+    // Non-TTY: cursor movement is meaningless in a pipe — emit one frame and finish.
+    if (!out.isTTY) {
+      drawFrame();
+      resolveDone();
+      return { stop: () => {}, done };
+    }
+
+    out.write("\x1b[?25l");
+    const finish = () => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(timer);
+      out.write("\x1b[?25h");
+      resolveDone();
+    };
+    const timer = setInterval(() => {
+      if (options.frames != null && frame >= options.frames) return finish();
+      drawFrame();
+    }, 1000 / fps);
+    drawFrame();
+
+    return { stop: finish, done };
+  }
+
+  /**
    * Dedent and format a tagged template literal using endent.
    * Strips leading indentation while preserving relative indentation.
    *
@@ -579,6 +736,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * @param text - The text content to apply gradients to
    * @param lineColors - Array of colors to cycle through in the gradient
    * @param direction - Gradient direction: 'horizontal' or 'vertical'
+   * @param offset - Phase offset shifting where the color cycle starts — increment it per frame (e.g. inside `ui.animate`) for a sweeping animation
    * @returns The text with applied color gradients
    * 
    * @example
@@ -606,13 +764,14 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   applyGradient(
     text: string,
     lineColors: Color[] = ["red", "white", "blue"],
-    direction: "horizontal" | "vertical" = "horizontal"
+    direction: "horizontal" | "vertical" = "horizontal",
+    offset = 0
   ): string {
     if (direction === "horizontal") {
-      return this.applyHorizontalGradient(text, lineColors);
+      return this.applyHorizontalGradient(text, lineColors, offset);
     }
 
-    return this.applyVerticalGradient(text, lineColors);
+    return this.applyVerticalGradient(text, lineColors, offset);
   }
 
   /**
@@ -630,6 +789,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * 
    * @param text - The text to apply horizontal gradients to
    * @param lineColors - Array of colors to cycle through
+   * @param offset - Phase offset shifting where the cycle starts (animate by incrementing per frame)
    * @returns Text with horizontal color gradients applied
    * 
    * @example
@@ -649,15 +809,18 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    */
   applyHorizontalGradient(
     text: string,
-    lineColors: Color[] = ["red", "white", "blue"]
+    lineColors: Color[] = ["red", "white", "blue"],
+    offset = 0
   ): string {
     const gColors = Object.fromEntries(
       lineColors.map((color) => [color, this.colors[color]])
     );
     const lines = text.split("");
+    const cycle = lineColors.length;
 
     const colored = lines.map((line, index) => {
-      const colorFn = gColors[lineColors[index % lineColors.length]!]!;
+      // double-modulo keeps negative offsets (reverse sweeps) in range
+      const colorFn = gColors[lineColors[(((index + offset) % cycle) + cycle) % cycle]!]!;
       // @ts-ignore-next-line
       return colorFn(line);
     });
@@ -680,6 +843,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * 
    * @param text - The text to apply vertical gradients to (supports newlines)
    * @param lineColors - Array of colors to cycle through for each line
+   * @param offset - Phase offset shifting where the cycle starts (animate by incrementing per frame)
    * @returns Text with vertical color gradients applied
    * 
    * @example
@@ -701,14 +865,17 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    */
   applyVerticalGradient(
     text: string,
-    lineColors: Color[] = ["red", "white", "blue"]
+    lineColors: Color[] = ["red", "white", "blue"],
+    offset = 0
   ): string {
     const gColors = Object.fromEntries(
       lineColors.map((color) => [color, this.colors[color]])
     );
     const lines = text.split("\n");
+    const cycle = lineColors.length;
     const colored = lines.map((line, index) => {
-      const colorFn = gColors[lineColors[index % lineColors.length]!]!;
+      // double-modulo keeps negative offsets (reverse sweeps) in range
+      const colorFn = gColors[lineColors[(((index + offset) % cycle) + cycle) % cycle]!]!;
       // @ts-ignore-next-line
       return colorFn(line);
     });
