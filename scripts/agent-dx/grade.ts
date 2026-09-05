@@ -43,6 +43,10 @@ export async function grade(task: Task, solution: string, cwd: string): Promise<
     }
   }
   if (task.id === 'process-result') {
+    await check('child-environment', async () => {
+      const result = await call({ command: process.execPath, args: ['-e', 'console.log(process.env.LUCA_DX_CHILD ?? "missing")'], environment: { LUCA_DX_CHILD: 'child value' } })
+      equal(result, { ok: true, exitCode: 0, stdout: 'child value\n', stderr: '' })
+    })
     await check('literal-argv', async () => {
       const arg = 'a b "quoted" $HOME $(echo wrong)'
       const result = await call({ command: process.execPath, args: ['-e', 'console.log(process.argv[1])', arg] })
@@ -74,6 +78,16 @@ export async function grade(task: Task, solution: string, cwd: string): Promise<
       await check(id!, async () => {
         const result = await call({ file, value: 'x' })
         if (result?.ok !== false || typeof result.error !== 'string' || !result.error.includes(diagnostic)) throw new Error(`Missing diagnostic ${diagnostic}: ${JSON.stringify(result)}`)
+      })
+    }
+  }
+  if (task.id === 'registry-discovery') {
+    for (const [registry, name] of [['features', 'fs'], ['clients', 'rest'], ['servers', 'express']] as const) {
+      await check(`${registry}-qualified-and-bare`, async () => {
+        const expected = { available: true, description: container[registry].introspect(name)?.description }
+        equal(await call({ registry, name }), expected)
+        equal(await call({ registry, name: `${registry}.${name}` }), expected)
+        equal(await call({ registry, name: 'dxMissingHelper' }), { available: false, description: null })
       })
     }
   }

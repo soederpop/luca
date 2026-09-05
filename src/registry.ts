@@ -3,7 +3,7 @@ import type { ContainerContext } from './container.js';
 import { Bus } from './bus.js';
 import { inspect } from 'util';
 
-import { introspect, interceptRegistration } from './introspection/index.js';
+import { interceptRegistration } from './introspection/index.js';
 import type { HelperIntrospection } from './introspection/index.js';
 
 export type { HelperIntrospection }
@@ -16,6 +16,11 @@ abstract class Registry<T extends Helper> {
   private readonly members! : Map<string, new (options: any, context: ContainerContext) => T>
 
   private readonly _events! : Bus
+
+  private _normalizeId(id: string): string {
+    const prefix = `${this.scope}.`
+    return id.startsWith(prefix) ? id.slice(prefix.length) : id
+  }
 
   constructor() {
     Object.defineProperty(this, 'members', { enumerable: false, value: new Map<string, new (options: any, context: ContainerContext) => T>() })
@@ -52,7 +57,7 @@ abstract class Registry<T extends Helper> {
    * Lists the keys of all available helpers in this registry.
   */
   get available() : string[] {
-    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, '')).sort()
+    return Array.from(this.members.keys()).sort()
   }
 
   /**
@@ -75,7 +80,7 @@ abstract class Registry<T extends Helper> {
    * @returns The constructor for the helper.
   */
   register(id: string, constructor: new (options: any, context: ContainerContext) => T) {
-    this.members.set(id.replace(`${this.scope}.`, ''), constructor);
+    this.members.set(this._normalizeId(id), constructor);
     interceptRegistration(this, constructor)
     this.emit('helperRegistered', id, constructor)
     return constructor
@@ -88,7 +93,7 @@ abstract class Registry<T extends Helper> {
    * @returns True if the helper was removed, false if it wasn't registered.
   */
   unregister(id: string) : boolean {
-    const key = id.replace(`${this.scope}.`, '')
+    const key = this._normalizeId(id)
     return this.members.delete(key)
   }
 
@@ -99,7 +104,7 @@ abstract class Registry<T extends Helper> {
    * @returns True if the helper is registered, false otherwise.
   */
   has(id: string) : boolean {
-    return this.members.has(id) || this.members.has([this.scope, id].join('.'))
+    return this.members.has(this._normalizeId(id))
   }
 
   /** 
@@ -109,9 +114,7 @@ abstract class Registry<T extends Helper> {
    * @returns The constructor for the helper.
   */
   lookup(id: string) : new (options: any, context: ContainerContext) => T {
-    if (!this.members.has(id) && this.members.has([this.scope, id].join('.'))) {
-      id = [this.scope, id].join(".")
-    }
+    id = this._normalizeId(id)
 
     const Constructor = this.members.get(id);
 
@@ -136,7 +139,8 @@ abstract class Registry<T extends Helper> {
    * to create one, the state it maintains, the methods and properties it has, and the events it emits.
   */
   introspect(id: string) : HelperIntrospection | undefined {
-    return introspect(id)
+    const Constructor = this.members.get(this._normalizeId(id)) as typeof Helper | undefined
+    return Constructor?.introspect()
   }
  
   /** 

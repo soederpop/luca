@@ -8,7 +8,7 @@ bun run eval:agent-dx reference /tmp/luca-dx-reference
 bun test test/agent-dx-harness.test.ts
 ```
 
-Reference mode runs known solutions through the real framework and all 13 acceptance checks. It is **not an agent baseline**. Tests also run deliberately wrong solutions to ensure the graders discriminate.
+Reference mode runs known solutions through the real framework and all 17 acceptance checks across six tasks. It is **not an agent baseline**. Tests also run deliberately wrong solutions to ensure the graders discriminate.
 
 ## Run your agent
 

@@ -1,5 +1,5 @@
 /** Small, outcome-graded tasks. Keep prompts free of the API names being tested. */
-export const suiteVersion = 1
+export const suiteVersion = 2
 
 export const tasks = [
   {
@@ -20,9 +20,9 @@ export const tasks = [
   },
   {
     id: 'process-result', dimension: 'failure-recovery',
-    prompt: 'Given { command, args }, execute that program with the exact argument array. Return { ok, exitCode, stdout, stderr }. A nonzero exit must produce ok:false while preserving diagnostic output. Do not invoke a shell.',
+    prompt: 'Given { command, args, environment? }, execute that program with the exact argument array. Optional environment entries override inherited variables for the child only. Return { ok, exitCode, stdout, stderr }. A nonzero exit must produce ok:false while preserving diagnostic output. Do not invoke a shell.',
     reference: `export default async (container, input) => {
-      const result = await container.proc.spawnAndCapture(input.command, input.args)
+      const result = await container.proc.spawnAndCapture(input.command, input.args, { environment: input.environment })
       return { ok: result.exitCode === 0 && !result.error, exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr }
     }`,
   },
@@ -43,6 +43,14 @@ export const tasks = [
         const mod = container.feature('vm').loadModule(container.paths.resolve(input.file), { container })
         return { ok: true, value: await mod.transform(input.value) }
       } catch (error) { return { ok: false, error: error.message } }
+    }`,
+  },
+  {
+    id: 'registry-discovery', dimension: 'discovery',
+    prompt: 'Given { registry, name }, inspect a helper without constructing it. registry is features, clients, or servers. name may be bare (such as fs) or qualified (such as features.fs). Return { available, description }, where available is a boolean and description is the exact introspection description string for a registered helper, or null if unavailable. An unknown helper should not throw.',
+    reference: `export default (container, input) => {
+      const registry = container[input.registry]
+      return { available: registry.has(input.name), description: registry.introspect(input.name)?.description ?? null }
     }`,
   },
 ] as const

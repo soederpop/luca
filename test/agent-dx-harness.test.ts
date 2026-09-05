@@ -13,7 +13,7 @@ describe('agent DX acceptance graders', () => {
     container.fs.ensureFolder(folder)
     try {
       const solution = container.paths.resolve(folder, 'solution.ts')
-      container.fs.writeFile(solution, 'export default async (c, i) => { const r = await c.proc.spawnAndCapture(i.command, i.args); return { stderr:r.stderr, stdout:r.stdout, exitCode:r.exitCode, ok:r.exitCode === 0 } }')
+      container.fs.writeFile(solution, 'export default async (c, i) => { const r = await c.proc.spawnAndCapture(i.command, i.args, { environment: i.environment }); return { stderr:r.stderr, stdout:r.stdout, exitCode:r.exitCode, ok:r.exitCode === 0 } }')
       const checks = await grade(tasks.find(t => t.id === 'process-result')!, solution, container.paths.resolve(folder, 'grading'))
       expect(checks.every(c => c.passed)).toBe(true)
     } finally { container.fs.remove(folder) }
@@ -27,6 +27,7 @@ describe('agent DX acceptance graders', () => {
       'process-result': 'export default async (c, i) => { const r = await c.proc.spawnAndCapture(i.command, i.args); return { ok:true, exitCode:0, stdout:r.stdout, stderr:r.stderr } }',
       'durable-counter': 'let count = 0; export default (c, i) => { if(i.action === "add") count += i.amount; return count }',
       'module-boundary': 'export default () => ({ ok: false, error: "something failed" })',
+      'registry-discovery': 'export default () => ({ available: true, description: "guessed helper description" })',
     }
     try {
       for (const task of tasks) {

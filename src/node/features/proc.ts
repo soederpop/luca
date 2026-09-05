@@ -201,6 +201,7 @@ export class ChildProcess extends Feature {
     const proc = asyncProc.spawn(command, args, {
       ...options,
       cwd,
+      env: { ...process.env, ...(options?.environment ?? {}) },
     });
 
     const childProcess = proc.childProcess!;

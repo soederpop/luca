@@ -48,8 +48,8 @@ export class FileTools extends Feature {
 			description: 'Read the contents of a file. Returns the text content. Use offset/limit to read portions of large files.',
 			schema: z.object({
 				path: z.string().describe('File path relative to the project root'),
-				offset: z.number().optional().describe('Line number to start reading from (1-based)'),
-				limit: z.number().optional().describe('Maximum number of lines to read'),
+				offset: z.number().int().positive().optional().describe('Line number to start reading from (1-based, positive integer)'),
+				limit: z.number().int().positive().optional().describe('Maximum number of lines to read (positive integer)'),
 			}).describe('Read the contents of a file. Returns the text content. Use offset/limit to read portions of large files.'),
 		},
 		writeFile: {
@@ -63,7 +63,7 @@ export class FileTools extends Feature {
 			description: 'Make a surgical edit to a file by replacing an exact string match. The preferred way to modify existing files — always use this over writeFile for changes to existing code.',
 			schema: z.object({
 				path: z.string().describe('File path relative to the project root'),
-				oldString: z.string().describe('The EXACT text to find, copied verbatim from the file — including whitespace and indentation. Must appear exactly once in the file (unless replaceAll is true). If the match fails, read the file again and copy the exact text.'),
+				oldString: z.string().min(1).describe('The nonempty EXACT text to find, copied verbatim from the file — including whitespace and indentation. Must appear exactly once in the file (unless replaceAll is true). If the match fails, read the file again and copy the exact text.'),
 				newString: z.string().describe('The replacement text. Preserve the same indentation style as the surrounding code.'),
 				replaceAll: z.boolean().optional().describe('Replace all occurrences instead of requiring uniqueness. Use for renaming a variable across a file. Default: false.'),
 			}).describe('Make a surgical edit to a file by replacing an exact string match. The preferred way to modify existing files — always use this over writeFile for changes to existing code.'),
@@ -173,8 +173,20 @@ export class FileTools extends Feature {
 	// Tool implementations — each matches a static tools key by name
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Read UTF-8 text. Without a range, returns the file verbatim; offset/limit
+	 * return numbered lines. Both range values must be positive integers.
+	 * @param args - File path and optional 1-based offset and maximum line count
+	 * @returns File text, or lines prefixed with their number and a tab
+	 */
 	async readFile(args: { path: string; offset?: number; limit?: number }): Promise<string> {
 		this.validatePath(args.path)
+		for (const key of ['offset', 'limit'] as const) {
+			const value = args[key]
+			if (value !== undefined && (!Number.isInteger(value) || value <= 0)) {
+				throw new Error(`readFile ${key} must be a positive integer`)
+			}
+		}
 		const content = await this.fs.readFileAsync(args.path) as string
 
 		if (args.offset || args.limit) {
@@ -187,15 +199,28 @@ export class FileTools extends Feature {
 		return content
 	}
 
+	/**
+	 * Replace a file with UTF-8 text, creating parent directories as needed.
+	 * @param args - Destination path and complete replacement content
+	 * @returns Confirmation with the number of UTF-8 bytes written
+	 */
 	async writeFile(args: { path: string; content: string }): Promise<string> {
 		this.validatePath(args.path)
 		await this.fs.ensureFolderAsync(args.path.includes('/') ? args.path.split('/').slice(0, -1).join('/') : '.')
 		await this.fs.writeFileAsync(args.path, args.content)
-		return `Wrote ${args.content.length} bytes to ${args.path}`
+		return `Wrote ${new TextEncoder().encode(args.content).byteLength} bytes to ${args.path}`
 	}
 
+	/**
+	 * Replace an exact, nonempty text match. Matching is literal, including
+	 * whitespace. Requires one occurrence unless replaceAll is true. An empty,
+	 * absent, or ambiguous match returns an Error: message without changing the file.
+	 * @param args - File path, exact existing text, replacement text, and optional replaceAll
+	 * @returns Confirmation, or an Error: message explaining how to correct the match
+	 */
 	async editFile(args: { path: string; oldString: string; newString: string; replaceAll?: boolean }): Promise<string> {
 		this.validatePath(args.path)
+		if (!args.oldString.length) return 'Error: oldString must be nonempty. Read the file and provide the exact text to replace.'
 		const content = await this.fs.readFileAsync(args.path) as string
 
 		if (args.replaceAll) {

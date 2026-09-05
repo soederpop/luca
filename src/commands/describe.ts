@@ -157,7 +157,7 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	const describer = new ContainerDescriber(container)
 
 	const args = container.argv._ as string[]
-	const targets = args.slice(1)
+	const targets = args.length > 1 ? args.slice(1) : ['container']
 
 	// --calculate-embeddings: build/refresh the embedding index for --query
 	if (options['calculate-embeddings']) {
@@ -168,15 +168,6 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	// --query: semantic/keyword search over helpers, examples, and tutorials
 	if (options.query) {
 		await runQuery(container, options)
-		return
-	}
-
-	// No targets: show help screen
-	if (targets.length === 0) {
-		const { formatCommandHelp } = await import('./help.js')
-		const ui = container.feature('ui') as any
-		const Cmd = container.commands.lookup('describe')
-		console.log(formatCommandHelp('describe', Cmd, ui.colors))
 		return
 	}
 

@@ -14,11 +14,13 @@ container.feature('fileTools')
 
 ### readFile
 
+Read UTF-8 text. Without a range, returns the file verbatim; offset/limit return numbered lines. Both range values must be positive integers.
+
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `args` | `{ path: string; offset?: number; limit?: number }` | ✓ | Parameter args |
+| `args` | `{ path: string; offset?: number; limit?: number }` | ✓ | File path and optional 1-based offset and maximum line count |
 
 **Returns:** `Promise<string>`
 
@@ -26,11 +28,13 @@ container.feature('fileTools')
 
 ### writeFile
 
+Replace a file with UTF-8 text, creating parent directories as needed.
+
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `args` | `{ path: string; content: string }` | ✓ | Parameter args |
+| `args` | `{ path: string; content: string }` | ✓ | Destination path and complete replacement content |
 
 **Returns:** `Promise<string>`
 
@@ -38,11 +42,13 @@ container.feature('fileTools')
 
 ### editFile
 
+Replace an exact, nonempty text match. Matching is literal, including whitespace. Requires one occurrence unless replaceAll is true. An empty, absent, or ambiguous match returns an Error: message without changing the file.
+
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `args` | `{ path: string; oldString: string; newString: string; replaceAll?: boolean }` | ✓ | Parameter args |
+| `args` | `{ path: string; oldString: string; newString: string; replaceAll?: boolean }` | ✓ | File path, exact existing text, replacement text, and optional replaceAll |
 
 **Returns:** `Promise<string>`
 

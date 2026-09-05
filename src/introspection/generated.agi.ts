@@ -10213,11 +10213,11 @@ setBuildTimeData('features.fileTools', {
   "className": "FileTools",
   "methods": {
     "readFile": {
-      "description": "",
+      "description": "Read UTF-8 text. Without a range, returns the file verbatim; offset/limit return numbered lines. Both range values must be positive integers.",
       "parameters": {
         "args": {
           "type": "{ path: string; offset?: number; limit?: number }",
-          "description": "Parameter args"
+          "description": "File path and optional 1-based offset and maximum line count"
         }
       },
       "required": [
@@ -10226,11 +10226,11 @@ setBuildTimeData('features.fileTools', {
       "returns": "Promise<string>"
     },
     "writeFile": {
-      "description": "",
+      "description": "Replace a file with UTF-8 text, creating parent directories as needed.",
       "parameters": {
         "args": {
           "type": "{ path: string; content: string }",
-          "description": "Parameter args"
+          "description": "Destination path and complete replacement content"
         }
       },
       "required": [
@@ -10239,11 +10239,11 @@ setBuildTimeData('features.fileTools', {
       "returns": "Promise<string>"
     },
     "editFile": {
-      "description": "",
+      "description": "Replace an exact, nonempty text match. Matching is literal, including whitespace. Requires one occurrence unless replaceAll is true. An empty, absent, or ambiguous match returns an Error: message without changing the file.",
       "parameters": {
         "args": {
           "type": "{ path: string; oldString: string; newString: string; replaceAll?: boolean }",
-          "description": "Parameter args"
+          "description": "File path, exact existing text, replacement text, and optional replaceAll"
         }
       },
       "required": [
@@ -39475,11 +39475,11 @@ export const introspectionData: Record<string, any>[] = [
     "className": "FileTools",
     "methods": {
       "readFile": {
-        "description": "",
+        "description": "Read UTF-8 text. Without a range, returns the file verbatim; offset/limit return numbered lines. Both range values must be positive integers.",
         "parameters": {
           "args": {
             "type": "{ path: string; offset?: number; limit?: number }",
-            "description": "Parameter args"
+            "description": "File path and optional 1-based offset and maximum line count"
           }
         },
         "required": [
@@ -39488,11 +39488,11 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<string>"
       },
       "writeFile": {
-        "description": "",
+        "description": "Replace a file with UTF-8 text, creating parent directories as needed.",
         "parameters": {
           "args": {
             "type": "{ path: string; content: string }",
-            "description": "Parameter args"
+            "description": "Destination path and complete replacement content"
           }
         },
         "required": [
@@ -39501,11 +39501,11 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<string>"
       },
       "editFile": {
-        "description": "",
+        "description": "Replace an exact, nonempty text match. Matching is literal, including whitespace. Requires one occurrence unless replaceAll is true. An empty, absent, or ambiguous match returns an Error: message without changing the file.",
         "parameters": {
           "args": {
             "type": "{ path: string; oldString: string; newString: string; replaceAll?: boolean }",
-            "description": "Parameter args"
+            "description": "File path, exact existing text, replacement text, and optional replaceAll"
           }
         },
         "required": [
