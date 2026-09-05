@@ -1203,10 +1203,29 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	}
 
 	// ── boot ──────────────────────────────────────────────────────────────────
+	// Assistant startup (feature warnings, skill preloads) writes straight to
+	// stdout/stderr, which lands between the splash art and the ink mount and
+	// wrecks the layout. Capture it and fold it into the transcript instead.
+	const startupLogs: string[] = []
 	if (options.initialAssistant) {
-		const cell = getCell(options.initialAssistant)
-		if (options.resumeThreadId) cell.assistant.resumeThread(options.resumeThreadId)
-		await ensureStarted(options.initialAssistant)
+		const stdoutWrite = process.stdout.write.bind(process.stdout)
+		const stderrWrite = process.stderr.write.bind(process.stderr)
+		const chunks: string[] = []
+		const capture = (chunk: any) => {
+			chunks.push(typeof chunk === 'string' ? chunk : String(chunk))
+			return true
+		}
+		process.stdout.write = capture as any
+		process.stderr.write = capture as any
+		try {
+			const cell = getCell(options.initialAssistant)
+			if (options.resumeThreadId) cell.assistant.resumeThread(options.resumeThreadId)
+			await ensureStarted(options.initialAssistant)
+		} finally {
+			process.stdout.write = stdoutWrite as any
+			process.stderr.write = stderrWrite as any
+			startupLogs.push(...chunks.join('').split('\n').map((line) => line.trimEnd()).filter(Boolean))
+		}
 	}
 
 	const bootLines = [
@@ -1216,6 +1235,12 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		colors.dim('/help for commands · esc interrupts · ctrl+o expands tool results'),
 	]
 	store.transcript.unshift({ id: uid(), kind: 'system', lines: bootLines })
+	if (startupLogs.length) {
+		// re-dim uniformly (stripping original colors) — boot chatter shouldn't
+		// shout in yellow above the conversation
+		const stripAnsi = (line: string) => line.replace(/\x1b\[[0-9;]*m/g, '')
+		store.transcript.push({ id: uid(), kind: 'system', lines: startupLogs.map((line) => colors.dim('  ' + stripAnsi(line))) })
+	}
 
 	// Bottom-anchor the session: pad the viewport so the input line starts at
 	// the bottom of the terminal and the transcript grows upward, chat-app
