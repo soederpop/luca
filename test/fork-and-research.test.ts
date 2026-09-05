@@ -207,6 +207,8 @@ describe('Assistant fork', () => {
 		])
 
 		expect(forks).toHaveLength(2)
+		expect(forks[0]).not.toBe(forks[1])
+		expect(forks[0]!.conversation).not.toBe(forks[1]!.conversation)
 		expect(forks[0]!.isStarted).toBe(true)
 		expect(forks[1]!.isStarted).toBe(true)
 	})

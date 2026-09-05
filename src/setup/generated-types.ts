@@ -54,7 +54,7 @@ declare const container: any;
 export default container;
 //# sourceMappingURL=container.server.d.ts.map`,
   "agi/delegation-policy.d.ts": `/** Reserved tool names and prompt key: descendants never inherit delegation. */
-export declare const delegationToolNames: readonly ["delegateTask", "researchTasks", "listDelegationAgents", "delegationStatus"];
+export declare const delegationToolNames: readonly ["delegateTask", "researchTasks", "listDelegationAgents", "delegationStatus", "startDelegation", "listDelegationTasks", "waitForDelegation", "followUpDelegation", "cancelDelegation", "synthesizeDelegations"];
 export declare const delegationPromptKey = "assistantDelegator";
 //# sourceMappingURL=delegation-policy.d.ts.map`,
   "agi/feature.d.ts": `import type { AGIFeatures, AGIContainer } from './container.server.js';
@@ -98,7 +98,7 @@ import { VoiceMode } from "./features/voice-mode";
 export { Memory } from "./features/agent-memory";
 export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
 export { AssistantDelegator } from "./features/assistant-delegator";
-export type { AssistantDelegatorOptions, DelegationResult } from "./features/assistant-delegator";
+export type { AssistantDelegatorOptions, DelegationResult, DelegationTask, DelegationTaskOptions, DelegationResearchOptions, DelegationSynthesisOptions } from "./features/assistant-delegator";
 export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
@@ -814,6 +814,7 @@ export default Memory;
 import { Feature } from '../feature.js';
 import type { FeatureState } from '../../feature.js';
 import type { ToolsBundle } from '../../helper.js';
+import type { Assistant } from './assistant.js';
 declare module 'luca/feature' {
     interface AvailableFeatures {
         assistantDelegator: typeof AssistantDelegator;
@@ -829,14 +830,49 @@ export declare const AssistantDelegatorOptionsSchema: z.ZodObject<{
     timeoutMs: z.ZodDefault<z.ZodNumber>;
     maxToolTurns: z.ZodDefault<z.ZodNumber>;
     allowedAgents: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    maxSynthesisChars: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>;
 export type AssistantDelegatorOptions = z.infer<typeof AssistantDelegatorOptionsSchema>;
 export interface DelegationResult {
+    id: string;
+    assistantId?: string;
     task: string;
-    status: 'completed' | 'failed' | 'timedOut';
+    status: 'running' | 'completed' | 'failed' | 'timedOut' | 'cancelled';
     result?: string;
     error?: string;
 }
+export interface DelegationTask extends DelegationResult {
+    parentId: string;
+    kind: 'delegation' | 'followUp' | 'synthesis';
+    agent?: string;
+    startedAt: number;
+    finishedAt?: number;
+    sourceTaskIds?: string[];
+}
+declare const delegateSchema: z.ZodObject<{
+    task: z.ZodString;
+    agent: z.ZodOptional<z.ZodString>;
+    history: z.ZodDefault<z.ZodUnion<readonly [z.ZodLiteral<"none">, z.ZodLiteral<"full">, z.ZodNumber]>>;
+}, z.core.$strip>;
+declare const researchSchema: z.ZodObject<{
+    questions: z.ZodArray<z.ZodString>;
+    context: z.ZodDefault<z.ZodString>;
+    history: z.ZodDefault<z.ZodUnion<readonly [z.ZodLiteral<"none">, z.ZodLiteral<"full">, z.ZodNumber]>>;
+}, z.core.$strip>;
+export type DelegationTaskOptions = z.input<typeof delegateSchema>;
+export type DelegationResearchOptions = z.input<typeof researchSchema>;
+declare const synthesisSchema: z.ZodObject<{
+    guidance: z.ZodString;
+    taskIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export type DelegationSynthesisOptions = z.input<typeof synthesisSchema>;
+export declare const AssistantDelegatorEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    taskStarted: z.ZodTuple<[z.ZodAny], null>;
+    taskUpdated: z.ZodTuple<[z.ZodAny], null>;
+    taskCompleted: z.ZodTuple<[z.ZodAny], null>;
+}, z.core.$strip>;
 /**
  * Gives an assistant bounded tools for forks, named specialists, and parallel research.
  * Attach with assistant.use(container.feature('assistantDelegator')). Children never
@@ -855,6 +891,14 @@ export declare class AssistantDelegator extends Feature<FeatureState, AssistantD
         timeoutMs: z.ZodDefault<z.ZodNumber>;
         maxToolTurns: z.ZodDefault<z.ZodNumber>;
         allowedAgents: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        maxSynthesisChars: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        taskStarted: z.ZodTuple<[z.ZodAny], null>;
+        taskUpdated: z.ZodTuple<[z.ZodAny], null>;
+        taskCompleted: z.ZodTuple<[z.ZodAny], null>;
     }, z.core.$strip>;
     static shortcut: "features.assistantDelegator";
     static stability: "experimental";
@@ -880,7 +924,69 @@ export declare class AssistantDelegator extends Feature<FeatureState, AssistantD
         delegationStatus: {
             schema: z.ZodObject<{}, z.core.$strip>;
         };
+        startDelegation: {
+            schema: z.ZodObject<{
+                task: z.ZodString;
+                agent: z.ZodOptional<z.ZodString>;
+                history: z.ZodDefault<z.ZodUnion<readonly [z.ZodLiteral<"none">, z.ZodLiteral<"full">, z.ZodNumber]>>;
+            }, z.core.$strip>;
+        };
+        listDelegationTasks: {
+            schema: z.ZodObject<{}, z.core.$strip>;
+        };
+        waitForDelegation: {
+            schema: z.ZodObject<{
+                taskId: z.ZodString;
+                timeoutMs: z.ZodDefault<z.ZodNumber>;
+            }, z.core.$strip>;
+        };
+        followUpDelegation: {
+            schema: z.ZodObject<{
+                assistantId: z.ZodString;
+                task: z.ZodString;
+            }, z.core.$strip>;
+        };
+        cancelDelegation: {
+            schema: z.ZodObject<{
+                taskId: z.ZodString;
+            }, z.core.$strip>;
+        };
+        synthesizeDelegations: {
+            schema: z.ZodObject<{
+                guidance: z.ZodString;
+                taskIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+            }, z.core.$strip>;
+        };
     };
+    private readonly parents;
+    private get activeParents();
+    /** Child instances keyed by assistant ID, including running and finished conversations. Returns a fresh Map; the Assistant values are the live instances. */
+    get assistants(): Map<string, Assistant>;
+    /** Assignment snapshots across this feature's attached parents, in creation order. */
+    get tasks(): DelegationTask[];
+    /** Child instances scoped to a particular parent, useful when sharing a feature. */
+    getAssistants(parent?: Assistant): Map<string, Assistant>;
+    private resolveParent;
+    private snapshot;
+    /** Read this parent's task snapshots without exposing mutable bookkeeping. */
+    listTasks(parent?: Assistant): DelegationTask[];
+    private getRun;
+    /** Start an assignment without blocking; returns a stable ID for waiting, cancellation, or synthesis. */
+    startTask(options: DelegationTaskOptions, parent?: Assistant): DelegationTask;
+    /** Delegate and wait for a terminal result. Use startTask for background work. */
+    delegate(options: DelegationTaskOptions, parent?: Assistant): Promise<DelegationTask>;
+    /** Run independent questions in parallel and preserve question order, including failures. */
+    research(options: DelegationResearchOptions, parent?: Assistant): Promise<DelegationTask[]>;
+    /** Wait up to timeoutMs for a task; zero returns its current snapshot. Does not cancel work. */
+    waitForTask(taskId: string, timeoutMs?: number, parent?: Assistant): Promise<DelegationTask>;
+    /** Continue an existing idle child conversation. Follow-ups consume the same task budget as new assignments. */
+    followUp(assistantId: string, task: string, parent?: Assistant): Promise<DelegationTask>;
+    /** Request cancellation; a non-cooperative child retains its slot until the underlying work settles. */
+    cancelTask(taskId: string, parent?: Assistant): DelegationTask;
+    /** Cancel this parent's outstanding assignments when the coordinator stops or changes direction. */
+    cancelAll(parent?: Assistant): DelegationTask[];
+    /** Combine finished results in a fresh tool-free child using explicit guidance. Returns a tracked synthesis task with source IDs. */
+    synthesize(options: DelegationSynthesisOptions, parent?: Assistant): Promise<DelegationTask>;
     /** Build a consumer-bound bundle; the same feature can safely serve multiple parents. */
     toTools(options?: {
         only?: string[];
@@ -888,7 +994,7 @@ export declare class AssistantDelegator extends Feature<FeatureState, AssistantD
     }): ToolsBundle;
     private invoke;
     private reserve;
-    private run;
+    private launch;
 }
 export default AssistantDelegator;
 //# sourceMappingURL=assistant-delegator.d.ts.map`,

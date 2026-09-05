@@ -2173,6 +2173,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Create a new assistant that reuses the forked conversation
 		const forkedAssistant = this.container.feature('assistant', {
 			...this.options,
+			cached: false,
 			delegationDisabled: true,
 			// Pass through conversation overrides that map to assistant options
 			...(convOverrides.model ? { model: convOverrides.model } : {}),
@@ -2419,7 +2420,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await manager.discover()
 		}
 
-		const instance = manager.create(id, { ...options, delegationDisabled: true })
+		const instance = manager.create(id, { ...options, cached: false, delegationDisabled: true })
 		if (instance === this) throw new Error('An assistant cannot be its own subagent')
 		instance.disableDelegation()
 		await instance.start()

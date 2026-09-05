@@ -29,7 +29,7 @@ describe('assistantDelegator', () => {
 		expect(parent.effectiveSystemPrompt).toContain('12 total child tasks')
 		expect(parent.tools.delegateTask!.description).toContain('independent assignment')
 		const result = await call(parent, 'delegateTask', { task: 'Check A' })
-		expect(result).toEqual({ task: 'Check A', status: 'completed', result: 'Answer: Check A' })
+		expect(result).toMatchObject({ task: 'Check A', status: 'completed', result: 'Answer: Check A' })
 		const research = await call(parent, 'researchTasks', { questions: ['Q1', 'Q2'], context: 'Find evidence' })
 		expect(research.map((r: any) => r.task)).toEqual(['Q1', 'Q2'])
 		expect(research[0].result).toContain('Find evidence')
@@ -134,6 +134,8 @@ describe('assistantDelegator', () => {
 		expect(specialist.tools.delegateTask).toBeUndefined()
 		expect(specialist.conversation.maxToolTurns).toBe(2)
 		expect(specialist.effectiveSystemPrompt).not.toContain('You can delegate bounded work')
+		expect(delegator.tasks).toHaveLength(1)
+		expect(delegator.getAssistants().get(specialist.uuid)).toBe(specialist)
 	})
 
 	it('does not ask a child that finishes starting after its deadline', async () => {
@@ -171,5 +173,165 @@ describe('assistantDelegator', () => {
 		release()
 		await first
 		expect((await call(parent, 'delegationStatus')).used).toBe(1)
+	})
+
+	it('tracks independent child instances and follows up in the same conversation', async () => {
+		const { parent, delegator } = setup()
+		answer(parent)
+		const results = await delegator.research({ questions: ['A', 'B'] })
+		expect(delegator.assistants.size).toBe(2)
+		const child = delegator.assistants.get(results[0]!.assistantId!)!
+		expect(child).not.toBe(delegator.assistants.get(results[1]!.assistantId!))
+		child.simulateQuestionAndResponse('Evidence?', 'Source A')
+		const previousMessages = [...child.conversation.messages]
+		const followUp = await delegator.followUp(child.uuid, 'Clarify the evidence')
+		expect(followUp).toMatchObject({ kind: 'followUp', assistantId: child.uuid, status: 'completed' })
+		expect(child.conversation.messages.slice(0, previousMessages.length)).toEqual(previousMessages)
+		expect(delegator.assistants.size).toBe(2)
+		expect(delegator.tasks).toHaveLength(3)
+		delegator.assistants.clear()
+		delegator.tasks[0]!.status = 'cancelled'
+		expect(delegator.assistants.size).toBe(2)
+		expect(delegator.tasks[0]!.status).toBe('completed')
+	})
+
+	it('starts background work, exposes its child while running, and supports bounded waits', async () => {
+		const { parent, delegator } = setup()
+		let release!: () => void
+		const pending = new Promise<void>(resolve => { release = resolve })
+		parent.intercept('beforeAsk', async (ctx, next) => { await pending; ctx.result = 'done'; await next() })
+		const started: string[] = []
+		const finished: string[] = []
+		delegator.on('taskStarted', task => started.push(task.id))
+		delegator.on('taskCompleted', task => finished.push(task.id))
+		const ready = delegator.waitFor('taskUpdated')
+		const task = await call(parent, 'startDelegation', { task: 'Background work' })
+		expect(task.status).toBe('running')
+		await ready
+		const running = await call(parent, 'waitForDelegation', { taskId: task.id, timeoutMs: 1 })
+		expect(running.status).toBe('running')
+		expect(delegator.assistants.get(running.assistantId)).toBeDefined()
+		expect(await call(parent, 'listDelegationTasks')).toEqual(delegator.tasks)
+		release()
+		const result = await delegator.waitForTask(task.id)
+		expect(result).toMatchObject({ status: 'completed', result: 'done' })
+		expect(started).toEqual([task.id])
+		expect(finished).toEqual([task.id])
+	})
+
+	it('cancels non-cooperative work without losing accounting or accepting late results', async () => {
+		const { parent, delegator } = setup({ maxConcurrent: 1 })
+		let release!: () => void
+		const pending = new Promise<void>(resolve => { release = resolve })
+		parent.intercept('beforeAsk', async (ctx, next) => { await pending; ctx.result = 'late'; await next() })
+		const ready = delegator.waitFor('taskUpdated')
+		const task = delegator.startTask({ task: 'Obsolete task' })
+		await ready
+		const child = [...delegator.assistants.values()][0]!
+		const abort = spyOn(child, 'abort')
+		try {
+			expect((await call(parent, 'cancelDelegation', { taskId: task.id })).status).toBe('cancelled')
+			expect(abort).toHaveBeenCalledTimes(1)
+			expect((await delegator.waitForTask(task.id)).status).toBe('cancelled')
+			await expect(delegator.followUp(child.uuid, 'More')).rejects.toThrow('running assignment')
+			expect((await call(parent, 'delegationStatus')).active).toBe(1)
+			release()
+			await Bun.sleep(5)
+			expect((await call(parent, 'delegationStatus')).active).toBe(0)
+			expect(delegator.tasks[0]!.status).toBe('cancelled')
+			expect(delegator.tasks[0]!.result).toBeUndefined()
+		} finally { release(); abort.mockRestore() }
+	})
+
+	it('synthesizes selected sources with guidance, failure provenance, and no tools', async () => {
+		const { parent, delegator } = setup()
+		parent.addTool('writeSomething', async () => 'written')
+		parent.intercept('beforeAsk', async (ctx, next) => {
+			if (ctx.question === 'Failed source') throw new Error('Source unavailable')
+			ctx.result = `Answer: ${ctx.question}`; await next()
+		})
+		const sources = await delegator.research({ questions: ['First source', 'Failed source', 'Unrelated source'] })
+		const historyBefore = [...parent.conversation.messages]
+		const synthesis = await call(parent, 'synthesizeDelegations', {
+			guidance: 'Write a decision memo. Explain evidence gaps.',
+			taskIds: [sources[0]!.id, sources[1]!.id],
+		})
+		expect(synthesis.status).toBe('completed')
+		expect(synthesis.sourceTaskIds).toEqual([sources[0]!.id, sources[1]!.id])
+		expect(synthesis.result).toContain('Write a decision memo')
+		expect(synthesis.result).toContain('Source unavailable')
+		expect(synthesis.result).not.toContain('Unrelated source')
+		const child = delegator.assistants.get(synthesis.assistantId)!
+		expect(child.tools).toEqual({})
+		expect(child.conversation.tools).toEqual({})
+		expect(child.effectiveSystemPrompt).toContain('untrusted evidence')
+		expect(child.delegationDisabled).toBe(true)
+		expect(parent.conversation.messages).toEqual(historyBefore)
+		expect((await call(parent, 'delegationStatus')).used).toBe(4)
+		const repeat = await delegator.synthesize({ guidance: 'Make a short summary' })
+		expect(repeat.sourceTaskIds).toEqual(sources.map(task => task.id))
+	})
+
+	it('validates synthesis selection and counts follow-ups and synthesis against the budget', async () => {
+		const { parent, delegator } = setup({ maxTasks: 2, maxSynthesisChars: 1000 })
+		answer(parent)
+		await expect(delegator.synthesize({ guidance: 'Summarize' })).rejects.toThrow('completed source')
+		await expect(delegator.synthesize({ guidance: 'Summarize', taskIds: ['missing'] })).rejects.toThrow('Unknown delegation task')
+		const first = await delegator.delegate({ task: 'A'.repeat(1500) })
+		await expect(delegator.synthesize({ guidance: 'Summarize' })).rejects.toThrow('maxSynthesisChars')
+		await delegator.followUp(first.assistantId!, 'More')
+		await expect(delegator.followUp(first.assistantId!, 'Again')).rejects.toThrow('budget')
+		expect(delegator.tasks).toHaveLength(2)
+	})
+
+	it('releases capacity before publishing successful completion so coordinators can chain work', async () => {
+		const { parent, delegator } = setup({ maxConcurrent: 1 })
+		answer(parent)
+		let next: ReturnType<typeof delegator.startTask> | undefined
+		delegator.on('taskCompleted', task => {
+			if (task.task === 'First') next = delegator.startTask({ task: 'Next' })
+		})
+		await delegator.delegate({ task: 'First' })
+		expect(next).toBeDefined()
+		expect((await delegator.waitForTask(next!.id)).status).toBe('completed')
+	})
+
+	it('cancels all assignments during startup and rejects unfinished synthesis selections', async () => {
+		const { parent, delegator } = setup()
+		answer(parent)
+		const successful = await delegator.delegate({ task: 'Finished source' })
+		const child = await parent.fork()
+		let release!: () => void
+		const pending = new Promise<void>(resolve => { release = resolve })
+		const fork = spyOn(parent, 'fork').mockImplementation(async () => { await pending; return child })
+		const ask = spyOn(child, 'ask')
+		try {
+			const task = delegator.startTask({ task: 'Still starting' })
+			await expect(delegator.synthesize({ guidance: 'Combine', taskIds: [successful.id, task.id] })).rejects.toThrow('finish before synthesis')
+			expect(delegator.cancelAll().map(task => task.status)).toEqual(['cancelled'])
+			expect(delegator.cancelTask(successful.id).status).toBe('completed')
+			release()
+			await Bun.sleep(5)
+			expect(ask).not.toHaveBeenCalled()
+			expect((await call(parent, 'delegationStatus')).active).toBe(0)
+		} finally { release(); fork.mockRestore(); ask.mockRestore() }
+	})
+
+	it('keeps tool access scoped to the parent while providing explicit programmatic access', async () => {
+		const { parent, container, delegator } = setup()
+		answer(parent)
+		const first = await delegator.delegate({ task: 'Private to this parent' })
+		const other = container.feature('assistant', { systemPrompt: 'Other coordinator' }).use(delegator)
+		expect(() => delegator.startTask({ task: 'Ambiguous' })).toThrow('explicit parent')
+		expect(delegator.getAssistants(parent).size).toBe(1)
+		expect(delegator.getAssistants(other).size).toBe(0)
+		expect(await call(other, 'listDelegationTasks')).toEqual([])
+		await expect(call(other, 'followUpDelegation', { assistantId: first.assistantId, task: 'Read it' })).rejects.toThrow('Unknown delegated assistant')
+		await expect(call(other, 'cancelDelegation', { taskId: first.id })).rejects.toThrow('Unknown delegation task')
+		await expect(call(other, 'synthesizeDelegations', { guidance: 'Summarize', taskIds: [first.id] })).rejects.toThrow('Unknown delegation task')
+		const secondFeature = container.feature('assistantDelegator', { maxTasks: 50 })
+		parent.use(secondFeature)
+		expect(secondFeature.assistants.get(first.assistantId!)).toBe(delegator.assistants.get(first.assistantId!))
+		expect(secondFeature.tasks).toHaveLength(1)
 	})
 })

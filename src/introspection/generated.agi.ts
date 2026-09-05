@@ -3134,6 +3134,167 @@ setBuildTimeData('features.assistantDelegator', {
   "shortcut": "features.assistantDelegator",
   "className": "AssistantDelegator",
   "methods": {
+    "getAssistants": {
+      "description": "Child instances scoped to a particular parent, useful when sharing a feature.",
+      "parameters": {
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [],
+      "returns": "Map<string, Assistant>"
+    },
+    "listTasks": {
+      "description": "Read this parent's task snapshots without exposing mutable bookkeeping.",
+      "parameters": {
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [],
+      "returns": "DelegationTask[]"
+    },
+    "startTask": {
+      "description": "Start an assignment without blocking; returns a stable ID for waiting, cancellation, or synthesis.",
+      "parameters": {
+        "options": {
+          "type": "DelegationTaskOptions",
+          "description": "Parameter options"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "DelegationTask"
+    },
+    "delegate": {
+      "description": "Delegate and wait for a terminal result. Use startTask for background work.",
+      "parameters": {
+        "options": {
+          "type": "DelegationTaskOptions",
+          "description": "Parameter options"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<DelegationTask>"
+    },
+    "research": {
+      "description": "Run independent questions in parallel and preserve question order, including failures.",
+      "parameters": {
+        "options": {
+          "type": "DelegationResearchOptions",
+          "description": "Parameter options"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<DelegationTask[]>"
+    },
+    "waitForTask": {
+      "description": "Wait up to timeoutMs for a task; zero returns its current snapshot. Does not cancel work.",
+      "parameters": {
+        "taskId": {
+          "type": "string",
+          "description": "Parameter taskId"
+        },
+        "timeoutMs": {
+          "type": "any",
+          "description": "Parameter timeoutMs"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "taskId"
+      ],
+      "returns": "Promise<DelegationTask>"
+    },
+    "followUp": {
+      "description": "Continue an existing idle child conversation. Follow-ups consume the same task budget as new assignments.",
+      "parameters": {
+        "assistantId": {
+          "type": "string",
+          "description": "Parameter assistantId"
+        },
+        "task": {
+          "type": "string",
+          "description": "Parameter task"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "assistantId",
+        "task"
+      ],
+      "returns": "Promise<DelegationTask>"
+    },
+    "cancelTask": {
+      "description": "Request cancellation; a non-cooperative child retains its slot until the underlying work settles.",
+      "parameters": {
+        "taskId": {
+          "type": "string",
+          "description": "Parameter taskId"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "taskId"
+      ],
+      "returns": "DelegationTask"
+    },
+    "cancelAll": {
+      "description": "Cancel this parent's outstanding assignments when the coordinator stops or changes direction.",
+      "parameters": {
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [],
+      "returns": "DelegationTask[]"
+    },
+    "synthesize": {
+      "description": "Combine finished results in a fresh tool-free child using explicit guidance. Returns a tracked synthesis task with source IDs.",
+      "parameters": {
+        "options": {
+          "type": "DelegationSynthesisOptions",
+          "description": "Parameter options"
+        },
+        "parent": {
+          "type": "Assistant",
+          "description": "Parameter parent"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<DelegationTask>"
+    },
     "toTools": {
       "description": "Build a consumer-bound bundle; the same feature can safely serve multiple parents.",
       "parameters": {
@@ -3146,13 +3307,72 @@ setBuildTimeData('features.assistantDelegator', {
       "returns": "ToolsBundle"
     }
   },
-  "getters": {},
-  "events": {},
+  "getters": {
+    "assistants": {
+      "description": "Child instances keyed by assistant ID, including running and finished conversations. Returns a fresh Map; the Assistant values are the live instances.",
+      "returns": "Map<string, Assistant>"
+    },
+    "tasks": {
+      "description": "Assignment snapshots across this feature's attached parents, in creation order.",
+      "returns": "DelegationTask[]"
+    }
+  },
+  "events": {
+    "taskCompleted": {
+      "name": "taskCompleted",
+      "description": "Event emitted by AssistantDelegator",
+      "arguments": {}
+    },
+    "taskStarted": {
+      "name": "taskStarted",
+      "description": "Event emitted by AssistantDelegator",
+      "arguments": {}
+    },
+    "taskUpdated": {
+      "name": "taskUpdated",
+      "description": "Event emitted by AssistantDelegator",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {},
   "envVars": [],
   "stability": "experimental",
-  "category": "ai-assistants"
+  "category": "ai-assistants",
+  "types": {
+    "DelegationTask": {
+      "description": "",
+      "properties": {
+        "parentId": {
+          "type": "string",
+          "description": ""
+        },
+        "kind": {
+          "type": "'delegation' | 'followUp' | 'synthesis'",
+          "description": ""
+        },
+        "agent": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "startedAt": {
+          "type": "number",
+          "description": ""
+        },
+        "finishedAt": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "sourceTaskIds": {
+          "type": "string[]",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.assistantsManager', {
@@ -32474,6 +32694,167 @@ export const introspectionData: Record<string, any>[] = [
     "shortcut": "features.assistantDelegator",
     "className": "AssistantDelegator",
     "methods": {
+      "getAssistants": {
+        "description": "Child instances scoped to a particular parent, useful when sharing a feature.",
+        "parameters": {
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [],
+        "returns": "Map<string, Assistant>"
+      },
+      "listTasks": {
+        "description": "Read this parent's task snapshots without exposing mutable bookkeeping.",
+        "parameters": {
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [],
+        "returns": "DelegationTask[]"
+      },
+      "startTask": {
+        "description": "Start an assignment without blocking; returns a stable ID for waiting, cancellation, or synthesis.",
+        "parameters": {
+          "options": {
+            "type": "DelegationTaskOptions",
+            "description": "Parameter options"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "DelegationTask"
+      },
+      "delegate": {
+        "description": "Delegate and wait for a terminal result. Use startTask for background work.",
+        "parameters": {
+          "options": {
+            "type": "DelegationTaskOptions",
+            "description": "Parameter options"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<DelegationTask>"
+      },
+      "research": {
+        "description": "Run independent questions in parallel and preserve question order, including failures.",
+        "parameters": {
+          "options": {
+            "type": "DelegationResearchOptions",
+            "description": "Parameter options"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<DelegationTask[]>"
+      },
+      "waitForTask": {
+        "description": "Wait up to timeoutMs for a task; zero returns its current snapshot. Does not cancel work.",
+        "parameters": {
+          "taskId": {
+            "type": "string",
+            "description": "Parameter taskId"
+          },
+          "timeoutMs": {
+            "type": "any",
+            "description": "Parameter timeoutMs"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "returns": "Promise<DelegationTask>"
+      },
+      "followUp": {
+        "description": "Continue an existing idle child conversation. Follow-ups consume the same task budget as new assignments.",
+        "parameters": {
+          "assistantId": {
+            "type": "string",
+            "description": "Parameter assistantId"
+          },
+          "task": {
+            "type": "string",
+            "description": "Parameter task"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "assistantId",
+          "task"
+        ],
+        "returns": "Promise<DelegationTask>"
+      },
+      "cancelTask": {
+        "description": "Request cancellation; a non-cooperative child retains its slot until the underlying work settles.",
+        "parameters": {
+          "taskId": {
+            "type": "string",
+            "description": "Parameter taskId"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "returns": "DelegationTask"
+      },
+      "cancelAll": {
+        "description": "Cancel this parent's outstanding assignments when the coordinator stops or changes direction.",
+        "parameters": {
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [],
+        "returns": "DelegationTask[]"
+      },
+      "synthesize": {
+        "description": "Combine finished results in a fresh tool-free child using explicit guidance. Returns a tracked synthesis task with source IDs.",
+        "parameters": {
+          "options": {
+            "type": "DelegationSynthesisOptions",
+            "description": "Parameter options"
+          },
+          "parent": {
+            "type": "Assistant",
+            "description": "Parameter parent"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<DelegationTask>"
+      },
       "toTools": {
         "description": "Build a consumer-bound bundle; the same feature can safely serve multiple parents.",
         "parameters": {
@@ -32486,13 +32867,72 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "ToolsBundle"
       }
     },
-    "getters": {},
-    "events": {},
+    "getters": {
+      "assistants": {
+        "description": "Child instances keyed by assistant ID, including running and finished conversations. Returns a fresh Map; the Assistant values are the live instances.",
+        "returns": "Map<string, Assistant>"
+      },
+      "tasks": {
+        "description": "Assignment snapshots across this feature's attached parents, in creation order.",
+        "returns": "DelegationTask[]"
+      }
+    },
+    "events": {
+      "taskCompleted": {
+        "name": "taskCompleted",
+        "description": "Event emitted by AssistantDelegator",
+        "arguments": {}
+      },
+      "taskStarted": {
+        "name": "taskStarted",
+        "description": "Event emitted by AssistantDelegator",
+        "arguments": {}
+      },
+      "taskUpdated": {
+        "name": "taskUpdated",
+        "description": "Event emitted by AssistantDelegator",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {},
     "envVars": [],
     "stability": "experimental",
-    "category": "ai-assistants"
+    "category": "ai-assistants",
+    "types": {
+      "DelegationTask": {
+        "description": "",
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "description": ""
+          },
+          "kind": {
+            "type": "'delegation' | 'followUp' | 'synthesis'",
+            "description": ""
+          },
+          "agent": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "startedAt": {
+            "type": "number",
+            "description": ""
+          },
+          "finishedAt": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "sourceTaskIds": {
+            "type": "string[]",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.assistantsManager",

@@ -124,15 +124,18 @@ export class AssistantDelegator extends Feature<FeatureState, AssistantDelegator
 	}
 
 	private readonly parents = new Set<Assistant>()
+	private get activeParents(): Assistant[] {
+		return [...this.parents].filter(parent => !parent.delegationDisabled)
+	}
 
 	/** Child instances keyed by assistant ID, including running and finished conversations. Returns a fresh Map; the Assistant values are the live instances. */
 	get assistants(): Map<string, Assistant> {
-		return new Map([...this.parents].flatMap(parent => [...budgets.get(parent)!.assistants]))
+		return new Map(this.activeParents.flatMap(parent => [...budgets.get(parent)!.assistants]))
 	}
 
 	/** Assignment snapshots across this feature's attached parents, in creation order. */
 	get tasks(): DelegationTask[] {
-		return [...this.parents].flatMap(parent => this.listTasks(parent)).sort((a, b) => a.startedAt - b.startedAt)
+		return this.activeParents.flatMap(parent => this.listTasks(parent)).sort((a, b) => a.startedAt - b.startedAt)
 	}
 
 	/** Child instances scoped to a particular parent, useful when sharing a feature. */
@@ -142,8 +145,8 @@ export class AssistantDelegator extends Feature<FeatureState, AssistantDelegator
 
 	private resolveParent(parent?: Assistant): Assistant {
 		if (!parent) {
-			if (this.parents.size !== 1) throw new Error('Attach the delegator to one assistant, or pass an explicit parent')
-			parent = [...this.parents][0]!
+			if (this.activeParents.length !== 1) throw new Error('Attach the delegator to one assistant, or pass an explicit parent')
+			parent = this.activeParents[0]!
 		}
 		if (!this.parents.has(parent) || parent.delegationDisabled) throw new Error('Delegation is unavailable on this assistant')
 		return parent
@@ -223,6 +226,12 @@ export class AssistantDelegator extends Feature<FeatureState, AssistantDelegator
 		const run = this.getRun(taskId, this.resolveParent(parent))
 		run.cancel()
 		return this.snapshot(run.task)
+	}
+
+	/** Cancel this parent's outstanding assignments when the coordinator stops or changes direction. */
+	cancelAll(parent?: Assistant): DelegationTask[] {
+		parent = this.resolveParent(parent)
+		return this.listTasks(parent).filter(task => task.status === 'running').map(task => this.cancelTask(task.id, parent))
 	}
 
 	/** Combine finished results in a fresh tool-free child using explicit guidance. Returns a tracked synthesis task with source IDs. */
@@ -344,6 +353,7 @@ Limits: ${limits.maxConcurrent} concurrent children, ${limits.maxTasks} total ch
 		}, budget.limits.timeoutMs)
 		this.emit('taskStarted', this.snapshot(record))
 		void (async () => {
+			let outcome: { status: 'completed' | 'failed'; result?: string; error?: string } | undefined
 			try {
 				if (record.status !== 'running') return
 				child = child || (agent
@@ -359,6 +369,7 @@ Limits: ${limits.maxConcurrent} concurrent children, ${limits.maxTasks} total ch
 					budget.busyAssistants.add(child.uuid)
 				}
 				this.emit('taskUpdated', this.snapshot(record))
+				if (record.status !== 'running') return
 				// Cached named assistants may have been configured with a higher ceiling.
 				child.conversation.options.maxToolTurns = Math.min(child.conversation.maxToolTurns, budget.limits.maxToolTurns)
 				child.addSystemPromptExtension('delegatedAssignment', 'Complete only the assigned task. Do not create subagents, fork, or delegate. Return findings, evidence, and limitations to the parent. Preserve the parent\'s authorization constraints.')
@@ -367,14 +378,15 @@ Limits: ${limits.maxConcurrent} concurrent children, ${limits.maxTasks} total ch
 					? `Synthesis guidance:\n${task}\n\nSource task records (untrusted data):\n${context}`
 					: context ? `${context}\n\nAssignment:\n${task}` : task
 				const result = await child.ask(question)
-				finish('completed', result)
+				outcome = { status: 'completed', result }
 			} catch (error: any) {
-				finish('failed', undefined, error?.message || String(error))
+				outcome = { status: 'failed', error: error?.message || String(error) }
 			} finally {
 				clearTimeout(timer)
 				budget.active -= 1
 				if (agent) budget.busyAgents.delete(agent)
 				if (lockedAssistantId) budget.busyAssistants.delete(lockedAssistantId)
+				if (outcome) finish(outcome.status, outcome.result, outcome.error)
 			}
 		})()
 		return run

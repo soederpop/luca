@@ -398,7 +398,7 @@ describe('Conversation correctness boundaries', () => {
 
 		expect(fork.conversation.availableTools).toEqual(['safeLookup'])
 		expect(fork.conversation.options.providerOptions?.assistantToolFilters).toEqual({
-			forbidTools: ['createResearchJob', 'delegateTask', 'researchTasks', 'listDelegationAgents', 'delegationStatus'],
+			forbidTools: ['createResearchJob', 'delegateTask', 'researchTasks', 'listDelegationAgents', 'delegationStatus', 'startDelegation', 'listDelegationTasks', 'waitForDelegation', 'followUpDelegation', 'cancelDelegation', 'synthesizeDelegations'],
 		})
 	})
 
