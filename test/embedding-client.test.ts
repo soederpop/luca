@@ -3,12 +3,13 @@ import { embedViaDaemon, ensureDaemon, disposeEmbeddingClients } from '../src/em
 
 // A fake llama-server that speaks /health and the OpenAI-compatible
 // /v1/embeddings endpoint — no binary, no model weights.
-function startFakeServer(dims = 4): { server: any; port: number } {
+async function startFakeServer(dims = 4): Promise<{ server: any; port: number }> {
 	const server = Bun.serve({
 		port: 0,
+		hostname: '127.0.0.1',
 		fetch(req) {
 			const url = new URL(req.url)
-			if (url.pathname === '/health') return new Response('{"status":"ok"}', { status: 200 })
+			if (url.pathname === '/health') return new Response('{"status":"ok"}', { status: 200, headers: { connection: 'close' } })
 			if (url.pathname === '/v1/embeddings') {
 				return req.json().then((body: any) => {
 					const inputs: string[] = Array.isArray(body.input) ? body.input : [body.input]
@@ -22,7 +23,21 @@ function startFakeServer(dims = 4): { server: any; port: number } {
 			return new Response('not found', { status: 404 })
 		},
 	})
-	return { server, port: server.port }
+	// The test promises an already-running server. Establish that precondition
+	// over HTTP before asking ensureDaemon to reuse it; a constructed listener
+	// alone does not prove the first connection has succeeded under suite load.
+	const deadline = Date.now() + 2000
+	while (true) {
+		try {
+			const response = await fetch(`http://127.0.0.1:${server.port}/health`, { signal: AbortSignal.timeout(250) })
+			if (response.status !== 200) throw new Error(`Fixture health: ${response.status}`)
+			await response.text()
+			return { server, port: server.port! }
+		} catch (error) {
+			if (Date.now() >= deadline) { server.stop(true); throw error }
+			await Bun.sleep(10)
+		}
+	}
 }
 
 let servers: any[] = []
@@ -34,7 +49,7 @@ afterEach(() => {
 
 describe('embedding client', () => {
 	it('uses an already-running server without spawning, and embeds via it', async () => {
-		const { server, port } = startFakeServer(4)
+		const { server, port } = await startFakeServer(4)
 		servers.push(server)
 
 		// ensureDaemon finds the live fake via /health (no spawn attempted, so the
@@ -50,7 +65,7 @@ describe('embedding client', () => {
 	})
 
 	it('handles concurrent batches against one server', async () => {
-		const { server, port } = startFakeServer(2)
+		const { server, port } = await startFakeServer(2)
 		servers.push(server)
 
 		const [r1, r2] = await Promise.all([

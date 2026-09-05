@@ -1,774 +1,138 @@
 // Auto-generated bootstrap content
-// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md,
+// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/bootstrap/references/*.md, docs/examples/*.md, docs/tutorials/*.md,
 // plus reference docs generated from live introspection data.
 //
 // Do not edit manually. Run: luca build-bootstrap
 
 export const bootstrapFiles: Record<string, string> = {
   "SKILL": `---
-name: Using the luca framework
-description: The luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
+name: luca-framework
+description: Build and debug Luca commands, helpers, endpoints, assistants, and container-backed applications. Use in projects that depend on Luca or explicitly use its CLI; learn installed APIs through runtime introspection and runnable examples.
 ---
-# Luca: Learning the Container
+# Build with the Luca container
 
-The Luca framework \`luca\` ships a \`luca\` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. Project helper folders (\`commands/\`, \`endpoints/\`, \`features/\`, \`clients/\`, \`servers/\`) are discovered at runtime — but not all of them automatically. See "How Auto-Discovery Works" below before assuming a folder is picked up.
+Luca components can be explored by people and agents through the same interface. The container holds business logic, observable state, events, and named helper registries; UI and CLI handlers remain thin adapters. Features compose capabilities, clients connect to services, and servers accept connections. Names, Zod schemas, and JSDoc make those components discoverable: metadata is part of the deliverable.
 
-The \`luca\` cli loads typescript modules in through its VM which injects a \`container\` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
+## Choose the execution environment
 
-Read Phase 0 first — it is short, and it is the reason the rest of the workflow looks the way it does. Then there are four skills, in this order:
+- **Compiled CLI:** \`luca\` loads project TypeScript through its VM. \`container\` is injected and imports such as \`luca\` and \`zod\` resolve to bundled modules without npm installation. Read [the VM contract](references/tutorials/26-the-vm.md) when writing scripts, loading modules, or diagnosing globals/imports.
+- **Installed package:** import the appropriate Node, AGI, or web entry point and explicitly discover project helpers when needed. Read [embedding Luca](references/tutorials/21-embedding-luca.md).
+- **Browser:** use the web container; filesystem, databases, and other Node work live behind server endpoints. Start with [reactive browser UIs](references/tutorials/22-reactive-frontend.md), including the shipped React hooks.
 
-1. **Discover** what the container can do — \`luca describe\`
-2. **Build** new helpers when your project needs them — \`luca scaffold\`
-3. **Prototype** and debug with live code — \`luca eval\`
-4. **Write Runnable Markdown** a great usecase is \`luca run markdown.md\` where the markdown codeblocks are executed inside the Luca VM.
----
+In the framework source checkout, \`bun run src/cli/cli.ts\` invokes the development CLI. An installed binary can be a different version: verify behavior against the runtime you will ship.
 
-## Phase 0: Understand the \`luca\` philosophy
+## Work from the task
 
-**Luca is a framework for building software components that can be talked to.** Object-oriented programming and domain-driven design, aimed at an era where the caller might be a person in a REPL, a React component, or an agent. Understand this section and the rest of the skill stops being ceremony and starts being obvious.
+1. Find a matching composition below, or search \`luca describe --query "what I need to do" --limit 4\`. Follow the returned helper, command-help, or reference pointer.
+2. Inspect only the needed API: \`luca describe fs.readFile\`, or \`luca serve --help\` for CLI invocation. Existing helpers often solve the task without a custom class.
+3. Try the smallest useful composition with \`luca eval\` or a runnable example. Inspect the example's setup and cleanup before running it; examples may create files, listeners, or external connections.
+4. Scaffold only a missing reusable capability: \`luca scaffold <type> --tutorial\`, then \`luca scaffold <type> <name> --description "..."\`. Implement the logic and schemas.
+5. Verify observable behavior, errors, and resource cleanup. For a helper, inspect \`luca describe <name>\`; for a command, inspect its \`--help\`. Run relevant Bun tests. Read [metadata and types](references/tutorials/27-metadata-and-types.md) when changing public APIs.
 
-### The container is the spine
+Do not read every registry or tutorial as a prerequisite. A one-method fix usually needs one member description and a focused check.
 
-The \`container\` is the root that the whole system branches off of. It provides the primitives every JavaScript context needs, whether that context is a script that exits, a page that renders, a long-lived server process, or a long-lived browser loop: observable state, an event emitter, utils for reshaping strings and data and hashing them, and registries of **Helpers**.
+## Essential contracts
 
-Helpers are universal interfaces over wildly different things. There are three kinds, and each kind is a lifecycle contract rather than a folder:
+- Use container capabilities instead of importing filesystem, path, process, or utility packages. File operations: \`container.feature('fs')\`; processes: \`container.feature('proc')\`; paths: \`container.paths\`; utilities: \`container.utils\`. Raise a missing capability rather than adding a dependency automatically.
+- \`container.paths.join()\` prepends cwd even to an absolute argument. Use \`container.paths.resolve(absoluteBase, 'child')\` for absolute bases.
+- Each CLI invocation gets fresh in-memory state. Use \`container.state\` or helper state for reactive process-local data; \`container.store(name)\` for durable cross-process state; \`diskCache\` for recomputable caches; \`sqlite\` for relational data/transactions; \`redis\` for cross-process pub/sub. Use locked \`store.update()\` for concurrent changes.
+- VM modules do not have every Bun global. Use the injected container and supported virtual imports. Keep schemas unconditional; \`zod\` is available. Runtime eval checks behavior, not TypeScript assignability.
+- Close connections, watchers, timers, and listeners when finite work ends, preferably in \`finally\`. For a service, use \`context.runUntilShutdown(cleanup)\` or \`container.runUntilShutdown(cleanup)\`; use \`scheduler.run({ onShutdown })\` for managed schedules. See [process lifecycle](references/tutorials/28-process-lifecycle.md).
+- Describe schema fields and public methods, register helpers by name, and declare category/stability. A helper whose public API is missing from introspection needs its metadata completed as well as its implementation.
 
-- **Servers** can \`start()\` and \`stop()\`.
-- **Clients** can \`connect()\`.
-- **Features** are compositions. They can be \`enable()\`d, and they report \`isEnabled\`.
-
-*How* any given helper honors its contract is entirely its own business. That is the point. You can meet a helper you have never seen and already know how to hold it.
-
-### Helpers are things with names
-
-We interact with a feature, a server, or a client as a single named thing: \`container.feature('git')\`, \`container.server('express')\`. Multiple instances can exist mechanically, but architecturally we usually mean the one. That naming discipline is what makes glue code read like a sentence — \`container.feature('git').branch\` — and code that reads like a sentence is code you can debug.
-
-### "Talked to" lands twice
-
-**Metaphorically, pre-LLM:** UI code gets a single service object it can render with React and dispatch methods at. The helper encapsulates the complexity, so the glue code stays thin, readable, and conversational.
-
-**Literally, post-LLM:** that same object is a tool an assistant can call. Every architecturally important component responds to \`describe()\`, which teaches an assistant — or a developer in a REPL — what the thing does, what state it is in, what state it *could* be in, and what events it emits.
-
-One design, two audiences. This is why the metadata is not documentation about the interface. **The metadata is the interface.**
-
-### Which is why the ceremony matters
-
-To get that, Luca asks you to do the paperwork on every helper you build:
-
-- **Name it and register it**, so it is reachable by name.
-- **Categorize it** — which kind of helper is it, and literally, the \`static category\` and \`static stability\` metadata on the class.
-- **Write real JSDoc** on the class and every public method. The introspection system parses it, at runtime with a little build-time help. Sloppy JSDoc is not a style nit, it is a broken build artifact.
-- **Put zod schemas on every boundary** between your code and an agent or developer: options, state, events, tool arguments. Describe every field.
-
-The payoff for all of it is that the UI is going to change ridiculously often and should stay a cheap representation sitting on top of something solid and stable. The container is the stable part.
-
-### What this means for you, right now
-
-**A helper that \`luca describe\` cannot fully explain is unfinished work.** When you build something here, that is the acceptance test — scaffold it, fill in the logic, then run \`luca describe <name>\` and read it as if you were the next agent to arrive. Missing methods, empty descriptions, or an untyped option mean go back and finish.
-
-## Phase 1: Discover with \`luca describe\`
-
-This is your primary tool. The \`luca\` binary is a compiled artifact that bundles all introspection data — it is the authority on what the container provides. Run \`luca describe\` first — it outputs full documentation for any part of the container: methods, options, events, state, examples. Reading source can be helpful for additional context if it exists in the project, but the source for built-in helpers may not be present — the binary is always the ground truth.
-
-### See what's available
-
-\`\`\`shell
-luca describe features     # index of all available features, grouped by category
-luca describe clients      # index of all available clients
-luca describe servers      # index of all available servers
-\`\`\`
-
-### Search by meaning when you don't know the name
-
-When you know what you want to *do* but not what it's called, ask in plain language — it searches every helper, example, and tutorial and returns ranked pointers:
-
-\`\`\`shell
-luca describe --query "how do I build a rest server?"
-luca describe --query "watch files for changes"
-luca describe --query "run a command over ssh" --json   # machine-readable results
-\`\`\`
-
-Each result tells you the follow-up move (\`luca describe <name>\`, or a references/ doc to read). Keyword search always works; for semantic ranking build the index once with \`luca describe --calculate-embeddings\` (needs \`luca setup --local-embeddings\`). There's also a flat lookup table of every helper in \`references/helper-index.md\`.
-
-You can even learn about features in the browser container, or a specific platform (server, node are the same, browser,web are the same)
-
-\`\`\`shell
-luca describe features --platform=web 
-luca describe features --platform=server
-\`\`\`
-
-### Learn about specific helpers
-
-\`\`\`shell
-luca describe fs           # full docs for the fs feature
-luca describe git          # full docs for git
-luca describe rest         # full docs for the rest client
-luca describe express      # full docs for the express server
-luca describe git fs proc  # multiple helpers in one shot
-\`\`\`
-
-### Drill into a specific method or getter
-
-Use dot notation to get docs for a single method or getter on any helper:
-
-\`\`\`shell
-luca describe ui.banner            # docs for the banner() method on ui
-luca describe fs.readFile          # docs for readFile() on fs
-luca describe ui.colors            # docs for the colors getter on ui
-luca describe git.branch           # docs for the branch getter on git
-\`\`\`
-
-This shows the description, parameters, return type, and examples for just that member. If the member doesn't exist, it lists all available methods and getters on the helper.
-
-### Get targeted documentation
-
-You can filter to only the sections you need:
-
-\`\`\`shell
-luca describe fs --methods          # just the methods
-luca describe git --events          # just the events it emits
-luca describe express --options     # just the constructor options
-luca describe fs git --examples     # just examples for both
-luca describe fs --usage --methods  # combine sections
-\`\`\`
-
-### Get approximate TypeScript types
-
-Need to know the shape of a helper for type-safe code? Use \`--ts\`:
-
-\`\`\`shell
-luca describe fs --ts              # approximate TS interface for fs
-luca describe conversation --ts    # see the conversation feature's type surface
-luca describe rest --ts            # client type shape
-\`\`\`
-
-This outputs a ~95% accurate TypeScript representation based on runtime introspection. If a type looks wrong or a method signature seems off, verify with \`luca eval\` against the live instance.
-
-### Describe the container itself
-
-\`\`\`shell
-luca describe              # overview of the container
-luca describe self         # same thing
-\`\`\`
-
-### Learn how to run a CLI command → \`--help\`, not \`describe\`
-
-\`luca describe\` documents the **programmatic API** of helpers (features, clients, servers) — the methods, getters, and events you call in code. It is the wrong tool for learning how to *invoke a CLI command*. For that, use the command's own \`--help\`, which renders its arguments, positionals, flags, subcommands, and examples:
-
-\`\`\`shell
-luca                       # list every available command
-luca serve --help          # how to run the serve command
-luca scaffold --help       # arguments, flags, and examples for scaffold
-luca bundle --help         # ...for any command
-luca help scaffold         # equivalent to \`luca scaffold --help\`
-\`\`\`
-
-Rule of thumb: **helper → \`luca describe <name>\`; command → \`luca <command> --help\`.** (Describing a command still works, but it shows the command class's internals, not its usage — \`describe\` will warn you and point you at \`--help\`.)
-
-**Use \`luca describe\` liberally for helpers.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (\`ui.banner\`, \`fs.readFile\`) when you need docs on just one method or getter. Use \`--ts\` when you need type information for writing code.
-
-> **NOTE:** The \`luca\` binary is compiled and bundles all introspection data. \`luca describe\` reflects what actually ships in the binary — source files for built-in helpers may not exist in your project. Reading source can add context when it's available, but \`luca describe\` and \`luca eval\` are always the authority.
-
----
-
-## Phase 2: Build with \`luca scaffold\`
-
-When your project needs a new helper, scaffold it. The \`scaffold\` command generates correct boilerplate — you fill in the logic.
-
-### Check the shipped examples first
-
-Before building anything multi-step, look for a runnable composition pattern in \`references/examples/\` (index below). **A runnable example beats fifty describes** — run it with \`luca run <doc.md>\` to confirm it works, then adapt the pattern. In a measured comparison, the fastest solution to a websocket task came from finding and running the shipped ask/reply example; the slowest came from scaffolding a custom client from scratch. Don't scaffold what you don't need: if a built-in client or server already speaks the protocol (websocket, rest), use it directly with your message conventions on top.
-
-### Learn how to build each type
-
-Before creating anything, read the tutorial for that helper type:
-
-\`\`\`shell
-luca scaffold feature --tutorial    # how features work, full guide
-luca scaffold command --tutorial    # how commands work
-luca scaffold endpoint --tutorial   # how endpoints work
-luca scaffold client --tutorial     # how clients work
-luca scaffold server --tutorial     # how servers work
-\`\`\`
-
-These tutorials are the authoritative reference for each helper type. They cover imports, schemas, class structure, registration, conventions, and complete examples.
-
-### Generate a helper
-
-\`\`\`shell
-luca scaffold <type> <name> --description "What it does"
-\`\`\`
-
-The workflow after scaffolding:
-
-\`\`\`shell
-luca scaffold command sync-data --description "Pull data from staging"
-# edit commands/sync-data.ts — add your logic
-luca sync-data --help              # verify it shows up and its args/flags read correctly
-\`\`\`
-
-Every scaffolded helper is picked up automatically — the CLI discovers all project helper folders (\`commands/\`, \`features/\`, \`clients/\`, \`servers/\`, ...) before dispatching a command, and \`luca serve\` discovers \`endpoints/\`. See "How Auto-Discovery Works" below for opt-outs and non-CLI entry points.
-
-### When to use each type
-
-| You need to...                                     | Scaffold a...  | Example                                                        |
-|----------------------------------------------------|----------------|----------------------------------------------------------------|
-| Add a reusable local capability (caching, crypto)  | **feature**    | \`luca scaffold feature disk-cache --description "File-backed key-value cache"\` |
-| Add a CLI task (build, deploy, generate)           | **command**    | \`luca scaffold command deploy --description "Deploy to production"\` |
-| Talk to an external API or service                 | **client**     | \`luca scaffold client github --description "GitHub API wrapper"\` |
-| Accept incoming connections (HTTP, WS)             | **server**     | \`luca scaffold server mqtt --description "MQTT broker"\` |
-| Add a REST route to \`luca serve\`                   | **endpoint**   | \`luca scaffold endpoint users --description "User management API"\` |
-
-### Scaffold options
-
-\`\`\`shell
-luca scaffold command deploy --description "..."    # writes to commands/deploy.ts
-luca scaffold endpoint users --print                # print to stdout instead of writing
-luca scaffold feature cache --output lib/cache.ts   # override output path
-\`\`\`
-
----
-
-## Phase 3: Prototype with \`luca eval\`
-
-Once you know what's available (describe) and how to build things (scaffold), use \`luca eval\` to test ideas, verify behavior, and debug.
-
-\`\`\`shell
-luca eval "container.features.available"
-luca eval "container.feature('proc').execSync('ls')"
-luca eval "container.feature('fs').readFile('package.json')"
-\`\`\`
-
-The eval command boots a full container with all helpers discovered and registered. Core features are available as top-level shortcuts:
-
-\`\`\`shell
-luca eval "fs.readFile('package.json')"
-luca eval "git.branch"
-luca eval "proc.execSync('ls')"
-\`\`\`
-
-**Reach for eval when you're stuck.** It gives you full control of the container at runtime — you can test method calls, inspect state, verify event behavior, and debug issues that are hard to reason about from docs alone.
-
-**Use eval as a testing tool.** Before wiring up a full command handler or feature, test your logic in eval first. Want to verify how \`fs.moveAsync\` behaves, or whether a watcher event fires the way you expect? Run it in eval. This is the fastest way to validate container code without the overhead of building the full command around it.
-
-\`\`\`shell
-# Test file operations before building a command around them
-luca eval "await fs.moveAsync('inbox/test.json', 'inbox/valid/test.json')"
-
-# First: luca describe fileManager --events  (to learn what events exist)
-# Then test the behavior:
-luca eval "const fm = container.feature('fileManager'); fm.on('file:change', (e) => console.log(e)); await fm.watch({ paths: ['inbox'] })"
-\`\`\`
-
-### The REPL
-
-For interactive exploration, \`luca console\` opens a persistent REPL with the container in scope. Useful when you need to try multiple things in sequence.
-
-### Risky change in an established project? Rehearse it in a scratch project
-
-Luca adapts to whatever directory it runs in — auto-discovery just walks the cwd. That means a throwaway folder in \`/tmp\` is a complete, working luca project the moment you \`cd\` into it. When a change to an established project is risky (a new feature that touches shared state, a watcher or daemon you haven't run before, a refactor of a helper other commands depend on), build and iterate in a scratch project first, then port only the proven result back:
-
-\`\`\`shell
-mkdir -p /tmp/luca-experiment && cd /tmp/luca-experiment
-luca scaffold feature myCache --description "trying an idea"
-luca eval "container.feature('myCache')"     # discovered and live, instantly
-\`\`\`
-
-Everything works there — scaffold, eval, serve, chat — with zero risk to the real project's files, stores, or databases. Iterate until the design is settled, then copy the final helper into the established project. This is not a required first step for ordinary work (eval covers most prototyping); it's the safe path when the cost of a mistake in the real project is high.
-
----
-
-## Key Concepts
-
-### The Container
-
-The container is a singleton that holds everything your application needs. It organizes components into **registries**: features, clients, servers, commands, and endpoints. Use the factory functions to get instances:
-
-\`\`\`js
-const fs = container.feature('fs')
-const rest = container.client('rest')
-const server = container.server('express')
-\`\`\`
-
-### How Auto-Discovery Works
-
-The CLI discovers **all** project helper folders before dispatching a command — \`features/\`, \`clients/\`, \`servers/\`, \`commands/\`, \`endpoints/\`, \`selectors/\` — so \`container.feature('myThing')\` works inside any command without extra wiring. \`~/.luca/{features,clients,servers,commands}\` (user-level helpers) are discovered on every CLI run too.
-
-| Folder | Discovered by | When |
-|--------|---------------|------|
-| all project helper folders | the CLI itself | every \`luca <command>\` invocation |
-| \`endpoints/\` | \`luca serve\` | when the server starts |
-| everything | \`luca eval\` | internally, before evaluating |
-
-Opt-outs via the \`LUCA_COMMAND_DISCOVERY\` env var: \`commands-only\` (only discover \`commands/\`, the pre-auto-discovery behavior), \`no-local\` (skip the project), \`no-home\` (skip \`~/.luca\`), \`disable\` (skip both).
-
-**Non-CLI entry points** (embedding the container in your own script or service) don't get this for free — discover explicitly:
-
-\`\`\`js
-await container.helpers.discoverAll()                               // everything
-await container.helpers.discover('features')                        // one type
-await container.helpers.discover('commands', { directory: dir })    // from a custom folder (plugins)
-\`\`\`
-
-### Plugins
-
-Any folder with the standard project layout (\`features/\`, \`commands/\`, \`endpoints/\`, ...) can be loaded as a plugin. Drop (or symlink) it into \`~/.luca/plugins/<name>\`, then either:
+## Discover precisely
 
 \`\`\`sh
-# .env — the CLI loads these automatically before your luca.cli.ts runs
-LUCA_PLUGINS=my-plugin,other-plugin
+luca describe --query "bundle standalone binary" --json --limit 4
+luca describe features                       # catalog, when you need an overview
+luca describe features --platform web        # browser-specific capabilities
+luca describe git.branch                     # one getter or method
+luca describe clients.websocket              # qualify ambiguous names
+luca describe fs --methods --examples        # selected sections
+luca describe git --getters --state --events
+luca describe conversation --options --env-vars
+luca describe fs --json                      # structured introspection
+luca describe fs --ts                        # approximate interface
+luca setup --types                          # shipped declarations + tsconfig
+luca serve --help                           # command usage, flags, examples
 \`\`\`
 
-\`\`\`js
-await container.helpers.usePlugin('my-plugin')   // by name (~/.luca/plugins) or path
-container.use('my-plugin'); await container.start()  // sync call sites — start() awaits plugin loads
+Keyword search works without model setup. Semantic ranking is optional: \`luca setup --local-embeddings\`, then \`luca describe --calculate-embeddings\`. The [helper index](references/helper-index.md) is a fallback catalog; don't load it if you already know the name. Type declarations are installed under \`.luca/types\`; local helper augmentation and a TypeScript check remain necessary for custom APIs.
+
+## Match the task to a pattern
+
+All paths below are relative to this skill. Examples are runnable with \`luca run <path>\`; tutorials explain designs and may contain illustrative, incomplete snippets.
+
+- **Create a helper:** [custom feature](references/examples/custom-feature-authoring.md), [composed-feature tests](references/examples/testing-a-composed-feature.md). Choose \`feature\` for reusable local behavior, \`client\` for an external service, \`server\` for incoming connections.
+- **CLI action:** scaffold \`command\`; read [commands](references/tutorials/08-commands.md) for arguments, schemas, examples, and subcommand help.
+- **Cached query:** scaffold \`selector\`; \`luca scaffold selector --tutorial\`, then \`luca select <name> --json --noCache\`. See [selectors](references/tutorials/29-selectors.md).
+- **HTTP API:** scaffold \`endpoint\`; [full-stack slice](references/examples/full-stack-slice.md), [REST roundtrip](references/examples/server-rest-roundtrip.md).
+- **WebSocket messaging:** [ask/reply](references/examples/websocket-ask-and-reply-example.md); [HTTP + WebSocket sidecar](references/tutorials/25-express-websocket-sidecar.md) uses \`luca serve --setup\`.
+- **Data and workers:** [cross-process state](references/examples/cross-process-state-handoff.md), [SQLite job queue](references/examples/sqlite-job-queue.md), [pipeline](references/examples/data-pipeline-fs-grep-sqlite.md), [daemon](references/examples/daemon-command.md), [event fan-out](references/examples/event-bus-fanout.md).
+- **Browser application:** [reactive UI and React hooks](references/tutorials/22-reactive-frontend.md); [assistant-driven UI](references/tutorials/23-assistant-driven-ui.md) for \`containerLink\` and tool providers.
+- **Assistants:** scaffold \`assistant\`; [assistant authoring](references/tutorials/12-assistants.md), [feature tools](references/examples/feature-as-tool-provider.md), [structured output](references/examples/structured-output-with-assistants.md). Use \`luca assistant --help\` for management and \`luca chat --help\` for interactive use.
+- **Prompt automation or MCP:** \`luca prompt --help\`, \`luca mcp --help\`, \`luca sandbox-mcp --help\`. Read [scripts](references/tutorials/03-scripts.md) for runnable markdown and [VM execution](references/tutorials/26-the-vm.md) for evaluation modes.
+- **Document models/search:** [markdown state](references/tutorials/24-state-in-markdown.md), [semantic search](references/examples/semantic-search-content-db.md).
+- **Plugins:** [discovery and registries](references/examples/meta-discovery.md), [runtime conventions](references/runtime-conventions.md).
+- **Shipping a binary:** [packaging and smoke verification](references/tutorials/30-shipping-a-binary.md); \`luca bundle --help\` for targets and built-in command selection.
+- **Unexpected behavior:** [error contracts](references/examples/error-handling-conventions.md), [runtime conventions](references/runtime-conventions.md) for VM, terminal, paths, secrets, and discovery details.
+
+## Prototype and verify
+
+\`\`\`sh
+luca eval "container.features.available"
+luca eval "await fs.readFileAsync('package.json')"
+luca run scripts/check.ts
+luca run notes.md --onlySections "Setup,Check"
+luca run notes.md --console
+luca introspect --lint --dry-run
 \`\`\`
 
-If the plugin has a \`luca.plugin.ts\` (or \`plugin.ts\`) entry, its \`attach(container, { pluginDir })\` export runs after discovery — the hook for assets beyond the standard folders (assistants, workflows, contexts).
+Eval prints the final expression and supports top-level await. A script runs top-level code, then its exported \`default\` function or \`main\` receives the container context. Markdown blocks share a context. \`run\` defaults to executing code fences; \`prompt\` defaults to leaving them literal. Use \`--eval-mode optIn\` for only \`eval\` fences, \`none\` for no execution, and \`skip\` fence metadata to exclude illustrative code. Selected sections do not automatically execute their dependencies.
 
-### State
+A scratch cwd helps isolate project files but still loads home hooks/helpers, configured plugins, credentials, and external services. Review those dependencies before treating an experiment as isolated. Discovery environment flags do not disable every startup hook.
 
-Every helper and the container itself have observable state:
+After a framework upgrade, \`luca bootstrap --update-skill\` refreshes this skill and its references from that binary, replacing the skill directory. Keep project-specific guidance in the project instruction file, and local notes outside the generated skill directory.
 
-\`\`\`js
-const feature = container.feature('fs')
-
-feature.state.current              // snapshot of all state
-feature.state.get('someKey')       // single value
-feature.state.set('key', 'value')  // update
-
-// Watch for changes
-feature.state.observe((changeType, key, value) => {
-  // changeType: 'add' | 'update' | 'delete'
-})
-\`\`\`
-
-The container has state too: \`container.state.current\`, \`container.state.observe()\`.
-
-### Events
-
-Every helper and the container are event emitters — \`on\`, \`once\`, \`emit\`, \`waitFor\` all work as expected. Use \`luca describe <name> --events\` to see what a helper emits.
-
-### Utilities
-
-The container provides common utilities at \`container.utils\` — no external imports needed:
-
-- \`container.utils.uuid()\` — v4 UUID
-- \`container.utils.hashObject(obj)\` — deterministic hash
-- \`container.utils.stringUtils\` — camelCase, kebabCase, pluralize, etc.
-- \`container.utils.lodash\` — groupBy, keyBy, pick, omit, debounce, etc.
-- \`container.paths.resolve()\` / \`container.paths.join()\` — path operations
-
-### Programmatic introspection
-
-Everything \`luca describe\` outputs is also available at runtime in code:
-
-\`\`\`js
-container.features.describe('fs')   // markdown docs (same as the CLI)
-feature.introspect()                // structured object: { methods, events, state, options }
-container.introspectAsText()           // full container overview as markdown
-\`\`\`
-
-This is useful inside commands and scripts where you need introspection data programmatically.
-
----
-
-## Server development troubleshooting
-
-- You can use \`container.proc.findPidsByPort(3000)\` which will return an array of numbers.
-- You can use \`container.proc.kill(pid)\` to kill that process
-- You can combine these two functions in \`luca eval\` if a server you're developing won't start because a previous instance is running (common inside e.g. claude code sessions )
-- \`luca serve --force\` will also replace the running process with the current one
-- \`luca serve --any-port\` will open on any port
-
-
-## Common Patterns
-
-Recurring shapes that evaluation sessions had to improvise — use these instead of inventing your own:
-
-### State between separate \`luca\` invocations
-
-Every \`luca\` command runs in a fresh process with a fresh container — module-level variables and helper registrations do not survive. The blessed handoff is \`container.store(name)\`: one durable JSON document per name (under \`.luca/store/\`), schema-validated, with atomic writes. Never hand-roll a state dotfile or keep shared counters in memory.
-
-\`\`\`js
-// process A (e.g. \`luca scout\`) — update() is a LOCKED read-modify-write:
-// concurrent invocations can never overwrite each other's writes
-const scout = container.store('scout')
-await scout.update(s => { s.port = port; s.pid = process.pid })
-
-// process B (e.g. \`luca check\`) — read() always re-reads the file
-const { port } = await container.store('scout').read()
-\`\`\`
-
-Pass \`schema\` (zod, with \`.default()\`s) and a missing file reads as your defaults — no init step. The file at \`store.path\` is plain JSON: \`cat\` it, commit it. Full API: \`luca describe store\`.
-
-**Which store? The decision heuristic:**
-
-| Need | Use |
-|------|-----|
-| In-process, ephemeral, reactive | \`container.state\` / feature state |
-| Cross-process **state** — counters, manifests, PIDs, process lists, small configs | \`container.store(name)\` (locked \`update()\`, atomic writes; losing it would be a bug) |
-| Cross-process **cache** — recomputable, may expire | \`diskCache\` (supports \`ttl\`; expired = miss; \`get()\` throws on a miss — guard with \`has()\`) |
-| Queryable, relational, transactional, durable queues | \`sqlite\` (see \`transaction()\` and \`UPDATE … RETURNING\` for atomic job claims) |
-| Cross-process pub/sub fan-out | \`redis\` (\`publish\`/\`subscribe\`) |
-
-### Subcommand-style CLIs (\`luca note add|list|wipe\`)
-
-One command file; map the verb through positionals and validate with an enum:
-
-\`\`\`ts
-export const positionals = ['action', 'text']
-export const argsSchema = z.object({
-  action: z.enum(['add', 'list', 'wipe']).describe('What to do'),
-  text: z.string().optional().describe('Note text (for add)'),
-})
-
-// Declarative help metadata: renders a Subcommands: section in --help,
-// and \`luca note add --help\` shows focused help for just that verb.
-export const subcommands = {
-  add: { args: '<text>', description: 'Save a note', examples: ['luca note add "call the vet"'] },
-  list: { description: 'Print all saved notes' },
-  wipe: { description: 'Delete all notes' },
-}
-
-export const examples = ['luca note add "call the vet"', 'luca note list']
-\`\`\`
-
-### Supervising background workers across invocations
-
-The complete start/status/stop shape: detach the workers so they outlive the CLI, persist their PIDs, and check liveness with signal 0. (\`processManager\` won't work here — its tracking is in-memory, per-process.)
-
-\`\`\`js
-const proc = container.feature('proc')
-const cache = container.feature('diskCache')
-
-// start — detached children survive the parent command exiting
-const pids = []
-for (let i = 0; i < 3; i++) {
-  const worker = proc.spawn('bun', ['worker.ts'], { detached: true })  // stdio defaults to 'ignore' when detached
-  worker.unref()  // let the parent event loop exit
-  pids.push(worker.pid)
-}
-await cache.set('fleet', { pids })
-
-// status — a later, separate process finds them again
-const { pids: saved } = await cache.get('fleet')
-const alive = saved.filter(pid => proc.kill(pid, 0))  // signal 0: liveness check, returns false when gone
-
-// stop
-for (const pid of saved) proc.kill(pid)   // SIGTERM; proc.kill(pid, 'SIGKILL') for stragglers
-await cache.rm('fleet')
-\`\`\`
-
-### Client commands must exit explicitly
-
-A command that connects as a websocket/IPC client can keep the event loop alive after its work is done and hang forever. Disconnect and exit:
-
-\`\`\`js
-const answer = await client.ask({ type: 'time' })
-console.log(answer)
-await client.disconnect?.()
-process.exit(0)
-\`\`\`
-
-### Secrets across invocations
-
-\`vault.secret()\` mints a **new random key each process** — encrypt in one command, and the next command can't decrypt unless you persist the key and pass it back: \`container.feature('vault', { secret: savedKey })\`. (\`vault.secretText\` is also lazy — undefined until \`secret()\`/\`encrypt()\`/\`decrypt()\` has run once.)
-
-### Reactive browser UIs (no build step)
-
-You can build a full reactive front-end with **no bundler, no \`npm install\`, no build step** — put \`public/index.html\`, run \`luca serve\` (it serves \`public/\` static + \`endpoints/\` as a same-origin API, so no CORS). The pattern that scales, framework-agnostic at its core:
-
-- **Import from esm.sh** — React (\`https://esm.sh/react@18.3.1\`), the web container (\`https://esm.sh/luca/web\`), anything. Use \`React.createElement\` (alias \`e\`) instead of JSX so there's nothing to compile.
-- **A Luca feature *is* your store** — it already has \`this.state.get/set\` and \`emit/on/off\`. Mutate state, then \`this.emit('changed')\`. No Redux/Context needed.
-- **The view subscribes to \`changed\`** — a ~6-line \`useFeatureVersion([feature])\` hook (\`f.on('changed', forceRerender)\`) re-renders React on every change. Plain DOM works too: a \`render()\` on \`changed\`. The store never references the view.
-- **Layer as Api → Store → App** for anything real: Api does \`fetch\`/ws/SSE, Store holds state and emits, App orchestrates and exposes \`snapshot()\` (one atomic read for the view). Features compose via \`this.container.feature('...')\`.
-- **Backend half:** \`endpoints/*.ts\` return JSON; the browser's web container reaches them with \`container.client('rest', { baseURL: '/api' })\`. Node-only work (\`fs\`, \`sqlite\`, \`git\`) lives behind endpoints — the web container doesn't have it.
-
-Footguns: pin esm.sh versions; react-dom must resolve the *same* React (\`?deps=react@VERSION\` or an import map); \`emit('changed')\` after **every** mutation. Full walkthrough: \`references/tutorials/22-reactive-frontend.md\`.
-
-To let a **server-side assistant drive** such a UI (call its actions as tools, live), the app's methods are exposed as \`static tools\` and reached over the \`containerLink\` WebSocket bridge (host \`eval\`s into the browser, \`await\`s the result) — same tool-provider pattern as any feature, plus one transport hop. See \`references/tutorials/23-assistant-driven-ui.md\`.
-
-### Modeling state in markdown (frontmatter vs. body)
-
-When designing a \`contentDb\` model (\`docs/models.ts\`), sort every field into one of two drawers — getting this right is what keeps the markdown worth reading:
-
-- **Frontmatter = the index card.** Only what the *system* filters/sorts/joins on: \`status\` enums, tags, foreign-key slugs, timestamps, machine-written scalars (\`lastRanAt\`, \`costUsd\`), small flags. Scalars and short arrays — labels, not content.
-- **Body sections = the substance.** Anything a human writes in sentences, lists, or code. A \`section('Heading', { extract, schema })\` makes a heading's prose a typed, validated, queryable field (\`instance.sections.motivation\`) — and a \`computed\` can turn a readable list into structured data (e.g. an execution DAG from a bulleted list of links). You get human-editable *and* machine-structured from one source.
-
-Litmus test: *would you write it in a sentence? → body. Is it a label you filter on? → frontmatter.* If you're reaching for YAML \`|\` multi-line strings or nesting objects three deep, that's body content in the wrong drawer — it defeats the purpose of using markdown. Read is split too: \`db.query(Model).where('meta.status', …)\` on the cheap indexed drawer; \`contentDb.getDocument(id, { include: ['Findings'] })\` to pull one section. Write: \`doc.replaceSectionContent(heading, md)\` then \`doc.save()\` (whole-file atomic — no per-section save). Full walkthrough: \`references/tutorials/24-state-in-markdown.md\`.
-
-## Framework Index
-
-A table of contents for the container. **Run \`luca describe <name>\` for full docs on any item.** Use \`luca describe <name> --ts\` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority. For a flat, per-helper lookup table (name, category, stability, one-liner) see \`references/helper-index.md\`; to search by meaning use \`luca describe --query "..."\`.
-
-<!-- BEGIN:GENERATED helper-tables (luca build-bootstrap regenerates this block from introspection — do not edit by hand) -->
-### Features by Category
-
-| Category | Features | What they do |
-|----------|----------|--------------|
-| **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
-| **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
-| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`hermesAgent\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
-| **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
-| **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
-| **Google Workspace** | \`googleAuth\`, \`googleCalendar\`, \`googleDocs\`, \`googleDrive\`, \`googleMail\`, \`googleSheets\` | OAuth and Google service wrappers |
-| **Dev Tools** | \`docker\`, \`git\`, \`packageFinder\`, \`python\`, \`transpiler\`, \`typescript\`, \`vm\` | Version control, containers, bundling, sandboxed execution |
-| **Content & NLP** | \`docsReader\`, \`jsonTree\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, structured file ingestion |
-| **UI & Output** | \`ink\`, \`ui\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
-| **Media & Browser** | \`browserUse\`, \`cipherSocial\`, \`downloader\`, \`opener\`, \`screenCapture\`, \`telegram\`, \`tts\` | Browser automation, text-to-speech, downloads, messaging |
-| **System** | \`containerLink\`, \`helpers\`, \`introspectionScanner\`, \`os\`, \`repl\`, \`runpod\`, \`socketRepl\`, \`vault\` | OS info, secrets, runtime introspection, remote container linking |
-
-### Clients
-
-| Client | Purpose |
-|--------|---------|
-| \`elevenlabs\` | ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. |
-| \`graph\` | GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. |
-| \`openai\` | OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. |
-| \`rest\` | HTTP REST client built on top of axios. |
-| \`socketio\` | Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. |
-| \`voicebox\` | VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). |
-| \`websocket\` | WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (\`state.connected\`, \`state.reconnectAttempts\`), and optional auto-reconnection with exponential backoff (base \`reconnectInterval\`, doubled per attempt, capped at 30s, up to \`maxReconnectAttempts\`). |
-
-### Servers
-
-| Server | Purpose |
-|--------|---------|
-| \`express\` | Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. |
-| \`llmProxy\` | Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a docker container, exposing every configured backend — local GPU boxes running OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic — behind a single OpenAI-compatible endpoint on \`http://localhost:<port>/v1\`. |
-| \`mcp\` | MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. |
-| \`websocket\` | WebSocket server built on the \`ws\` library with optional JSON message framing. |
-<!-- END:GENERATED helper-tables -->
-
-\`fileTools\` composes lower-level features (\`fs\`, \`grep\`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see \`references/examples/feature-as-tool-provider.md\`).
-
-### Type Discovery
-
-\`luca describe <name> --ts\` outputs an approximate TypeScript representation of any helper as it exists at runtime — ~95% accurate. This is your go-to for writing type-safe code against the container. The binary compiles in the introspection data, so \`--ts\` reflects what actually exists at runtime even when source isn't available. Reading source can provide additional context when it's there.
-
-\`\`\`shell
-luca describe fs --ts              # approximate TS interface for the fs feature
-luca describe conversation --ts    # conversation feature type surface
-luca describe express --ts         # express server type shape
-\`\`\`
-
-If a method signature or return type looks wrong, verify with \`luca eval\`:
-
-\`\`\`shell
-luca eval "typeof container.feature('fs').readFile"
-luca eval "container.feature('fs').readFile('package.json')"
-\`\`\`
-
-### Bundled Examples and Tutorials
-
-The skill directory includes reference material:
-
-- **\`references/examples/\`** — runnable composition patterns that combine multiple helpers. Every one executes via \`luca run <doc.md>\` and carries \`lastTested\`/\`lastTestPassed\` frontmatter from the test harness. For single-feature usage, use \`luca describe <name>\` instead — every helper's docs include per-method examples.
-- **\`references/tutorials/\`** — longer-form guides covering the container, helpers, commands, endpoints, state/events, assistants, and more
-
-Match your task to the catalog:
-
-| You're building... | Run/read |
-|---|---|
-| A custom feature (schemas, state, events, discovery) | \`custom-feature-authoring.md\`, \`testing-a-composed-feature.md\` |
-| A feature that gives an assistant tools | \`feature-as-tool-provider.md\`, \`assistant-with-process-manager.md\` |
-| An HTTP API + client | \`full-stack-slice.md\`, \`server-rest-roundtrip.md\` |
-| A reactive browser UI / dashboard (no build step) | \`references/tutorials/22-reactive-frontend.md\` (feature-as-store, React via esm.sh) |
-| An assistant that drives a browser UI (calls its actions as tools) | \`references/tutorials/23-assistant-driven-ui.md\` (\`containerLink\` + \`static tools\`) |
-| WebSocket messaging / request-reply | \`server-client-roundtrip-ws.md\`, \`websocket-ask-and-reply-example.md\` |
-| An HTTP API + a WebSocket sidecar (live push from REST) | \`references/tutorials/25-express-websocket-sidecar.md\` (\`luca serve --setup\`) |
-| Event-driven fan-out (in-process → ws → redis) | \`event-bus-fanout.md\` |
-| A data pipeline or job queue | \`data-pipeline-fs-grep-sqlite.md\`, \`sqlite-job-queue.md\` |
-| Cross-process state (which store?) | \`cross-process-state-handoff.md\` |
-| A daemon, poll loop, or scheduled task | \`daemon-command.md\` |
-| Search over documents | \`semantic-search-content-db.md\` |
-| Designing a markdown doc model (what goes in frontmatter vs. body) | \`references/tutorials/24-state-in-markdown.md\` (the two-drawer rule) |
-| Understanding how your code executes (VM, virtual modules, globals, entry points) | \`references/tutorials/26-the-vm.md\` (the execution contract) |
-| Plugin systems / dynamic registries | \`meta-discovery.md\` |
-| Lightweight stateful objects with tools | \`entity.md\` |
-| Structured JSON output from a model | \`structured-output-with-assistants.md\` |
-| Orchestrating Claude Code sessions | \`claude-controller-personas.md\` |
-| Understanding how errors behave (returned vs thrown) | \`error-handling-conventions.md\` |
-
-These complement \`luca describe\` — describe gives you the API surface and per-method examples, the example docs show multi-helper patterns in action, and tutorials walk through building things end to end.
-
-**Tip:** Runnable markdown is a great artifact to produce when building with luca. \`luca run doc.md\` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
-
-**Eval modes:** which fenced blocks execute is controlled by \`--eval-mode\` flag > \`evalMode:\` frontmatter > command default. \`luca run\` defaults to \`all\`; \`luca prompt\` defaults to \`none\` — a prompt file's code blocks ship to the agent as literal source unless the doc or caller opts in (\`evalMode: all\`, or \`optIn\` to run only \` \`\`\`ts eval \` fences). \` \`\`\`ts skip \` opts a block out in any mode; \` \`\`\`ts silent \` runs without printing the result (\`luca run\` only).
-
-### Container Primitives
-
-| Primitive | Access | Purpose |
-|-----------|--------|---------|
-| State | \`container.state\`, \`helper.state\` | Observable key-value state on every object |
-| Events | \`container.on()\`, \`helper.on()\` | Event bus on every object |
-| Paths | \`container.paths\` | \`resolve()\`, \`join()\`, \`cwd\` |
-| Utils | \`container.utils\` | \`uuid()\`, \`lodash\`, \`stringUtils\`, \`hashObject()\` |
-| Registries | \`container.features\`, \`.clients\`, \`.servers\` | Discovery and metadata for all helpers |
+When upgrading a project with an older, verbose CLAUDE.md template, replace its framework recipes with a link to this skill after preserving project-specific instructions. Refreshing the skill alone cannot remove stale rules copied into project instruction files.
 `,
   "CLAUDE": `# Luca Project
 
-This project uses the [Luca framework](https://github.com/soederpop/luca) — Lightweight Universal Conversational Architecture.
+This project uses Luca: a container for business logic, named helpers, observable state, and events. Keep UI and command handlers as thin adapters over that container.
 
-For a deep dive into the framework internals, see the [Luca GitHub repository](https://github.com/soederpop/luca).
+## Runtime and project rules
 
-## Runtime
+Use Bun: \`bun run\` for scripts and \`bun test\` for tests. The compiled \`luca\` CLI loads project TypeScript through its VM and supplies the container and bundled modules. Running the same file directly with Bun can have different module resolution and globals.
 
-The runtime is **bun**. Use \`bun run\` for scripts, \`bun test\` for tests.
+Use container capabilities rather than importing Node builtins or utility packages: \`container.feature('fs')\`, \`container.feature('proc')\`, \`container.paths\`, and \`container.utils\`. If a needed capability is missing, raise it before adding a dependency. Use \`paths.resolve()\` for absolute bases; \`paths.join()\` prepends the project cwd.
 
-## The \`luca\` CLI
+## Learn only what the task needs
 
-The \`luca\` binary is available in the path. Key commands:
+Read [.claude/skills/luca-framework/SKILL.md](.claude/skills/luca-framework/SKILL.md) for the execution contract, task-to-example routes, and development workflow. Detailed framework guidance lives there so it can be refreshed without replacing this project's instructions.
 
-- \`luca\` — list available commands (built-in + project commands)
-- \`luca eval "expression"\` — evaluate JS with the container in scope
-- \`luca describe <name>\` — full docs for any feature, client, or server (e.g. \`luca describe fs\`)
-- \`luca describe <name>.<member>\` — docs for a specific method or getter (e.g. \`luca describe ui.banner\`, \`luca describe fs.readFile\`)
-- \`luca describe features\` — index of all available features (also: \`clients\`, \`servers\`)
-- \`luca serve\` — start a local server using \`endpoints/\` folder
-- \`luca run script.ts\` — run a script with the container
-- \`luca scaffold <type> <name>\` — generate boilerplate for a new helper (run \`luca scaffold\` for full help)
+- Find a capability: \`luca describe --query "what I need to do" --limit 4\`.
+- Inspect a helper member: \`luca describe fs.readFile\`.
+- Learn command invocation: \`luca <command> --help\`; list commands with \`luca\`.
+- Try a small composition: \`luca eval "expression"\` or \`luca run script.ts\`.
+- Before creating a helper, look for an existing composition; then use \`luca scaffold <type> --tutorial\`.
 
-## Container Rules
+## Project layout
 
-- **NEVER import from \`fs\`, \`path\`, or other Node builtins.** Use \`container.feature('fs')\` for file operations, \`container.paths\` for path operations.
-- The container should provide everything you need. If something is missing, raise the concern rather than pulling in external dependencies.
-- Use \`container.utils\` for common utilities (uuid, lodash helpers, string utils).
+\`commands/\` contains CLI actions; \`features/\`, \`clients/\`, and \`servers/\` contain helpers; \`selectors/\` contains cached queries; \`endpoints/\` contains HTTP routes mounted by \`luca serve\`. The CLI discovers these folders before dispatch. Embedded package applications must discover their helpers explicitly.
 
-## Learning the Framework
+\`assistants/<name>/CORE.md\` defines an assistant, with optional tools and hooks. \`luca chat <name>\` runs it. \`docs/\` holds content models and documents. \`public/\` supplies static web assets. \`luca.cli.ts\` customizes project startup before commands run.
 
-1. **Discover** — Run \`luca describe features\`, \`luca describe clients\`, \`luca describe servers\` to see what's available. Then \`luca describe <name>\` for full docs on any helper (including per-method examples), or \`luca describe <name>.<member>\` to drill into a specific method or getter. This is your first move, always. (See \`.claude/skills/luca-framework/SKILL.md\` for the full mental model.)
-2. **Build** — Check \`.claude/skills/luca-framework/references/examples/\` first: runnable multi-helper composition patterns (\`luca run <doc.md>\` executes one) — a working example beats fifty describes. Then \`luca scaffold <type> --tutorial\` before creating a new helper; it covers the full guide for that type.
-3. **Prototype** — Use \`luca eval "expression"\` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access. For risky changes to an established project, a throwaway project in \`/tmp\` is a full working luca project (auto-discovery walks the cwd) — build and iterate there, then port only the proven result back.
-4. **Reference** — The skill file (\`.claude/skills/luca-framework/SKILL.md\`) includes a full Framework Index with every feature, client, and server organized by category, plus a task-to-example routing table. \`references/tutorials/\` holds the long-form guides.
+## Completion and maintenance
 
-## Project Structure
+Verify the requested behavior and relevant error cases with Bun tests or focused runtime checks. Close resources when finite work ends; use the framework shutdown lifecycle for services. Inspect new helper metadata with \`luca describe <name>\` and command arguments with \`--help\`.
 
-- \`commands/\` — custom CLI commands, run via \`luca <commandName>\` (auto-discovered)
-- \`endpoints/\` — file-based HTTP routes, served via \`luca serve\` (auto-discovered)
-- \`features/\`, \`clients/\`, \`servers/\` — custom container helpers, auto-discovered before any \`luca <command>\` dispatch (so commands can use project features directly). Opt out with \`LUCA_COMMAND_DISCOVERY=commands-only\`; for non-CLI entry points (scripts, embedded containers), call \`await container.helpers.discoverAll()\` yourself.
-- \`assistants/\` — AI chat assistants, run via \`luca chat <name>\` (auto-discovered; any folder with a CORE.md). The bootstrapped \`default\` assistant answers luca framework questions by driving the CLI (\`luca describe --query\`, \`luca describe <name>\`) and grep/reading the skill docs under \`.claude/skills/luca-framework\`, and it runs commands/processes via processManager (the \`use\` export in its tools.ts) — a deliberately small tool surface that fits a local model's context window.
-- \`docs/\` — content documents managed by the \`contentDb\` feature (\`container.docs\`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
-- \`luca.cli.ts\` — optional project-level CLI customization (runs before any command)
+Each command is a separate process. Persistent state belongs in \`container.store(name)\`, with locked \`update()\` for concurrent writes; recomputable caches belong in \`diskCache\`.
 
-## Command Arguments
+After upgrading Luca, run \`luca bootstrap --update-skill\` to replace the generated skill and references, and \`luca setup --types\` to refresh bundled declarations. The skill refresh does not overwrite this file. Keep project-specific conventions here and notes outside the generated skill directory.
 
-Command handlers receive \`(options, context)\`. The \`options\` object contains:
-- **Named flags** from \`argsSchema\`: \`--verbose\` → \`options.verbose\`
-- **Positional args** mapped via \`positionals\` export: \`luca cmd ./src\` → \`options.target\`
-- **Raw positionals** in \`options._\`: array where \`_[0]\` is the command name, \`_[1+]\` are positional args. Type the handler's options as \`CommandArgs<typeof argsSchema>\` (from \`'luca'\`) to get \`_\` typed.
+## Git strategy
 
-To accept positional arguments, export a \`positionals\` array that maps them to named fields in \`argsSchema\`:
-
-\`\`\`ts
-export const positionals = ['target']  // luca myCmd ./src => options.target === './src'
-export const argsSchema = z.object({
-  target: z.string().optional().describe('The target to operate on'),
-  verbose: z.boolean().default(false).describe('Enable verbose output'),
-})
-\`\`\`
-
-A trailing \`'...rest'\` positional (or a trailing \`z.array(...)\` field) collects all remaining args as an array: \`positionals = ['action', '...files']\`.
-
-Parsing agrees with the schema — boolean flags never consume a following positional (\`luca cmd --json foo\` keeps \`foo\` positional), and positionals arrive as strings coerced to what the field expects (\`z.string()\` accepts \`8080\`, \`z.number()\` accepts \`'8080'\` — no \`z.union\` workarounds needed).
-
-## Command Help
-
-\`luca <cmd> --help\` is generated from what the command declares — make it teach:
-- **\`.describe()\` every argsSchema field** — powers the Options/Flags listing.
-- **\`positionals\`** render as an \`Arguments:\` section (described via the matching schema field, or use the object form \`{ name, description, required }\` when there is no schema field).
-- **\`export const examples = [...]\`** — strings or \`{ command, description }\` objects, rendered as an \`Examples:\` section.
-- **\`export const subcommands = { verb: { args: '<name>', description, examples } }\`** — renders a \`Subcommands:\` section, and \`luca <cmd> <verb> --help\` shows focused help for that verb. Dispatch is still yours: map the verb via \`positionals\` and branch on it in the handler.
-
-## What's Available
-
-The container provides more than you might expect. Before importing anything external, check here:
-
-- **YAML** — \`container.feature('yaml')\` wraps \`js-yaml\`. Use \`.parse(str)\` and \`.stringify(obj)\`.
-- **SQLite** — \`container.feature('sqlite')\` for databases. Parameterized queries, tagged templates.
-- **Cross-process state** — \`container.store('name', { schema })\` opens a durable JSON document in \`.luca/store/\` shared by all luca processes. \`await store.update(s => { s.count++ })\` is a locked read-modify-write (concurrent commands can't lose each other's writes); \`read()\` always re-reads. \`luca describe store\` for the full guide.
-- **REST client** — \`container.client('rest', { baseURL })\`. Methods (\`get\`, \`post\`, etc.) return **parsed JSON directly**, not \`{ data, status, headers }\`. On HTTP errors, the error is returned (not thrown).
-- **Content DB** — \`container.docs\` (alias for \`container.feature('contentDb')\`) manages markdown documents with frontmatter. Query with \`docs.query(docs.models.MyModel).fetchAll()\`.
-- **Grep** — \`container.feature('grep')\` has \`search()\` and \`todos()\` for finding TODOs/FIXMEs/etc.
-- **chalk** — available as \`container.feature('ui').colors\`, not via \`import('chalk')\`.
-- **figlet** — available as \`container.feature('ui').asciiArt(text)\`.
-- **uuid** — \`container.utils.uuid()\`
-- **Scheduler** — \`container.feature('scheduler')\` for named recurring tasks: \`every('5m', fn)\`, \`cron('0 9 * * mon-fri', fn)\`, one-shots via \`at()\`/\`in()\`, and \`run()\` for the daemon lifecycle (holds the process open, stops all tasks on SIGINT/SIGTERM). Inspect \`scheduler.tasks\` for run counts and errors.
-- **timing** — \`container.utils.sleep(ms)\`, \`container.utils.backoff(fn, { attempts, delay })\` (retry with exponential backoff), \`container.utils.every(ms, fn)\` (bare poll loop with no overlapping runs; returns \`stop()\`).
-- **lodash** — \`container.utils.lodash\`. Exactly these: \`uniq\`, \`uniqBy\`, \`keyBy\`, \`groupBy\`, \`debounce\`, \`throttle\`, \`mapValues\`, \`mapKeys\`, \`pick\`, \`get\`, \`set\`, \`omit\`. Nothing else (no \`sortBy\`, \`orderBy\`, \`chunk\`, …) — use native array methods for the rest.
-- **string utils** — \`container.utils.stringUtils\`. Exactly these: \`camelCase\`, \`kebabCase\`, \`upperFirst\`, \`lowerFirst\`, \`pluralize\`, \`singularize\`.
-
-## Known Gotchas
-
-- **For DELETE endpoint handlers, use \`export { del as delete }\`** — \`delete\` is a JS reserved word. Define your function with any name, then re-export it as \`delete\`.
-- **Bun globals (\`Bun.spawn\`, \`Bun.serve\`) are unavailable** in command/endpoint handlers. Use Node's \`child_process\` for spawning processes, or use \`container.feature('proc').exec()\`.
-- **\`ui.print.*\` writes to stdout** — if your command supports \`--json\`, gate UI output behind \`if (!options.json)\`.
-- **\`ui.print.<color>()\` is not a string formatter** — it prints immediately and returns \`undefined\`, so \`\` \`\${ui.print.green('OK')}\` \`\` interpolates \`undefined\`. To compose colored strings, use \`ui.colors.<color>()\`, which returns the styled string. (\`ui.print\` mirrors every chalk color/style name that \`ui.colors\` has — but it always prints.)
-- **Checking whether a PID is alive**: \`proc.kill(pid, 0)\` sends nothing and returns \`false\` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
-- **VM contexts start near-empty — and command/endpoint handlers run in that same VM.** JS built-ins (\`Promise\`, \`Date\`, \`Math\`, \`JSON\`) plus \`console\`, timers, \`process\`, \`Buffer\`, \`fetch\`, \`crypto\`, and \`TextEncoder\`/\`TextDecoder\` are provided; when you build your own context with \`container.feature('vm')\`, inject anything beyond that explicitly. zod is always importable (\`import { z } from 'zod'\`) — export schemas unconditionally. In \`luca eval\`, \`z\` and \`require\` are already in scope — prototype schemas directly.
-- **Long-running commands** (servers, watchers) end with \`await context.runUntilShutdown(async () => { /* cleanup */ })\` — it holds the process open, wires SIGINT/SIGTERM, runs the cleanup (5s guard, second Ctrl-C exits immediately), and exits 0. Also on the container (\`container.runUntilShutdown\`) for \`luca run\` scripts. For recurring tasks, \`await container.feature('scheduler').run({ onShutdown })\` layers named intervals/cron on the same lifecycle.
-- **Shared state between endpoints**: use \`ctx.request.app.locals\` to share data across endpoint files.
-- **Database init**: use \`luca.cli.ts\` \`main()\` hook for table creation and seeding — it runs before any command or server starts.
-- **Which store for cross-process state?** Every \`luca <command>\` is a separate process — never keep shared state in memory. In-process/ephemeral → \`container.state\`; **cross-process state → \`container.store(name)\`** (durable JSON document; \`update(fn)\` is a locked read-modify-write, so concurrent siblings can't clobber each other — never hand-roll a state dotfile); caches with TTL → \`diskCache\` (entries are losable by contract — not for state); queryable/relational/durable queues → \`sqlite\` (use \`transaction()\` and \`UPDATE … RETURNING\` for atomic job claims); cross-process pub/sub → \`redis\`.
-- **Scheduling**: \`container.feature('scheduler')\` is the managed layer (named tasks, cron, run history, daemon \`run()\`); \`container.utils.every(ms, fn)\` / \`sleep(ms)\` / \`backoff(fn, opts)\` are the bare primitives when you don't need names or lifecycle. Neither ever overlaps runs of the same task.
-- **\`paths.join()\` prepends \`container.cwd\` even when the first arg is absolute** — use \`paths.resolve(absPath, 'sub')\` when the base is already absolute (e.g. \`os.tmpdir\`); \`resolve\` behaves like Node's.
-- **Colors silently disappear when stdout isn't a real TTY** — chalk auto-disables in pipes and sandboxed shells; this is not a bug in your command. Verify with \`FORCE_COLOR=1 luca yourCmd | cat -v\`.
-- **\`useInput\` requires a TTY** (\`setRawMode\`) and crashes on piped stdin — guard with \`process.stdin.isTTY\` and fall back to \`process.on('SIGINT', ...)\`.
-- **ink/react must be single-instance.** \`import React from 'react'\` and \`import { Text, useInput } from 'ink'\` in commands resolve to the runtime's own copies — use them freely alongside \`ink.components\`/\`ink.hooks\`/\`ink.render\`. Never add react or ink to a local \`node_modules\`: a second React copy breaks every hook ("Invalid hook call", \`isRawModeSupported === undefined\`).
-- **\`fileManager.watch\` emits \`file:change\` before its own bookkeeping** — a handler that moves or deletes the file crashes the watcher's internal \`statSync\`; defer mutating work (\`setTimeout(() => processFile(e.path), 100)\`). Watching is recursive by default — filter by directory in your handler.
-- **\`docs.models\` showing only \`["Base"]\`** means \`docs/models.ts\` failed to load *silently* — run \`bun docs/models.ts\` to see the real error (often package resolution).
-- **Registry names are camelCase, files are kebab-case** (\`cipherSocial\` ↔ \`cipher-social.ts\`). Don't guess short names; when \`luca describe\` fails, its "Available:" list is authoritative.
-- **Server options belong in the constructor** — \`container.server('websocket', { port: 8099, json: true })\`, then \`start()\`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
-- **Builds can lie** — \`bun build --compile\` can exit 0 without writing the binary. Check the artifact exists on disk before reporting success.
-- **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: \`afterInitialize()\` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit \`connect()\`.
-- **Markdown code blocks and eval modes**: \`luca run doc.md\` executes \`ts\`/\`js\`/\`tsx\`/\`jsx\` fences by default; \`luca prompt\` does NOT — blocks ship to the agent as literal source unless the doc declares \`evalMode: all\` (or \`optIn\`, which runs only \` \`\`\`ts eval \` fences) in frontmatter, or the caller passes \`--eval-mode\`. \` \`\`\`ts skip \` opts a block out in any mode (exact word in the fence meta). Prompts that gather live context via code blocks need the opt-in.
-
-## Extending the Container
-
-Use \`luca scaffold\` to generate new helpers:
-
-\`\`\`sh
-luca scaffold command myTask --description "Automate something"
-luca scaffold feature myCache --description "Custom caching layer"
-luca scaffold endpoint users --description "User management API"
-\`\`\`
-
-Run \`luca scaffold\` with no arguments for full usage and examples.
-
-## Assistants
-
-\`luca scaffold assistant <name>\` creates \`assistants/<name>/\` — an assistant is just that folder:
-
-- \`CORE.md\` — injected into the system prompt
-- \`tools.ts\` — exports a \`schemas\` object (zod v4, keys = tool names) plus a matching exported function per key. The luca \`container\` is available as a **global** in tools.ts and hooks.ts (add \`declare const container: any\` for your editor).
-- \`hooks.ts\` — exported functions named after assistant lifecycle events
-
-At runtime \`assistant.tools.<name>\` is \`{ handler, parameters, description }\` — call \`assistant.tools.myTool.handler({...})\`, not \`assistant.tools.myTool()\`. Check what's registered with \`container.feature('assistantsManager').availableAssistants\`. Chat interactively with \`luca chat <name>\`.
-
-## Shipping a Binary
-
-\`luca bundle <name>\` compiles the whole project — features, commands, endpoints, and every \`assistants/\` folder with a CORE.md — into a standalone consumer binary at \`dist/<name>-<platform>\`:
-
-\`\`\`sh
-luca bundle fortune                          # darwin-arm64 by default
-luca bundle fortune --targets darwin-arm64,linux-x64
-luca bundle fortune --builtins eval,describe # opt in to luca built-ins
-\`\`\`
-
-- **Built-in luca commands are opt-in** via \`--builtins\` (only \`run\` is always included, and bundling assistants implies \`chat\` + \`assistant\`). If you skip \`eval\`/\`describe\`, the binary can't be introspected — you'd have to rebuild.
-- **Verify from the binary itself**, not just the dev CLI:
-  \`\`\`sh
-  ./dist/<name>-<platform> <yourCommand>
-  ./dist/<name>-<platform> run scripts/smoke.ts
-  ./dist/<name>-<platform> eval "container.feature('assistantsManager').availableAssistants"   # needs --builtins eval
-  \`\`\`
-- Bundled assistants are embedded in the binary and materialized to \`~/.luca/bundles/<name>/assistants\` on first run — edits to your \`assistants/\` folder don't reach an already-built binary; rebundle.
-
-## Git Strategy
-
-Roll on main. Commit with good messages that explain why, not just what.
+Roll on main. Commit only your changes, with messages explaining why.
 `
 }
 
@@ -4110,7 +3474,7 @@ console.log('lock acquired and released cleanly')
 
 ## The full daemon command
 
-Putting it together in a real command file — \`commands/sync-worker.ts\`. Three things make a command long-running: a PID lock so only one instance runs, an \`await new Promise(() => {})\` keep-alive, and a SIGINT handler that cleans up. (Shown, not executed — it runs forever.)
+Putting it together in a real command file — \`commands/sync-worker.ts\`. Use a PID lock for single-instance ownership and the shared shutdown lifecycle for cleanup. (Shown, not executed — it runs forever.)
 
 \`\`\`ts skip
 import { z } from 'zod'
@@ -4136,17 +3500,17 @@ export default async function syncWorker(options: z.infer<typeof argsSchema>, co
   }, { immediate: true, onError: (err) => console.error('tick failed:', err) })
 
   // 3. Hold the process open; release everything on Ctrl-C
-  process.on('SIGINT', () => {
+  await context.runUntilShutdown(async () => {
     stop()
-    process.exit(0)
   })
-  await new Promise(() => {})
 }
 \`\`\`
 
 ## Summary
 
-\`sleep\` for pauses, \`backoff\` for retries, \`every\` for non-overlapping poll loops — all on \`container.utils\`, no imports. A daemon command adds \`proc.establishLock()\` for single-instance safety, \`await new Promise(() => {})\` to stay alive, and a SIGINT handler to clean up — or replaces the last two with a single \`await container.feature('scheduler').run()\`. Run \`luca scaffold command --tutorial\` for the full command-authoring guide.
+\`sleep\` for pauses, \`backoff\` for retries, \`every\` for non-overlapping poll loops — all on \`container.utils\`, no imports. A daemon command adds \`proc.establishLock()\` for single-instance safety, \`context.runUntilShutdown(cleanup)\` to stay alive and clean up on SIGINT/SIGTERM. For named schedules, \`await container.feature('scheduler').run()\` manages task shutdown. Run \`luca scaffold command --tutorial\` for the full command-authoring guide.
+
+For detached workers and cross-invocation status/start/stop, see [process lifecycle](../tutorials/28-process-lifecycle.md). Persist ownership records in \`container.store()\`, not \`diskCache\`.
 `,
   "cross-process-state-handoff.md": `---
 title: 'Cross-Process State Handoff: store, diskCache, or sqlite'
@@ -6648,6 +6012,52 @@ Every one of these trades away the thing that made markdown the right choice. Ke
 - [Semantic search over a content collection](../examples/semantic-search-content-db.md) — searching the body, not just the labels
 - \`luca describe contentDb\` — the feature's read/query/section tools
 `,
+  "27-metadata-and-types.md": `# From a helper implementation to a discoverable, typed API
+
+Use this workflow when adding or changing a public helper. Runtime behavior, introspection, and TypeScript declarations are separate checks; one does not prove the others.
+
+## Scaffold and implement
+
+In a consumer project:
+
+\`\`\`sh
+luca scaffold feature task-cache --description "Caches task results"
+\`\`\`
+
+Keep the scaffold's registration, schemas, and imports. Implement methods with JSDoc, including parameters and return semantics. Describe options, state, and event fields with Zod \`.describe()\`. Declare category and stability. Keep asynchronous connection work in an explicit awaited method rather than an unawaited initialization hook.
+
+Project helpers are discovered by the CLI. Package embeddings need \`await container.helpers.discoverAll()\` or explicit registration. Framework built-ins also need the framework's registration/type wiring: follow that checkout's contributor instructions and generated feature-barrel build rather than treating a built-in like a consumer project file.
+
+## Generate and inspect metadata
+
+\`\`\`sh
+luca introspect --lint --dry-run
+luca introspect --lint
+luca describe taskCache
+luca describe taskCache --options --state --events
+\`\`\`
+
+The dry run previews scanning and lint diagnostics without writing generated metadata. Lint warnings need review; an exit code alone does not establish complete documentation. The normal consumer command writes \`features/introspection.generated.ts\` by default. Consult \`luca introspect --help\` to select source directories or output. In the Luca source checkout, use \`bun run build:introspection\` to regenerate the framework metadata.
+
+Check that the next process can discover your helper and describe its public members. A missing member means checking JSDoc, generation, and registration before adding another prose workaround. For commands, also describe every argument and export usage examples and subcommand metadata; \`luca <command> --help\` is the acceptance surface for CLI usage.
+
+## Install declarations and augment custom types
+
+\`\`\`sh
+luca setup --types
+luca describe taskCache --ts
+\`\`\`
+
+\`setup --types\` installs the binary's bundled declarations under \`.luca/types\` and creates a tsconfig when missing. An existing tsconfig is preserved: merge the relevant paths/type settings when necessary. This operation refreshes built-in declarations; it does not generate declarations for your custom helper.
+
+Keep the scaffold's module augmentation so \`container.feature('taskCache')\` returns your class type. For exported packages, include that augmentation in the declaration entry point consumers load. See [the type system](14-type-system.md) for augmentation details.
+
+\`describe --ts\` is an approximate interface derived from metadata. Use the project's TypeScript checker for assignability, generics, and module resolution. Bun executes TypeScript but does not type-check it. In the framework checkout, run \`bun run typecheck\`; in a consumer project, use its configured TypeScript check. Evaluating a method in the VM only verifies runtime behavior.
+
+## Verify the behavior separately
+
+Run focused Bun tests for the behavior you changed, including errors and cleanup. [Testing a composed feature](../examples/testing-a-composed-feature.md) demonstrates fresh containers, spies, state, and events. For a compiled deliverable, follow [binary verification](30-shipping-a-binary.md) as well: source success does not prove bundled import resolution.
+`,
   "13-introspection.md": `---
 title: Introspection and Discovery
 tags: [introspection, runtime, discovery, documentation, describe, inspect]
@@ -6746,7 +6156,7 @@ fs.$getters  // => ['cwd', 'sep', ...]
 
 Introspection comes from two sources:
 
-1. **Build-time extraction** -- Luca's build step parses JSDoc comments, method signatures, and getter types from source code using AST analysis. Run \`bun run build:introspection\` to update this.
+1. **Build-time extraction** -- Luca's build step parses JSDoc comments, method signatures, and getter types from source code using AST analysis. In the framework checkout, run \`bun run build:introspection\`; in consumer projects, run \`luca introspect\`.
 
 2. **Runtime Zod schemas** -- State, options, and events schemas provide descriptions, types, and defaults at runtime via Zod's \`.describe()\` method.
 
@@ -6776,7 +6186,7 @@ Make your custom features introspectable by:
 
 1. Writing JSDoc on the class, methods, and getters
 2. Using Zod \`.describe()\` on schema fields
-3. Running \`bun run build:introspection\` after changes
+3. Running \`luca introspect --lint\` after changes (or \`bun run build:introspection\` in the framework checkout)
 
 \`\`\`typescript
 /**
@@ -6805,6 +6215,8 @@ export class ConnectionPool extends Feature<PoolState, PoolOptions> {
 \`\`\`
 
 Now \`container.features.describe('connectionPool')\` returns rich documentation, and \`container.features.introspect('connectionPool')\` returns structured data -- all extracted from what you already wrote.
+
+For the complete generation, declaration, augmentation, and verification workflow, see [metadata and types](27-metadata-and-types.md).
 `,
   "01-getting-started.md": `---
 title: Getting Started with Luca
@@ -7534,6 +6946,72 @@ python.on('sessionError', ({ error, sessionId }) => {
 - [Creating Features](./10-creating-features.md) — build your own feature that wraps a Python service
 - [Commands](./08-commands.md) — create CLI commands that leverage Python
 - [Servers and Endpoints](./06-servers.md) — expose Python-powered analysis via HTTP
+`,
+  "28-process-lifecycle.md": `# Process lifetime and durable worker records
+
+Choose the process lifetime before choosing a process helper. \`processManager\` tracks children within its own process; its in-memory registry is not a durable supervisor for later CLI invocations.
+
+## Finite work: close resources
+
+A connected client can keep a command alive. Close it in \`finally\` so success and failure release the connection:
+
+\`\`\`ts skip
+const client = container.client('websocket', { baseURL: 'ws://localhost:8099', json: true })
+try {
+  await client.connect()
+  console.log(await client.ask({ type: 'time' }))
+} finally {
+  await client.disconnect()
+}
+\`\`\`
+
+Use the actual client's documented cleanup method. Stop timers and watchers you created too. Prefer natural process exit after cleanup; unconditional \`process.exit(0)\` can hide failures or truncate pending output. If a CLI still hangs, identify its remaining resources rather than declaring success and terminating it blindly.
+
+## Services: one shutdown owner
+
+Commands receive \`context.runUntilShutdown(cleanup)\`; scripts can call \`container.runUntilShutdown(cleanup)\`. It holds the process open, handles SIGINT/SIGTERM, and awaits cleanup with a timeout guard. Do not install competing signal handlers for the same lifecycle.
+
+\`\`\`ts skip
+export default async function main({ container }) {
+  const fm = container.feature('fileManager')
+  await fm.watch({ paths: ['inbox'] })
+  await container.runUntilShutdown(async () => {
+    await fm.stopWatching()
+  })
+}
+\`\`\`
+
+The file manager updates its index before emitting \`file:change\`, and tolerates a file disappearing during indexing. No arbitrary 100ms delay is required before processing an event. Your own asynchronous handlers still need appropriate concurrency control and handling for repeated filesystem events.
+
+For named schedules and task history, use \`scheduler.run({ onShutdown })\`. [Daemon commands](../examples/daemon-command.md) covers scheduling, retries, and single-instance locking. Test shutdown while work is in progress, not just when the service is idle.
+
+## Detached workers: persist ownership, not just liveness
+
+When a worker must survive the initiating command, use \`proc.spawn(executable, argv, { detached: true })\`, await its \`spawn\` event (and handle \`error\`), then \`unref()\`. Detached children default to ignored stdio. Use a worker script run through the intended runtime, for example an absolute Luca executable with \`['run', absoluteWorkerScript]\` for VM code.
+
+Persist worker records with \`container.store('fleet', { schema })\`, never a losable cache. A useful schema includes a run UUID, PID, launch time, executable, and a worker-owned control endpoint or heartbeat. Use \`store.update()\` for record changes across processes:
+
+\`\`\`ts skip
+const fleet = container.store('fleet', {
+  schema: z.object({ workers: z.array(z.object({
+    runId: z.string(), pid: z.number(), startedAt: z.string(),
+  })).default([]) }),
+})
+// After the child's spawn event has confirmed a valid PID:
+await fleet.update(state => {
+  state.workers.push({ runId, pid: child.pid, startedAt: new Date().toISOString() })
+})
+\`\`\`
+
+This is a record fragment, not a complete supervisor. If persisting a new worker fails, stop that child so it does not become an untracked orphan. Serialize start/stop operations or use a single supervising process when concurrent management commands are possible.
+
+\`proc.kill(pid, 0)\` checks liveness; it does not prove that the live process is still your worker, because PIDs are reused. Before stopping a persisted worker, validate its run identity through its control endpoint/heartbeat or supervisor. Request graceful shutdown, wait for confirmed termination, and only then remove its record. Escalate termination only for a verified owned process. A restart should reconcile stale records and establish readiness before advertising the replacement.
+
+For multi-worker coordination, a single long-running supervisor using \`processManager\` can simplify ownership; persist only the supervisor identity and communicate through a control endpoint. Use SQLite transactions for durable queues and atomic job claims, not a PID list as a queue.
+
+## Verify from independent processes
+
+Check start, readiness, status from a second invocation, graceful stop, port/resource release, and restart. Include missing state, a dead worker, stale identity, and failure to persist the record. Use temporary state and test endpoints. A scratch cwd does not isolate home hooks, plugins, credentials, or external services.
 `,
   "18-semantic-search.md": `---
 title: Semantic Search
@@ -8622,6 +8100,45 @@ Same two-server shape; \`--setup\` is just the version where \`serve\` owns Expr
 - [WebSocket ask-and-reply](../examples/websocket-ask-and-reply-example.md) — server↔client request/response
 - [Browser: Reactive UIs](./22-reactive-frontend.md) — subscribing to the sidecar from a front-end store
 `,
+  "29-selectors.md": `# Cached queries with selectors
+
+A selector returns data; a command performs an action. Use a selector when repeated queries can reuse results. Use a feature for reusable behavior or observable state, and \`container.store()\` for durable records that must survive cache loss.
+
+## Create and run
+
+\`\`\`sh
+luca scaffold selector package-info --tutorial
+luca scaffold selector package-info --description "Read the project package name"
+\`\`\`
+
+Replace the generated handler in \`selectors/package-info.ts\` with:
+
+\`\`\`ts skip
+import { z } from 'zod'
+import type { ContainerContext } from 'luca'
+
+export const description = 'Read the project package name'
+export const argsSchema = z.object({})
+export async function run(_args: z.infer<typeof argsSchema>, { container }: ContainerContext) {
+  const pkg = await container.feature('fs').readJsonAsync('package.json')
+  return { name: pkg.name }
+}
+\`\`\`
+
+\`\`\`sh
+luca select package-info
+luca select package-info --json
+luca select package-info --json --noCache
+\`\`\`
+
+The normal output wraps data with cache metadata; \`--json\` prints just the data. \`--noCache\` forces execution. The CLI discovers \`selectors/\` before use.
+
+## Choose invalidation deliberately
+
+The default cache key includes selector name, arguments, and Git SHA. Uncommitted file changes and remote API changes do not necessarily change that key. Export a \`cacheKey(args, context)\` that reflects the input version, disable caching with \`export const cacheable = false\`, or force a fresh query when appropriate. Do not put irreversible side effects in a cached handler.
+
+Programmatic use is \`await container.select('package-info').select({})\`; it returns the result envelope. Test the data, repeated-query cache behavior, and the chosen invalidation mechanism. See \`luca scaffold selector --tutorial\` for the full module contract.
+`,
   "00-bootstrap.md": `---
 title: "Bootstrap: Learning the Container at Runtime"
 tags:
@@ -8864,6 +8381,30 @@ luca serve
 \`\`\`
 
 \`luca serve\` serves \`public/\` as static files (and \`endpoints/\` as an API — more on that below). Open the URL, click the buttons. **No build step ran.** The feature is the store; \`changed\` is the signal; \`render\` is the subscriber. That is the pattern. React just makes the \`render\` half nicer.
+
+## Use the shipped React hooks in package applications
+
+When your application installs Luca and React, prefer the \`luca/react\` integration for observable state. It subscribes to state changes directly; you do not need a second \`changed\` event after every mutation.
+
+\`\`\`tsx skip
+import container from 'luca/web'
+import { ContainerProvider, useContainerState } from 'luca/react'
+
+function Counter() {
+  const state = useContainerState<{ count?: number }>()
+  return <button onClick={() => container.state.set('count', (state.count ?? 0) + 1)}>
+    {state.count ?? 0}
+  </button>
+}
+
+export default function App() {
+  return <ContainerProvider container={container}><Counter /></ContainerProvider>
+}
+\`\`\`
+
+\`useContainerState(target)\` can also observe a specific helper without a provider. \`useFeature(name, options)\` gets a feature from the provider; options are creation-time configuration, not a reactive setter. \`useHelperState(helper)\` returns \`[snapshot, setState]\`, with the setter delegating to the helper's \`setState\`. For domain actions, prefer the feature's own methods so validation and side effects stay encapsulated. \`useEvent\` subscribes to domain events with cleanup.
+
+Use one React instance across the app and Luca hooks. The URL-only example below demonstrates the underlying framework-independent event pattern for applications without a package build. Its explicit \`changed\` convention is specific to that example, not a requirement of Luca observable state.
 
 ## Add React from a URL
 
@@ -10875,6 +10416,40 @@ await assistant.ask('Explain quantum computing')
 4. **Use Zod \`.describe()\`** -- the descriptions on schemas and fields are what the model sees to decide when and how to call tools
 5. **Test with real questions** -- ask the assistant the kinds of things real users will ask
 `,
+  "30-shipping-a-binary.md": `# Ship and verify a standalone binary
+
+Use \`luca bundle\` when a project should run as its own executable. For embedding the package into an existing application, see [embedding Luca](21-embedding-luca.md).
+
+## Choose the runtime and command surface
+
+\`\`\`sh
+luca bundle --help
+luca bundle workshop --targets darwin-arm64,linux-x64 --builtins eval,describe
+\`\`\`
+
+The default target is darwin-arm64; choose explicit targets for the machines you support. \`--runtime\` controls the Luca package used to build: \`auto\` uses the local checkout when available and otherwise the latest published package. Pin a package version for reproducible release builds.
+
+Built-in commands are opt-in through \`--builtins\`; \`run\` is always present, and bundled assistants imply \`chat\` and \`assistant\`. Include \`eval\` and \`describe\` if consumers need runtime exploration. Review that choice as part of the product's command surface.
+
+\`--dryRun\` generates the bundle project without installing or compiling it. Inspect that output before a release when changing discovery, imports, or bundled assets.
+
+## Verify the compiled artifact outside the source project
+
+After compilation, confirm the expected \`dist/<name>-<platform>\` artifact exists. Run the target that matches your machine, using an absolute binary path from a fresh directory outside the checkout:
+
+\`\`\`sh
+/path/to/project/dist/workshop-darwin-arm64 --help
+/path/to/project/dist/workshop-darwin-arm64 your-command --help
+/path/to/project/dist/workshop-darwin-arm64 your-command
+/path/to/project/dist/workshop-darwin-arm64 describe yourFeature
+\`\`\`
+
+Replace command/helper placeholders with your project's actual names. The last command requires \`--builtins describe\`. Exercise at least one real behavior and failure path; help output only verifies dispatch and metadata. Test other targets on their native platform or appropriate CI runner.
+
+Check that commands, features, routes, selectors, and required assets work without your source folders or local node_modules. For services, start the binary, verify a request, then stop it and confirm listener cleanup. Supply test configuration explicitly: a fresh cwd still shares machine-level Luca configuration and external services.
+
+Bundled assistants are materialized under \`~/.luca/bundles/<name>/assistants\`. Editing source assistant files does not update an already compiled binary; rebuild and verify the new artifact.
+`,
   "03-scripts.md": `---
 title: Running Scripts and Markdown Notebooks
 tags: [scripts, luca-run, automation, bun, standalone, markdown, codeblocks, notebook]
@@ -11979,6 +11554,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`os\` | feature | system | core | The OS feature provides access to operating system utilities and information. |
 | \`packageFinder\` | feature | dev-tools | stable | PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. |
 | \`postgres\` | feature | data-storage | stable | Postgres feature for safe SQL execution through Bun's native SQL client. |
+| \`prettier\` | feature | dev-tools | stable | The Prettier feature formats TypeScript, Markdown, and YAML source with prettier's standalone engine. |
 | \`proc\` | feature | process | core | The ChildProcess feature provides utilities for executing external processes and commands. |
 | \`processManager\` | feature | process | stable | Manages long-running child processes with tracking, events, and automatic cleanup. |
 | \`python\` | feature | dev-tools | stable | The Python VM feature provides Python virtual machine capabilities for executing Python code. |
@@ -12018,5 +11594,114 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`websocket\` | server | networking | stable | WebSocket server built on the \`ws\` library with optional JSON message framing. |
 
 _Generated by \`luca build-bootstrap\` from live introspection data — do not edit by hand._
+`,
+  "runtime-conventions.md": `# Runtime conventions
+
+Read the section relevant to your task: discovery/plugins, command arguments/help, available utilities, or VM/terminal contracts. For process lifetime and durable worker records see [process lifecycle](tutorials/28-process-lifecycle.md).
+
+### How Auto-Discovery Works
+
+The CLI discovers **all** project helper folders before dispatching a command — \`features/\`, \`clients/\`, \`servers/\`, \`commands/\`, \`endpoints/\`, \`selectors/\` — so \`container.feature('myThing')\` works inside any command without extra wiring. \`~/.luca/{features,clients,servers,commands}\` (user-level helpers) are discovered on every CLI run too.
+
+Discovery registers endpoint modules; \`luca serve\` mounts their routes when the server starts. \`luca eval\` also performs discovery internally.
+
+Opt-outs via the \`LUCA_COMMAND_DISCOVERY\` env var: \`commands-only\` (only discover \`commands/\`, the pre-auto-discovery behavior), \`no-local\` (skip the project), \`no-home\` (skip \`~/.luca\`), \`disable\` (skip both). These flags govern discovery; they do not suppress global/project CLI startup hooks or environment-configured plugins.
+
+**Non-CLI entry points** (embedding the container in your own script or service) don't get this for free — discover explicitly:
+
+\`\`\`js
+await container.helpers.discoverAll()                               // everything
+await container.helpers.discover('features')                        // one type
+await container.helpers.discover('commands', { directory: dir })    // from a custom folder (plugins)
+\`\`\`
+
+### Plugins
+
+Any folder with the standard project layout (\`features/\`, \`commands/\`, \`endpoints/\`, ...) can be loaded as a plugin. Drop (or symlink) it into \`~/.luca/plugins/<name>\`, then either:
+
+\`\`\`sh
+# .env — the CLI loads these automatically before your luca.cli.ts runs
+LUCA_PLUGINS=my-plugin,other-plugin
+\`\`\`
+
+\`\`\`js
+await container.helpers.usePlugin('my-plugin')   // by name (~/.luca/plugins) or path
+container.use('my-plugin'); await container.start()  // sync call sites — start() awaits plugin loads
+\`\`\`
+
+If the plugin has a \`luca.plugin.ts\` (or \`plugin.ts\`) entry, its \`attach(container, { pluginDir })\` export runs after discovery — the hook for assets beyond the standard folders (assistants, workflows, contexts).
+
+
+## Command Arguments
+
+Command handlers receive \`(options, context)\`. The \`options\` object contains:
+- **Named flags** from \`argsSchema\`: \`--verbose\` → \`options.verbose\`
+- **Positional args** mapped via \`positionals\` export: \`luca cmd ./src\` → \`options.target\`
+- **Raw positionals** in \`options._\`: array where \`_[0]\` is the command name, \`_[1+]\` are positional args. Type the handler's options as \`CommandArgs<typeof argsSchema>\` (from \`'luca'\`) to get \`_\` typed.
+
+To accept positional arguments, export a \`positionals\` array that maps them to named fields in \`argsSchema\`:
+
+\`\`\`ts
+export const positionals = ['target']  // luca myCmd ./src => options.target === './src'
+export const argsSchema = z.object({
+  target: z.string().optional().describe('The target to operate on'),
+  verbose: z.boolean().default(false).describe('Enable verbose output'),
+})
+\`\`\`
+
+A trailing \`'...rest'\` positional (or a trailing \`z.array(...)\` field) collects all remaining args as an array: \`positionals = ['action', '...files']\`.
+
+Parsing agrees with the schema — boolean flags never consume a following positional (\`luca cmd --json foo\` keeps \`foo\` positional), and positionals arrive as strings coerced to what the field expects (\`z.string()\` accepts \`8080\`, \`z.number()\` accepts \`'8080'\` — no \`z.union\` workarounds needed).
+
+## Command Help
+
+\`luca <cmd> --help\` is generated from what the command declares — make it teach:
+- **\`.describe()\` every argsSchema field** — powers the Options/Flags listing.
+- **\`positionals\`** render as an \`Arguments:\` section (described via the matching schema field, or use the object form \`{ name, description, required }\` when there is no schema field).
+- **\`export const examples = [...]\`** — strings or \`{ command, description }\` objects, rendered as an \`Examples:\` section.
+- **\`export const subcommands = { verb: { args: '<name>', description, examples } }\`** — renders a \`Subcommands:\` section, and \`luca <cmd> <verb> --help\` shows focused help for that verb. Dispatch is still yours: map the verb via \`positionals\` and branch on it in the handler.
+
+## What's Available
+
+The container provides more than you might expect. Before importing anything external, check here:
+
+- **YAML** — \`container.feature('yaml')\` wraps \`js-yaml\`. Use \`.parse(str)\` and \`.stringify(obj)\`.
+- **SQLite** — \`container.feature('sqlite')\` for databases. Parameterized queries, tagged templates.
+- **Cross-process state** — \`container.store('name', { schema })\` opens a durable JSON document in \`.luca/store/\` shared by all luca processes. \`await store.update(s => { s.count++ })\` is a locked read-modify-write (concurrent commands can't lose each other's writes); \`read()\` always re-reads. \`luca describe store\` for the full guide.
+- **REST client** — \`container.client('rest', { baseURL })\`. Methods (\`get\`, \`post\`, etc.) return **parsed JSON directly**, not \`{ data, status, headers }\`. On HTTP errors, the error is returned (not thrown).
+- **Content DB** — \`container.docs\` (alias for \`container.feature('contentDb')\`) manages markdown documents with frontmatter. Query with \`docs.query(docs.models.MyModel).fetchAll()\`.
+- **Grep** — \`container.feature('grep')\` has \`search()\` and \`todos()\` for finding TODOs/FIXMEs/etc.
+- **chalk** — available as \`container.feature('ui').colors\`, not via \`import('chalk')\`.
+- **figlet** — available as \`container.feature('ui').asciiArt(text)\`.
+- **uuid** — \`container.utils.uuid()\`
+- **Scheduler** — \`container.feature('scheduler')\` for named recurring tasks: \`every('5m', fn)\`, \`cron('0 9 * * mon-fri', fn)\`, one-shots via \`at()\`/\`in()\`, and \`run()\` for the daemon lifecycle (holds the process open, stops all tasks on SIGINT/SIGTERM). Inspect \`scheduler.tasks\` for run counts and errors.
+- **timing** — \`container.utils.sleep(ms)\`, \`container.utils.backoff(fn, { attempts, delay })\` (retry with exponential backoff), \`container.utils.every(ms, fn)\` (bare poll loop with no overlapping runs; returns \`stop()\`).
+- **lodash** — \`container.utils.lodash\`. Exactly these: \`uniq\`, \`uniqBy\`, \`keyBy\`, \`groupBy\`, \`debounce\`, \`throttle\`, \`mapValues\`, \`mapKeys\`, \`pick\`, \`get\`, \`set\`, \`omit\`. Nothing else (no \`sortBy\`, \`orderBy\`, \`chunk\`, …) — use native array methods for the rest.
+- **string utils** — \`container.utils.stringUtils\`. Exactly these: \`camelCase\`, \`kebabCase\`, \`upperFirst\`, \`lowerFirst\`, \`pluralize\`, \`singularize\`.
+
+## Runtime and terminal contracts
+
+- **For DELETE endpoint handlers, use \`export { del as delete }\`** — \`delete\` is a JS reserved word. Define your function with any name, then re-export it as \`delete\`.
+- **Bun globals (\`Bun.spawn\`, \`Bun.serve\`) are unavailable** in command/endpoint handlers. Use \`container.feature('proc')\` for spawning processes.
+- **\`ui.print.*\` writes to stdout** — if your command supports \`--json\`, gate UI output behind \`if (!options.json)\`.
+- **\`ui.print.<color>()\` is not a string formatter** — it prints immediately and returns \`undefined\`, so \`\` \`\${ui.print.green('OK')}\` \`\` interpolates \`undefined\`. To compose colored strings, use \`ui.colors.<color>()\`, which returns the styled string. (\`ui.print\` mirrors every chalk color/style name that \`ui.colors\` has — but it always prints.)
+- **Checking whether a PID is alive**: \`proc.kill(pid, 0)\` sends nothing and returns \`false\` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
+- **VM contexts start near-empty — and command/endpoint handlers run in that same VM.** JS built-ins (\`Promise\`, \`Date\`, \`Math\`, \`JSON\`) plus \`console\`, timers, \`process\`, \`Buffer\`, \`fetch\`, \`crypto\`, and \`TextEncoder\`/\`TextDecoder\` are provided; when you build your own context with \`container.feature('vm')\`, inject anything beyond that explicitly. zod is always importable (\`import { z } from 'zod'\`) — export schemas unconditionally. In \`luca eval\`, \`z\` and \`require\` are already in scope — prototype schemas directly.
+- **Long-running commands** (servers, watchers) end with \`await context.runUntilShutdown(async () => { /* cleanup */ })\` — it holds the process open, wires SIGINT/SIGTERM, runs the cleanup (5s guard, second Ctrl-C exits immediately), and exits 0. Also on the container (\`container.runUntilShutdown\`) for \`luca run\` scripts. For recurring tasks, \`await container.feature('scheduler').run({ onShutdown })\` layers named intervals/cron on the same lifecycle.
+- **Shared state between endpoints**: use \`ctx.request.app.locals\` to share data across endpoint files.
+- **Database init**: use \`luca.cli.ts\` \`main()\` hook for table creation and seeding — it runs before any command or server starts.
+- **\`paths.join()\` prepends \`container.cwd\` even when the first arg is absolute** — use \`paths.resolve(absPath, 'sub')\` when the base is already absolute (e.g. \`os.tmpdir\`); \`resolve\` behaves like Node's.
+- **Colors silently disappear when stdout isn't a real TTY** — chalk auto-disables in pipes and sandboxed shells; this is not a bug in your command. Verify with \`FORCE_COLOR=1 luca yourCmd | cat -v\`.
+- **\`useInput\` requires a TTY** (\`setRawMode\`) and crashes on piped stdin — guard with \`process.stdin.isTTY\` and fall back to \`process.on('SIGINT', ...)\`.
+- **ink/react must be single-instance.** \`import React from 'react'\` and \`import { Text, useInput } from 'ink'\` in commands resolve to the runtime's own copies — use them freely alongside \`ink.components\`/\`ink.hooks\`/\`ink.render\`. Never add react or ink to a local \`node_modules\`: a second React copy breaks every hook ("Invalid hook call", \`isRawModeSupported === undefined\`).
+- **Registry names are camelCase, files are kebab-case** (\`cipherSocial\` ↔ \`cipher-social.ts\`). Don't guess short names; when \`luca describe\` fails, its "Available:" list is authoritative.
+- **Server options belong in the constructor** — \`container.server('websocket', { port: 8099, json: true })\`, then \`start()\`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
+- **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: \`afterInitialize()\` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit \`connect()\`.
+- **Markdown code blocks and eval modes**: \`luca run doc.md\` executes \`ts\`/\`js\`/\`tsx\`/\`jsx\` fences by default; \`luca prompt\` does NOT — blocks ship to the agent as literal source unless the doc declares \`evalMode: all\` (or \`optIn\`, which runs only \` \`\`\`ts eval \` fences) in frontmatter, or the caller passes \`--eval-mode\`. \` \`\`\`ts skip \` opts a block out in any mode (exact word in the fence meta). Prompts that gather live context via code blocks need the opt-in.
+
+
+## Secrets across invocations
+
+\`vault.secret()\` creates a random key when no secret was configured. For decryption in another process, supply the same securely stored key through the vault options. Do not write encryption keys into committed state documents. Inspect \`luca describe vault --options\` before configuring it.
 `
 }

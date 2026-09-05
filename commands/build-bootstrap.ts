@@ -1,11 +1,9 @@
 import { z } from 'zod'
 import type { ContainerContext } from 'luca'
 import { CommandOptionsSchema } from 'luca'
-import { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from '../src/introspection/index'
+import { isHelperCategory } from '../src/introspection/index'
 
 export const argsSchema = CommandOptionsSchema.extend({})
-
-const GENERATED_BLOCK_RE = /(<!-- BEGIN:GENERATED helper-tables[^>]*-->)[\s\S]*?(<!-- END:GENERATED helper-tables -->)/
 
 function firstSentence(text: string): string {
 	const clean = (text || '').trim().replace(/\s+/g, ' ')
@@ -48,53 +46,6 @@ function collectHelperRows(container: any): HelperRow[] {
 	return rows
 }
 
-/** The generated "Features by Category" + Clients + Servers tables for SKILL.md. */
-function generateHelperTables(rows: HelperRow[]): string {
-	const features = rows.filter(r => r.kind === 'feature')
-	const byCategory = new Map<string, HelperRow[]>()
-	for (const f of features) {
-		const key = f.category || 'other'
-		if (!byCategory.has(key)) byCategory.set(key, [])
-		byCategory.get(key)!.push(f)
-	}
-	const order = [
-		...HELPER_CATEGORIES.filter(c => byCategory.has(c)),
-		...[...byCategory.keys()].filter(c => !(HELPER_CATEGORIES as readonly string[]).includes(c)),
-	]
-
-	const featureRows = order.map(cat => {
-		const label = isHelperCategory(cat) ? CATEGORY_LABELS[cat].label : 'Other'
-		const description = isHelperCategory(cat) ? CATEGORY_LABELS[cat].description : 'Project-specific helpers'
-		const names = byCategory.get(cat)!.map(f => `\`${f.id}\``).join(', ')
-		return `| **${label}** | ${names} | ${description} |`
-	})
-
-	const clientRows = rows.filter(r => r.kind === 'client')
-		.map(c => `| \`${c.id}\` | ${c.summary} |`)
-	const serverRows = rows.filter(r => r.kind === 'server')
-		.map(s => `| \`${s.id}\` | ${s.summary} |`)
-
-	return [
-		'### Features by Category',
-		'',
-		'| Category | Features | What they do |',
-		'|----------|----------|--------------|',
-		...featureRows,
-		'',
-		'### Clients',
-		'',
-		'| Client | Purpose |',
-		'|--------|---------|',
-		...clientRows,
-		'',
-		'### Servers',
-		'',
-		'| Server | Purpose |',
-		'|--------|---------|',
-		...serverRows,
-	].join('\n')
-}
-
 /** The flat references/helper-index.md lookup table. */
 function generateHelperIndex(rows: HelperRow[]): string {
 	const tableRows = rows.map(r => {
@@ -127,21 +78,7 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		return
 	}
 
-	// 0. Regenerate the helper tables inside docs/bootstrap/SKILL.md (in place,
-	// between the GENERATED markers) so the skill's category index can never
-	// drift from the actual registered helpers.
 	const helperRows = collectHelperRows(container)
-	const skillPath = `${sourceDir}/SKILL.md`
-	const skillSource = await fs.readFileAsync(skillPath)
-	if (GENERATED_BLOCK_RE.test(skillSource)) {
-		const updated = skillSource.replace(GENERATED_BLOCK_RE, `$1\n${generateHelperTables(helperRows)}\n$2`)
-		if (updated !== skillSource) {
-			await fs.writeFileAsync(skillPath, updated)
-			console.log(`   regenerated helper tables in ${skillPath} (${helperRows.length} helpers)`)
-		}
-	} else {
-		console.log(`   ⚠ no GENERATED helper-tables markers found in ${skillPath} — tables not regenerated`)
-	}
 
 	// 1. Collect top-level markdown files (SKILL.md, CLAUDE.md, etc.)
 	const allFiles = await fs.readdir(sourceDir)
@@ -214,13 +151,20 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 	const references: Record<string, string> = {
 		'helper-index.md': generateHelperIndex(helperRows),
 	}
+	const referencesDir = `${sourceDir}/references`
+	if (fs.exists(referencesDir)) {
+		for (const file of (await fs.readdir(referencesDir)).filter((name: string) => name.endsWith('.md')).sort()) {
+			if (file in references) throw new Error(`Reference ${file} conflicts with a generated reference`)
+			references[file] = await fs.readFileAsync(`${referencesDir}/${file}`)
+		}
+	}
 	console.log(`   reference/helper-index.md: ${references['helper-index.md']!.length} chars (${helperRows.length} helpers)`)
 	const referenceEntries = Object.entries(references).map(([name, content]) =>
 		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
 	).join(',\n')
 
 	const output = `// Auto-generated bootstrap content
-// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md,
+// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/bootstrap/references/*.md, docs/examples/*.md, docs/tutorials/*.md,
 // plus reference docs generated from live introspection data.
 //
 // Do not edit manually. Run: luca build-bootstrap

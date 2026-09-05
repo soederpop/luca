@@ -96,7 +96,7 @@ fs.$getters  // => ['cwd', 'sep', ...]
 
 Introspection comes from two sources:
 
-1. **Build-time extraction** -- Luca's build step parses JSDoc comments, method signatures, and getter types from source code using AST analysis. Run `bun run build:introspection` to update this.
+1. **Build-time extraction** -- Luca's build step parses JSDoc comments, method signatures, and getter types from source code using AST analysis. In the framework checkout, run `bun run build:introspection`; in consumer projects, run `luca introspect`.
 
 2. **Runtime Zod schemas** -- State, options, and events schemas provide descriptions, types, and defaults at runtime via Zod's `.describe()` method.
 
@@ -126,7 +126,7 @@ Make your custom features introspectable by:
 
 1. Writing JSDoc on the class, methods, and getters
 2. Using Zod `.describe()` on schema fields
-3. Running `bun run build:introspection` after changes
+3. Running `luca introspect --lint` after changes (or `bun run build:introspection` in the framework checkout)
 
 ```typescript
 /**
@@ -155,3 +155,5 @@ export class ConnectionPool extends Feature<PoolState, PoolOptions> {
 ```
 
 Now `container.features.describe('connectionPool')` returns rich documentation, and `container.features.introspect('connectionPool')` returns structured data -- all extracted from what you already wrote.
+
+For the complete generation, declaration, augmentation, and verification workflow, see [metadata and types](27-metadata-and-types.md).

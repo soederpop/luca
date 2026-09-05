@@ -133,7 +133,7 @@ console.log('lock acquired and released cleanly')
 
 ## The full daemon command
 
-Putting it together in a real command file — `commands/sync-worker.ts`. Three things make a command long-running: a PID lock so only one instance runs, an `await new Promise(() => {})` keep-alive, and a SIGINT handler that cleans up. (Shown, not executed — it runs forever.)
+Putting it together in a real command file — `commands/sync-worker.ts`. Use a PID lock for single-instance ownership and the shared shutdown lifecycle for cleanup. (Shown, not executed — it runs forever.)
 
 ```ts skip
 import { z } from 'zod'
@@ -159,14 +159,14 @@ export default async function syncWorker(options: z.infer<typeof argsSchema>, co
   }, { immediate: true, onError: (err) => console.error('tick failed:', err) })
 
   // 3. Hold the process open; release everything on Ctrl-C
-  process.on('SIGINT', () => {
+  await context.runUntilShutdown(async () => {
     stop()
-    process.exit(0)
   })
-  await new Promise(() => {})
 }
 ```
 
 ## Summary
 
-`sleep` for pauses, `backoff` for retries, `every` for non-overlapping poll loops — all on `container.utils`, no imports. A daemon command adds `proc.establishLock()` for single-instance safety, `await new Promise(() => {})` to stay alive, and a SIGINT handler to clean up — or replaces the last two with a single `await container.feature('scheduler').run()`. Run `luca scaffold command --tutorial` for the full command-authoring guide.
+`sleep` for pauses, `backoff` for retries, `every` for non-overlapping poll loops — all on `container.utils`, no imports. A daemon command adds `proc.establishLock()` for single-instance safety, `context.runUntilShutdown(cleanup)` to stay alive and clean up on SIGINT/SIGTERM. For named schedules, `await container.feature('scheduler').run()` manages task shutdown. Run `luca scaffold command --tutorial` for the full command-authoring guide.
+
+For detached workers and cross-invocation status/start/stop, see [process lifecycle](../tutorials/28-process-lifecycle.md). Persist ownership records in `container.store()`, not `diskCache`.

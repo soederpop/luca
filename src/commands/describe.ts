@@ -42,7 +42,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'only-envvars': z.boolean().default(false).describe('Show only the envVars section'),
 	'only-examples': z.boolean().default(false).describe('Show only the examples section'),
 	platform: z.enum(['browser', 'web', 'server', 'node', 'all']).default('all').describe('Which platform features to show: browser/web, server/node, or all'),
-	query: z.string().optional().describe('Search helpers, examples, and tutorials by meaning or keywords (e.g. --query "how do I build a rest server?")'),
+	query: z.string().optional().describe('Search helpers, command help, references, examples, and tutorials by meaning or keywords (e.g. --query "how do I build a rest server?")'),
 	'calculate-embeddings': z.boolean().default(false).describe('Build/refresh the embedding index used by --query for semantic ranking. Uses the local model by default (requires `luca setup --local-embeddings`), or an OpenAI-compatible endpoint when LUCA_EMBEDDING_PROVIDER=openai'),
 	limit: z.number().default(8).describe('Maximum results for --query'),
 })

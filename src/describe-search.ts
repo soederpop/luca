@@ -2,7 +2,7 @@
  * describe-search — the search layer behind `luca describe --query`.
  *
  * Builds a searchable catalog of every registered helper (features, clients,
- * servers) plus the bundled examples and tutorials, indexes it with the
+ * servers), CLI command help, plus the bundled examples and tutorials, indexes it with the
  * semanticSearch feature in a machine-wide store under ~/.luca/describe-index,
  * and answers natural-language queries with ranked pointers back to
  * `luca describe <name>` / skill references.
@@ -18,6 +18,7 @@
  * `needsReindex()` — the keyword refresh updates `documents.content_hash`,
  * which would otherwise mask embedding staleness forever.
  */
+import { formatCommandHelp } from './commands/help.js'
 import { join } from 'node:path'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
@@ -26,7 +27,7 @@ import { installedBinaryPath } from './node/features/llama-server.js'
 import type { DocumentInput, SearchResult, SemanticSearch } from './node/features/semantic-search.js'
 import { DEFAULT_LOCAL_MODEL, PROVIDER_DEFAULT_MODELS, resolveModelPath } from './node/features/semantic-search.js'
 
-/** Where the shared describe index lives. The catalog is a property of the binary (not the project), so all projects share one index. */
+/** Where the shared describe index lives. The catalog is refreshed for the current runtime and discovered project commands on each query. */
 export function describeIndexDir(): string {
 	return join(lucaHome(), 'describe-index')
 }
@@ -141,7 +142,7 @@ function splitSections(body: string): DocumentInput['sections'] {
 
 /**
  * Build one DocumentInput per registered helper (from in-memory introspection,
- * zero I/O) plus one per bundled example and tutorial.
+ * zero I/O), registered command help, and bundled references, examples and tutorials.
  */
 export async function buildCatalogDocuments(container: any): Promise<DocumentInput[]> {
 	const docs: DocumentInput[] = []
@@ -179,17 +180,40 @@ export async function buildCatalogDocuments(container: any): Promise<DocumentInp
 					name: id,
 					category: intro?.category || Ctor?.category || '',
 					stability: intro?.stability || Ctor?.stability || '',
-					ref: `luca describe ${id}`,
+					ref: `luca describe ${registryName}.${id}`,
 				},
 			})
 		}
 	}
 
+	// Reuse the public help renderer: do not instantiate or execute a command
+	// just to index its CLI schema. Project commands participate after discovery.
+	const plain = Object.assign((value: string) => value, { bold: (value: string) => value })
+	const colors = { cyan: plain, dim: plain, white: plain, green: plain }
+	for (const name of container.commands?.available || []) {
+		const Cmd = container.commands.lookup(name)
+		const sections = Object.keys(Cmd.subcommands || {}).map(subcommand => ({
+			heading: subcommand,
+			headingPath: subcommand,
+			content: formatCommandHelp(name, Cmd, colors, { subcommand }),
+			level: 2,
+		}))
+		docs.push({
+			pathId: `command:${name}`,
+			model: 'command',
+			title: `${name} (CLI command)`,
+			content: formatCommandHelp(name, Cmd, colors),
+			sections,
+			meta: { kind: 'command', name, ref: `luca ${name} --help` },
+		})
+	}
+
 	// Bundled examples and tutorials — embedded in the binary, so this works
 	// outside any project. Bootstrapped projects have them materialized under
 	// .claude/skills/luca-framework/references/.
-	const { bootstrapExamples, bootstrapTutorials } = await import('./bootstrap/generated.js')
+	const { bootstrapExamples, bootstrapTutorials, bootstrapReferences } = await import('./bootstrap/generated.js')
 	const bundles: Array<{ model: string; refDir: string; entries: Record<string, string> }> = [
+		{ model: 'reference', refDir: '', entries: Object.fromEntries(Object.entries(bootstrapReferences).filter(([name]) => name !== 'helper-index.md')) },
 		{ model: 'example', refDir: 'examples', entries: bootstrapExamples },
 		{ model: 'tutorial', refDir: 'tutorials', entries: bootstrapTutorials },
 	]
@@ -205,7 +229,7 @@ export async function buildCatalogDocuments(container: any): Promise<DocumentInp
 				meta: {
 					kind: model,
 					name: filename,
-					ref: `.claude/skills/luca-framework/references/${refDir}/${filename} (run \`luca bootstrap --update-skill\` if missing)`,
+					ref: `.claude/skills/luca-framework/references/${refDir ? `${refDir}/` : ''}${filename} (run \`luca bootstrap --update-skill\` if missing)`,
 				},
 			})
 		}
@@ -266,7 +290,19 @@ export async function getDescribeSearch(container: any): Promise<SemanticSearch>
  */
 export function ensureKeywordIndex(ss: SemanticSearch, docs: DocumentInput[]): number {
 	ss.removeStale(docs.map(d => d.pathId))
-	const stale = docs.filter(d => ss.needsReindex(d))
+	// SemanticSearch's content hash covers only the body. Help schemas and
+	// focused examples also live in sections, and navigation lives in metadata.
+	const stored = new Map((ss.db.query('SELECT path_id, model, title, slug, meta_json, sections_json FROM documents').all() as Array<{
+		path_id: string; model: string | null; title: string | null; slug: string | null; meta_json: string | null; sections_json: string | null
+	}>).map(row => [row.path_id, row]))
+	const stale = docs.filter(doc => {
+		const row = stored.get(doc.pathId)
+		return !row || ss.needsReindex(doc)
+			|| row.model !== (doc.model ?? null) || row.title !== (doc.title ?? null)
+			|| row.slug !== (doc.slug ?? null)
+			|| row.meta_json !== (doc.meta ? JSON.stringify(doc.meta) : null)
+			|| row.sections_json !== (doc.sections ? JSON.stringify(doc.sections) : null)
+	})
 	if (stale.length > 0) {
 		const tx = ss.db.transaction(() => {
 			for (const doc of stale) ss.insertDocument(doc)
@@ -361,35 +397,30 @@ export interface DescribeSearchOutcome {
 }
 
 /**
- * Run a search twice — helpers-only and overall — and merge with helpers
- * first. `--query` exists to surface modules worth a `luca describe`, but
- * example/tutorial documents are much larger and would otherwise crowd
- * helpers out of a single ranked list.
+ * Reserve space for API/CLI entry points without promoting helpers ahead of
+ * more relevant command hits. Rank candidates from both compact surfaces and
+ * the overall search together; long tutorials can still fill the remaining slots.
  */
-async function searchWithHelperQuota(
+async function searchWithEntryPointQuota(
 	searchFn: (opts: { limit: number; model?: string }) => Promise<SearchResult[]>,
 	limit: number,
 ): Promise<SearchResult[]> {
-	const helperQuota = Math.ceil(limit / 2)
-	const [helpers, overall] = await Promise.all([
-		searchFn({ limit: helperQuota, model: 'helper' }),
-		searchFn({ limit }),
-	])
-
-	const merged = [...helpers]
-	const seen = new Set(helpers.map(r => r.pathId))
-	for (const r of overall) {
-		if (merged.length >= limit) break
-		if (seen.has(r.pathId)) continue
-		merged.push(r)
-		seen.add(r.pathId)
+	const quota = Math.ceil(limit / 2)
+	// One common ranking matters for RRF: scores from model-filtered searches
+	// are relative to different candidate sets and cannot be compared fairly.
+	const ranked = await searchFn({ limit: Math.max(limit * 4, 32) })
+	const entries = ranked.filter(r => r.model === 'helper' || r.model === 'command').slice(0, quota)
+	const chosen = new Set(entries.map(r => r.pathId))
+	for (const result of ranked) {
+		if (chosen.size >= limit) break
+		chosen.add(result.pathId)
 	}
-	return merged
+	return ranked.filter(r => chosen.has(r.pathId)).slice(0, limit)
 }
 
 /**
  * Answer a `luca describe --query` request. Hybrid (BM25 + vector, RRF) when
- * embeddings exist; otherwise keyword-only with a hint on how to enable
+ * the full catalog has current embeddings; otherwise keyword-only with a hint on how to enable
  * semantic ranking. Never fails just because embeddings are missing.
  */
 export async function queryDescribeIndex(
@@ -404,17 +435,19 @@ export async function queryDescribeIndex(
 
 	const sanitized = sanitizeFtsQuery(query)
 
-	if (ss.getStats().embeddingCount > 0) {
+	const hasEmbeddings = ss.getStats().embeddingCount > 0
+	const staleCount = hasEmbeddings ? docs.filter(d => embeddingsStale(ss, d)).length : 0
+	// Partial embeddings systematically favor old documents over new commands.
+	// Use the complete keyword catalog until the semantic index is refreshed.
+	if (hasEmbeddings && staleCount === 0) {
 		try {
-			const results = await searchWithHelperQuota(
+			const results = await searchWithEntryPointQuota(
 				o => ss.hybridSearch(query, { ...o, ftsQuery: sanitized }),
 				limit,
 			)
-			const staleCount = docs.filter(d => embeddingsStale(ss, d)).length
 			return {
 				mode: 'hybrid',
 				results,
-				...(staleCount > 0 ? { hint: HINTS.stale(staleCount) } : {}),
 			}
 		} catch {
 			// Vector leg failed (e.g. weights deleted after indexing) — degrade
@@ -422,14 +455,14 @@ export async function queryDescribeIndex(
 		}
 	}
 
-	const results = await searchWithHelperQuota(o => ss.search(sanitized, o), limit)
+	const results = await searchWithEntryPointQuota(o => ss.search(sanitized, o), limit)
 	const cfg = describeEmbeddingConfig()
 	const readiness = await describeEmbeddingReadiness(cfg)
 	const installHint = cfg.provider === 'openai' ? HINTS.installDepsOpenAI : HINTS.installDepsLocal
 	return {
 		mode: 'keyword',
 		results,
-		hint: readiness === 'ready' ? HINTS.buildIndex : installHint,
+		hint: staleCount > 0 ? `Using keyword ranking. ${HINTS.stale(staleCount)}` : readiness === 'ready' ? HINTS.buildIndex : installHint,
 	}
 }
 

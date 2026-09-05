@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import '../src/commands/index'
+import { z } from 'zod'
 import { AGIContainer } from '../src/agi/container.server'
 import { SemanticSearch } from '../src/node/features/semantic-search'
 import type { DocumentInput } from '../src/node/features/semantic-search'
@@ -44,6 +46,7 @@ describe('describe-search', () => {
 	afterEach(() => {
 		if (previousHome === undefined) delete process.env.LUCA_HOME
 		else process.env.LUCA_HOME = previousHome
+		container.commands.unregister('catalog-fixture')
 		try { rmSync(tmpHome, { recursive: true, force: true }) } catch {}
 	})
 
@@ -76,7 +79,7 @@ describe('describe-search', () => {
 			expect(fs.meta!.kind).toBe('feature')
 			expect(fs.meta!.name).toBe('fs')
 			expect(fs.meta!.category).toBe('filesystem')
-			expect(fs.meta!.ref).toBe('luca describe fs')
+			expect(fs.meta!.ref).toBe('luca describe features.fs')
 			expect(fs.content.length).toBeGreaterThan(0)
 			// method-level docs are indexed as sections
 			const methods = fs.sections!.find(s => s.heading === 'Methods')
@@ -95,6 +98,62 @@ describe('describe-search', () => {
 				expect(doc.title!.startsWith('---')).toBe(false)
 				expect(doc.meta!.ref).toContain('.claude/skills/luca-framework/references/')
 			}
+		})
+	})
+
+	describe('command discovery', () => {
+		it('indexes public help without executing handlers, including focused subcommand examples', async () => {
+			let invoked = false
+			container.commands.registerHandler('catalog-fixture', {
+				description: 'Manage release attestations',
+				argsSchema: z.object({ signingKey: z.string().describe('Signing credential for attestation') }),
+				positionals: [{ name: 'artifact', description: 'Artifact to attest' }],
+				examples: ['luca catalog-fixture artifact.zip'],
+				subcommands: { verify: { description: 'Verify signatures', examples: ['luca catalog-fixture verify uniqueattestationtoken'] } },
+				handler: () => { invoked = true },
+			})
+			const docs = await buildCatalogDocuments(container)
+			const command = docs.find(d => d.pathId === 'command:catalog-fixture')!
+			expect(command.meta!.ref).toBe('luca catalog-fixture --help')
+			expect(command.content).toContain('--signingKey')
+			expect(command.content).toContain('Signing credential')
+			expect(command.content).toContain('artifact.zip')
+			expect(invoked).toBe(false)
+			const result = await queryDescribeIndex(container, 'uniqueattestationtoken', { limit: 1 })
+			expect(result.results[0]!.pathId).toBe(command.pathId)
+			expect(invoked).toBe(false)
+			// Metadata edits and removal must refresh the shared keyword index.
+			container.commands.lookup('catalog-fixture').subcommands = {}
+			expect((await queryDescribeIndex(container, 'uniqueattestationtoken')).results).toHaveLength(0)
+			container.commands.unregister('catalog-fixture')
+			await queryDescribeIndex(container, 'attestations')
+			const ss = await getDescribeSearch(container)
+			expect(await ss.search('"catalog-fixture"')).toHaveLength(0)
+		})
+
+		it('finds the CLI for packaging, fresh queries, and declarations in a short result budget', async () => {
+			for (const [query, command] of [
+				['bundle standalone binary', 'bundle'],
+				['force fresh cached selector query', 'select'],
+				['install TypeScript declarations for my project', 'setup'],
+				['generate lint metadata public methods', 'introspect'],
+			]) {
+				const result = await queryDescribeIndex(container, query!, { limit: 3 })
+				expect(result.results.some(r => r.pathId === `command:${command}`)).toBe(true)
+				expect(new Set(result.results.map(r => r.pathId)).size).toBe(result.results.length)
+				expect(result.results.length).toBeLessThanOrEqual(3)
+			}
+		})
+
+		it('keeps new CLI entries discoverable when only older documents have embeddings', async () => {
+			const ss = await getDescribeSearch(container)
+			ss.embed = fakeEmbed
+			const docs = await buildCatalogDocuments(container)
+			await ss.indexDocuments(docs.filter(d => d.model === 'helper'))
+			const result = await queryDescribeIndex(container, 'bundle standalone binary', { limit: 1 })
+			expect(result.mode).toBe('keyword')
+			expect(result.hint).toContain('stale')
+			expect(result.results[0]!.meta!.ref).toBe('luca bundle --help')
 		})
 	})
 
@@ -125,6 +184,24 @@ describe('describe-search', () => {
 			expect(helperResults.length).toBeGreaterThan(0)
 			const ids = outcome.results.map(r => r.pathId)
 			expect(ids.some(id => id.includes('rest') || id.includes('express') || id.includes('server'))).toBe(true)
+		})
+
+		it('refreshes section-only help edits and metadata-only navigation edits', async () => {
+			const ss = await getDescribeSearch(container)
+			const doc: DocumentInput = {
+				pathId: 'command:fixture', model: 'command', title: 'Fixture', content: 'Stable description',
+				sections: [{ heading: 'Examples', headingPath: 'Examples', content: 'oldexampletoken', level: 2 }],
+				meta: { ref: 'old pointer' },
+			}
+			ensureKeywordIndex(ss, [doc])
+			const changed = { ...doc, sections: [{ ...doc.sections![0]!, content: 'newexampletoken' }], meta: { ref: 'luca fixture --help' } }
+			expect(ensureKeywordIndex(ss, [changed])).toBe(1)
+			expect(await ss.search('oldexampletoken')).toHaveLength(0)
+			expect((await ss.search('newexampletoken'))[0]!.meta!.ref).toBe('luca fixture --help')
+			const redirected = { ...changed, meta: { ref: 'luca fixture verify --help' } }
+			expect(ensureKeywordIndex(ss, [redirected])).toBe(1)
+			expect((await ss.search('newexampletoken'))[0]!.meta!.ref).toBe('luca fixture verify --help')
+			expect(ensureKeywordIndex(ss, [redirected])).toBe(0)
 		})
 
 		it('re-running the keyword refresh only reindexes changed documents', async () => {

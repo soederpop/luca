@@ -74,6 +74,30 @@ luca serve
 
 `luca serve` serves `public/` as static files (and `endpoints/` as an API — more on that below). Open the URL, click the buttons. **No build step ran.** The feature is the store; `changed` is the signal; `render` is the subscriber. That is the pattern. React just makes the `render` half nicer.
 
+## Use the shipped React hooks in package applications
+
+When your application installs Luca and React, prefer the `luca/react` integration for observable state. It subscribes to state changes directly; you do not need a second `changed` event after every mutation.
+
+```tsx skip
+import container from 'luca/web'
+import { ContainerProvider, useContainerState } from 'luca/react'
+
+function Counter() {
+  const state = useContainerState<{ count?: number }>()
+  return <button onClick={() => container.state.set('count', (state.count ?? 0) + 1)}>
+    {state.count ?? 0}
+  </button>
+}
+
+export default function App() {
+  return <ContainerProvider container={container}><Counter /></ContainerProvider>
+}
+```
+
+`useContainerState(target)` can also observe a specific helper without a provider. `useFeature(name, options)` gets a feature from the provider; options are creation-time configuration, not a reactive setter. `useHelperState(helper)` returns `[snapshot, setState]`, with the setter delegating to the helper's `setState`. For domain actions, prefer the feature's own methods so validation and side effects stay encapsulated. `useEvent` subscribes to domain events with cleanup.
+
+Use one React instance across the app and Luca hooks. The URL-only example below demonstrates the underlying framework-independent event pattern for applications without a package build. Its explicit `changed` convention is specific to that example, not a requirement of Luca observable state.
+
 ## Add React from a URL
 
 You do not install React. You import it. `React.createElement` (aliased to `e`) replaces JSX, so there's no compile step — this is plain JavaScript the browser runs directly.
