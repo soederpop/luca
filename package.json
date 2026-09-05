@@ -108,6 +108,7 @@
   },
   "scripts": {
     "eval:agent-dx": "bun run scripts/agent-dx/cli.ts",
+    "test:agent-dx": "bun test ./scripts/agent-dx/harness.checks.ts",
     "serve": "bun build:web && luca serve --any-port",
     "console": "ts-node --esm scripts/console.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",

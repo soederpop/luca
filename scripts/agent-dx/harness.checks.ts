@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'bun:test'
-import container from '../src/node'
-import { tasks } from '../scripts/agent-dx/suite'
-import { grade } from '../scripts/agent-dx/grade'
-import { compare, configSchema, run, type Report } from '../scripts/agent-dx/harness'
-import { runProcess } from '../scripts/agent-dx/process'
+import container from '../../src/node'
+import { tasks } from './suite'
+import { grade } from './grade'
+import { compare, configSchema, run, type Report } from './harness'
+import { runProcess } from './process'
 
 const temp = () => container.paths.resolve('attempts', `dx-test-${container.utils.uuid()}`)
 

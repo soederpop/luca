@@ -1,0 +1,13 @@
+{
+  "label": "claude-smoke",
+  "model": "sonnet",
+  "runner": [
+    "claude", "-p", "--model", "sonnet",
+    "--output-format", "stream-json", "--verbose",
+    "--allowedTools", "Read,Write,Edit,Bash",
+    "--", "{prompt}"
+  ],
+  "trials": 1,
+  "tasks": ["registry-discovery"],
+  "timeoutMs": 180000
+}

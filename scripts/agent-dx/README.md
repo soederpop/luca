@@ -5,10 +5,24 @@ Outcome-graded diagnostic tasks complement the larger `try-challenge` projects. 
 ```sh
 bun run eval:agent-dx list
 bun run eval:agent-dx reference /tmp/luca-dx-reference
-bun test test/agent-dx-harness.test.ts
+bun run test:agent-dx
 ```
 
 Reference mode runs known solutions through the real framework and all 17 acceptance checks across six tasks. It is **not an agent baseline**. Tests also run deliberately wrong solutions to ensure the graders discriminate.
+
+Harness self-tests are opt-in through `test:agent-dx`. Their `.checks.ts` filename keeps them out of both bare `bun test` discovery and the default `bun run test` unit suite.
+
+## Quick start with Claude Code
+
+With Claude Code installed and authenticated, run one task once:
+
+```sh
+bun run eval:agent-dx run scripts/agent-dx/claude.example.json /tmp/luca-dx-smoke
+```
+
+The example launches Claude noninteractively with read/write/edit/shell tools, saves its trace, and grades the resulting `solution.ts`. It uses Sonnet and a three-minute deadline. No agent is launched by `list`, `reference`, or `test:agent-dx`.
+
+For a full baseline, copy the example config, remove `tasks`, set `trials` to 3 (18 fresh attempts), and pin the model ID in both `model` and `runner`. Output directories must be new. Look in `report.json` for individual results and diagnostics, `summary.json` for pass rates, and each attempt directory for the trace and submission.
 
 ## Run your agent
 
