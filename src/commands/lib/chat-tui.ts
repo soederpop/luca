@@ -1248,7 +1248,15 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	// keeps finished turns in the terminal's native scrollback (mouse scroll,
 	// copy, search), which alt-screen would forfeit.
 	const viewportRows = process.stdout.rows || 24
-	process.stdout.write('\n'.repeat(Math.max(0, viewportRows - 1 - (options.splashLines ?? 0))))
+	// ink's first frame appends below this padding and scrolls the terminal by
+	// its own height, so when splash art sits above, reserve room for that
+	// frame too or the wordmark loses exactly that many rows off the top.
+	// Boot frame: blank + boot lines, (blank + captured logs), blank + input,
+	// status line.
+	const splashLines = options.splashLines ?? 0
+	const inkBootRows = 3 + (startupLogs.length ? startupLogs.length + 1 : 0) + 3
+	const reserved = splashLines > 0 ? splashLines + inkBootRows : 0
+	process.stdout.write('\n'.repeat(Math.max(0, viewportRows - 1 - reserved)))
 
 	const instance = await ink.render(h(App, {}), { patchConsole: false, exitOnCtrlC: false })
 	await instance.waitUntilExit()
