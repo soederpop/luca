@@ -2387,6 +2387,12 @@ setBuildTimeData('features.assistant', {
         }
       ]
     },
+    "disableDelegation": {
+      "description": "Permanently remove delegation capabilities from a child, including after reload.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
     "addSystemPromptExtension": {
       "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
       "parameters": {
@@ -2871,6 +2877,10 @@ setBuildTimeData('features.assistant', {
       "description": "How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc.",
       "returns": "number"
     },
+    "delegationDisabled": {
+      "description": "Whether this assistant is barred from consuming delegation tools.",
+      "returns": "boolean"
+    },
     "systemPrompt": {
       "description": "The current system prompt text.",
       "returns": "string"
@@ -3116,6 +3126,33 @@ setBuildTimeData('features.assistant', {
       }
     }
   }
+});
+
+setBuildTimeData('features.assistantDelegator', {
+  "id": "features.assistantDelegator",
+  "description": "Gives an assistant bounded tools for forks, named specialists, and parallel research. Attach with assistant.use(container.feature('assistantDelegator')). Children never receive these tools or their prompt extension. Limits belong to the parent instance, so a new conversation or reattachment does not replenish the task budget. This governs framework delegation tools; arbitrary code tools remain trusted code.",
+  "shortcut": "features.assistantDelegator",
+  "className": "AssistantDelegator",
+  "methods": {
+    "toTools": {
+      "description": "Build a consumer-bound bundle; the same feature can safely serve multiple parents.",
+      "parameters": {
+        "options": {
+          "type": "{ only?: string[]; except?: string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "ToolsBundle"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants"
 });
 
 setBuildTimeData('features.assistantsManager', {
@@ -31691,6 +31728,12 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "disableDelegation": {
+        "description": "Permanently remove delegation capabilities from a child, including after reload.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
       "addSystemPromptExtension": {
         "description": "Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.",
         "parameters": {
@@ -32175,6 +32218,10 @@ export const introspectionData: Record<string, any>[] = [
         "description": "How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc.",
         "returns": "number"
       },
+      "delegationDisabled": {
+        "description": "Whether this assistant is barred from consuming delegation tools.",
+        "returns": "boolean"
+      },
       "systemPrompt": {
         "description": "The current system prompt text.",
         "returns": "string"
@@ -32420,6 +32467,32 @@ export const introspectionData: Record<string, any>[] = [
         }
       }
     }
+  },
+  {
+    "id": "features.assistantDelegator",
+    "description": "Gives an assistant bounded tools for forks, named specialists, and parallel research. Attach with assistant.use(container.feature('assistantDelegator')). Children never receive these tools or their prompt extension. Limits belong to the parent instance, so a new conversation or reattachment does not replenish the task budget. This governs framework delegation tools; arbitrary code tools remain trusted code.",
+    "shortcut": "features.assistantDelegator",
+    "className": "AssistantDelegator",
+    "methods": {
+      "toTools": {
+        "description": "Build a consumer-bound bundle; the same feature can safely serve multiple parents.",
+        "parameters": {
+          "options": {
+            "type": "{ only?: string[]; except?: string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "ToolsBundle"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants"
   },
   {
     "id": "features.assistantsManager",
@@ -46351,7 +46424,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "string"
       },
       "discover": {
-        "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
+        "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Results (including empty scans) are cached in state for the latest scan options for this feature instance. Repeat calls reuse them; pass `refresh: true` to rescan. Changed hosts, ports, timeout, tailscale settings, or probe function trigger a new scan. Concurrent identical scans are shared. Read discoveredServers, discoveredModels, hasDiscovered, and discoveredAt synchronously after awaiting discovery. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
         "parameters": {
           "options": {
             "type": "ModelProviderDiscoverOptions",
@@ -46380,6 +46453,10 @@ export const introspectionData: Record<string, any>[] = [
               "register": {
                 "type": "boolean",
                 "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false."
+              },
+              "refresh": {
+                "type": "boolean",
+                "description": "Bypass cached results and scan again. Concurrent scans with the same options are shared."
               },
               "probe": {
                 "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
@@ -46428,6 +46505,22 @@ export const introspectionData: Record<string, any>[] = [
       }
     },
     "getters": {
+      "discoveredServers": {
+        "description": "Servers from the last completed discovery, cloned for safe synchronous access. Empty before discovery.",
+        "returns": "DiscoveredModelServer[]"
+      },
+      "discoveredModels": {
+        "description": "Unique model ids advertised by the last discovered servers. Empty before discovery.",
+        "returns": "string[]"
+      },
+      "hasDiscovered": {
+        "description": "Whether discovery has completed, including a scan that found no servers.",
+        "returns": "boolean"
+      },
+      "discoveredAt": {
+        "description": "Time of the last completed scan in milliseconds since epoch, or undefined before discovery.",
+        "returns": "number | undefined"
+      },
       "available": {
         "description": "Provider profile ids available for `provider: \"...\"` lookups.",
         "returns": "string[]"
@@ -46641,6 +46734,11 @@ export const introspectionData: Record<string, any>[] = [
           "register": {
             "type": "boolean",
             "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false.",
+            "optional": true
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "Bypass cached results and scan again. Concurrent scans with the same options are shared.",
             "optional": true
           },
           "probe": {

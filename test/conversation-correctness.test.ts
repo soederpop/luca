@@ -397,7 +397,9 @@ describe('Conversation correctness boundaries', () => {
 		const fork = await assistant.fork({ history: 'none', forbidTools: ['createResearchJob'] })
 
 		expect(fork.conversation.availableTools).toEqual(['safeLookup'])
-		expect(fork.conversation.options.providerOptions?.assistantToolFilters).toEqual({ forbidTools: ['createResearchJob'] })
+		expect(fork.conversation.options.providerOptions?.assistantToolFilters).toEqual({
+			forbidTools: ['createResearchJob', 'delegateTask', 'researchTasks', 'listDelegationAgents', 'delegationStatus'],
+		})
 	})
 
 	it('requests streaming Chat usage, minimizes Codex continuation data, and forwards Claude MCP filters', async () => {

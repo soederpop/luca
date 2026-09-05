@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.11.2"
+export const typesBundleVersion = "3.12.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -53,6 +53,10 @@ export declare class AGIContainer<Features extends AGIFeatures = AGIFeatures, K 
 declare const container: any;
 export default container;
 //# sourceMappingURL=container.server.d.ts.map`,
+  "agi/delegation-policy.d.ts": `/** Reserved tool names and prompt key: descendants never inherit delegation. */
+export declare const delegationToolNames: readonly ["delegateTask", "researchTasks", "listDelegationAgents", "delegationStatus"];
+export declare const delegationPromptKey = "assistantDelegator";
+//# sourceMappingURL=delegation-policy.d.ts.map`,
   "agi/feature.d.ts": `import type { AGIFeatures, AGIContainer } from './container.server.js';
 import type { FeatureOptions, FeatureState } from '../feature.ts';
 import { features, Feature as NodeFeature } from '../node/feature.ts';
@@ -73,6 +77,7 @@ export declare class Feature<T extends FeatureState = FeatureState, K extends Fe
  * container builds its Features type from.
  */
 import { Memory } from "./features/agent-memory";
+import { AssistantDelegator } from "./features/assistant-delegator";
 import { Assistant } from "./features/assistant";
 import { AssistantsManager } from "./features/assistants-manager";
 import { BrowserUse } from "./features/browser-use";
@@ -92,6 +97,8 @@ import { SkillsLibrary } from "./features/skills-library";
 import { VoiceMode } from "./features/voice-mode";
 export { Memory } from "./features/agent-memory";
 export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
+export { AssistantDelegator } from "./features/assistant-delegator";
+export type { AssistantDelegatorOptions, DelegationResult } from "./features/assistant-delegator";
 export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
@@ -115,7 +122,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -126,6 +133,7 @@ export { VoiceMode } from "./features/voice-mode";
 export type { VoiceModeOptions, VoiceModeState, TtsProvider, TtsSynthesizeOptions, VoiceConfig } from "./features/voice-mode";
 export interface GeneratedAGIFeatures {
     assistant: typeof Assistant;
+    assistantDelegator: typeof AssistantDelegator;
     assistantsManager: typeof AssistantsManager;
     browserUse: typeof BrowserUse;
     claudeCode: typeof ClaudeCode;
@@ -147,6 +155,7 @@ export interface GeneratedAGIFeatures {
 /** Every registered feature class, keyed by class name — for use() loops and VM module seeding. */
 export declare const generatedAgiFeatureExports: {
     readonly Assistant: typeof Assistant;
+    readonly AssistantDelegator: typeof AssistantDelegator;
     readonly AssistantsManager: typeof AssistantsManager;
     readonly BrowserUse: typeof BrowserUse;
     readonly ClaudeCode: typeof ClaudeCode;
@@ -801,6 +810,88 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
 }
 export default Memory;
 //# sourceMappingURL=agent-memory.d.ts.map`,
+  "agi/features/assistant-delegator.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import type { FeatureState } from '../../feature.js';
+import type { ToolsBundle } from '../../helper.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        assistantDelegator: typeof AssistantDelegator;
+    }
+}
+export declare const AssistantDelegatorOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    maxConcurrent: z.ZodDefault<z.ZodNumber>;
+    maxTasks: z.ZodDefault<z.ZodNumber>;
+    timeoutMs: z.ZodDefault<z.ZodNumber>;
+    maxToolTurns: z.ZodDefault<z.ZodNumber>;
+    allowedAgents: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export type AssistantDelegatorOptions = z.infer<typeof AssistantDelegatorOptionsSchema>;
+export interface DelegationResult {
+    task: string;
+    status: 'completed' | 'failed' | 'timedOut';
+    result?: string;
+    error?: string;
+}
+/**
+ * Gives an assistant bounded tools for forks, named specialists, and parallel research.
+ * Attach with assistant.use(container.feature('assistantDelegator')). Children never
+ * receive these tools or their prompt extension. Limits belong to the parent instance,
+ * so a new conversation or reattachment does not replenish the task budget.
+ * This governs framework delegation tools; arbitrary code tools remain trusted code.
+ */
+export declare class AssistantDelegator extends Feature<FeatureState, AssistantDelegatorOptions> {
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        maxConcurrent: z.ZodDefault<z.ZodNumber>;
+        maxTasks: z.ZodDefault<z.ZodNumber>;
+        timeoutMs: z.ZodDefault<z.ZodNumber>;
+        maxToolTurns: z.ZodDefault<z.ZodNumber>;
+        allowedAgents: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    }, z.core.$strip>;
+    static shortcut: "features.assistantDelegator";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    static tools: {
+        delegateTask: {
+            schema: z.ZodObject<{
+                task: z.ZodString;
+                agent: z.ZodOptional<z.ZodString>;
+                history: z.ZodDefault<z.ZodUnion<readonly [z.ZodLiteral<"none">, z.ZodLiteral<"full">, z.ZodNumber]>>;
+            }, z.core.$strip>;
+        };
+        researchTasks: {
+            schema: z.ZodObject<{
+                questions: z.ZodArray<z.ZodString>;
+                context: z.ZodDefault<z.ZodString>;
+                history: z.ZodDefault<z.ZodUnion<readonly [z.ZodLiteral<"none">, z.ZodLiteral<"full">, z.ZodNumber]>>;
+            }, z.core.$strip>;
+        };
+        listDelegationAgents: {
+            schema: z.ZodObject<{}, z.core.$strip>;
+        };
+        delegationStatus: {
+            schema: z.ZodObject<{}, z.core.$strip>;
+        };
+    };
+    /** Build a consumer-bound bundle; the same feature can safely serve multiple parents. */
+    toTools(options?: {
+        only?: string[];
+        except?: string[];
+    }): ToolsBundle;
+    private invoke;
+    private reserve;
+    private run;
+}
+export default AssistantDelegator;
+//# sourceMappingURL=assistant-delegator.d.ts.map`,
   "agi/features/assistant.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message, ConversationRouting, SetProviderOptions, ClearMessagesOptions, MessageEdit, MessageSelector, FailedTurnRecord } from './conversation';
@@ -873,6 +964,7 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
+    delegationDisabled: z.ZodOptional<z.ZodBoolean>;
     folder: z.ZodDefault<z.ZodString>;
     docsFolder: z.ZodOptional<z.ZodString>;
     systemPrompt: z.ZodOptional<z.ZodString>;
@@ -1017,6 +1109,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         _cacheKey: z.ZodOptional<z.ZodString>;
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
+        delegationDisabled: z.ZodOptional<z.ZodBoolean>;
         folder: z.ZodDefault<z.ZodString>;
         docsFolder: z.ZodOptional<z.ZodString>;
         systemPrompt: z.ZodOptional<z.ZodString>;
@@ -1263,6 +1356,11 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     get isFork(): boolean;
     /** How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc. */
     get forkDepth(): number;
+    private _delegationDisabled;
+    /** Whether this assistant is barred from consuming delegation tools. */
+    get delegationDisabled(): boolean;
+    /** Permanently remove delegation capabilities from a child, including after reload. */
+    disableDelegation(): this;
     /** The current system prompt text. */
     get systemPrompt(): string;
     /** The named extensions appended to the system prompt. */
@@ -1641,7 +1739,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     /**
      * Fork the assistant into a new independent instance. The fork gets its own
      * conversation (with configurable history truncation) but preserves the
-     * assistant's full identity: interceptors, tools, hooks, system prompt extensions.
+     * assistant's identity: interceptors, tools, hooks, system prompt extensions.
+     * Delegation tools and their prompt extension are always excluded from forks.
      *
      * @param options - Fork options including history truncation and conversation overrides
      *   - \`history: 'full'\` (default) — deep copy all messages
@@ -5681,15 +5780,33 @@ export declare class FileTools extends Feature {
      * \`lockToFolder\` and \`forbid\` constraints. Throws if the path is blocked.
      */
     private validatePath;
+    /**
+     * Read UTF-8 text. Without a range, returns the file verbatim; offset/limit
+     * return numbered lines. Both range values must be positive integers.
+     * @param args - File path and optional 1-based offset and maximum line count
+     * @returns File text, or lines prefixed with their number and a tab
+     */
     readFile(args: {
         path: string;
         offset?: number;
         limit?: number;
     }): Promise<string>;
+    /**
+     * Replace a file with UTF-8 text, creating parent directories as needed.
+     * @param args - Destination path and complete replacement content
+     * @returns Confirmation with the number of UTF-8 bytes written
+     */
     writeFile(args: {
         path: string;
         content: string;
     }): Promise<string>;
+    /**
+     * Replace an exact, nonempty text match. Matching is literal, including
+     * whitespace. Requires one occurrence unless replaceAll is true. An empty,
+     * absent, or ambiguous match returns an Error: message without changing the file.
+     * @param args - File path, exact existing text, replacement text, and optional replaceAll
+     * @returns Confirmation, or an Error: message explaining how to correct the match
+     */
     editFile(args: {
         path: string;
         oldString: string;
@@ -6548,6 +6665,7 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
 export default McpBridge;
 //# sourceMappingURL=mcp-bridge.d.ts.map`,
   "agi/features/model-providers.d.ts": `import { Feature } from '../feature';
+import { z } from 'zod';
 import OpenAI from 'openai';
 declare module 'luca/feature' {
     interface AvailableFeatures {
@@ -6635,6 +6753,26 @@ export interface DiscoveredModelServer {
     /** Provider profile id serving this baseURL — an existing profile that matched, or the one created by \`register: true\`. */
     profileId?: string;
 }
+export declare const ModelProvidersStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    discoveredServers: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        baseURL: z.ZodString;
+        host: z.ZodString;
+        port: z.ZodNumber;
+        source: z.ZodEnum<{
+            localhost: "localhost";
+            tailscale: "tailscale";
+        }>;
+        hostname: z.ZodOptional<z.ZodString>;
+        hint: z.ZodOptional<z.ZodString>;
+        models: z.ZodArray<z.ZodString>;
+        latencyMs: z.ZodNumber;
+        profileId: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>>;
+    discoveryKey: z.ZodOptional<z.ZodString>;
+    discoveredAt: z.ZodOptional<z.ZodNumber>;
+}, z.core.$loose>;
+export type ModelProvidersState = z.infer<typeof ModelProvidersStateSchema>;
 /** Options for \`discover()\`. */
 export interface ModelProviderDiscoverOptions {
     /** Ports to probe on every host. Defaults to KNOWN_LLM_PORTS. */
@@ -6649,6 +6787,8 @@ export interface ModelProviderDiscoverOptions {
     timeoutMs?: number;
     /** Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false. */
     register?: boolean;
+    /** Bypass cached results and scan again. Concurrent scans with the same options are shared. */
+    refresh?: boolean;
     /** Injectable fetch used for probes — for tests. Defaults to global fetch. */
     probe?: (url: string, init: {
         signal: AbortSignal;
@@ -6839,17 +6979,45 @@ export declare class ClaudeSessionTransport implements ModelTransport {
     private contentToText;
     private promptFromMessages;
 }
-export declare class ModelProviders extends Feature {
+export declare class ModelProviders extends Feature<ModelProvidersState> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        discoveredServers: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            baseURL: z.ZodString;
+            host: z.ZodString;
+            port: z.ZodNumber;
+            source: z.ZodEnum<{
+                localhost: "localhost";
+                tailscale: "tailscale";
+            }>;
+            hostname: z.ZodOptional<z.ZodString>;
+            hint: z.ZodOptional<z.ZodString>;
+            models: z.ZodArray<z.ZodString>;
+            latencyMs: z.ZodNumber;
+            profileId: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>>>;
+        discoveryKey: z.ZodOptional<z.ZodString>;
+        discoveredAt: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$loose>;
     static description: string;
     static shortcut: "features.modelProviders";
     static stability: "core";
     static category: "ai-assistants";
-    static optionsSchema: import("zod").ZodObject<{
+    static optionsSchema: z.ZodObject<{
         [x: string]: any;
-    }, import("zod/v4/core").$strip>;
-    static stateSchema: import("zod").ZodObject<{
-        [x: string]: any;
-    }, import("zod/v4/core").$strip>;
+    }, z.core.$strip>;
+    private discoveryPending;
+    private probeIds;
+    private nextProbeId;
+    get initialState(): ModelProvidersState;
+    /** Servers from the last completed discovery, cloned for safe synchronous access. Empty before discovery. */
+    get discoveredServers(): DiscoveredModelServer[];
+    /** Unique model ids advertised by the last discovered servers. Empty before discovery. */
+    get discoveredModels(): string[];
+    /** Whether discovery has completed, including a scan that found no servers. */
+    get hasDiscovered(): boolean;
+    /** Time of the last completed scan in milliseconds since epoch, or undefined before discovery. */
+    get discoveredAt(): number | undefined;
     private transports;
     private get profileMap();
     constructor(options: any, context: any);
@@ -6953,6 +7121,13 @@ export declare class ModelProviders extends Feature {
      * a models list is simply omitted, and a missing tailscale is skipped
      * silently — discover() never throws for an unreachable target.
      *
+     * Results (including empty scans) are cached in state for the latest scan
+     * options for this feature instance. Repeat calls reuse them; pass
+     * \`refresh: true\` to rescan. Changed hosts, ports, timeout, tailscale settings,
+     * or probe function trigger a new scan. Concurrent identical scans are shared.
+     * Read discoveredServers, discoveredModels, hasDiscovered, and discoveredAt
+     * synchronously after awaiting discovery.
+     *
      * Pass \`register: true\` to turn each hit into a provider profile
      * (via registerLocal) so assistants can use it immediately; servers whose
      * baseURL already matches a registered profile are reported with that
@@ -6969,6 +7144,8 @@ export declare class ModelProviders extends Feature {
      * for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
      */
     discover(options?: ModelProviderDiscoverOptions): Promise<DiscoveredModelServer[]>;
+    private scanServers;
+    private matchDiscoveredProfiles;
     /** localhost/loopback aliases and trailing slashes all describe the same server. */
     private normalizeBaseURL;
     /**
@@ -13491,7 +13668,7 @@ export declare function allHelperInstances(): Helper[];
 export declare function allHelperInstances<T extends Helper>(FilterClass: new (...args: any[]) => T): T[];
 //# sourceMappingURL=container.d.ts.map`,
   "describe-search.d.ts": `import type { DocumentInput, SearchResult, SemanticSearch } from './node/features/semantic-search.js';
-/** Where the shared describe index lives. The catalog is a property of the binary (not the project), so all projects share one index. */
+/** Where the shared describe index lives. The catalog is refreshed for the current runtime and discovered project commands on each query. */
 export declare function describeIndexDir(): string;
 /**
  * Embedding config for the describe index, resolved from the environment.
@@ -13510,7 +13687,7 @@ export interface DescribeEmbeddingConfig {
 export declare function describeEmbeddingConfig(): DescribeEmbeddingConfig;
 /**
  * Build one DocumentInput per registered helper (from in-memory introspection,
- * zero I/O) plus one per bundled example and tutorial.
+ * zero I/O), registered command help, and bundled references, examples and tutorials.
  */
 export declare function buildCatalogDocuments(container: any): Promise<DocumentInput[]>;
 /**
@@ -13565,7 +13742,7 @@ export interface DescribeSearchOutcome {
 }
 /**
  * Answer a \`luca describe --query\` request. Hybrid (BM25 + vector, RRF) when
- * embeddings exist; otherwise keyword-only with a hint on how to enable
+ * the full catalog has current embeddings; otherwise keyword-only with a hint on how to enable
  * semantic ranking. Never fails just because embeddings are missing.
  */
 export declare function queryDescribeIndex(container: any, query: string, opts?: {
@@ -14797,6 +14974,7 @@ import "./features/opener";
 import "./features/os";
 import "./features/package-finder";
 import "./features/postgres";
+import "./features/prettier";
 import "./features/proc";
 import "./features/process-manager";
 import "./features/python";
@@ -14849,6 +15027,7 @@ import type { Opener } from "./features/opener";
 import type { OS } from "./features/os";
 import type { PackageFinder } from "./features/package-finder";
 import type { Postgres } from "./features/postgres";
+import type { Prettier } from "./features/prettier";
 import type { ChildProcess } from "./features/proc";
 import type { ProcessManager } from "./features/process-manager";
 import type { Python } from "./features/python";
@@ -14901,6 +15080,7 @@ export type { Opener } from "./features/opener";
 export type { DisplayInfo, OS } from "./features/os";
 export type { PackageFinderState, PackageFinderOptions, PartialManifest, PackageFinder } from "./features/package-finder";
 export type { PostgresState, PostgresOptions, Postgres } from "./features/postgres";
+export type { PrettierParser, PrettierFormatOptions, Prettier } from "./features/prettier";
 export type { ChildProcess } from "./features/proc";
 export type { ProcessManagerState, ProcessManagerOptions, SpawnOptions, SpawnHandler, ProcessManager } from "./features/process-manager";
 export type { PythonState, PythonOptions, RunResult, Python } from "./features/python";
@@ -14954,6 +15134,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     os: typeof OS;
     packageFinder: typeof PackageFinder;
     postgres: typeof Postgres;
+    prettier: typeof Prettier;
     proc: typeof ChildProcess;
     processManager: typeof ProcessManager;
     python: typeof Python;
@@ -24077,8 +24258,206 @@ declare module '../../feature.js' {
     }
 }
 //# sourceMappingURL=postgres.d.ts.map`,
+  "node/features/prettier.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+export type PrettierParser = 'typescript' | 'markdown' | 'yaml';
+export declare const PrettierFormatOptionsSchema: z.ZodObject<{
+    parser: z.ZodOptional<z.ZodEnum<{
+        typescript: "typescript";
+        yaml: "yaml";
+        markdown: "markdown";
+    }>>;
+    filepath: z.ZodOptional<z.ZodString>;
+    printWidth: z.ZodOptional<z.ZodNumber>;
+    tabWidth: z.ZodOptional<z.ZodNumber>;
+    semi: z.ZodOptional<z.ZodBoolean>;
+    singleQuote: z.ZodOptional<z.ZodBoolean>;
+    trailingComma: z.ZodOptional<z.ZodEnum<{
+        none: "none";
+        all: "all";
+        es5: "es5";
+    }>>;
+}, z.core.$strip>;
+export type PrettierFormatOptions = z.infer<typeof PrettierFormatOptionsSchema>;
+/**
+ * The Prettier feature formats TypeScript, Markdown, and YAML source with
+ * prettier's standalone engine.
+ *
+ * It wraps \`prettier/standalone\` with exactly three parsers — typescript,
+ * markdown, and yaml — so it stays lightweight in the compiled binary
+ * (the full prettier package would cost ~5.5MB; this set is well under 2MB).
+ * Markdown documents with YAML frontmatter are handled in one pass: the
+ * frontmatter is formatted by the yaml parser and the body by the markdown
+ * parser. There is no CSS, HTML, or flow support by design.
+ *
+ * All formatting is async (prettier v3), and the parser is inferred from a
+ * \`filepath\` extension when you have one, so callers usually just hand over
+ * source text. Feature options set project-wide defaults (quote style,
+ * semicolons, print width) that every call inherits and can override.
+ *
+ * @example
+ * \`\`\`typescript
+ * const prettier = container.feature('prettier')
+ *
+ * // TypeScript — the default parser
+ * const code = await prettier.format(\`const x={a:1,b:2};function f(  ){return x}\`)
+ * console.log(code)
+ * // const x = { a: 1, b: 2 };
+ * // function f() {
+ * //   return x;
+ * // }
+ *
+ * // Markdown with YAML frontmatter — both parts formatted in one pass
+ * const doc = await prettier.format(
+ *   '---\\ntitle:    Hello\\ntags:   [a,b]\\n---\\n# Heading\\n\\nSome    text',
+ *   { parser: 'markdown' },
+ * )
+ *
+ * // Infer the parser from a file path
+ * const yml = await prettier.format('a:   1', { filepath: 'config.yml' })
+ *
+ * // Project-wide defaults via feature options
+ * const p2 = container.feature('prettier', { singleQuote: true, semi: false })
+ * console.log(await p2.format('const s = "hi"')) // const s = 'hi'
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class Prettier extends Feature {
+    static shortcut: "features.prettier";
+    static stability: "stable";
+    static category: "dev-tools";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        printWidth: z.ZodOptional<z.ZodNumber>;
+        tabWidth: z.ZodOptional<z.ZodNumber>;
+        semi: z.ZodOptional<z.ZodBoolean>;
+        singleQuote: z.ZodOptional<z.ZodBoolean>;
+        trailingComma: z.ZodOptional<z.ZodEnum<{
+            none: "none";
+            all: "all";
+            es5: "es5";
+        }>>;
+    }, z.core.$strip>;
+    /**
+     * Formats source text with prettier.
+     *
+     * The parser is chosen in this order: an explicit \`parser\` option, the
+     * extension of a \`filepath\` option, then \`typescript\` as the fallback.
+     * Options given here override the feature's own option defaults for this
+     * one call. Malformed source throws a SyntaxError from prettier with line
+     * and column info.
+     *
+     * @param {string} source - The source text to format
+     * @param {PrettierFormatOptions} [options] - Parser selection and prettier style options
+     * @returns {Promise<string>} The formatted source
+     * @throws {SyntaxError} When the source cannot be parsed
+     *
+     * @example
+     * \`\`\`typescript
+     * const prettier = container.feature('prettier')
+     *
+     * const out = await prettier.format('const   x=1', { semi: false })
+     * console.log(out) // 'const x = 1\\n'
+     *
+     * // Parser inferred from a path — no need to name it
+     * const md = await prettier.format('#    Title', { filepath: 'README.md' })
+     * console.log(md) // '# Title\\n'
+     * \`\`\`
+     */
+    format(source: string, options?: PrettierFormatOptions): Promise<string>;
+    /**
+     * Checks whether source text is already prettier-formatted.
+     *
+     * Useful as a cheap lint gate: it returns a boolean instead of the
+     * formatted text, so you can report unformatted files without rewriting
+     * them. Uses the same parser inference and defaults as \`format()\`.
+     *
+     * @param {string} source - The source text to check
+     * @param {PrettierFormatOptions} [options] - Parser selection and prettier style options
+     * @returns {Promise<boolean>} True when the source is already formatted
+     *
+     * @example
+     * \`\`\`typescript
+     * const prettier = container.feature('prettier')
+     * console.log(await prettier.check('const x = 1;\\n')) // true
+     * console.log(await prettier.check('const   x=1'))    // false
+     * \`\`\`
+     */
+    check(source: string, options?: PrettierFormatOptions): Promise<boolean>;
+    /**
+     * Formats TypeScript (or JavaScript) source.
+     *
+     * A convenience wrapper over \`format()\` with the typescript parser pinned.
+     *
+     * @param {string} source - The TypeScript source to format
+     * @param {PrettierFormatOptions} [options] - Prettier style options
+     * @returns {Promise<string>} The formatted source
+     *
+     * @example
+     * \`\`\`typescript
+     * const prettier = container.feature('prettier')
+     * const out = await prettier.formatTypeScript('type A={x:number}')
+     * console.log(out) // 'type A = { x: number };\\n'
+     * \`\`\`
+     */
+    formatTypeScript(source: string, options?: PrettierFormatOptions): Promise<string>;
+    /**
+     * Formats a Markdown document, including any YAML frontmatter.
+     *
+     * The markdown parser hands the frontmatter block to the yaml parser, so a
+     * contentDb-style document (frontmatter + body) comes back fully formatted
+     * in one call. Fenced code blocks are left as-is — prettier does not
+     * reformat embedded code without the matching language plugin.
+     *
+     * @param {string} source - The Markdown source to format
+     * @param {PrettierFormatOptions} [options] - Prettier style options
+     * @returns {Promise<string>} The formatted document
+     *
+     * @example
+     * \`\`\`typescript
+     * const prettier = container.feature('prettier')
+     * const doc = await prettier.formatMarkdown('---\\ntitle:   Hi\\n---\\n#  Heading')
+     * console.log(doc)
+     * // ---
+     * // title: Hi
+     * // ---
+     * //
+     * // # Heading
+     * \`\`\`
+     */
+    formatMarkdown(source: string, options?: PrettierFormatOptions): Promise<string>;
+    /**
+     * Formats a standalone YAML document.
+     *
+     * @param {string} source - The YAML source to format
+     * @param {PrettierFormatOptions} [options] - Prettier style options
+     * @returns {Promise<string>} The formatted YAML
+     *
+     * @example
+     * \`\`\`typescript
+     * const prettier = container.feature('prettier')
+     * const out = await prettier.formatYaml('a:    1\\nb:   [1,2]')
+     * console.log(out) // 'a: 1\\nb: [1, 2]\\n'
+     * \`\`\`
+     */
+    formatYaml(source: string, options?: PrettierFormatOptions): Promise<string>;
+    private get styleDefaults();
+    private inferParser;
+}
+export default Prettier;
+//# sourceMappingURL=prettier.d.ts.map`,
   "node/features/proc.d.ts": `import { Feature } from "../feature.js";
+import { spawn as nodeSpawn } from "child_process";
 interface SpawnOptions {
+    /** Run in a separate process group, allowing callers to cancel the child and its descendants together */
+    detached?: boolean;
     /** Standard I/O mode for the child process */
     stdio?: "ignore" | "inherit";
     /** Stdout mode for the child process */
@@ -24096,7 +24475,7 @@ interface SpawnOptions {
     /** Callback invoked when the process exits */
     onExit?: (code: number) => void;
     /** Callback invoked when the process starts */
-    onStart?: (childProcess: ChildProcess) => void;
+    onStart?: (childProcess: ReturnType<typeof nodeSpawn>) => void;
 }
 interface RawSpawnOptions {
     /** Working directory for the child process */
@@ -32678,6 +33057,7 @@ declare abstract class Registry<T extends Helper> {
     baseClass?: new (options: any, context: ContainerContext) => T;
     private readonly members;
     private readonly _events;
+    private _normalizeId;
     constructor();
     /**
      * Lists the keys of all available helpers in this registry.
@@ -34305,7 +34685,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.11.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

@@ -1,7 +1,7 @@
-import { describe, it, expect, afterAll } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { NodeContainer } from '../src/node/container'
 
-// Redis connection-state fixes — verified against a DEAD port on purpose, so
+// Redis connection-state fixes — verified against an unused port, so
 // no live redis server is required:
 // - the 'connect' event owns state.connected (no more connected: true lies)
 // - ping() is timeout-safe and never hangs
@@ -10,8 +10,14 @@ import { NodeContainer } from '../src/node/container'
 
 describe('Redis connection state (no live server required)', () => {
   const container = new NodeContainer()
-  const deadUrl = 'redis://localhost:59987'
+  // A fixed TCP port may belong to a real Redis server on a developer's machine.
+  let deadUrl: string
   const features: any[] = []
+
+  beforeAll(async () => {
+    const port = await container.feature('networking').findOpenPort(49152)
+    deadUrl = `redis://127.0.0.1:${port}`
+  })
 
   const deadRedis = (opts: Record<string, any> = {}) => {
     const redis = container.feature('redis', { url: deadUrl, ...opts })
