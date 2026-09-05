@@ -17082,7 +17082,7 @@ setBuildTimeData('features.modelProviders', {
       "returns": "string"
     },
     "discover": {
-      "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
+      "description": "Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Results (including empty scans) are cached in state for the latest scan options for this feature instance. Repeat calls reuse them; pass `refresh: true` to rescan. Changed hosts, ports, timeout, tailscale settings, or probe function trigger a new scan. Concurrent identical scans are shared. Read discoveredServers, discoveredModels, hasDiscovered, and discoveredAt synchronously after awaiting discovery. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.",
       "parameters": {
         "options": {
           "type": "ModelProviderDiscoverOptions",
@@ -17111,6 +17111,10 @@ setBuildTimeData('features.modelProviders', {
             "register": {
               "type": "boolean",
               "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false."
+            },
+            "refresh": {
+              "type": "boolean",
+              "description": "Bypass cached results and scan again. Concurrent scans with the same options are shared."
             },
             "probe": {
               "type": "(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>",
@@ -17159,6 +17163,22 @@ setBuildTimeData('features.modelProviders', {
     }
   },
   "getters": {
+    "discoveredServers": {
+      "description": "Servers from the last completed discovery, cloned for safe synchronous access. Empty before discovery.",
+      "returns": "DiscoveredModelServer[]"
+    },
+    "discoveredModels": {
+      "description": "Unique model ids advertised by the last discovered servers. Empty before discovery.",
+      "returns": "string[]"
+    },
+    "hasDiscovered": {
+      "description": "Whether discovery has completed, including a scan that found no servers.",
+      "returns": "boolean"
+    },
+    "discoveredAt": {
+      "description": "Time of the last completed scan in milliseconds since epoch, or undefined before discovery.",
+      "returns": "number | undefined"
+    },
     "available": {
       "description": "Provider profile ids available for `provider: \"...\"` lookups.",
       "returns": "string[]"
@@ -17372,6 +17392,11 @@ setBuildTimeData('features.modelProviders', {
         "register": {
           "type": "boolean",
           "description": "Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false.",
+          "optional": true
+        },
+        "refresh": {
+          "type": "boolean",
+          "description": "Bypass cached results and scan again. Concurrent scans with the same options are shared.",
           "optional": true
         },
         "probe": {

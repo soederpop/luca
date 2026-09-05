@@ -1,4 +1,6 @@
 import { Feature } from '../feature'
+import { z } from 'zod'
+import { FeatureStateSchema } from '../../schemas/base'
 import OpenAI from 'openai'
 
 declare module 'luca/feature' {
@@ -108,6 +110,24 @@ export interface DiscoveredModelServer {
   profileId?: string
 }
 
+export const ModelProvidersStateSchema = FeatureStateSchema.extend({
+  discoveredServers: z.array(z.object({
+    baseURL: z.string(),
+    host: z.string(),
+    port: z.number(),
+    source: z.enum(['localhost', 'tailscale']),
+    hostname: z.string().optional(),
+    hint: z.string().optional(),
+    models: z.array(z.string()),
+    latencyMs: z.number(),
+    profileId: z.string().optional(),
+  })).default([]).describe('Servers from the most recently completed discovery'),
+  discoveryKey: z.string().optional().describe('Scan options identifying the cached discovery'),
+  discoveredAt: z.number().optional().describe('Time of the cached scan in milliseconds since epoch'),
+})
+
+export type ModelProvidersState = z.infer<typeof ModelProvidersStateSchema>
+
 /** Options for `discover()`. */
 export interface ModelProviderDiscoverOptions {
   /** Ports to probe on every host. Defaults to KNOWN_LLM_PORTS. */
@@ -122,6 +142,8 @@ export interface ModelProviderDiscoverOptions {
   timeoutMs?: number
   /** Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false. */
   register?: boolean
+  /** Bypass cached results and scan again. Concurrent scans with the same options are shared. */
+  refresh?: boolean
   /** Injectable fetch used for probes — for tests. Defaults to global fetch. */
   probe?: (url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>
 }
@@ -1050,14 +1072,42 @@ export class ClaudeSessionTransport implements ModelTransport {
   }
 }
 
-export class ModelProviders extends Feature {
+export class ModelProviders extends Feature<ModelProvidersState> {
+  static override stateSchema = ModelProvidersStateSchema
   static override description = 'Resolve model provider profiles and route requests to provider transports.'
   static override shortcut = 'features.modelProviders' as const
   static override stability = 'core' as const
   static override category = 'ai-assistants' as const
   static override optionsSchema = Feature.optionsSchema.extend({})
-  static override stateSchema = Feature.stateSchema.extend({})
   static { Feature.register(this, 'modelProviders') }
+
+  private discoveryPending = new Map<string, Promise<DiscoveredModelServer[]>>()
+  private probeIds = new WeakMap<NonNullable<ModelProviderDiscoverOptions['probe']>, number>()
+  private nextProbeId = 0
+
+  override get initialState(): ModelProvidersState {
+    return { ...super.initialState, discoveredServers: [] }
+  }
+
+  /** Servers from the last completed discovery, cloned for safe synchronous access. Empty before discovery. */
+  get discoveredServers(): DiscoveredModelServer[] {
+    return (this.state.get('discoveredServers') ?? []).map(server => ({ ...server, models: [...server.models] }))
+  }
+
+  /** Unique model ids advertised by the last discovered servers. Empty before discovery. */
+  get discoveredModels(): string[] {
+    return [...new Set(this.discoveredServers.flatMap(server => server.models))]
+  }
+
+  /** Whether discovery has completed, including a scan that found no servers. */
+  get hasDiscovered(): boolean {
+    return this.discoveredAt !== undefined
+  }
+
+  /** Time of the last completed scan in milliseconds since epoch, or undefined before discovery. */
+  get discoveredAt(): number | undefined {
+    return this.state.get('discoveredAt')
+  }
 
   private transports = new Map<ModelProviderApiMode, ModelTransport>()
 
@@ -1302,6 +1352,13 @@ export class ModelProviders extends Feature {
    * a models list is simply omitted, and a missing tailscale is skipped
    * silently — discover() never throws for an unreachable target.
    *
+   * Results (including empty scans) are cached in state for the latest scan
+   * options for this feature instance. Repeat calls reuse them; pass
+   * `refresh: true` to rescan. Changed hosts, ports, timeout, tailscale settings,
+   * or probe function trigger a new scan. Concurrent identical scans are shared.
+   * Read discoveredServers, discoveredModels, hasDiscovered, and discoveredAt
+   * synchronously after awaiting discovery.
+   *
    * Pass `register: true` to turn each hit into a provider profile
    * (via registerLocal) so assistants can use it immediately; servers whose
    * baseURL already matches a registered profile are reported with that
@@ -1318,6 +1375,41 @@ export class ModelProviders extends Feature {
    * for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
    */
   async discover(options: ModelProviderDiscoverOptions = {}): Promise<DiscoveredModelServer[]> {
+    if (options.probe && !this.probeIds.has(options.probe)) {
+      this.probeIds.set(options.probe, ++this.nextProbeId)
+    }
+    const key = JSON.stringify({
+      ports: [...new Set(options.ports ?? KNOWN_LLM_PORTS.map(entry => entry.port))].sort((a, b) => a - b),
+      hosts: [...new Set(options.hosts ?? [])].sort(),
+      localhost: options.localhost !== false,
+      tailscale: options.tailscale !== false,
+      timeoutMs: options.timeoutMs ?? 1500,
+      probe: options.probe ? this.probeIds.get(options.probe) : 0,
+    })
+    let pending = this.discoveryPending.get(key)
+    let found: DiscoveredModelServer[]
+    let discoveredAt: number
+    if (!pending && !options.refresh && this.state.get('discoveryKey') === key && this.hasDiscovered) {
+      found = this.discoveredServers
+      discoveredAt = this.discoveredAt!
+    } else {
+      if (!pending) {
+        pending = this.scanServers(options)
+        this.discoveryPending.set(key, pending)
+      }
+      try {
+        found = (await pending).map(server => ({ ...server, models: [...server.models] }))
+        discoveredAt = Date.now()
+      } finally {
+        if (this.discoveryPending.get(key) === pending) this.discoveryPending.delete(key)
+      }
+    }
+    this.matchDiscoveredProfiles(found, options.register)
+    this.setState({ discoveredServers: found, discoveryKey: key, discoveredAt })
+    return this.discoveredServers
+  }
+
+  private async scanServers(options: ModelProviderDiscoverOptions): Promise<DiscoveredModelServer[]> {
     const ports = options.ports ?? KNOWN_LLM_PORTS.map(entry => entry.port)
     const timeoutMs = options.timeoutMs ?? 1500
     const probe = options.probe ?? ((url: string, init: { signal: AbortSignal }) => fetch(url, init))
@@ -1357,8 +1449,10 @@ export class ModelProviders extends Feature {
       }
     }))
 
-    const found = (await Promise.all(probes)).filter((server): server is DiscoveredModelServer => server !== null)
+    return (await Promise.all(probes)).filter((server): server is DiscoveredModelServer => server !== null)
+  }
 
+  private matchDiscoveredProfiles(found: DiscoveredModelServer[], register = false): void {
     const byBaseURL = new Map(this.list().filter(profile => profile.baseURL).map(profile => [this.normalizeBaseURL(profile.baseURL!), profile.id]))
     for (const server of found) {
       const existing = byBaseURL.get(this.normalizeBaseURL(server.baseURL))
@@ -1366,7 +1460,8 @@ export class ModelProviders extends Feature {
         server.profileId = existing
         continue
       }
-      if (options.register) {
+      delete server.profileId
+      if (register) {
         const name = (server.hostname ?? server.host).replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
         const id = `${name}-${server.port}`
         this.registerLocal(id, server.baseURL, server.models[0] ?? 'local-model', {
@@ -1376,8 +1471,6 @@ export class ModelProviders extends Feature {
         server.profileId = id
       }
     }
-
-    return found
   }
 
   /** localhost/loopback aliases and trailing slashes all describe the same server. */

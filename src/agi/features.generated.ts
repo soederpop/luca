@@ -10,6 +10,7 @@
  */
 
 import { Memory } from "./features/agent-memory";
+import { AssistantDelegator } from "./features/assistant-delegator";
 import { Assistant } from "./features/assistant";
 import { AssistantsManager } from "./features/assistants-manager";
 import { BrowserUse } from "./features/browser-use";
@@ -30,6 +31,8 @@ import { VoiceMode } from "./features/voice-mode";
 
 export { Memory } from "./features/agent-memory";
 export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
+export { AssistantDelegator } from "./features/assistant-delegator";
+export type { AssistantDelegatorOptions, DelegationResult } from "./features/assistant-delegator";
 export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
@@ -53,7 +56,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -65,6 +68,7 @@ export type { VoiceModeOptions, VoiceModeState, TtsProvider, TtsSynthesizeOption
 
 export interface GeneratedAGIFeatures {
   assistant: typeof Assistant;
+  assistantDelegator: typeof AssistantDelegator;
   assistantsManager: typeof AssistantsManager;
   browserUse: typeof BrowserUse;
   claudeCode: typeof ClaudeCode;
@@ -87,6 +91,7 @@ export interface GeneratedAGIFeatures {
 /** Every registered feature class, keyed by class name — for use() loops and VM module seeding. */
 export const generatedAgiFeatureExports = {
   Assistant,
+  AssistantDelegator,
   AssistantsManager,
   BrowserUse,
   ClaudeCode,

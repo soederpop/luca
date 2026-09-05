@@ -8,6 +8,8 @@ An Assistant is a combination of a system prompt and tool calls that has a conve
 
 ```ts
 container.feature('assistant', {
+  // Disable assistantDelegator tools and guidance. Automatically enabled for forks and subagents.
+  delegationDisabled,
   // The folder containing the assistant definition. Defaults to cwd for runtime-created assistants.
   folder,
   // The folder containing the assistant documentation
@@ -69,6 +71,7 @@ container.feature('assistant', {
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `delegationDisabled` | `boolean` | Disable assistantDelegator tools and guidance. Automatically enabled for forks and subagents. |
 | `folder` | `string` | The folder containing the assistant definition. Defaults to cwd for runtime-created assistants. |
 | `docsFolder` | `string` | The folder containing the assistant documentation |
 | `systemPrompt` | `string` | Provide a complete system prompt directly, bypassing CORE.md |
@@ -136,6 +139,12 @@ Called immediately after the assistant is constructed. Synchronously loads the s
 **Returns:** `void`
 
 
+
+### disableDelegation
+
+Permanently remove delegation capabilities from a child, including after reload.
+
+**Returns:** `this`
 
 ### addSystemPromptExtension
 
@@ -484,6 +493,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
 | `isFork` | `boolean` | Whether this assistant was created via fork(). |
 | `forkDepth` | `number` | How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc. |
+| `delegationDisabled` | `boolean` | Whether this assistant is barred from consuming delegation tools. |
 | `systemPrompt` | `string` | The current system prompt text. |
 | `systemPromptExtensions` | `Record<string, string>` | The named extensions appended to the system prompt. |
 | `effectiveSystemPrompt` | `string` | The system prompt with all extensions appended. This is the value passed to the conversation. |
@@ -793,4 +803,3 @@ googleWorkspace:
 // assistants/googleWorkspace/tools.ts
 export const use = [container.feature('gws', { profile: me.config.gwsProfile })]
 ```
-

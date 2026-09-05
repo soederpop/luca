@@ -645,6 +645,60 @@ describe('ModelProviders discover()', () => {
     }
   }
 
+  it('caches scans in state, exposes safe synchronous getters, and explicitly refreshes', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    expect(providers.hasDiscovered).toBe(false)
+    expect(providers.discoveredServers).toEqual([])
+    expect(providers.discoveredModels).toEqual([])
+    expect(providers.discoveredAt).toBeUndefined()
+    let calls = 0
+    let models = ['qwen', 'qwen', 'llama']
+    const options = { tailscale: false, ports: [9999], probe: async () => {
+      calls++
+      return { ok: true, json: async () => ({ data: models.map(id => ({ id })) }) }
+    } }
+    const found = await providers.discover(options)
+    expect(providers.state.get('discoveredServers')).toEqual(found)
+    expect(providers.hasDiscovered).toBe(true)
+    expect(providers.discoveredModels).toEqual(['qwen', 'llama'])
+    const timestamp = providers.discoveredAt
+    found[0]!.models.push('corrupted')
+    providers.discoveredServers[0]!.models.push('also-corrupted')
+    const cached = await providers.discover({ ...options, register: true })
+    expect(calls).toBe(1)
+    expect(providers.discoveredAt).toBe(timestamp)
+    expect(cached[0]!.models).toEqual(models)
+    expect(providers.get(cached[0]!.profileId!)?.defaultModel).toBe('qwen')
+    models = ['new-model']
+    await providers.discover({ ...options, refresh: true })
+    expect(calls).toBe(2)
+    expect(providers.discoveredModels).toEqual(['new-model'])
+    await providers.discover({ ...options, ports: [9998] })
+    expect(calls).toBe(3)
+    expect(providers.discoveredServers[0]!.port).toBe(9998)
+  })
+
+  it('shares concurrent scans and caches an empty result', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    let calls = 0
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const options = { tailscale: false, ports: [9999], probe: async () => {
+      calls++
+      await gate
+      throw new Error('offline')
+    } }
+    const first = providers.discover(options)
+    const second = providers.discover(options)
+    release()
+    expect(await first).toEqual([])
+    expect(await second).toEqual([])
+    expect(await providers.discover(options)).toEqual([])
+    expect(calls).toBe(1)
+    expect(providers.hasDiscovered).toBe(true)
+    expect(providers.discoveredServers).toEqual([])
+  })
+
   it('finds live servers on known localhost ports and skips dead ones', async () => {
     const providers = new AGIContainer().feature('modelProviders')
     const found = await providers.discover({

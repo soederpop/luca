@@ -11,6 +11,7 @@ import { deepMergeOptions } from '../lib/merge-options.js'
 import type { Entity } from '../../entity.js'
 import { State } from '../../state.js'
 import type { ToolsBundle } from '../../helper.js'
+import { delegationToolNames, delegationPromptKey } from '../delegation-policy.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -59,6 +60,7 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
+	delegationDisabled: z.boolean().optional().describe('Disable assistantDelegator tools and guidance. Automatically enabled for forks and subagents.'),
 	/** The folder containing the assistant definition (CORE.md, tools.ts, hooks.ts). Optional for runtime-created assistants. */
 	folder: z.string().default('.').describe('The folder containing the assistant definition. Defaults to cwd for runtime-created assistants.'),
 
@@ -703,6 +705,21 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return (this.state.get('forkDepth') as number) ?? 0
 	}
 
+	private _delegationDisabled = false
+
+	/** Whether this assistant is barred from consuming delegation tools. */
+	get delegationDisabled(): boolean {
+		return this._delegationDisabled || !!this.options.delegationDisabled || this.isFork
+	}
+
+	/** Permanently remove delegation capabilities from a child, including after reload. */
+	disableDelegation(): this {
+		this._delegationDisabled = true
+		for (const name of delegationToolNames) this.removeTool(name)
+		this.removeSystemPromptExtension(delegationPromptKey)
+		return this
+	}
+
 	/** The current system prompt text. */
 	get systemPrompt(): string {
 		return this.state.get('systemPrompt') || ''
@@ -710,7 +727,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The named extensions appended to the system prompt. */
 	get systemPromptExtensions(): Record<string, string> {
-		return (this.state.get('systemPromptExtensions') || {}) as Record<string, string>
+		const extensions = { ...(this.state.get('systemPromptExtensions') || {}) } as Record<string, string>
+		if (this.delegationDisabled) delete extensions[delegationPromptKey]
+		return extensions
 	}
 
 	/** The system prompt with all extensions appended. This is the value passed to the conversation. */
@@ -730,6 +749,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	addSystemPromptExtension(key: string, value: string): this {
+		if (this.delegationDisabled && key === delegationPromptKey) return this
 		this.state.set('systemPromptExtensions', { ...this.systemPromptExtensions, [key]: value })
 		this.syncSystemPromptToConversation()
 		this.emit('systemPromptExtensionsChanged')
@@ -769,7 +789,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** Filter policy forwarded to assistant-backed MCP subprocesses. */
 	private get providerToolFilters(): Pick<AssistantOptions, 'allowTools' | 'forbidTools' | 'toolNames'> | undefined {
-		const { allowTools, forbidTools, toolNames } = this.effectiveOptions
+		const { allowTools, toolNames } = this.effectiveOptions
+		const forbidTools = this.delegationDisabled
+			? [...(this.effectiveOptions.forbidTools || []), ...delegationToolNames]
+			: this.effectiveOptions.forbidTools
 		if (!allowTools && !forbidTools && !toolNames) return undefined
 		return {
 			...(allowTools ? { allowTools: [...allowTools] } : {}),
@@ -780,7 +803,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** Every known tool before allow/forbid/toolNames filters are applied. */
 	get allTools(): Record<string, ConversationTool> {
-		return (this.state.get('tools') || {}) as Record<string, ConversationTool>
+		const tools = (this.state.get('tools') || {}) as Record<string, ConversationTool>
+		if (!this.delegationDisabled) return tools
+		return Object.fromEntries(Object.entries(tools).filter(([name]) => !delegationToolNames.includes(name as any)))
 	}
 
 	/** Live Zod schemas keyed by tool name. */
@@ -800,6 +825,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** Resolve whether one tool survives the assistant's current filters. */
 	toolFilterDecision(name: string): ToolFilterDecision {
+		if (this.delegationDisabled && delegationToolNames.includes(name as any)) return { included: false, excludedBy: 'delegationDisabled' }
 		return resolveToolFilterDecision(name, this.effectiveOptions)
 	}
 
@@ -853,7 +879,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				const provided = (fnOrHelper as any).toTools() as ToolsBundle
 				const source = provided.provider?.name || this.describeToolsProvider(fnOrHelper)
 				this._registerTools(provided, source)
-				if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
+				if (typeof provided.setup === 'function') {
+					provided.setup(this)
+				} else if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
 					(fnOrHelper as any).setupToolsConsumer(this)
 				}
 			} catch (err: any) {
@@ -954,6 +982,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 
 		if (!name) throw new Error('addTool handler must be a named function')
+		if (this.delegationDisabled && delegationToolNames.includes(name as any)) return this
 		if (!this._runtimeToolNames) this._runtimeToolNames = new Set()
 		this._runtimeToolNames.add(name)
 
@@ -2100,7 +2129,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/**
 	 * Fork the assistant into a new independent instance. The fork gets its own
 	 * conversation (with configurable history truncation) but preserves the
-	 * assistant's full identity: interceptors, tools, hooks, system prompt extensions.
+	 * assistant's identity: interceptors, tools, hooks, system prompt extensions.
+	 * Delegation tools and their prompt extension are always excluded from forks.
 	 *
 	 * @param options - Fork options including history truncation and conversation overrides
 	 *   - `history: 'full'` (default) — deep copy all messages
@@ -2143,6 +2173,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Create a new assistant that reuses the forked conversation
 		const forkedAssistant = this.container.feature('assistant', {
 			...this.options,
+			delegationDisabled: true,
 			// Pass through conversation overrides that map to assistant options
 			...(convOverrides.model ? { model: convOverrides.model } : {}),
 			...(convOverrides.maxTokens ? { maxTokens: convOverrides.maxTokens } : {}),
@@ -2185,6 +2216,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		// Copy system prompt extensions
 		forkedAssistant.state.set('systemPromptExtensions', { ...this.systemPromptExtensions })
+		forkedAssistant.disableDelegation()
 
 		// Start wires up event forwarding and the interceptor-aware tool executor
 		await forkedAssistant.start()
@@ -2387,7 +2419,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await manager.discover()
 		}
 
-		const instance = manager.create(id, options)
+		const instance = manager.create(id, { ...options, delegationDisabled: true })
+		if (instance === this) throw new Error('An assistant cannot be its own subagent')
+		instance.disableDelegation()
 		await instance.start()
 
 		this.state.set('subagents', { ...subagents, [id]: instance })
