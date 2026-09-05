@@ -47,8 +47,8 @@ describe('helper instance cache', () => {
 	describe('assistant conversations are never shared', () => {
 		it('two assistants of the same kind own distinct conversations', () => {
 			const container = new AGIContainer()
-			const a1 = container.feature('assistant', { folder: 'assistants/codingAssistant', name: 'probe1' })
-			const a2 = container.feature('assistant', { folder: 'assistants/codingAssistant', name: 'probe2' })
+			const a1 = container.feature('assistant', { folder: 'assistants/luca', name: 'probe1' })
+			const a2 = container.feature('assistant', { folder: 'assistants/luca', name: 'probe2' })
 			expect(a1).not.toBe(a2)
 			expect(a1.conversation).not.toBe(a2.conversation)
 			expect(a1.conversation.uuid).not.toBe(a2.conversation.uuid)
@@ -56,8 +56,8 @@ describe('helper instance cache', () => {
 
 		it('mutating one assistant conversation does not leak into the other', () => {
 			const container = new AGIContainer()
-			const a1 = container.feature('assistant', { folder: 'assistants/codingAssistant', name: 'leak1' })
-			const a2 = container.feature('assistant', { folder: 'assistants/codingAssistant', name: 'leak2' })
+			const a1 = container.feature('assistant', { folder: 'assistants/luca', name: 'leak1' })
+			const a2 = container.feature('assistant', { folder: 'assistants/luca', name: 'leak2' })
 			a1.conversation.pushMessage({ role: 'user', content: 'secret from session 1' })
 			const leaked = a2.conversation.messages.some(
 				(m: any) => typeof m.content === 'string' && m.content.includes('secret from session 1')
