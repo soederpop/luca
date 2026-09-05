@@ -11831,6 +11831,7 @@ export declare const argsSchema: z.ZodObject<{
     use: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
     forbidTool: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
     allowTool: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
+    noSplash: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export default function chat(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
@@ -12043,6 +12044,27 @@ export declare const argsSchema: z.ZodObject<{
     lint: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 //# sourceMappingURL=introspect.d.ts.map`,
+  "commands/lib/chat-splash.d.ts": `/**
+ * Animated splash screen for \`luca chat\`, built on ui.canvas + ui.animate.
+ *
+ * A fast (~0.6s) fade-in: a figlet LUCA wordmark under a truecolor gradient,
+ * a braille waveform (a voice signal — this is a conversational framework),
+ * and the tagline, all brightening from dark to full. The final frame is the
+ * static intro art at full brightness: ui.animate overwrites in place, so
+ * whatever the last frame shows is what stays on screen while the chat TUI
+ * boots beneath it.
+ *
+ * Skipped when stdout is not a TTY (the plain-chat pipe path stays clean),
+ * when --no-splash is passed, or when LUCA_NO_SPLASH is set.
+ */
+/**
+ * Runs the splash and resolves to the number of terminal lines it left on
+ * screen (0 when skipped) — the chat TUI subtracts this from its viewport
+ * padding so the settled art stays visible above the session instead of
+ * being pushed into scrollback.
+ */
+export declare function runChatSplash(container: any): Promise<number>;
+//# sourceMappingURL=chat-splash.d.ts.map`,
   "commands/lib/chat-tui.d.ts": `/**
  * The interactive chat TUI behind \`luca chat\`.
  *
@@ -12068,6 +12090,12 @@ export interface ChatTuiOptions {
     resumeThreadId?: string;
     /** Applied to every assistant this session creates (e.g. --use wiring). */
     setupAssistant?: (assistant: any) => void;
+    /**
+     * Terminal lines the splash left on screen. Subtracted from the viewport
+     * padding so the intro art stays visible above the session at boot instead
+     * of being pushed into scrollback.
+     */
+    splashLines?: number;
 }
 export interface ChatTuiResult {
     /** name → currentThreadId for every assistant that saved history. */
