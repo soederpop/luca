@@ -149,9 +149,10 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	// minimist turns `--no-splash` into `splash: false` (its --no- negation
 	// runs before our noSplash field is consulted), so honor both spellings
 	const splashDisabled = options.noSplash || container.argv?.splash === false
-	if (!splashDisabled) await runChatSplash(container)
+	const splashLines = splashDisabled ? 0 : await runChatSplash(container)
 
 	const result = await runChatTui({
+		splashLines,
 		container,
 		manager,
 		historyMode,

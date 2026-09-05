@@ -52,9 +52,15 @@ function paintWordmark(ui: any, lines: string[], palette: string[], brightness: 
 		.join('\n')
 }
 
-export async function runChatSplash(container: any): Promise<void> {
-	if (!process.stdout.isTTY) return
-	if (process.env.LUCA_NO_SPLASH) return
+/**
+ * Runs the splash and resolves to the number of terminal lines it left on
+ * screen (0 when skipped) — the chat TUI subtracts this from its viewport
+ * padding so the settled art stays visible above the session instead of
+ * being pushed into scrollback.
+ */
+export async function runChatSplash(container: any): Promise<number> {
+	if (!process.stdout.isTTY) return 0
+	if (process.env.LUCA_NO_SPLASH) return 0
 
 	const ui = container.feature('ui')
 	const columns = Math.max(44, Math.min(process.stdout.columns || 80, 76))
@@ -63,7 +69,7 @@ export async function runChatSplash(container: any): Promise<void> {
 	try {
 		art = ui.asciiArt('LUCA', 'Big')
 	} catch {
-		return // figlet font unavailable — chat works fine without ceremony
+		return 0 // figlet font unavailable — chat works fine without ceremony
 	}
 
 	const artLines: string[] = art.replace(/\s+$/, '').split('\n')
@@ -78,14 +84,20 @@ export async function runChatSplash(container: any): Promise<void> {
 
 	const taglinePad = ' '.repeat(Math.max(0, Math.floor((columns - TAGLINE.length) / 2)))
 
-	const totalFrames = 18 // ~0.6s at 30fps — a fade, not a show
+	const totalFrames = 36 // ~1.2s at 30fps
+	const fadePortion = 0.55 // brightness finishes ramping just past halfway
 
 	const { done } = ui.animate(
 		(frame: number) => {
 			const t = Math.min(1, frame / (totalFrames - 1))
 			const eased = 1 - Math.pow(1 - t, 3)
-			// never start fully black: 0.2 → 1.0 so the art is visible from frame one
-			const brightness = 0.2 + eased * 0.8
+			// fade completes early so the second half is pure motion settling;
+			// never start fully black — the art is visible from frame one
+			const fade = Math.min(1, t / fadePortion)
+			const brightness = 0.2 + (1 - Math.pow(1 - fade, 3)) * 0.8
+			// wave phase decelerates with the easing, so motion glides to a
+			// stop instead of freezing — the last frame is the resting art
+			const drift = eased * 22
 
 			const banner = paintWordmark(ui, artLines, SWEEP, brightness, artWidth)
 				.split('\n')
@@ -100,12 +112,12 @@ export async function runChatSplash(container: any): Promise<void> {
 				const amp = eased * (waveMid - 1) * Math.sin(p * Math.PI)
 				wave.set(
 					x,
-					Math.round(waveMid + Math.sin(x / 7 + frame / 2) * amp),
+					Math.round(waveMid + Math.sin(x / 7 + drift) * amp),
 					dimmed(ui.lerpColor(WAVE_A[0], WAVE_A[1], p), brightness),
 				)
 				wave.set(
 					x,
-					Math.round(waveMid + Math.sin(x / 3.1 - frame / 2.5) * amp * 0.55),
+					Math.round(waveMid + Math.sin(x / 3.1 - drift * 1.4) * amp * 0.55),
 					dimmed(ui.lerpColor(WAVE_B[0], WAVE_B[1], p), brightness),
 				)
 			}
@@ -121,4 +133,7 @@ export async function runChatSplash(container: any): Promise<void> {
 	)
 	await done
 	console.log()
+
+	// banner + 4 braille rows + tagline + the trailing blank line
+	return artLines.length + waveHeight / 4 + 1 + 1
 }

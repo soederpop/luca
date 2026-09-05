@@ -25,6 +25,12 @@ export interface ChatTuiOptions {
 	resumeThreadId?: string
 	/** Applied to every assistant this session creates (e.g. --use wiring). */
 	setupAssistant?: (assistant: any) => void
+	/**
+	 * Terminal lines the splash left on screen. Subtracted from the viewport
+	 * padding so the intro art stays visible above the session at boot instead
+	 * of being pushed into scrollback.
+	 */
+	splashLines?: number
 }
 
 export interface ChatTuiResult {
@@ -1217,7 +1223,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 	// keeps finished turns in the terminal's native scrollback (mouse scroll,
 	// copy, search), which alt-screen would forfeit.
 	const viewportRows = process.stdout.rows || 24
-	process.stdout.write('\n'.repeat(Math.max(0, viewportRows - 1)))
+	process.stdout.write('\n'.repeat(Math.max(0, viewportRows - 1 - (options.splashLines ?? 0))))
 
 	const instance = await ink.render(h(App, {}), { patchConsole: false, exitOnCtrlC: false })
 	await instance.waitUntilExit()
