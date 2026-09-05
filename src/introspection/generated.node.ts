@@ -11294,6 +11294,143 @@ setBuildTimeData('features.postgres', {
   ]
 });
 
+setBuildTimeData('features.prettier', {
+  "id": "features.prettier",
+  "description": "The Prettier feature formats TypeScript, Markdown, and YAML source with prettier's standalone engine. It wraps `prettier/standalone` with exactly three parsers — typescript, markdown, and yaml — so it stays lightweight in the compiled binary (the full prettier package would cost ~5.5MB; this set is well under 2MB). Markdown documents with YAML frontmatter are handled in one pass: the frontmatter is formatted by the yaml parser and the body by the markdown parser. There is no CSS, HTML, or flow support by design. All formatting is async (prettier v3), and the parser is inferred from a `filepath` extension when you have one, so callers usually just hand over source text. Feature options set project-wide defaults (quote style, semicolons, print width) that every call inherits and can override.",
+  "shortcut": "features.prettier",
+  "className": "Prettier",
+  "methods": {
+    "format": {
+      "description": "Formats source text with prettier. The parser is chosen in this order: an explicit `parser` option, the extension of a `filepath` option, then `typescript` as the fallback. Options given here override the feature's own option defaults for this one call. Malformed source throws a SyntaxError from prettier with line and column info.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The source text to format"
+        },
+        "options": {
+          "type": "PrettierFormatOptions",
+          "description": "Parser selection and prettier style options"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const prettier = container.feature('prettier')\n\nconst out = await prettier.format('const   x=1', { semi: false })\nconsole.log(out) // 'const x = 1\\n'\n\n// Parser inferred from a path — no need to name it\nconst md = await prettier.format('#    Title', { filepath: 'README.md' })\nconsole.log(md) // '# Title\\n'"
+        }
+      ]
+    },
+    "check": {
+      "description": "Checks whether source text is already prettier-formatted. Useful as a cheap lint gate: it returns a boolean instead of the formatted text, so you can report unformatted files without rewriting them. Uses the same parser inference and defaults as `format()`.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The source text to check"
+        },
+        "options": {
+          "type": "PrettierFormatOptions",
+          "description": "Parser selection and prettier style options"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const prettier = container.feature('prettier')\nconsole.log(await prettier.check('const x = 1;\\n')) // true\nconsole.log(await prettier.check('const   x=1'))    // false"
+        }
+      ]
+    },
+    "formatTypeScript": {
+      "description": "Formats TypeScript (or JavaScript) source. A convenience wrapper over `format()` with the typescript parser pinned.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The TypeScript source to format"
+        },
+        "options": {
+          "type": "PrettierFormatOptions",
+          "description": "Prettier style options"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const prettier = container.feature('prettier')\nconst out = await prettier.formatTypeScript('type A={x:number}')\nconsole.log(out) // 'type A = { x: number };\\n'"
+        }
+      ]
+    },
+    "formatMarkdown": {
+      "description": "Formats a Markdown document, including any YAML frontmatter. The markdown parser hands the frontmatter block to the yaml parser, so a contentDb-style document (frontmatter + body) comes back fully formatted in one call. Fenced code blocks are left as-is — prettier does not reformat embedded code without the matching language plugin.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The Markdown source to format"
+        },
+        "options": {
+          "type": "PrettierFormatOptions",
+          "description": "Prettier style options"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const prettier = container.feature('prettier')\nconst doc = await prettier.formatMarkdown('---\\ntitle:   Hi\\n---\\n#  Heading')\nconsole.log(doc)\n// ---\n// title: Hi\n// ---\n//\n// # Heading"
+        }
+      ]
+    },
+    "formatYaml": {
+      "description": "Formats a standalone YAML document.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "The YAML source to format"
+        },
+        "options": {
+          "type": "PrettierFormatOptions",
+          "description": "Prettier style options"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const prettier = container.feature('prettier')\nconst out = await prettier.formatYaml('a:    1\\nb:   [1,2]')\nconsole.log(out) // 'a: 1\\nb: [1, 2]\\n'"
+        }
+      ]
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "stable",
+  "category": "dev-tools",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const prettier = container.feature('prettier')\n\n// TypeScript — the default parser\nconst code = await prettier.format(`const x={a:1,b:2};function f(  ){return x}`)\nconsole.log(code)\n// const x = { a: 1, b: 2 };\n// function f() {\n//   return x;\n// }\n\n// Markdown with YAML frontmatter — both parts formatted in one pass\nconst doc = await prettier.format(\n '---\\ntitle:    Hello\\ntags:   [a,b]\\n---\\n# Heading\\n\\nSome    text',\n { parser: 'markdown' },\n)\n\n// Infer the parser from a file path\nconst yml = await prettier.format('a:   1', { filepath: 'config.yml' })\n\n// Project-wide defaults via feature options\nconst p2 = container.feature('prettier', { singleQuote: true, semi: false })\nconsole.log(await p2.format('const s = \"hi\"')) // const s = 'hi'"
+    }
+  ]
+});
+
 setBuildTimeData('features.proc', {
   "id": "features.proc",
   "description": "The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.",
@@ -31195,6 +31332,142 @@ export const introspectionData: Record<string, any>[] = [
       {
         "language": "ts",
         "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`\n\n// Read-only session: the server rejects writes and execute() throws locally.\n// Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a\n// SELECT-only role when the caller is untrusted (e.g. an AI assistant).\nconst reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })"
+      }
+    ]
+  },
+  {
+    "id": "features.prettier",
+    "description": "The Prettier feature formats TypeScript, Markdown, and YAML source with prettier's standalone engine. It wraps `prettier/standalone` with exactly three parsers — typescript, markdown, and yaml — so it stays lightweight in the compiled binary (the full prettier package would cost ~5.5MB; this set is well under 2MB). Markdown documents with YAML frontmatter are handled in one pass: the frontmatter is formatted by the yaml parser and the body by the markdown parser. There is no CSS, HTML, or flow support by design. All formatting is async (prettier v3), and the parser is inferred from a `filepath` extension when you have one, so callers usually just hand over source text. Feature options set project-wide defaults (quote style, semicolons, print width) that every call inherits and can override.",
+    "shortcut": "features.prettier",
+    "className": "Prettier",
+    "methods": {
+      "format": {
+        "description": "Formats source text with prettier. The parser is chosen in this order: an explicit `parser` option, the extension of a `filepath` option, then `typescript` as the fallback. Options given here override the feature's own option defaults for this one call. Malformed source throws a SyntaxError from prettier with line and column info.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The source text to format"
+          },
+          "options": {
+            "type": "PrettierFormatOptions",
+            "description": "Parser selection and prettier style options"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const prettier = container.feature('prettier')\n\nconst out = await prettier.format('const   x=1', { semi: false })\nconsole.log(out) // 'const x = 1\\n'\n\n// Parser inferred from a path — no need to name it\nconst md = await prettier.format('#    Title', { filepath: 'README.md' })\nconsole.log(md) // '# Title\\n'"
+          }
+        ]
+      },
+      "check": {
+        "description": "Checks whether source text is already prettier-formatted. Useful as a cheap lint gate: it returns a boolean instead of the formatted text, so you can report unformatted files without rewriting them. Uses the same parser inference and defaults as `format()`.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The source text to check"
+          },
+          "options": {
+            "type": "PrettierFormatOptions",
+            "description": "Parser selection and prettier style options"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const prettier = container.feature('prettier')\nconsole.log(await prettier.check('const x = 1;\\n')) // true\nconsole.log(await prettier.check('const   x=1'))    // false"
+          }
+        ]
+      },
+      "formatTypeScript": {
+        "description": "Formats TypeScript (or JavaScript) source. A convenience wrapper over `format()` with the typescript parser pinned.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The TypeScript source to format"
+          },
+          "options": {
+            "type": "PrettierFormatOptions",
+            "description": "Prettier style options"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const prettier = container.feature('prettier')\nconst out = await prettier.formatTypeScript('type A={x:number}')\nconsole.log(out) // 'type A = { x: number };\\n'"
+          }
+        ]
+      },
+      "formatMarkdown": {
+        "description": "Formats a Markdown document, including any YAML frontmatter. The markdown parser hands the frontmatter block to the yaml parser, so a contentDb-style document (frontmatter + body) comes back fully formatted in one call. Fenced code blocks are left as-is — prettier does not reformat embedded code without the matching language plugin.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The Markdown source to format"
+          },
+          "options": {
+            "type": "PrettierFormatOptions",
+            "description": "Prettier style options"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const prettier = container.feature('prettier')\nconst doc = await prettier.formatMarkdown('---\\ntitle:   Hi\\n---\\n#  Heading')\nconsole.log(doc)\n// ---\n// title: Hi\n// ---\n//\n// # Heading"
+          }
+        ]
+      },
+      "formatYaml": {
+        "description": "Formats a standalone YAML document.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "The YAML source to format"
+          },
+          "options": {
+            "type": "PrettierFormatOptions",
+            "description": "Prettier style options"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const prettier = container.feature('prettier')\nconst out = await prettier.formatYaml('a:    1\\nb:   [1,2]')\nconsole.log(out) // 'a: 1\\nb: [1, 2]\\n'"
+          }
+        ]
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "stable",
+    "category": "dev-tools",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const prettier = container.feature('prettier')\n\n// TypeScript — the default parser\nconst code = await prettier.format(`const x={a:1,b:2};function f(  ){return x}`)\nconsole.log(code)\n// const x = { a: 1, b: 2 };\n// function f() {\n//   return x;\n// }\n\n// Markdown with YAML frontmatter — both parts formatted in one pass\nconst doc = await prettier.format(\n '---\\ntitle:    Hello\\ntags:   [a,b]\\n---\\n# Heading\\n\\nSome    text',\n { parser: 'markdown' },\n)\n\n// Infer the parser from a file path\nconst yml = await prettier.format('a:   1', { filepath: 'config.yml' })\n\n// Project-wide defaults via feature options\nconst p2 = container.feature('prettier', { singleQuote: true, semi: false })\nconsole.log(await p2.format('const s = \"hi\"')) // const s = 'hi'"
       }
     ]
   },
