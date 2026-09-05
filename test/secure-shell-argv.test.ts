@@ -77,6 +77,19 @@ describe('secureShell.exec argv construction', () => {
 		expect(argv[argv.length - 1]).toBe(command)
 	})
 
+	// Regression for issue #1: `test "$(...)" = "..."` used to be wrapped in a
+	// second pair of double quotes for the LOCAL shell, so the embedded quotes
+	// collided and zsh reported `parse error: condition expected: =`
+	it('delivers an embedded $(...) comparison intact (issue #1)', async () => {
+		const ssh = makeShell()
+		const command = 'test "$(git --git-dir=/home/ubuntu/some.git rev-parse main)" = "abc123"'
+		const output = await ssh.exec(command)
+		const argv = output.split('\n')
+		expect(argv[argv.length - 1]).toBe(command)
+		// the whole command is ONE argv element — nothing was split or expanded
+		expect(argv.length).toBe(10)
+	})
+
 	it('marks connected on success', async () => {
 		const ssh = makeShell()
 		await ssh.exec('true')
