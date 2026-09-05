@@ -11338,6 +11338,10 @@ setBuildTimeData('features.proc', {
           "type": "SpawnOptions",
           "description": "Options for process execution and monitoring",
           "properties": {
+            "detached": {
+              "type": "boolean",
+              "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+            },
             "stdio": {
               "type": "\"ignore\" | \"inherit\"",
               "description": "Standard I/O mode for the child process"
@@ -11371,7 +11375,7 @@ setBuildTimeData('features.proc', {
               "description": "Callback invoked when the process exits"
             },
             "onStart": {
-              "type": "(childProcess: ChildProcess) => void",
+              "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
               "description": "Callback invoked when the process starts"
             }
           }
@@ -11499,6 +11503,10 @@ setBuildTimeData('features.proc', {
           "type": "SpawnOptions",
           "description": "Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)",
           "properties": {
+            "detached": {
+              "type": "boolean",
+              "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+            },
             "stdio": {
               "type": "\"ignore\" | \"inherit\"",
               "description": "Standard I/O mode for the child process"
@@ -11532,7 +11540,7 @@ setBuildTimeData('features.proc', {
               "description": "Callback invoked when the process exits"
             },
             "onStart": {
-              "type": "(childProcess: ChildProcess) => void",
+              "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
               "description": "Callback invoked when the process starts"
             }
           }
@@ -11560,6 +11568,10 @@ setBuildTimeData('features.proc', {
           "type": "SpawnOptions",
           "description": "Options forwarded to spawnAndCapture (cwd, ...)",
           "properties": {
+            "detached": {
+              "type": "boolean",
+              "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+            },
             "stdio": {
               "type": "\"ignore\" | \"inherit\"",
               "description": "Standard I/O mode for the child process"
@@ -11593,7 +11605,7 @@ setBuildTimeData('features.proc', {
               "description": "Callback invoked when the process exits"
             },
             "onStart": {
-              "type": "(childProcess: ChildProcess) => void",
+              "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
               "description": "Callback invoked when the process starts"
             }
           }
@@ -11726,6 +11738,11 @@ setBuildTimeData('features.proc', {
     "SpawnOptions": {
       "description": "",
       "properties": {
+        "detached": {
+          "type": "boolean",
+          "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together",
+          "optional": true
+        },
         "stdio": {
           "type": "\"ignore\" | \"inherit\"",
           "description": "Standard I/O mode for the child process",
@@ -11767,7 +11784,7 @@ setBuildTimeData('features.proc', {
           "optional": true
         },
         "onStart": {
-          "type": "(childProcess: ChildProcess) => void",
+          "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
           "description": "Callback invoked when the process starts",
           "optional": true
         }
@@ -31225,6 +31242,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "SpawnOptions",
             "description": "Options for process execution and monitoring",
             "properties": {
+              "detached": {
+                "type": "boolean",
+                "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+              },
               "stdio": {
                 "type": "\"ignore\" | \"inherit\"",
                 "description": "Standard I/O mode for the child process"
@@ -31258,7 +31279,7 @@ export const introspectionData: Record<string, any>[] = [
                 "description": "Callback invoked when the process exits"
               },
               "onStart": {
-                "type": "(childProcess: ChildProcess) => void",
+                "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
                 "description": "Callback invoked when the process starts"
               }
             }
@@ -31386,6 +31407,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "SpawnOptions",
             "description": "Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...)",
             "properties": {
+              "detached": {
+                "type": "boolean",
+                "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+              },
               "stdio": {
                 "type": "\"ignore\" | \"inherit\"",
                 "description": "Standard I/O mode for the child process"
@@ -31419,7 +31444,7 @@ export const introspectionData: Record<string, any>[] = [
                 "description": "Callback invoked when the process exits"
               },
               "onStart": {
-                "type": "(childProcess: ChildProcess) => void",
+                "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
                 "description": "Callback invoked when the process starts"
               }
             }
@@ -31447,6 +31472,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "SpawnOptions",
             "description": "Options forwarded to spawnAndCapture (cwd, ...)",
             "properties": {
+              "detached": {
+                "type": "boolean",
+                "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together"
+              },
               "stdio": {
                 "type": "\"ignore\" | \"inherit\"",
                 "description": "Standard I/O mode for the child process"
@@ -31480,7 +31509,7 @@ export const introspectionData: Record<string, any>[] = [
                 "description": "Callback invoked when the process exits"
               },
               "onStart": {
-                "type": "(childProcess: ChildProcess) => void",
+                "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
                 "description": "Callback invoked when the process starts"
               }
             }
@@ -31613,6 +31642,11 @@ export const introspectionData: Record<string, any>[] = [
       "SpawnOptions": {
         "description": "",
         "properties": {
+          "detached": {
+            "type": "boolean",
+            "description": "Run in a separate process group, allowing callers to cancel the child and its descendants together",
+            "optional": true
+          },
           "stdio": {
             "type": "\"ignore\" | \"inherit\"",
             "description": "Standard I/O mode for the child process",
@@ -31654,7 +31688,7 @@ export const introspectionData: Record<string, any>[] = [
             "optional": true
           },
           "onStart": {
-            "type": "(childProcess: ChildProcess) => void",
+            "type": "(childProcess: ReturnType<typeof nodeSpawn>) => void",
             "description": "Callback invoked when the process starts",
             "optional": true
           }

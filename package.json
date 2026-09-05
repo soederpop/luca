@@ -107,6 +107,7 @@
     "luca": "./src/cli/cli.ts"
   },
   "scripts": {
+    "eval:agent-dx": "bun run scripts/agent-dx/cli.ts",
     "serve": "bun build:web && luca serve --any-port",
     "console": "ts-node --esm scripts/console.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",

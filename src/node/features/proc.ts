@@ -6,6 +6,8 @@ import { dirname, resolve } from "path";
 import * as asyncProc from "child-process-promise";
 
 interface SpawnOptions {
+  /** Run in a separate process group, allowing callers to cancel the child and its descendants together */
+  detached?: boolean;
   /** Standard I/O mode for the child process */
   stdio?: "ignore" | "inherit";
   /** Stdout mode for the child process */
@@ -23,7 +25,7 @@ interface SpawnOptions {
   /** Callback invoked when the process exits */
   onExit?: (code: number) => void;
   /** Callback invoked when the process starts */
-  onStart?: (childProcess: ChildProcess) => void;
+  onStart?: (childProcess: ReturnType<typeof nodeSpawn>) => void;
 }
 
 interface RawSpawnOptions {

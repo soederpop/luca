@@ -191,11 +191,14 @@ export class StoreHandle<T = any> {
         if (err?.code !== 'EEXIST') throw err
       }
 
-      // Contended — is the holder dead or the lock ancient?
+      // Exclusive creation publishes the directory entry before its JSON bytes
+      // are written. An empty/partial read (or ENOENT during release) is not
+      // evidence of a dead owner: deleting it would break mutual exclusion.
       let holder: { pid?: number; at?: number } = {}
       try { holder = JSON.parse(String(fs.readFile(lockPath))) } catch {}
-      const holderAlive = typeof holder.pid === 'number' && proc.kill(holder.pid, 0)
-      const isStale = !holderAlive || (typeof holder.at === 'number' && Date.now() - holder.at > stale)
+      const hasOwner = Number.isSafeInteger(holder?.pid) && holder.pid! > 0
+      const holderAlive = hasOwner && proc.kill(holder.pid!, 0)
+      const isStale = hasOwner && (!holderAlive || (typeof holder.at === 'number' && Date.now() - holder.at > stale))
       if (isStale) {
         await fs.rm(lockPath, { force: true }).catch(() => {})
         continue
@@ -204,7 +207,7 @@ export class StoreHandle<T = any> {
       if (Date.now() - startedAt > timeout) {
         throw new Error(
           `store "${this.name}": timed out after ${timeout}ms waiting for lock ${lockPath}` +
-          (holder.pid ? ` (held by pid ${holder.pid})` : '')
+          (holder?.pid ? ` (held by pid ${holder.pid})` : ' (owner metadata unreadable; inspect the lock before removing it)')
         )
       }
       await new Promise(resolve => setTimeout(resolve, delay))

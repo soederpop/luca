@@ -75,7 +75,8 @@ Spawns a process and captures its output with real-time monitoring capabilities.
 | `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
 | `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
 | `onExit` | `(code: number) => void` | Callback invoked when the process exits |
-| `onStart` | `(childProcess: ChildProcess) => void` | Callback invoked when the process starts |
+| `onStart` | `(childProcess: ReturnType<typeof nodeSpawn>) => void` | Callback invoked when the process starts |
+| `detached` | `boolean` | Run in a separate process group, allowing callers to cancel the child and its descendants together |
 
 **Returns:** `Promise<{
     stderr: string;
@@ -469,4 +470,3 @@ if (proc.isProcessRunning('afplay')) {
  console.log('Audio is currently playing')
 }
 ```
-
