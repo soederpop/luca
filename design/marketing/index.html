@@ -1303,6 +1303,10 @@
           scroll-margin-top: 215px;
         }
       }
+      .chapter-snippet {
+        margin: 0;
+        white-space: pre-wrap;
+      }
     </style>
   </head>
   <body>
@@ -1365,10 +1369,8 @@
                   system.
                 </p>
               </div>
-              <code
-                >const api = container.server(&#x27;express&#x27;) const state =
-                container.state</code
-              >
+              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;)
+const state = container.state</code></pre>
             </section>
             <section
               class="chapter"
@@ -1389,10 +1391,11 @@
                   interfaces you build.
                 </p>
               </div>
-              <code
-                >const operator = container.feature(&#x27;assistant&#x27;, { systemPrompt:
-                &#x27;Investigate API incidents.&#x27;, })</code
-              >
+              <pre
+                class="chapter-snippet"
+              ><code>const operator = container.feature(&#x27;assistant&#x27;, {
+  systemPrompt: &#x27;Investigate API incidents.&#x27;,
+})</code></pre>
             </section>
             <section
               class="chapter"
@@ -1414,10 +1417,11 @@
                   failed and how your team handles it.
                 </p>
               </div>
-              <code
-                >operator.use(container.feature(&#x27;contentDb&#x27;, { rootPath:
-                &#x27;./brain&#x27;, }))</code
-              >
+              <pre
+                class="chapter-snippet"
+              ><code>operator.use(container.feature(&#x27;contentDb&#x27;, {
+  rootPath: &#x27;./brain&#x27;,
+}))</code></pre>
             </section>
             <section
               class="chapter"
@@ -1439,10 +1443,11 @@
                   provisioning and outbound calls instead.
                 </p>
               </div>
-              <code
-                >operator.use(container.feature(&#x27;secureShell&#x27;, { host:
-                &#x27;staging-api&#x27;, }))</code
-              >
+              <pre
+                class="chapter-snippet"
+              ><code>operator.use(container.feature(&#x27;secureShell&#x27;, {
+  host: &#x27;staging-api&#x27;,
+}))</code></pre>
             </section>
             <section
               class="chapter"
@@ -1464,10 +1469,9 @@
                   and check the result before reporting back.
                 </p>
               </div>
-              <code
-                >operator.use(container.feature(&#x27;vm&#x27;)) await operator.start() await
-                operator.ask(&#x27;Investigate the failing API.&#x27;)</code
-              >
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;vm&#x27;))
+await operator.start()
+await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
             </section>
           </div>
           <aside class="scene-column" aria-label="Exploded view of the Luca container">

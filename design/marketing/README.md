@@ -26,11 +26,11 @@ The completed architecture leads directly to the full infrastructure harness, fo
 
 Midnight `#10131e`, panel `#181e30`, white `#f0f1ee`, and blue signal `#81b5ff`. The application is blue, assistants violet, knowledge amber, operations teal, and execution rose. Gradient materials, thicker extruded faces, lit seams, contact shadows, and cast shadows give the assembly depth. Helvetica Neue / Helvetica carries the narrative; SF Mono / Menlo identifies code and components.
 
-A left-aligned story sits beside a full-height sticky isometric assembly occupying 60% of the desktop viewport. On mobile, the scene occupies 47% of the viewport height. Five physical compartments each hold six named components. The lid lifts, category trays separate, and the selected compartment expands and comes forward. This assembly is the primary visual; surrounding typography and controls stay quiet.
+A left-aligned story sits beside a full-height sticky isometric assembly occupying 60% of the desktop viewport. On mobile, the scene occupies 47% of the viewport height. Five physical compartments each hold six named components. Every tray has an identical, rigid footprint and seats on locating pins. One joint opens at a time: the selected tray stays aligned while the assembly above it rises as a unit. Advancing closes that joint and opens the next. The lid stays attached to the upper assembly until the execution compartment opens. Parts remain opaque and are always drawn in physical stacking order. This assembly is the primary visual; surrounding typography and controls stay quiet.
 
-The scene is a code-native SVG using a shared isometric projection. Scrolling schedules a single animation frame, with geometry derived from chapter positions. It reverses naturally, supports direct chapter anchors, updates its accessible description, and recalculates after viewport changes. There is no scroll hijacking or continuous animation loop.
+The scene is a code-native SVG using a shared isometric projection. Scrolling schedules a single animation frame, with geometry derived from chapter positions. The opening reverses deterministically to reseat the plates, supports direct chapter anchors, updates its accessible description, and recalculates after viewport changes. There is no scroll hijacking or continuous animation loop.
 
-On narrow screens the diagram sticks above the narrative. Reduced-motion mode shows an already-expanded assembly and changes emphasis without moving the geometry. The narrative remains readable without JavaScript.
+On narrow screens the diagram sticks above the narrative. Reduced-motion mode uses a fixed exploded assembly with unchanged geometry across chapters. The narrative remains readable without JavaScript.
 
 ## Code and validation
 
@@ -43,3 +43,5 @@ Validation includes HTML structure and anchors, Bun syntax checks, simulated for
 Nothing is deployed or published.
 
 Code highlighting covers all narrative snippets, changing harness examples, and shell commands. Keywords, strings, calls, properties, variables, numbers, and comments have distinct high-contrast colors. A text-preservation check verifies that the highlighter leaves copied source unchanged. Updated colored SVG reveal states were rendered for inspection, and the forward/reverse, responsive, and reduced-motion scene checks pass.
+
+Mechanical verification samples 101 positions in desktop/mobile and reduced-motion modes, checking constant footprints, fixed base position, physical paint order, minimum seating clearance, and nonintersecting layers. The first assembled state and selected compartment were also checked. Narrative code snippets now use preformatted blocks so highlighting and formatting preserve their line breaks.
