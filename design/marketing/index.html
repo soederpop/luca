@@ -8,7 +8,7 @@
       name="description"
       content="Build software with an operator inside. Explore how Luca brings applications, assistants, a Markdown brain, operational tools, and live code execution into one runtime."
     />
-    <title>Luca — Build software. Give it an operator.</title>
+    <title>Luca — Build the system. Put an agent inside it.</title>
     <style>
       :root {
         --bg: #151719;
@@ -1309,7 +1309,7 @@
       }
       .harness-tabs {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         column-gap: 25px;
         row-gap: 0;
       }
@@ -1353,13 +1353,16 @@
     <main id="main">
       <div class="wrap">
         <section class="hero" aria-labelledby="hero-title">
-          <p class="context">An AI-native application runtime</p>
-          <h1 id="hero-title">Build software.<br />Give it an operator.</h1>
+          <p class="context">One binary. A TypeScript SDK for AI-native software.</p>
+          <h1 id="hero-title">Build the system.<br />Put an agent inside it.</h1>
           <div class="hero-bottom">
             <p>
-              Luca is a single binary for building applications with assistants inside. Assemble
-              the tools, knowledge, and execution environment your task needs. Then compile that
-              system into a binary of its own.
+              Luca is a single binary that builds any application architecture: HTTP APIs,
+              WebSocket services, CLIs, MCP servers, phone lines, terminal and browser UIs.
+              Assistants are first-class parts of that runtime. They use the same tools, state,
+              and events as your code, answer over any transport you give them, and can inspect,
+              extend, and rebuild the system they run in. Then compile all of it into a binary of
+              your own.
             </p>
             <div class="hero-actions">
               <a class="button" href="#inside"
@@ -1368,7 +1371,7 @@
             </div>
           </div>
           <div class="hero-meta">
-            <span>One binary. Build your own.</span><span>Embedded assistants</span
+            <span>78 features · 7 clients · 4 servers</span><span>Zero install steps</span
             ><span>Open source / MIT</span>
           </div>
         </section>
@@ -1380,21 +1383,20 @@
               data-chapter="0"
               aria-labelledby="chapter-0-title"
             >
-              <div class="chapter-count">01 / 05</div>
-              <h2 id="chapter-0-title">Start with an application.<br />One coherent runtime.</h2>
+              <div class="chapter-count">01 / 08</div>
+              <h2 id="chapter-0-title">Every architecture.<br />One runtime.</h2>
               <p>
-                Your API, services, command-line tools, and browser UI need a foundation. Luca gives
-                them shared state, events, and a discoverable set of capabilities.
+                The container is a dependency injector, event bus, and state machine in one process. Endpoints mount themselves and generate their own OpenAPI docs. Commands become a CLI. Selectors cache queries. Ink renders terminal UIs. State and events are shared by every part, including the assistants.
               </p>
               <div class="chapter-example">
                 <span>Imagine your API starts failing.</span>
                 <p>
-                  The service, its state, and the tools for inspecting it already belong to the same
-                  system.
+                  The service, its state, and the tools to inspect it are already one object graph. There is nothing to wire together at three in the morning.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;)
-const state = container.state</code></pre>
+              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;)   // endpoints/ mount themselves
+api.serveOpenAPISpec()                     // docs generated from the routes
+container.state.set(&#x27;incident&#x27;, { service: &#x27;api&#x27;, since: Date.now() })</code></pre>
             </section>
             <section
               class="chapter"
@@ -1402,100 +1404,150 @@ const state = container.state</code></pre>
               data-chapter="1"
               aria-labelledby="chapter-1-title"
             >
-              <div class="chapter-count">02 / 05</div>
-              <h2 id="chapter-1-title">Put an operator<br />inside that application.</h2>
+              <div class="chapter-count">02 / 08</div>
+              <h2 id="chapter-1-title">An operator.<br />Not a chat box.</h2>
               <p>
-                An assistant is a first-class part of the runtime. Give it a job, choose its model,
-                and connect it to the capabilities your application already uses.
+                An assistant is a folder: CORE.md for the prompt, tools.ts for typed tools, hooks.ts for lifecycle. It is a feature like any other, so it shares the container’s state and events. Call use() on any helper and that helper’s tools become the assistant’s tools, with the operating notes it needs already in its prompt. Memory, a skills library, an MCP bridge, and the coding agents live on this tray too.
               </p>
               <div class="chapter-example">
-                <span>Give the failure to your operator.</span>
+                <span>Hand the failure to the operator.</span>
                 <p>
-                  It can work with the application’s actual tools and state, and respond through the
-                  interfaces you build.
+                  It calls the functions your code calls, and answers through whatever interface you build: an HTTP route, a socket, an MCP tool, a Telegram bot, a phone call.
                 </p>
               </div>
-              <pre
-                class="chapter-snippet"
-              ><code>const operator = container.feature(&#x27;assistant&#x27;, {
-  systemPrompt: &#x27;Investigate API incidents.&#x27;,
-})</code></pre>
+              <pre class="chapter-snippet"><code>const operator = container.feature(&#x27;assistant&#x27;, {
+  folder: &#x27;assistants/operator&#x27;,   // CORE.md + tools.ts + hooks.ts
+})
+operator.use(container.feature(&#x27;memory&#x27;))
+operator.use(container.feature(&#x27;mcpBridge&#x27;, { servers }))</code></pre>
             </section>
             <section
               class="chapter"
-              id="knowledge"
+              id="data"
               data-chapter="2"
               aria-labelledby="chapter-2-title"
             >
-              <div class="chapter-count">03 / 05</div>
-              <h2 id="chapter-2-title">Give it the knowledge<br />behind your decisions.</h2>
+              <div class="chapter-count">03 / 08</div>
+              <h2 id="chapter-2-title">Your Markdown<br />becomes its memory.</h2>
               <p>
-                A folder of Markdown becomes a structured brain through Contentbase. The assistant
-                can query records, search by meaning, and read the relevant sections of your
-                runbooks.
+                A folder of Markdown with frontmatter becomes a typed, queryable database through Contentbase. Semantic search finds the right runbook. Beside it sit SQLite, Postgres, Redis, a locked cross-process store, and a disk cache, each with typed tools the assistant can call.
               </p>
               <div class="chapter-example">
-                <span>Find the procedure before taking action.</span>
+                <span>Find the procedure before touching anything.</span>
                 <p>
-                  The operator searches past incidents and deployment notes to understand what
-                  failed and how your team handles it.
+                  The operator reads past incidents and deployment notes to learn what failed and how your team handles it. Your decisions become its defaults.
                 </p>
               </div>
-              <pre
-                class="chapter-snippet"
-              ><code>operator.use(container.feature(&#x27;contentDb&#x27;, {
-  rootPath: &#x27;./brain&#x27;,
-}))</code></pre>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;contentDb&#x27;, { rootPath: &#x27;./brain&#x27; }))
+operator.use(container.feature(&#x27;postgres&#x27;, { url, readOnly: true }))
+operator.use(container.feature(&#x27;skillsLibrary&#x27;))</code></pre>
             </section>
             <section
               class="chapter"
-              id="operations"
+              id="systems"
               data-chapter="3"
               aria-labelledby="chapter-3-title"
             >
-              <div class="chapter-count">04 / 05</div>
-              <h2 id="chapter-3-title">Connect the knowledge<br />to things it can do.</h2>
+              <div class="chapter-count">04 / 08</div>
+              <h2 id="chapter-3-title">Real tools.<br />Real machines.</h2>
               <p>
-                Build a toolkit for this environment: SSH hosts, browsers, databases, processes, or
-                telephony. The same architecture can run an infrastructure operator or an assistant
-                with its own phone number.
+                Files, ripgrep, child processes, long-running process management, SSH and SCP, tmux sessions, Docker, and git. Each helper ships typed tools and prompt guidance, so attaching one also teaches the assistant how to use it safely.
               </p>
               <div class="chapter-example">
                 <span>Inspect the machine that is failing.</span>
                 <p>
-                  Attach SSH for remote diagnostics. A different job might need Telnyx number
-                  provisioning and outbound calls instead.
+                  Attach SSH for remote diagnostics. Read the logs, check the container, look at the last commit. The same tray runs a deployment agent or a repo maintainer.
                 </p>
               </div>
-              <pre
-                class="chapter-snippet"
-              ><code>operator.use(container.feature(&#x27;secureShell&#x27;, {
-  host: &#x27;staging-api&#x27;,
-}))</code></pre>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;secureShell&#x27;, { host: &#x27;staging-api&#x27; }))
+operator.use(container.feature(&#x27;docker&#x27;))
+operator.use(container.feature(&#x27;git&#x27;))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="integrations"
+              data-chapter="4"
+              aria-labelledby="chapter-4-title"
+            >
+              <div class="chapter-count">05 / 08</div>
+              <h2 id="chapter-4-title">Reach the<br />outside world.</h2>
+              <p>
+                Google Workspace, Telnyx telephony, Telegram, browser automation, text to speech, screen capture, a scheduler for cron and intervals, and a vault for secrets. The same architecture runs an infrastructure operator or an assistant with its own phone number.
+              </p>
+              <div class="chapter-example">
+                <span>Tell the humans.</span>
+                <p>
+                  Post the diagnosis to the on-call channel, or call the engineer on duty. Pull the incident doc from Drive. A different job would schedule itself to run every night instead.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;telegram&#x27;))
+operator.use(container.feature(&#x27;googleDocs&#x27;))
+container.feature(&#x27;scheduler&#x27;).cron(&#x27;*/5 * * * *&#x27;, () => operator.ask(&#x27;Check health.&#x27;))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="clients"
+              data-chapter="5"
+              aria-labelledby="chapter-5-title"
+            >
+              <div class="chapter-count">06 / 08</div>
+              <h2 id="chapter-5-title">Speak every<br />protocol.</h2>
+              <p>
+                REST that returns parsed JSON and hands back errors as values. WebSocket and Socket.IO with correlated ask() and reply(). Unix-socket IPC between processes. GraphQL. An OpenAI-compatible client that reaches any model server. ContainerLink, which lets one container evaluate code in another. Speech in and out.
+              </p>
+              <div class="chapter-example">
+                <span>Query the upstream.</span>
+                <p>
+                  The operator asks the payment provider’s API what changed, and asks a browser container what the user actually sees.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const upstream = container.client(&#x27;rest&#x27;, { baseURL })
+const status = await upstream.get(&#x27;/status&#x27;)   // parsed JSON, no unwrap
+const ws = container.client(&#x27;websocket&#x27;, { baseURL: wsURL })
+const reply = await ws.ask(&#x27;getUser&#x27;, { id })</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="servers"
+              data-chapter="6"
+              aria-labelledby="chapter-6-title"
+            >
+              <div class="chapter-count">07 / 08</div>
+              <h2 id="chapter-6-title">Serve the operator<br />to everyone.</h2>
+              <p>
+                Express with auto-mounted endpoints. A WebSocket server that bridges to the event bus. IPC over Unix sockets. An MCP server that turns any helper or assistant into tools for Claude Code, Codex, or Cursor. An LLM proxy that fronts local and paid models behind one OpenAI-compatible URL.
+              </p>
+              <div class="chapter-example">
+                <span>Expose the operator.</span>
+                <p>
+                  Your team’s coding agents get it as an MCP tool. The dashboard gets it over a socket. Another process gets it over IPC. One assistant, no copies.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const mcp = container.server(&#x27;mcp&#x27;, { serverName: &#x27;operator&#x27; })
+mcp.tool(&#x27;ask&#x27;, { schema, handler: ({ question }) => operator.ask(question) })
+await mcp.start()   // or: luca mcp --assistant operator</code></pre>
             </section>
             <section
               class="chapter"
               id="execution"
-              data-chapter="4"
-              aria-labelledby="chapter-4-title"
+              data-chapter="7"
+              aria-labelledby="chapter-7-title"
             >
-              <div class="chapter-count">05 / 05</div>
-              <h2 id="chapter-4-title">Let it compose<br />the next move.</h2>
+              <div class="chapter-count">08 / 08</div>
+              <h2 id="chapter-7-title">It can rebuild<br />the system it runs in.</h2>
               <p>
-                With the VM attached, the assistant can evaluate code against its live container. It
-                can combine tools, inspect results, and coordinate Claude Code, Codex, or Hermes
-                sessions.
+                Every command, endpoint, script, and snippet runs through the VM, which is why a folder of TypeScript needs no install step. Give that VM to the assistant and it runs TypeScript inside its own live process: the real container, every helper in scope, the runtime’s docs one call away. It can delegate to Claude Code, Codex, or Hermes, fork itself, create and test other assistants, write new tools and skills, and compile a fresh binary of itself.
               </p>
               <div class="chapter-example">
                 <span>From diagnosis to a verified fix.</span>
                 <p>
-                  A configured harness can hand diagnostics to a coding agent, inspect the changes,
-                  and check the result before reporting back.
+                  Delegate a patch to a coding agent, read the diff, run the tests, then report. Then write the runbook and a new tool so next time takes one call.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;vm&#x27;))
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;vm&#x27;))                 // live TypeScript, real process
+operator.use(container.feature(&#x27;assistantsManager&#x27;))  // create, edit, test assistants
 await operator.start()
-await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
+await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27;)</code></pre>
             </section>
           </div>
           <aside class="scene-column" aria-label="Exploded view of the Luca container">
@@ -1506,15 +1558,15 @@ await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
               <svg
                 class="scene-canvas"
                 id="container-scene"
-                viewBox="20 0 760 780"
+                viewBox="20 0 760 880"
                 role="img"
                 aria-labelledby="scene-title scene-description"
               >
                 <title id="scene-title">Luca container, isometric exploded view</title>
                 <desc id="scene-description">
-                  Five nested categories expand with the story: application runtime, embedded
-                  assistants, Markdown knowledge, operational tools, and live execution. Component
-                  names are also provided in the chapter text and diagram caption.
+                  Eight stacked trays expand with the story: application, assistants, data
+                  features, system features, integration features, clients, servers, and execution.
+                  Component names are also provided in the chapter text and diagram caption.
                 </desc></svg
               ><noscript
                 ><p class="static-scene-note">
@@ -1524,18 +1576,22 @@ await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
               >
               <div class="scene-footer">
                 <div class="scene-current">
-                  <span id="scene-category">Application runtime</span
-                  ><span id="scene-position">01 / 05</span>
+                  <span id="scene-category">Application</span
+                  ><span id="scene-position">01 / 08</span>
                 </div>
                 <p class="scene-features" id="scene-features">
-                  express · websocket · commands · clients · state · events
+                  ui / ink · state · events · commands · endpoints · openapi docs · selectors · bundle
                 </p>
                 <nav class="chapter-nav" aria-label="Container layers">
                   <a href="#application" aria-label="Explore application" aria-current="step"
                     ><span>application</span></a
-                  ><a href="#assistant" aria-label="Explore assistant"><span>assistant</span></a
-                  ><a href="#knowledge" aria-label="Explore knowledge"><span>knowledge</span></a
-                  ><a href="#operations" aria-label="Explore operations"><span>operations</span></a
+                  ><a href="#assistant" aria-label="Explore assistants"><span>assistants</span></a
+                  ><a href="#data" aria-label="Explore data features"><span>data</span></a
+                  ><a href="#systems" aria-label="Explore system features"><span>systems</span></a
+                  ><a href="#integrations" aria-label="Explore integration features"
+                    ><span>integrations</span></a
+                  ><a href="#clients" aria-label="Explore clients"><span>clients</span></a
+                  ><a href="#servers" aria-label="Explore servers"><span>servers</span></a
                   ><a href="#execution" aria-label="Explore execution"><span>execution</span></a>
                 </nav>
               </div>
@@ -1543,28 +1599,34 @@ await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
           </aside>
         </div>
         <section class="journey-end" aria-labelledby="journey-end-title">
-          <h2 id="journey-end-title">One runtime.<br />An operator built for your world.</h2>
+          <h2 id="journey-end-title">One runtime.<br />An agent that is part of it.</h2>
           <p>
-            The application gives it capabilities. The Markdown brain gives it context. The harness
-            connects both to a job. Start with one useful task, then grow the system around it.
+            Most agents are clients of your software. A Luca assistant is a component of it. The
+            features give it capabilities, the servers give it interfaces, the VM lets it grow.
+            Start with one useful job. Let the system grow around it, sometimes by itself.
           </p>
         </section>
         <div class="proof-heading">
-          <h2>Choose the pieces.<br />Invent the system.</h2>
+          <h2>Choose the pieces.<br />Invent the architecture.</h2>
           <p>
-            A construction kit for AI-native software. Combine the same pieces into a database
-            analyst, a model-roaming assistant, or an agent that turns its own history into skills.
-            Start with a working pattern. Make it yours.
+            A construction kit for AI-native software. The same pieces become an on-call operator,
+            one assistant on five transports, a database analyst, an architect that builds and
+            tests other assistants, or an agent that turns its own history into skills. Start with a
+            working pattern. Make it yours.
           </p>
         </div>
         <section class="workbench" id="harnesses" aria-label="Agent harness examples">
           <div class="workbench-top">
-            <p>Six starting points. Your combination comes next.</p>
+            <p>Eight starting points. Your combination comes next.</p>
             <span>TypeScript / Luca runtime</span>
           </div>
           <div class="harness-tabs" aria-label="Choose an agent harness">
             <button class="harness-tab" data-harness="infra" aria-pressed="true">
               Infrastructure</button
+            ><button class="harness-tab" data-harness="transports" aria-pressed="false">
+              Every transport</button
+            ><button class="harness-tab" data-harness="architect" aria-pressed="false">
+              Self-building</button
             ><button class="harness-tab" data-harness="database" aria-pressed="false">
               Database to presentation</button
             ><button class="harness-tab" data-harness="providers" aria-pressed="false">
@@ -1581,8 +1643,8 @@ await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
             <div class="mission">
               <h2 id="mission-title">Give the on-call agent<br />access to the machine.</h2>
               <p id="mission-copy">
-                Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to
-                a coding agent, and evaluate the result in the same running process.
+                Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a
+                coding agent, and verify the result from inside the same running process.
               </p>
               <div class="environment">
                 <div class="environment-label">Target environment</div>
@@ -1643,34 +1705,38 @@ await operator.ask(
         </section>
         <section class="closing" aria-labelledby="closing-title">
           <div>
-            <h2 id="closing-title">One binary.<br />That builds your binaries.</h2>
+            <h2 id="closing-title">One binary<br />that builds your binaries.</h2>
             <p>
-              Luca is the toolkit you install. The tool you ship is yours: your commands, features,
-              endpoints, and assistant definitions, compiled with the runtime into a standalone
-              executable. Give your team a database analyst, an operations agent, or a coding
-              supervisor they can run as a single file.
+              Luca is the toolkit you install. What you ship is yours: your commands, features,
+              endpoints, and assistants, compiled with the runtime into one executable. Hand your
+              team a database analyst, an operations agent, or a coding supervisor as a single file.
+              An assistant with the VM can run this step too, and ship a new version of itself.
             </p>
             <p>
-              Build for macOS or Linux with Bun on your build machine. Recipients run the compiled
-              tool without installing Luca or Bun, using their configured model providers and
-              external services.
+              Build for macOS or Linux with Bun on the build machine. Recipients run the compiled
+              tool with no Luca, no Bun, and no node_modules, using their own model providers and
+              services. Keep eval and describe in the build and the binary can still introspect
+              itself.
             </p>
           </div>
           <pre><code># From your Luca project
 luca bundle ops-agent \
-  --targets darwin-arm64,linux-x64
+  --targets darwin-arm64,linux-x64 \
+  --builtins eval,describe
 
 # Your runtime, tools, and assistants inside
-./dist/ops-agent-darwin-arm64 --help</code></pre>
+./dist/ops-agent-darwin-arm64 --help
+./dist/ops-agent-darwin-arm64 chat operator</code></pre>
         </section>
         <section class="start" id="start" aria-labelledby="start-heading">
           <div>
-            <h2 id="start-heading">Build the agent<br />your work requires.</h2>
-            <p>Install one binary. Assemble your system. Ship your own.</p>
+            <h2 id="start-heading">Build the agent<br />your work needs.</h2>
+            <p>Install one binary. Assemble the system. Ship your own.</p>
           </div>
           <div class="install">
             <pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
-luca bootstrap my-agent</code></pre>
+luca bootstrap my-agent
+cd my-agent && luca chat</code></pre>
             <div class="install-foot">
               <a
                 href="https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md"
@@ -1698,7 +1764,7 @@ luca bootstrap my-agent</code></pre>
         infra: {
           title: 'Give the on-call agent\naccess to the machine.',
           description:
-            'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and evaluate the result in the same running process.',
+            'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and verify the result from inside the same running process.',
           environment: 'SSH: staging-api\nWorkspace: ./services/api',
           tools: [
             ['contentDb', 'Markdown brain'],
@@ -1713,7 +1779,7 @@ luca bootstrap my-agent</code></pre>
         voice: {
           title: 'Give the assistant\na number of its own.',
           description:
-            'Provision a voice number, bridge the assistant’s tools to Telnyx, and place a call with a specific purpose. The person on the line reaches your actual operator.',
+            'Provision a phone number, bridge the assistant and its tools to Telnyx, and place a call with a purpose. The person who answers is talking to your actual operator, with your runbooks and your tools.',
           environment: 'Telnyx: voice + number inventory\nAssistant: ./assistants/dispatch',
           tools: [
             ['searchNumbers', 'Number inventory'],
@@ -1749,7 +1815,7 @@ await line.dial('+13125550142', {
         coding: {
           title: 'Make coding agents\npart of a larger system.',
           description:
-            'Build a supervisor with access to Claude Code, Codex, and Hermes. Let it delegate implementation, review, and investigation within a configured workspace.',
+            'A supervisor with Claude Code, Codex, and Hermes as callable functions. It delegates implementation to one agent, independent review to another, and refuses to finish until the tests pass. Coding agents become parts, not the product.',
           environment: 'Workspace: ./services/api\nAgents: Claude Code / Codex / Hermes',
           tools: [
             ['claudeCode', 'Implementation sessions'],
@@ -1784,10 +1850,106 @@ await supervisor.ask(
         },
       }
       Object.assign(harnesses, {
+        transports: {
+          title: 'One assistant.\nEvery transport.',
+          description:
+            'The same assistant, with the same tools and memory, answers an HTTP route, a WebSocket for a browser UI, an MCP tool for Claude Code or Codex, and a Telegram bot. Interfaces are code you write, not a chat window you rent.',
+          environment: 'HTTP: :8080 /ask\nWebSocket: :8081 · MCP: stdio · Telegram: bot',
+          tools: [
+            ['express', 'HTTP endpoint'],
+            ['websocket', 'Live socket + reply()'],
+            ['mcp', 'Tool for other agents'],
+            ['telegram', 'Chat in your pocket'],
+          ],
+          file: 'harnesses/every-transport.ts',
+          foot: 'Requires a configured model provider, DATABASE_URL, and TELEGRAM_BOT_TOKEN. `luca mcp --assistant desk` exposes the same tools without writing the MCP block.',
+          code: `import container from 'luca'
+import { z } from 'zod'
+
+const desk = container.feature('assistant', {
+  folder: container.paths.resolve('assistants/desk'),
+})
+desk.use(container.feature('postgres', {
+  url: process.env.DATABASE_URL!, readOnly: true,
+}))
+await desk.start()
+
+// HTTP: any client that can POST
+const api = container.server('express')
+api.app.post('/ask', async (req, res) => {
+  res.json({ answer: await desk.ask(req.body.question) })
+})
+await api.start({ port: 8080 })
+
+// WebSocket: a browser UI with correlated replies
+const live = container.server('websocket', { json: true })
+live.on('message', async (msg) => {
+  if (msg.type === 'ask') msg.reply({ answer: await desk.ask(msg.data.question) })
+})
+await live.start({ port: 8081 })
+
+// MCP: the desk becomes a tool inside Claude Code or Codex
+const mcp = container.server('mcp', { serverName: 'desk' })
+mcp.tool('ask', {
+  description: 'Ask the desk assistant a question',
+  schema: z.object({ question: z.string() }),
+  handler: ({ question }) => desk.ask(question),
+})
+await mcp.start({ transport: 'stdio' })
+
+// Telegram: same brain, different pocket
+const tg = container.feature('telegram')
+tg.handle('message:text', async (ctx) =>
+  ctx.reply(await desk.ask(ctx.message.text)))
+await tg.start()`,
+        },
+        architect: {
+          title: 'An assistant that builds,\ntests, and ships assistants.',
+          description:
+            'Give one assistant the definition tools, the skills library, and the VM. It can create a new assistant, write its typed tools, test it with a real message, roll back a regression, capture the workflow as a skill, and compile the project into a standalone binary. Every write is parse-checked, backed up, and hot-reloaded.',
+          environment: 'Writes: ./assistants/*/{CORE.md,tools.ts,hooks.ts}\nOutput: ./skills/*/SKILL.md · ./dist/<name>-<platform>',
+          tools: [
+            ['assistantsManager', 'create · write · test · rollback'],
+            ['skillsLibrary', 'Teach what it learned'],
+            ['vm', 'Live TypeScript in its own process'],
+            ['proc', 'luca scaffold / luca bundle'],
+          ],
+          file: 'harnesses/architect.ts',
+          foot: 'Requires a configured model provider. Definition writes land only if the file loads; the previous version is kept in .history/. Bundling needs Bun on the build machine.',
+          code: `import container from 'luca'
+
+const architect = container.feature('assistant', {
+  systemPrompt: \`You build and maintain this project's assistants.
+    Read a definition before writing it. After every change,
+    testAssistant with a message that exercises it. If it
+    regressed, rollbackDefinitionFile. When a job repeats,
+    write skills/<name>/SKILL.md and register it with
+    skillsLibrary. Scaffold helpers and ship binaries with
+    proc.execSync('luca scaffold ...') / ('luca bundle ...').\`,
+})
+
+architect.use(container.feature('assistantsManager'))
+architect.use(container.feature('skillsLibrary'))
+architect.use(container.feature('vm'))
+await architect.start()
+
+await architect.ask(
+  'Create a "releaseBot" assistant that runs the test suite, '
+  + 'tags a release, and writes the changelog. Give it typed '
+  + 'tools in tools.ts. Test it. Capture the procedure as a '
+  + 'skill. Then bundle this project as "releasebot" for '
+  + 'darwin-arm64 and linux-x64.'
+)
+// It wrote CORE.md and tools.ts, ran a live test turn,
+// registered skills/release/SKILL.md, and left
+// dist/releasebot-darwin-arm64 and dist/releasebot-linux-x64.`,
+        },
+      })
+      Object.assign(harnesses, {
         database: {
           title: 'Turn a database\ninto a presentation.',
           description:
-            'An analyst explores the schema, understands relationships, tests useful hypotheses with SQL, and hands verified findings to Claude Code to build a presentation page.',
+            'A read-only analyst explores the schema, forms hypotheses, tests them with SQL, and separates measured results from guesses. Claude Code turns the verified findings into a presentation page with the supporting queries.',
           environment: 'Data: PostgreSQL\nOutput: presentation.html',
           tools: [
             ['postgres', 'Schema + SQL exploration'],
@@ -1801,7 +1963,7 @@ await supervisor.ask(
         providers: {
           title: 'Change the model.\nKeep the assistant.',
           description:
-            'Discover model services on your machine, LAN hosts, and Tailscale peers. Start with a discovered model, then continue the same conversation through Claude Code and Codex providers.',
+            'Discover model servers on your machine, LAN hosts, and Tailscale peers. Start a conversation on a local model, then continue the same thread, tools included, through Claude Code and Codex. The assistant is yours; the model is a setting.',
           environment:
             'Discovery: localhost / LAN / Tailscale\nBackends: model servers + CLI providers',
           tools: [
@@ -1817,7 +1979,7 @@ await supervisor.ask(
         skills: {
           title: 'Turn past sessions\ninto future capabilities.',
           description:
-            'An assistant inventories Claude Code, Codex, and Hermes histories, finds repeated successful workflows, and writes reusable skills. The next harness can load what the last one learned.',
+            'An assistant reads its own past: Claude Code, Codex, and Hermes session histories. It finds the workflows that succeeded repeatedly, writes them as skills, and registers them. The next assistant loads what the last one learned.',
           environment: 'Sources: local coding-agent histories\nOutput: skills/*/SKILL.md',
           tools: [
             ['claudeCode / openaiCodex', 'Persisted transcripts'],
@@ -1833,7 +1995,7 @@ await supervisor.ask(
       function highlightCode(target, code) {
         target.replaceChildren()
         const pattern =
-          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|brain|telnyx|line|dispatch)\b)/g
+          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|brain|telnyx|line|dispatch|desk|architect|api|live|mcp|tg|db|analyst|presenter|miner|library|providers|local|upstream|ws|status|reply)\b)/g
         let offset = 0
         for (const match of code.matchAll(pattern)) {
           target.append(document.createTextNode(code.slice(offset, match.index)))

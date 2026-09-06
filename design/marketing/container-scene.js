@@ -5,58 +5,92 @@
   const links = [...document.querySelectorAll('.chapter-nav a')]
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   const mobile = window.matchMedia('(max-width: 760px)')
+  // One tray per registry surface. Items are real helper ids (or a category
+  // with one name), taken from `luca describe features|clients|servers`.
   const layers = [
     {
-      name: 'Application runtime',
+      name: 'Application',
       label: 'Application',
       color: '#7baeff',
       tray: '#224aa2',
       block: '#477ce5',
       left: '#172c60',
       right: '#101d41',
-      items: ['express', 'websocket', 'commands', 'clients', 'state', 'events'],
+      items: ['ui / ink', 'state', 'events', 'commands', 'endpoints', 'openapi docs', 'selectors', 'bundle'],
     },
     {
-      name: 'Embedded assistants',
+      name: 'Assistants',
       label: 'Assistants',
       color: '#b195ff',
       tray: '#583297',
       block: '#9562dc',
       left: '#38235f',
       right: '#24193f',
-      items: ['assistant', 'modelProviders', 'hooks', 'conversation', 'tools', 'delegation'],
+      items: ['assistant', 'assistantsManager', 'conversation', 'memory', 'skillsLibrary', 'mcpBridge', 'modelProviders', 'claudeCode / codex'],
     },
     {
-      name: 'Markdown brain',
-      label: 'Knowledge',
+      name: 'Features: data and content',
+      label: 'Data',
       color: '#f4c773',
       tray: '#806023',
       block: '#bc8c37',
       left: '#513b18',
       right: '#332712',
-      items: ['contentDb', 'Markdown', 'models', 'semantic', 'skillsLibrary', 'memory'],
+      items: ['contentDb', 'sqlite', 'postgres', 'redis', 'store', 'diskCache', 'semanticSearch', 'docsReader'],
     },
     {
-      name: 'Operational toolkit',
-      label: 'Operations',
+      name: 'Features: files, process, and shell',
+      label: 'Systems',
       color: '#60d9ca',
       tray: '#166c69',
       block: '#319d90',
       left: '#134641',
       right: '#0b302e',
-      items: ['secureShell', 'telnyx', 'docker', 'browser', 'postgres', 'processes'],
+      items: ['fs', 'grep', 'proc', 'processManager', 'secureShell', 'tmux', 'docker', 'git'],
     },
     {
-      name: 'Live execution',
+      name: 'Features: integrations and media',
+      label: 'Integrations',
+      color: '#8fdc95',
+      tray: '#2c7a44',
+      block: '#4aa964',
+      left: '#1d4d2e',
+      right: '#133320',
+      items: ['google workspace', 'telnyx', 'telegram', 'browserUse', 'tts', 'screenCapture', 'scheduler', 'vault'],
+    },
+    {
+      name: 'Clients',
+      label: 'Clients',
+      color: '#ffb27a',
+      tray: '#9a5424',
+      block: '#d27a3c',
+      left: '#5b3218',
+      right: '#3a2010',
+      items: ['rest', 'websocket', 'socket.io', 'ipc', 'graphql', 'openai', 'containerLink', 'tts / stt'],
+    },
+    {
+      name: 'Servers',
+      label: 'Servers',
+      color: '#8fd4ff',
+      tray: '#1f6a92',
+      block: '#3d9bd0',
+      left: '#164459',
+      right: '#0e2e3d',
+      items: ['express', 'websocket', 'ipc', 'mcp', 'llmProxy', 'containerLink'],
+    },
+    {
+      name: 'Execution',
       label: 'Execution',
       color: '#ef98c5',
       tray: '#86385f',
       block: '#be6394',
       left: '#54263e',
       right: '#351d2c',
-      items: ['vm', 'evalCode', 'claudeCode', 'Codex', 'Hermes', 'TypeScript'],
+      items: ['vm', 'evalCode', 'transpiler', 'typescript', 'introspection', 'helpers / plugins', 'python', 'bun binary'],
     },
   ]
+  const last = layers.length - 1
+  const pad = (n) => String(n).padStart(2, '0')
   const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value))
   const ease = (value) => {
     const t = clamp(value)
@@ -91,16 +125,16 @@
   function draw(progress) {
     if (Math.abs(progress - renderedProgress) < 0.002) return
     renderedProgress = progress
-    const focus = clamp(progress, 0, 4)
+    const focus = clamp(progress, 0, last)
     const stage = Math.round(focus)
     // Rigid plates seat on 24-unit locating pins above a 22-unit deck.
     // Only the joint above the current compartment opens. Upper plates move
     // together; advancing hands the opening to the next joint without overlap.
-    const pitch = 46
-    const origin = 640
+    const pitch = 40
+    const origin = 690
     const release = ease((progress + 0.8) / 0.8)
     const gaps = layers.map((_, index) =>
-      reduceMotion.matches ? 44 : 230 * release * ease(1 - Math.abs(focus - index)),
+      reduceMotion.matches ? 34 : 180 * release * ease(1 - Math.abs(focus - index)),
     )
     const elevations = layers.map(
       (_, index) =>
@@ -169,27 +203,31 @@
           }
         }
         // Components remain bolted to their plate: fixed size, pitch, and height.
+        const rows = Math.ceil(layer.items.length / 2)
+        const rowPitch = rows > 3 ? 54 : 72
+        const depth = rowPitch - 15
+        const y0 = -(rows * rowPitch - 15) / 2
         layer.items.forEach((name, itemIndex) => {
           const col = itemIndex % 2,
             row = Math.floor(itemIndex / 2)
           const x = -106 + col * 111
-          const y = -109 + row * 72
+          const y = y0 + row * rowPitch
           const lift = 18
           markup += '<g>'
           const contact = [
             [x + 4, y + 6],
             [x + 102, y + 6],
-            [x + 102, y + 65],
-            [x + 4, y + 65],
+            [x + 102, y + depth + 8],
+            [x + 4, y + depth + 8],
           ].map(([a, b]) => projection(a, b, z + 22.5, origin, offset))
           markup += `<g filter="url(#contact-shadow)">${polygon(contact, '#020612', 'none', 0.65)}</g>`
-          markup += cuboid(x, y, 96, 57, z + 23, lift, origin, offset, {
+          markup += cuboid(x, y, 96, depth, z + 23, lift, origin, offset, {
             top: `url(#block-${index})`,
             left: layer.left,
             right: layer.right,
             line: layer.color,
           })
-          const label = projection(x + 7, y + 33, z + 24 + lift, origin, offset)
+          const label = projection(x + 7, y + depth / 2 + 4, z + 24 + lift, origin, offset)
           markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="#f4f5ff" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
         })
         markup += '</g>'
@@ -222,9 +260,9 @@
       activeIndex = stage
       document.getElementById('scene-description').textContent =
         `${layers[stage].name}: ${layers[stage].items.join(', ')}. ` +
-        'Part of one container with application, assistant, knowledge, operations, and execution layers.'
+        `One container with ${layers.length} layers: ${layers.map((layer) => layer.label.toLowerCase()).join(', ')}.`
       document.getElementById('scene-category').textContent = layers[stage].name
-      document.getElementById('scene-position').textContent = `0${stage + 1} / 05`
+      document.getElementById('scene-position').textContent = `${pad(stage + 1)} / ${pad(layers.length)}`
       document.getElementById('scene-features').textContent = layers[stage].items.join(' · ')
       links.forEach((link, index) => {
         if (index === stage) link.setAttribute('aria-current', 'step')
@@ -253,8 +291,8 @@
           )
       }
     }
-    if (viewportAnchor >= chapterCenters[4]) progress = 4
-    draw(clamp(progress, -1, 4))
+    if (viewportAnchor >= chapterCenters[last]) progress = last
+    draw(clamp(progress, -1, last))
   }
   function schedule() {
     if (!pending) {
