@@ -1,28 +1,1365 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<meta name="description" content="Build AI-native applications with Luca. APIs, services, CLI tools, and embedded assistants with a searchable Markdown brain, operational tools, and live code execution.">
-<title>Luca — Applications with agents built in.</title>
-<style>
-:root{--bg:#151719;--panel:#1c1f22;--white:#f0f1ee;--muted:#a4a9ad;--steel:#444a50;--line:#33383c;--signal:#c4d4df;--mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;--sans:'Helvetica Neue',Helvetica,Arial,sans-serif;color-scheme:dark}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--bg);color:var(--white);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}a{color:inherit;text-underline-offset:5px}button{font:inherit;cursor:pointer}button,a{-webkit-tap-highlight-color:transparent}button:focus-visible,a:focus-visible,pre:focus-visible{outline:2px solid var(--signal);outline-offset:5px}::selection{background:#c4d4df;color:#151719}p,h1,h2,h3{margin:0}.wrap{width:min(1440px,100%);padding:0 64px;margin:auto}.skip{position:absolute;top:-70px;left:16px;background:var(--white);color:var(--bg);padding:12px;z-index:20}.skip:focus{top:10px}.nav{height:108px;display:flex;align-items:center;justify-content:space-between;gap:30px;border-bottom:1px solid var(--line)}.wordmark{font-size:32px;letter-spacing:-2px;font-weight:700;line-height:1;text-decoration:none}.wordmark span{display:inline-block;width:5px;height:5px;background:var(--white);margin-left:5px}.nav-links{display:flex;align-items:center;gap:32px;font-size:13px}.nav-links a{text-decoration:none;color:#c7cacc}.nav-links a:hover{color:white}.nav-links .github{border:1px solid #62686c;padding:9px 17px;color:var(--white)}.hero{padding:65px 0 56px}.context{font-size:13px;color:var(--muted);margin-bottom:30px;display:flex;align-items:center;gap:12px}.context:before{content:'';width:19px;height:1px;background:var(--signal)}h1{font-size:clamp(68px,8.3vw,119px);line-height:.98;letter-spacing:-6.5px;font-weight:500;max-width:1120px}.hero-bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:65px;margin-top:37px}.hero-bottom p{max-width:680px;font-size:20px;line-height:1.55;letter-spacing:-.3px;color:#b9bec1}.hero-actions{display:flex;align-items:center;gap:24px;flex-shrink:0}.button{display:inline-flex;align-items:center;justify-content:center;gap:22px;background:var(--white);color:var(--bg);font-size:13px;font-weight:600;text-decoration:none;padding:13px 21px;border:1px solid var(--white);min-height:46px}.button:hover{background:#d1d8db}.quiet-link{font-size:13px;text-decoration:none;border-bottom:1px solid var(--steel);padding-bottom:3px}.hero-meta{display:flex;gap:24px;font-size:11px;color:var(--muted);margin-top:32px}.hero-meta span+span:before{content:'/';margin-right:24px;color:#646b70}
-.workbench{border:1px solid #52585d;background:var(--panel);margin-bottom:82px}.workbench-top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:17px 24px;border-bottom:1px solid var(--line)}.workbench-top p{font-size:12px}.workbench-top span{font:10px var(--mono);color:var(--muted)}.harness-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 24px;gap:35px}.harness-tab{border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);padding:17px 0 15px;font-size:13px;text-align:left}.harness-tab[aria-pressed=true]{border-bottom-color:var(--white);color:var(--white)}.harness-tab:hover{color:var(--white)}.harness-body{display:grid;grid-template-columns:340px minmax(0,1fr)}.mission{padding:31px 28px;border-right:1px solid var(--line)}.mission h2{font-size:27px;line-height:1.18;letter-spacing:-.8px;font-weight:500}.mission>p{font-size:13px;color:#b4b9bd;margin-top:16px;line-height:1.8}.environment{margin-top:28px;padding-top:21px;border-top:1px solid var(--line)}.environment-label{font-size:11px;color:var(--muted)}.environment strong{display:block;font:12px/1.8 var(--mono);color:var(--white);font-weight:400;margin-top:6px}.capability-list{padding:0;list-style:none;margin:25px 0 0}.capability-list li{font:11px/1.8 var(--mono);padding:9px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}.capability-list li span:last-child{font-family:var(--sans);color:var(--muted);text-align:right}.code-pane{min-width:0;background:#181b1e;display:flex;flex-direction:column}.code-toolbar{display:flex;justify-content:space-between;align-items:center;padding:15px 26px;border-bottom:1px solid #2b3034;font:11px var(--mono);color:var(--muted)}.copy{border:1px solid var(--steel);padding:5px 10px;color:#cbd0d3;background:transparent;font:11px var(--sans);min-height:30px}.copy:hover{background:#30363a}.code-pane pre{margin:0;padding:25px 28px;overflow:auto;font:12px/1.8 var(--mono);min-height:451px;tab-size:2}.kw{color:#d9e3ed}.str{color:#c6d1b6}.comment{color:#899298}.code-foot{padding:13px 26px;font-size:11px;color:#9ca6ad;border-top:1px solid #2b3034;margin-top:auto}.workbench-bottom{padding:15px 24px;display:flex;justify-content:space-between;gap:25px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}.workbench-bottom a{color:#cbd1d5}
-.statement{display:grid;grid-template-columns:1.15fr 1fr;gap:100px;padding:25px 0 94px}.statement h2,.section-heading{font-size:clamp(36px,4vw,55px);font-weight:400;line-height:1.1;letter-spacing:-2px}.statement p{color:var(--muted);font-size:17px;line-height:1.8;max-width:570px}.statement p+p{margin-top:20px}.statement p strong{font-weight:400;color:var(--white)}.eval-section{background:#e6e8e6;color:#1a1d20;padding:76px 0}.eval-header{display:flex;justify-content:space-between;gap:60px;align-items:flex-start;margin-bottom:40px}.eval-header p{max-width:430px;font-size:16px;color:#52595d;line-height:1.8}.eval-header .section-heading{max-width:600px}.eval-workspace{display:grid;grid-template-columns:1.65fr 1fr;border:1px solid #b7bdbd}.eval-code{background:#dcdedd;padding:28px;min-width:0}.eval-title{font:11px var(--mono);color:#596166;display:flex;justify-content:space-between;margin-bottom:21px}.eval-code pre{margin:0;font:12px/1.9 var(--mono);overflow:auto;color:#252c30}.eval-notes{padding:30px 34px;border-left:1px solid #b7bdbd}.eval-notes h3{font-size:20px;letter-spacing:-.5px;font-weight:500}.eval-notes p{font-size:13px;line-height:1.8;color:#52595d;margin-top:12px}.eval-notes code{font:11px var(--mono);color:#20272c}.eval-note{font-size:11px;color:#52595d;margin-top:19px}.surface{padding:90px 0}.surface-top{display:flex;justify-content:space-between;align-items:flex-end;gap:70px;margin-bottom:43px}.surface-top>p{font-size:15px;color:var(--muted);max-width:410px}.surface-row{display:grid;grid-template-columns:1fr 1.6fr .9fr;gap:45px;align-items:baseline;padding:27px 0;border-top:1px solid var(--line)}.surface-row:last-child{border-bottom:1px solid var(--line)}.surface-row h3{font-size:20px;font-weight:400;letter-spacing:-.4px}.surface-row p{font-size:14px;color:var(--muted);max-width:530px}.surface-row code{font:11px/1.9 var(--mono);color:#c0c9cf;text-align:right}.shipping{display:grid;grid-template-columns:1.1fr 1fr;gap:100px;padding-bottom:90px}.shipping p{font-size:16px;color:var(--muted);margin-top:24px;max-width:470px}.shipping .quiet-link{display:inline-block;margin-top:26px}.bundle{border-left:1px solid var(--steel);padding-left:36px;display:flex;flex-direction:column;justify-content:center;gap:24px}.bundle pre{font:13px/2 var(--mono);margin:0;overflow:auto}.bundle .comment{color:var(--muted)}.bundle-footer{display:flex;gap:24px;font-size:11px;color:var(--muted);padding-top:23px;border-top:1px solid var(--line)}.start{padding:55px 0 60px;border-top:1px solid #62686c;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}.start h2{font-weight:400;font-size:41px;letter-spacing:-1.4px;line-height:1.15}.start p{font-size:14px;color:var(--muted);margin-top:14px}.install{background:var(--panel);border:1px solid var(--line)}.install pre{margin:0;padding:22px;font:11px/1.9 var(--mono);overflow-wrap:anywhere;white-space:pre-wrap}.install-foot{padding:0 22px 18px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)}.footer{padding:27px 0 35px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:24px}.footer .wordmark{font-size:25px}.footer p{font-size:11px;color:#8f989e}.footer-links{display:flex;gap:25px;font-size:12px;color:#b9c0c4}.footer-links a{text-decoration:none}.status{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--white);color:var(--bg);padding:10px 18px;font-size:12px;z-index:30}.status:empty{display:none}
-@media(min-width:1600px){.hero{padding-top:85px}}@media(max-width:1150px){.wrap{padding:0 36px}h1{font-size:91px;letter-spacing:-5px}.hero-bottom{gap:35px}.hero-bottom p{font-size:18px}.hero-actions{gap:18px}.harness-body{grid-template-columns:295px minmax(0,1fr)}.mission{padding:27px 22px}.code-pane pre{font-size:11px;padding:23px}.statement,.shipping{gap:60px}.surface-row{gap:30px}.eval-header{gap:40px}.eval-workspace{grid-template-columns:1.6fr 1fr}.eval-notes{padding:25px}.start{gap:45px}.hero-actions .quiet-link{display:none}}
-@media(max-width:760px){.wrap{padding:0 22px}.nav{height:82px}.nav-links{gap:20px}.nav-links .desktop{display:none}.nav-links .github{padding:8px 12px}.hero{padding:40px 0 35px}.context{font-size:11px;margin-bottom:27px}h1{font-size:clamp(57px,10.3vw,78px);letter-spacing:-3.6px;line-height:1.01}.hero-bottom{display:block;margin-top:26px}.hero-bottom p{font-size:17px;max-width:570px}.hero-actions{margin-top:24px}.hero-actions .quiet-link{display:block}.hero-meta{gap:12px;font-size:10px;margin-top:26px;flex-wrap:wrap}.hero-meta span+span:before{margin-right:12px}.workbench{margin-bottom:52px}.workbench-top{padding:14px 16px}.workbench-top span{font-size:9px}.workbench-top p{font-size:11px}.harness-tabs{padding:0 16px;gap:25px;overflow-x:auto}.harness-tab{white-space:nowrap;font-size:12px;padding:15px 0}.harness-body{grid-template-columns:1fr}.mission{border-right:0;border-bottom:1px solid var(--line);padding:25px 20px}.mission h2{font-size:24px}.mission>p{max-width:600px;font-size:13px}.environment{margin-top:20px;padding-top:16px}.capability-list{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:20px}.capability-list li{font-size:10px;display:block}.capability-list li span{display:block}.capability-list li span:last-child{text-align:left;font-size:11px}.code-pane pre{font-size:10px;min-height:390px;padding:19px 16px}.code-toolbar{padding:13px 16px}.code-foot{padding:13px 16px}.workbench-bottom{padding:14px 16px;flex-direction:column;gap:9px}.statement{grid-template-columns:1fr;gap:25px;padding:8px 0 55px}.statement h2,.section-heading{font-size:37px;letter-spacing:-1.5px}.statement p{font-size:16px;line-height:1.75}.eval-section{padding:49px 0}.eval-header{display:block;margin-bottom:25px}.eval-header p{margin-top:23px;font-size:15px;max-width:600px}.eval-workspace{grid-template-columns:1fr}.eval-code{padding:20px 16px}.eval-code pre{font-size:10px}.eval-notes{border-left:0;border-top:1px solid #b7bdbd;padding:23px}.surface{padding:55px 0}.surface-top{display:block;margin-bottom:30px}.surface-top>p{margin-top:22px;max-width:none;font-size:15px}.surface-row{grid-template-columns:1fr;gap:10px;padding:24px 0}.surface-row code{text-align:left;margin-top:4px;font-size:10px}.shipping{grid-template-columns:1fr;gap:30px;padding-bottom:55px}.shipping p{font-size:15px}.bundle{padding-left:22px;gap:20px}.bundle pre{font-size:11px}.start{grid-template-columns:1fr;gap:25px;padding:39px 0}.start h2{font-size:36px}.footer{flex-wrap:wrap;gap:20px}.footer p{order:3;flex-basis:100%;font-size:10px}.footer-links{font-size:11px;gap:18px}.install pre{font-size:10px;padding:18px}.install-foot{padding:0 18px 18px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-.brain-section{padding:75px 0 85px;border-top:1px solid var(--line)}.brain-heading{display:grid;grid-template-columns:1.15fr 1fr;gap:80px;align-items:start;margin-bottom:38px}.brain-heading>p{font-size:16px;line-height:1.8;color:var(--muted);max-width:510px}.brain-layout{display:grid;grid-template-columns:.85fr 1.4fr;gap:70px}.brain-details article{padding:23px 0;border-top:1px solid var(--line)}.brain-details h3{font-size:20px;font-weight:400;letter-spacing:-.5px}.brain-details p{font-size:14px;color:var(--muted);margin-top:12px;line-height:1.8}.brain-details code{font:11px var(--mono);color:var(--white)}.brain-code{border:1px solid var(--steel)}.brain-code pre{font-size:11px;min-height:0;line-height:1.9}@media(max-width:1050px){.brain-heading{gap:40px}.brain-layout{gap:30px;grid-template-columns:.9fr 1.3fr}.brain-code pre{font-size:10px;padding:20px}}@media(max-width:760px){.brain-section{padding:48px 0}.brain-heading,.brain-layout{grid-template-columns:1fr;gap:25px}.brain-heading{margin-bottom:27px}.brain-heading>p{font-size:15px}.brain-details article{padding:20px 0}.brain-code pre{padding:18px 16px;font-size:10px}}
-</style>
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
-<div class="wrap"><header><nav class="nav" aria-label="Main navigation"><a href="#" class="wordmark" aria-label="Luca home">luca<span aria-hidden="true"></span></a><div class="nav-links"><a class="desktop" href="#harnesses">Harnesses</a><a class="desktop" href="#brain">Markdown brain</a><a class="desktop" href="#runtime">Runtime</a><a href="https://github.com/soederpop/luca/tree/main/docs">Docs</a><a class="github" href="https://github.com/soederpop/luca">GitHub ↗</a></div></nav></header>
-</div><main id="main"><div class="wrap">
-<section class="hero" aria-labelledby="hero-title"><p class="context">An AI-native application runtime</p><h1 id="hero-title">Build applications.<br>With agents inside.</h1><div class="hero-bottom"><p>Build APIs, services, CLI toolkits, and web apps with assistants baked into the runtime. Give them a searchable Markdown brain, tools that operate real systems, and live access to the application they’re part of.</p><div class="hero-actions"><a class="button" href="#harnesses">Explore the harnesses <span aria-hidden="true">↓</span></a><a class="quiet-link" href="#start">Get Luca</a></div></div><div class="hero-meta"><span>Full application toolkit</span><span>Embedded assistants</span><span>Open source / MIT</span></div></section>
-<section class="workbench" id="harnesses" aria-label="Agent harness examples"><div class="workbench-top"><p>One toolkit. Entirely different operators.</p><span>TypeScript / Luca runtime</span></div><div class="harness-tabs" aria-label="Choose an agent harness"><button class="harness-tab" data-harness="infra" aria-pressed="true">Infrastructure operator</button><button class="harness-tab" data-harness="voice" aria-pressed="false">Voice operator</button><button class="harness-tab" data-harness="coding" aria-pressed="false">Coding supervisor</button></div><div class="harness-body"><div class="mission"><h2 id="mission-title">Give the on-call agent<br>access to the machine.</h2><p id="mission-copy">Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and evaluate the result in the same running process.</p><div class="environment"><div class="environment-label">Target environment</div><strong id="mission-env">SSH: staging-api<br>Workspace: ./services/api</strong></div><ul class="capability-list" id="capabilities"><li><span>contentDb</span><span>Markdown brain</span></li><li><span>secureShell</span><span>Remote execution</span></li><li><span>claudeCode</span><span>Coding sessions</span></li><li><span>vm</span><span>Live evaluation</span></li></ul></div><div class="code-pane"><div class="code-toolbar"><span id="code-file">harnesses/infrastructure.ts</span><button class="copy" data-copy="harness-code">Copy code</button></div><pre tabindex="0" aria-label="Harness source code"><code id="harness-code">import container from 'luca'
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="Build software with an operator inside. Explore how Luca brings applications, assistants, a Markdown brain, operational tools, and live code execution into one runtime."
+    />
+    <title>Luca — Build software. Give it an operator.</title>
+    <style>
+      :root {
+        --bg: #151719;
+        --panel: #1c1f22;
+        --white: #f0f1ee;
+        --muted: #a4a9ad;
+        --steel: #444a50;
+        --line: #33383c;
+        --signal: #c4d4df;
+        --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        --sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 30px;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--white);
+        font: 16px/1.6 var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 5px;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      pre:focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 5px;
+      }
+      ::selection {
+        background: #c4d4df;
+        color: #151719;
+      }
+      p,
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+      .wrap {
+        width: min(1440px, 100%);
+        padding: 0 64px;
+        margin: auto;
+      }
+      .skip {
+        position: absolute;
+        top: -70px;
+        left: 16px;
+        background: var(--white);
+        color: var(--bg);
+        padding: 12px;
+        z-index: 20;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      .nav {
+        height: 108px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+        border-bottom: 1px solid var(--line);
+      }
+      .wordmark {
+        font-size: 32px;
+        letter-spacing: -2px;
+        font-weight: 700;
+        line-height: 1;
+        text-decoration: none;
+      }
+      .wordmark span {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        background: var(--white);
+        margin-left: 5px;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        font-size: 13px;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: #c7cacc;
+      }
+      .nav-links a:hover {
+        color: white;
+      }
+      .nav-links .github {
+        border: 1px solid #62686c;
+        padding: 9px 17px;
+        color: var(--white);
+      }
+      .hero {
+        padding: 65px 0 56px;
+      }
+      .context {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .context:before {
+        content: '';
+        width: 19px;
+        height: 1px;
+        background: var(--signal);
+      }
+      h1 {
+        font-size: clamp(68px, 8.3vw, 119px);
+        line-height: 0.98;
+        letter-spacing: -6.5px;
+        font-weight: 500;
+        max-width: 1120px;
+      }
+      .hero-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 65px;
+        margin-top: 37px;
+      }
+      .hero-bottom p {
+        max-width: 680px;
+        font-size: 20px;
+        line-height: 1.55;
+        letter-spacing: -0.3px;
+        color: #b9bec1;
+      }
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        flex-shrink: 0;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: var(--white);
+        color: var(--bg);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 13px 21px;
+        border: 1px solid var(--white);
+        min-height: 46px;
+      }
+      .button:hover {
+        background: #d1d8db;
+      }
+      .quiet-link {
+        font-size: 13px;
+        text-decoration: none;
+        border-bottom: 1px solid var(--steel);
+        padding-bottom: 3px;
+      }
+      .hero-meta {
+        display: flex;
+        gap: 24px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 32px;
+      }
+      .hero-meta span + span:before {
+        content: '/';
+        margin-right: 24px;
+        color: #646b70;
+      }
+      .workbench {
+        border: 1px solid #52585d;
+        background: var(--panel);
+        margin-bottom: 82px;
+      }
+      .workbench-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 17px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .workbench-top p {
+        font-size: 12px;
+      }
+      .workbench-top span {
+        font: 10px var(--mono);
+        color: var(--muted);
+      }
+      .harness-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--line);
+        padding: 0 24px;
+        gap: 35px;
+      }
+      .harness-tab {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        color: var(--muted);
+        padding: 17px 0 15px;
+        font-size: 13px;
+        text-align: left;
+      }
+      .harness-tab[aria-pressed='true'] {
+        border-bottom-color: var(--white);
+        color: var(--white);
+      }
+      .harness-tab:hover {
+        color: var(--white);
+      }
+      .harness-body {
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+      }
+      .mission {
+        padding: 31px 28px;
+        border-right: 1px solid var(--line);
+      }
+      .mission h2 {
+        font-size: 27px;
+        line-height: 1.18;
+        letter-spacing: -0.8px;
+        font-weight: 500;
+      }
+      .mission > p {
+        font-size: 13px;
+        color: #b4b9bd;
+        margin-top: 16px;
+        line-height: 1.8;
+      }
+      .environment {
+        margin-top: 28px;
+        padding-top: 21px;
+        border-top: 1px solid var(--line);
+      }
+      .environment-label {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .environment strong {
+        display: block;
+        font: 12px/1.8 var(--mono);
+        color: var(--white);
+        font-weight: 400;
+        margin-top: 6px;
+      }
+      .capability-list {
+        padding: 0;
+        list-style: none;
+        margin: 25px 0 0;
+      }
+      .capability-list li {
+        font: 11px/1.8 var(--mono);
+        padding: 9px 0;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .capability-list li span:last-child {
+        font-family: var(--sans);
+        color: var(--muted);
+        text-align: right;
+      }
+      .code-pane {
+        min-width: 0;
+        background: #181b1e;
+        display: flex;
+        flex-direction: column;
+      }
+      .code-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 26px;
+        border-bottom: 1px solid #2b3034;
+        font: 11px var(--mono);
+        color: var(--muted);
+      }
+      .copy {
+        border: 1px solid var(--steel);
+        padding: 5px 10px;
+        color: #cbd0d3;
+        background: transparent;
+        font: 11px var(--sans);
+        min-height: 30px;
+      }
+      .copy:hover {
+        background: #30363a;
+      }
+      .code-pane pre {
+        margin: 0;
+        padding: 25px 28px;
+        overflow: auto;
+        font: 12px/1.8 var(--mono);
+        min-height: 451px;
+        tab-size: 2;
+      }
+      .kw {
+        color: #d9e3ed;
+      }
+      .str {
+        color: #c6d1b6;
+      }
+      .comment {
+        color: #899298;
+      }
+      .code-foot {
+        padding: 13px 26px;
+        font-size: 11px;
+        color: #9ca6ad;
+        border-top: 1px solid #2b3034;
+        margin-top: auto;
+      }
+      .workbench-bottom {
+        padding: 15px 24px;
+        display: flex;
+        justify-content: space-between;
+        gap: 25px;
+        font-size: 11px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+      }
+      .workbench-bottom a {
+        color: #cbd1d5;
+      }
+      .start {
+        padding: 55px 0 60px;
+        border-top: 1px solid #62686c;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: center;
+      }
+      .start h2 {
+        font-weight: 400;
+        font-size: 41px;
+        letter-spacing: -1.4px;
+        line-height: 1.15;
+      }
+      .start p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+      .install {
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .install pre {
+        margin: 0;
+        padding: 22px;
+        font: 11px/1.9 var(--mono);
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .install-foot {
+        padding: 0 22px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .footer {
+        padding: 27px 0 35px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+      }
+      .footer .wordmark {
+        font-size: 25px;
+      }
+      .footer p {
+        font-size: 11px;
+        color: #8f989e;
+      }
+      .footer-links {
+        display: flex;
+        gap: 25px;
+        font-size: 12px;
+        color: #b9c0c4;
+      }
+      .footer-links a {
+        text-decoration: none;
+      }
+      .status {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--white);
+        color: var(--bg);
+        padding: 10px 18px;
+        font-size: 12px;
+        z-index: 30;
+      }
+      .status:empty {
+        display: none;
+      }
+      @media (min-width: 1600px) {
+        .hero {
+          padding-top: 85px;
+        }
+      }
+      @media (max-width: 1150px) {
+        .wrap {
+          padding: 0 36px;
+        }
+        h1 {
+          font-size: 91px;
+          letter-spacing: -5px;
+        }
+        .hero-bottom {
+          gap: 35px;
+        }
+        .hero-bottom p {
+          font-size: 18px;
+        }
+        .hero-actions {
+          gap: 18px;
+        }
+        .harness-body {
+          grid-template-columns: 295px minmax(0, 1fr);
+        }
+        .mission {
+          padding: 27px 22px;
+        }
+        .code-pane pre {
+          font-size: 11px;
+          padding: 23px;
+        }
+        .start {
+          gap: 45px;
+        }
+        .hero-actions .quiet-link {
+          display: none;
+        }
+      }
+      @media (max-width: 760px) {
+        .wrap {
+          padding: 0 22px;
+        }
+        .nav {
+          height: 82px;
+        }
+        .nav-links {
+          gap: 20px;
+        }
+        .nav-links .desktop {
+          display: none;
+        }
+        .nav-links .github {
+          padding: 8px 12px;
+        }
+        .hero {
+          padding: 40px 0 35px;
+        }
+        .context {
+          font-size: 11px;
+          margin-bottom: 27px;
+        }
+        h1 {
+          font-size: clamp(57px, 10.3vw, 78px);
+          letter-spacing: -3.6px;
+          line-height: 1.01;
+        }
+        .hero-bottom {
+          display: block;
+          margin-top: 26px;
+        }
+        .hero-bottom p {
+          font-size: 17px;
+          max-width: 570px;
+        }
+        .hero-actions {
+          margin-top: 24px;
+        }
+        .hero-actions .quiet-link {
+          display: block;
+        }
+        .hero-meta {
+          gap: 12px;
+          font-size: 10px;
+          margin-top: 26px;
+          flex-wrap: wrap;
+        }
+        .hero-meta span + span:before {
+          margin-right: 12px;
+        }
+        .workbench {
+          margin-bottom: 52px;
+        }
+        .workbench-top {
+          padding: 14px 16px;
+        }
+        .workbench-top span {
+          font-size: 9px;
+        }
+        .workbench-top p {
+          font-size: 11px;
+        }
+        .harness-tabs {
+          padding: 0 16px;
+          gap: 25px;
+          overflow-x: auto;
+        }
+        .harness-tab {
+          white-space: nowrap;
+          font-size: 12px;
+          padding: 15px 0;
+        }
+        .harness-body {
+          grid-template-columns: 1fr;
+        }
+        .mission {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 25px 20px;
+        }
+        .mission h2 {
+          font-size: 24px;
+        }
+        .mission > p {
+          max-width: 600px;
+          font-size: 13px;
+        }
+        .environment {
+          margin-top: 20px;
+          padding-top: 16px;
+        }
+        .capability-list {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0 20px;
+          margin-top: 20px;
+        }
+        .capability-list li {
+          font-size: 10px;
+          display: block;
+        }
+        .capability-list li span {
+          display: block;
+        }
+        .capability-list li span:last-child {
+          text-align: left;
+          font-size: 11px;
+        }
+        .code-pane pre {
+          font-size: 10px;
+          min-height: 390px;
+          padding: 19px 16px;
+        }
+        .code-toolbar {
+          padding: 13px 16px;
+        }
+        .code-foot {
+          padding: 13px 16px;
+        }
+        .workbench-bottom {
+          padding: 14px 16px;
+          flex-direction: column;
+          gap: 9px;
+        }
+        .start {
+          grid-template-columns: 1fr;
+          gap: 25px;
+          padding: 39px 0;
+        }
+        .start h2 {
+          font-size: 36px;
+        }
+        .footer {
+          flex-wrap: wrap;
+          gap: 20px;
+        }
+        .footer p {
+          order: 3;
+          flex-basis: 100%;
+          font-size: 10px;
+        }
+        .footer-links {
+          font-size: 11px;
+          gap: 18px;
+        }
+        .install pre {
+          font-size: 10px;
+          padding: 18px;
+        }
+        .install-foot {
+          padding: 0 18px 18px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      .hero {
+        padding: 70px 0 52px;
+      }
+      .hero h1 {
+        font-size: clamp(64px, 7.4vw, 108px);
+        max-width: 1050px;
+        letter-spacing: -5.8px;
+      }
+      .hero-bottom {
+        margin-top: 30px;
+      }
+      .hero-bottom p {
+        max-width: 665px;
+        font-size: 19px;
+      }
+      .hero-meta {
+        margin-top: 25px;
+      }
+      .journey {
+        position: relative;
+        display: grid;
+        grid-template-columns: 42% 58%;
+        border-top: 1px solid var(--line);
+        isolation: isolate;
+      }
+      .chapters {
+        min-width: 0;
+        padding-right: 34px;
+        position: relative;
+        z-index: 2;
+      }
+      .chapter {
+        min-height: 88svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 80px 0;
+        scroll-margin-top: 8vh;
+      }
+      .chapter:first-child {
+        min-height: 80svh;
+      }
+      .chapter:last-child {
+        min-height: 95svh;
+      }
+      .chapter-count {
+        font: 11px var(--mono);
+        color: #a6afb5;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+      .chapter-count:after {
+        content: '';
+        width: 46px;
+        height: 1px;
+        background: var(--steel);
+      }
+      .chapter h2 {
+        font-size: clamp(34px, 3.5vw, 49px);
+        line-height: 1.12;
+        letter-spacing: -1.9px;
+        font-weight: 400;
+        max-width: 460px;
+      }
+      .chapter > p {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #aeb7bd;
+        margin-top: 23px;
+        max-width: 430px;
+      }
+      .chapter-example {
+        margin-top: 27px;
+        border-left: 2px solid #687781;
+        padding: 0 0 0 18px;
+        max-width: 420px;
+      }
+      .chapter-example span {
+        font: 10px var(--mono);
+        color: #98a4ad;
+        display: block;
+        margin-bottom: 9px;
+      }
+      .chapter-example p {
+        font-size: 14px;
+        line-height: 1.7;
+        color: #d4dade;
+      }
+      .chapter code {
+        display: block;
+        margin-top: 24px;
+        font: 11px/1.8 var(--mono);
+        color: #bfcdd6;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .scene-column {
+        position: relative;
+        min-width: 0;
+      }
+      .scene-sticky {
+        position: sticky;
+        top: 10px;
+        height: calc(100svh - 20px);
+        min-height: 570px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .scene-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 18px;
+        font: 10px var(--mono);
+        color: #8f9ba4;
+        gap: 16px;
+      }
+      .scene-head strong {
+        font-weight: 400;
+        color: #dae0e3;
+      }
+      .scene-canvas {
+        width: 100%;
+        height: min(70svh, 730px);
+        display: block;
+        overflow: visible;
+      }
+      .scene-canvas text {
+        font-family: var(--mono);
+      }
+      .scene-footer {
+        padding: 0 18px;
+      }
+      .scene-current {
+        font-size: 12px;
+        color: #dce2e6;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .scene-features {
+        font: 10px/1.8 var(--mono);
+        color: #98a6b0;
+        min-height: 38px;
+        max-width: 510px;
+      }
+      .chapter-nav {
+        display: flex;
+        gap: 8px;
+        margin-top: 17px;
+      }
+      .chapter-nav a {
+        display: block;
+        flex: 1;
+        height: 24px;
+        padding: 10px 0;
+        position: relative;
+        text-decoration: none;
+      }
+      .chapter-nav a:before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: #384047;
+      }
+      .chapter-nav a[aria-current='step']:before {
+        background: #d7e5ef;
+      }
+      .chapter-nav a:hover:before {
+        background: #8194a2;
+      }
+      .chapter-nav a span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      .journey-end {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 70px;
+        border-top: 1px solid var(--steel);
+        padding: 58px 0 70px;
+      }
+      .journey-end h2 {
+        font-size: 42px;
+        line-height: 1.13;
+        font-weight: 400;
+        letter-spacing: -1.6px;
+      }
+      .journey-end p {
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.8;
+        max-width: 520px;
+      }
+      .proof-heading {
+        padding: 24px 0 33px;
+        display: flex;
+        justify-content: space-between;
+        gap: 60px;
+        align-items: end;
+      }
+      .proof-heading h2 {
+        font-size: 43px;
+        font-weight: 400;
+        letter-spacing: -1.7px;
+        line-height: 1.13;
+      }
+      .proof-heading p {
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--muted);
+        max-width: 430px;
+      }
+      .workbench {
+        margin-bottom: 60px;
+      }
+      .closing {
+        padding: 30px 0 55px;
+        display: flex;
+        justify-content: space-between;
+        gap: 60px;
+        align-items: center;
+      }
+      .closing h2 {
+        font-size: 36px;
+        letter-spacing: -1.2px;
+        font-weight: 400;
+        line-height: 1.17;
+        max-width: 500px;
+      }
+      .closing p {
+        font-size: 15px;
+        color: var(--muted);
+        margin-top: 20px;
+        max-width: 500px;
+      }
+      .closing pre {
+        font: 12px/1.9 var(--mono);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 25px;
+        min-width: 340px;
+      }
+      .static-scene-note {
+        font-size: 12px;
+        color: var(--muted);
+        padding: 20px;
+      }
+      .scene-canvas .module-label {
+        font-size: 9px;
+      }
+      .scene-canvas .layer-label {
+        font-size: 11px;
+      }
+      .scene-canvas .lid-title {
+        font: 500 38px var(--sans);
+        letter-spacing: -2px;
+      }
+      @media (max-width: 1100px) {
+        .hero h1 {
+          font-size: 86px;
+          letter-spacing: -4.5px;
+        }
+        .chapters {
+          padding-right: 20px;
+        }
+        .chapter h2 {
+          font-size: 37px;
+        }
+        .chapter > p {
+          font-size: 15px;
+        }
+        .chapter-example p {
+          font-size: 13px;
+        }
+        .scene-head,
+        .scene-footer {
+          padding: 0 5px;
+        }
+        .scene-canvas {
+          width: 110%;
+          margin-left: -5%;
+        }
+        .journey-end {
+          gap: 40px;
+        }
+        .chapter {
+          min-height: 85svh;
+        }
+        .proof-heading {
+          gap: 35px;
+        }
+      }
+      @media (max-width: 760px) {
+        .hero {
+          padding: 40px 0;
+        }
+        .hero h1 {
+          font-size: clamp(52px, 10.2vw, 76px);
+          letter-spacing: -3px;
+        }
+        .hero-bottom p {
+          font-size: 16px;
+        }
+        .journey {
+          display: flex;
+          flex-direction: column;
+        }
+        .scene-column {
+          display: contents;
+        }
+        .scene-sticky {
+          order: -1;
+          top: 0;
+          height: 42svh;
+          min-height: 265px;
+          max-height: 420px;
+          background: var(--bg);
+          z-index: 5;
+          border-bottom: 1px solid var(--line);
+          padding-top: 12px;
+          justify-content: flex-start;
+        }
+        .scene-head {
+          padding: 0 5px;
+          font-size: 9px;
+        }
+        .scene-canvas {
+          height: calc(100% - 58px);
+          width: 100%;
+          margin: 0;
+          overflow: hidden;
+        }
+        .scene-footer {
+          padding: 0;
+        }
+        .scene-current,
+        .scene-features {
+          display: none;
+        }
+        .chapter-nav {
+          margin-top: 0;
+        }
+        .chapter-nav a {
+          height: 20px;
+          padding: 9px 0;
+        }
+        .chapters {
+          padding-right: 0;
+        }
+        .chapter {
+          min-height: 88svh;
+          padding: 45px 0;
+          scroll-margin-top: 44svh;
+          justify-content: center;
+        }
+        .chapter:first-child {
+          min-height: 66svh;
+        }
+        .chapter:last-child {
+          min-height: 82svh;
+        }
+        .chapter h2 {
+          font-size: 35px;
+          max-width: 440px;
+        }
+        .chapter > p {
+          font-size: 15px;
+          max-width: 540px;
+        }
+        .chapter-count {
+          margin-bottom: 17px;
+        }
+        .chapter-example {
+          margin-top: 21px;
+        }
+        .chapter code {
+          font-size: 10px;
+          margin-top: 20px;
+        }
+        .journey-end {
+          display: block;
+          padding: 38px 0 42px;
+        }
+        .journey-end h2 {
+          font-size: 34px;
+        }
+        .journey-end p {
+          margin-top: 23px;
+          font-size: 15px;
+        }
+        .proof-heading {
+          display: block;
+          padding: 15px 0 26px;
+        }
+        .proof-heading h2 {
+          font-size: 35px;
+        }
+        .proof-heading p {
+          margin-top: 19px;
+          font-size: 14px;
+          max-width: 540px;
+        }
+        .closing {
+          display: block;
+          padding: 5px 0 32px;
+        }
+        .closing h2 {
+          font-size: 32px;
+        }
+        .closing p {
+          font-size: 14px;
+        }
+        .closing pre {
+          min-width: 0;
+          font-size: 11px;
+          padding: 20px;
+          margin-top: 25px;
+        }
+        .scene-canvas .module-label {
+          font-size: 11px;
+        }
+        .scene-canvas .layer-label {
+          font-size: 13px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .chapter {
+          min-height: 68svh;
+        }
+        .chapter:first-child,
+        .chapter:last-child {
+          min-height: 68svh;
+        }
+      }
+      @media (max-width: 760px) {
+        .scene-current {
+          display: flex;
+          font-size: 10px;
+          margin-bottom: 0;
+        }
+        .scene-canvas {
+          height: calc(100% - 74px);
+        }
+      }
+      @media (max-width: 760px) and (max-height: 500px) {
+        .scene-sticky {
+          height: 190px;
+          min-height: 190px;
+        }
+        .chapter {
+          scroll-margin-top: 205px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="wrap">
+      <header>
+        <nav class="nav" aria-label="Main navigation">
+          <a class="wordmark" href="#" aria-label="Luca home"
+            >luca<span aria-hidden="true"></span
+          ></a>
+          <div class="nav-links">
+            <a class="desktop" href="#inside">Inside Luca</a
+            ><a class="desktop" href="#harnesses">Build a harness</a
+            ><a href="https://github.com/soederpop/luca/tree/main/docs">Docs</a
+            ><a class="github" href="https://github.com/soederpop/luca">GitHub ↗</a>
+          </div>
+        </nav>
+      </header>
+    </div>
+    <main id="main">
+      <div class="wrap">
+        <section class="hero" aria-labelledby="hero-title">
+          <p class="context">An AI-native application runtime</p>
+          <h1 id="hero-title">Build software.<br />Give it an operator.</h1>
+          <div class="hero-bottom">
+            <p>
+              Your application already has the tools to do useful work. Luca gives it an assistant
+              that can understand the system, use those tools, and help operate it—all inside the
+              same runtime.
+            </p>
+            <div class="hero-actions">
+              <a class="button" href="#inside"
+                >Open the container <span aria-hidden="true">↓</span></a
+              ><a class="quiet-link" href="#harnesses">See the code</a>
+            </div>
+          </div>
+          <div class="hero-meta">
+            <span>TypeScript applications</span><span>Embedded assistants</span
+            ><span>Open source / MIT</span>
+          </div>
+        </section>
+        <div class="journey" id="inside">
+          <div class="chapters">
+            <section
+              class="chapter"
+              id="application"
+              data-chapter="0"
+              aria-labelledby="chapter-0-title"
+            >
+              <div class="chapter-count">01 / 05</div>
+              <h2 id="chapter-0-title">Start with an application.<br />One coherent runtime.</h2>
+              <p>
+                Your API, services, command-line tools, and browser UI need a foundation. Luca gives
+                them shared state, events, and a discoverable set of capabilities.
+              </p>
+              <div class="chapter-example">
+                <span>Imagine your API starts failing.</span>
+                <p>
+                  The service, its state, and the tools for inspecting it already belong to the same
+                  system.
+                </p>
+              </div>
+              <code
+                >const api = container.server(&#x27;express&#x27;) const state =
+                container.state</code
+              >
+            </section>
+            <section
+              class="chapter"
+              id="assistant"
+              data-chapter="1"
+              aria-labelledby="chapter-1-title"
+            >
+              <div class="chapter-count">02 / 05</div>
+              <h2 id="chapter-1-title">Put an operator<br />inside that application.</h2>
+              <p>
+                An assistant is a first-class part of the runtime. Give it a job, choose its model,
+                and connect it to the capabilities your application already uses.
+              </p>
+              <div class="chapter-example">
+                <span>Give the failure to your operator.</span>
+                <p>
+                  It can work with the application’s actual tools and state, and respond through the
+                  interfaces you build.
+                </p>
+              </div>
+              <code
+                >const operator = container.feature(&#x27;assistant&#x27;, { systemPrompt:
+                &#x27;Investigate API incidents.&#x27;, })</code
+              >
+            </section>
+            <section
+              class="chapter"
+              id="knowledge"
+              data-chapter="2"
+              aria-labelledby="chapter-2-title"
+            >
+              <div class="chapter-count">03 / 05</div>
+              <h2 id="chapter-2-title">Give it the knowledge<br />behind your decisions.</h2>
+              <p>
+                A folder of Markdown becomes a structured brain through Contentbase. The assistant
+                can query records, search by meaning, and read the relevant sections of your
+                runbooks.
+              </p>
+              <div class="chapter-example">
+                <span>Find the procedure before taking action.</span>
+                <p>
+                  The operator searches past incidents and deployment notes to understand what
+                  failed and how your team handles it.
+                </p>
+              </div>
+              <code
+                >operator.use(container.feature(&#x27;contentDb&#x27;, { rootPath:
+                &#x27;./brain&#x27;, }))</code
+              >
+            </section>
+            <section
+              class="chapter"
+              id="operations"
+              data-chapter="3"
+              aria-labelledby="chapter-3-title"
+            >
+              <div class="chapter-count">04 / 05</div>
+              <h2 id="chapter-3-title">Connect the knowledge<br />to things it can do.</h2>
+              <p>
+                Build a toolkit for this environment: SSH hosts, browsers, databases, processes, or
+                telephony. The same architecture can run an infrastructure operator or an assistant
+                with its own phone number.
+              </p>
+              <div class="chapter-example">
+                <span>Inspect the machine that is failing.</span>
+                <p>
+                  Attach SSH for remote diagnostics. A different job might need Telnyx number
+                  provisioning and outbound calls instead.
+                </p>
+              </div>
+              <code
+                >operator.use(container.feature(&#x27;secureShell&#x27;, { host:
+                &#x27;staging-api&#x27;, }))</code
+              >
+            </section>
+            <section
+              class="chapter"
+              id="execution"
+              data-chapter="4"
+              aria-labelledby="chapter-4-title"
+            >
+              <div class="chapter-count">05 / 05</div>
+              <h2 id="chapter-4-title">Let it compose<br />the next move.</h2>
+              <p>
+                With the VM attached, the assistant can evaluate code against its live container. It
+                can combine tools, inspect results, and coordinate Claude Code, Codex, or Hermes
+                sessions.
+              </p>
+              <div class="chapter-example">
+                <span>From diagnosis to a verified fix.</span>
+                <p>
+                  A configured harness can hand diagnostics to a coding agent, inspect the changes,
+                  and check the result before reporting back.
+                </p>
+              </div>
+              <code
+                >operator.use(container.feature(&#x27;vm&#x27;)) await operator.start() await
+                operator.ask(&#x27;Investigate the failing API.&#x27;)</code
+              >
+            </section>
+          </div>
+          <aside class="scene-column" aria-label="Exploded view of the Luca container">
+            <div class="scene-sticky">
+              <div class="scene-head">
+                <strong>container</strong><span>Scroll to explore its architecture</span>
+              </div>
+              <svg
+                class="scene-canvas"
+                id="container-scene"
+                viewBox="0 0 820 780"
+                role="img"
+                aria-labelledby="scene-title scene-description"
+              >
+                <title id="scene-title">Luca container, isometric exploded view</title>
+                <desc id="scene-description">
+                  Five nested categories expand with the story: application runtime, embedded
+                  assistants, Markdown knowledge, operational tools, and live execution. Component
+                  names are also provided in the chapter text and diagram caption.
+                </desc></svg
+              ><noscript
+                ><p class="static-scene-note">
+                  Enable JavaScript to see the expanding container. The complete story is available
+                  in the accompanying text.
+                </p></noscript
+              >
+              <div class="scene-footer">
+                <div class="scene-current">
+                  <span id="scene-category">Application runtime</span
+                  ><span id="scene-position">01 / 05</span>
+                </div>
+                <p class="scene-features" id="scene-features">
+                  express · websocket · commands · clients · state · events
+                </p>
+                <nav class="chapter-nav" aria-label="Container layers">
+                  <a href="#application" aria-label="Explore application" aria-current="step"
+                    ><span>application</span></a
+                  ><a href="#assistant" aria-label="Explore assistant"><span>assistant</span></a
+                  ><a href="#knowledge" aria-label="Explore knowledge"><span>knowledge</span></a
+                  ><a href="#operations" aria-label="Explore operations"><span>operations</span></a
+                  ><a href="#execution" aria-label="Explore execution"><span>execution</span></a>
+                </nav>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <section class="journey-end" aria-labelledby="journey-end-title">
+          <h2 id="journey-end-title">One runtime.<br />An operator built for your world.</h2>
+          <p>
+            The application gives it capabilities. The Markdown brain gives it context. The harness
+            connects both to a job. Start with one useful task, then grow the system around it.
+          </p>
+        </section>
+        <div class="proof-heading">
+          <h2>Now make it concrete.</h2>
+          <p>
+            Here is the infrastructure harness from the walkthrough. Inspect the code, then see how
+            the same foundation becomes a voice operator or coding supervisor.
+          </p>
+        </div>
+        <section class="workbench" id="harnesses" aria-label="Agent harness examples">
+          <div class="workbench-top">
+            <p>One toolkit. Entirely different operators.</p>
+            <span>TypeScript / Luca runtime</span>
+          </div>
+          <div class="harness-tabs" aria-label="Choose an agent harness">
+            <button class="harness-tab" data-harness="infra" aria-pressed="true">
+              Infrastructure operator</button
+            ><button class="harness-tab" data-harness="voice" aria-pressed="false">
+              Voice operator</button
+            ><button class="harness-tab" data-harness="coding" aria-pressed="false">
+              Coding supervisor
+            </button>
+          </div>
+          <div class="harness-body">
+            <div class="mission">
+              <h2 id="mission-title">Give the on-call agent<br />access to the machine.</h2>
+              <p id="mission-copy">
+                Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to
+                a coding agent, and evaluate the result in the same running process.
+              </p>
+              <div class="environment">
+                <div class="environment-label">Target environment</div>
+                <strong id="mission-env">SSH: staging-api<br />Workspace: ./services/api</strong>
+              </div>
+              <ul class="capability-list" id="capabilities">
+                <li><span>contentDb</span><span>Markdown brain</span></li>
+                <li><span>secureShell</span><span>Remote execution</span></li>
+                <li><span>claudeCode</span><span>Coding sessions</span></li>
+                <li><span>vm</span><span>Live evaluation</span></li>
+              </ul>
+            </div>
+            <div class="code-pane">
+              <div class="code-toolbar">
+                <span id="code-file">harnesses/infrastructure.ts</span
+                ><button class="copy" data-copy="harness-code">Copy code</button>
+              </div>
+              <pre
+                tabindex="0"
+                aria-label="Harness source code"
+              ><code id="harness-code">import container from 'luca'
 
 const operator = container.feature('assistant', {
   systemPrompt: `You operate the staging API.
@@ -45,79 +1382,93 @@ operator.use(container.feature('vm'))
 await operator.start()
 await operator.ask(
   'Investigate the failing health check on staging-api.'
-)</code></pre><div class="code-foot" id="code-foot">Requires a configured model provider, ./brain collection, SSH alias, and Claude Code CLI.</div></div></div><div class="workbench-bottom"><span>Example configuration. Select a harness to inspect its tools and environment.</span><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis">Inspect the APIs ↗</a></div></section>
-<section class="statement" aria-labelledby="statement-title"><h2 id="statement-title">The assistant is<br>part of the application.</h2><div><p>Your API, background service, command-line toolkit, and assistant are built from the same runtime. <strong>They share capabilities, observable state, and events.</strong> The assistant can discover and operate the application it lives in.</p><p>Shape that runtime into a task-specific, environment-specific harness. Choose its model, connect its Markdown brain, attach tools, and define its instructions and hooks. The application architecture is also the agent architecture.</p></div></section>
-</div>
-<section class="brain-section" id="brain" aria-labelledby="brain-heading"><div class="wrap"><div class="brain-heading"><h2 class="section-heading" id="brain-heading">A full Markdown brain.<br>Built to be searched.</h2><p>Contentbase turns Markdown into a structured knowledge system. Runbooks, architecture decisions, project knowledge, and task records stay readable as files and become queryable context for the assistant.</p></div><div class="brain-layout"><div class="brain-details"><article><h3>Knowledge with structure</h3><p>Define content models, parse frontmatter, query records, and validate documents. Your application and its assistants work with the same collection.</p></article><article><h3>Search by meaning</h3><p>Find related knowledge with vector search, match exact terms with BM25, or combine both with hybrid search.</p></article><article><h3>Context the agent can navigate</h3><p>Attach the collection with <code>assistant.use(brain)</code>. The assistant inherits tools to explore models, query documents, search semantically, and read the sections it needs.</p></article></div><div class="code-pane brain-code"><div class="code-toolbar"><span>brain.ts / Contentbase integration</span><button class="copy" data-copy="brain-code">Copy code</button></div><pre tabindex="0" aria-label="Markdown brain example"><code id="brain-code">import container from 'luca'
-
-const brain = container.feature('contentDb', {
-  rootPath: './brain',
-})
-await brain.load()
-
-// The application can search the same knowledge.
-const related = await brain.hybridSearch(
-  'How do we recover from a failed deployment?',
-  { limit: 5 },
-)
-
-// The assistant gets navigation and search tools.
-const operator = container.feature('assistant', {
-  systemPrompt: 'Use our runbooks to investigate incidents.',
-})
-operator.use(brain)
-operator.use(container.feature('vm'))
-await operator.start()
-await operator.ask(
-  'Find the rollback procedure and its preconditions.'
-)</code></pre><div class="code-foot">Requires a Markdown collection and configured model / embedding access. The assistant’s semantic search tool can fall back to text search.</div></div></div></div></section>
-<section class="eval-section" id="runtime" aria-labelledby="eval-heading"><div class="wrap"><div class="eval-header"><h2 class="section-heading" id="eval-heading">The agent can write code.<br>Inside its own runtime.</h2><p>Attach the VM and the assistant gets live evaluation with the whole container in scope. It can compose capabilities in code, inspect running helpers, and act on the state already in memory.</p></div><div class="eval-workspace"><div class="eval-code"><div class="eval-title"><span>evalCode / TypeScript</span><span>Same process</span></div><pre tabindex="0" aria-label="Live evaluation example"><code>// Available to the assistant after assistant.use(vm).
-const ssh = container.feature('secureShell')
-ssh.useHost('staging-api')
-
-const diagnostics = await ssh.exec(
-  'journalctl -u api -n 80 --no-pager'
-)
-
-// Hand the real diagnostic output to a coding agent.
-const coder = container.feature('openaiCodex', {
-  cwd: container.paths.resolve('services/api'),
-})
-const session = await coder.run(
-  `Investigate this service failure: ${diagnostics}`
-)
-session.result</code></pre></div><div class="eval-notes"><h3>A tool call can become a program.</h3><p>Combine SSH, coding sessions, filesystem operations, and your own features in one evaluation. Use loops, conditions, and asynchronous code when the task demands it.</p><p><code>container</code> is the live application. <code>assistant</code> is the consuming agent. Results and console output come back through the tool call.</p><p>This is live execution with real side effects. The environment you provide defines what the harness can reach.</p></div></div><p class="eval-note">The VM runs in the current process. It is not a security sandbox or a separate CLI session.</p></div></section>
-<div class="wrap"><section class="surface" aria-labelledby="surface-heading"><div class="surface-top"><h2 class="section-heading" id="surface-heading">An operational toolkit.<br>From compute to a phone call.</h2><p>Build the application and the assistant together. Servers, clients, commands, state, and operational tools all belong to the same runtime.</p></div><div class="surface-row"><h3>Build complete applications</h3><p>Serve APIs, run background services, build CLI toolkits, and power reactive browser apps. Embed assistants alongside the business logic and state they operate.</p><code>express / websocket / commands<br>clients / state / events</code></div><div class="surface-row"><h3>Operate infrastructure</h3><p>Discover SSH hosts, execute remote commands, move files, manage processes and containers, and provision GPU environments.</p><code>secureShell / docker<br>processManager / runpod</code></div><div class="surface-row"><h3>Put agents on the phone</h3><p>Search and purchase numbers, deploy a voice assistant, initiate outbound calls, transfer callers, and retrieve transcripts and insights.</p><code>telnyxConnector<br>voiceMode / tts</code></div><div class="surface-row"><h3>Manage coding agents</h3><p>Start and resume Claude Code, Codex, and Hermes sessions. Set working directories and provider options. Consume structured session events.</p><code>claudeCode / openaiCodex<br>hermesAgent</code></div><div class="surface-row"><h3>Build the working context</h3><p>Bring project documents, memory, browser access, databases, and custom tools into the harness. Inspect capabilities through runtime documentation.</p><code>contentDb / memory / browserUse<br>sqlite / introspection</code></div></section>
-<section class="shipping" aria-labelledby="ship-heading"><div><h2 class="section-heading" id="ship-heading">Your environment.<br>Your operator.<br>Your executable.</h2><p>Build the application and its harness around your systems. Bundle commands, features, endpoints, and assistant definitions into a standalone binary.</p><a class="quiet-link" href="https://github.com/soederpop/luca#build-your-own-binary">Explore binary builds ↗</a></div><div class="bundle"><pre><code><span class="comment"># Start a project for your operator.</span>
-luca bootstrap ops-agent
-cd ops-agent
-
-<span class="comment"># Add your harness and environment configuration.</span>
-<span class="comment"># Package the project.</span>
-luca bundle ops-agent</code></pre><div class="bundle-footer"><span>Runtime included</span><span>Target-specific builds</span><span>External services configured by you</span></div></div></section>
-<section class="start" id="start" aria-labelledby="start-heading"><div><h2 id="start-heading">Build the agent<br>your work requires.</h2><p>Start with Luca. Make the harness yours.</p></div><div class="install"><pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
-luca bootstrap my-agent</code></pre><div class="install-foot"><a href="https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md">Getting started ↗</a><button class="copy" data-copy="install-code">Copy commands</button></div></div></section>
-</div></main><div class="wrap"><footer class="footer"><a class="wordmark" href="#" aria-label="Luca home">luca<span aria-hidden="true"></span></a><p>Lightweight Universal Conversational Architecture.</p><div class="footer-links"><a href="https://github.com/soederpop/luca">GitHub ↗</a><a href="https://github.com/soederpop/luca/tree/main/docs">Documentation ↗</a><a href="https://github.com/soederpop/luca#license">MIT</a></div></footer></div>
-<div class="status" id="status" role="status"></div>
-<script>
-const harnesses = {
-  infra: {
-    title: 'Give the on-call agent\naccess to the machine.',
-    description: 'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and evaluate the result in the same running process.',
-    environment: 'SSH: staging-api\nWorkspace: ./services/api',
-    tools: [['contentDb', 'Markdown brain'], ['secureShell', 'Remote execution'], ['claudeCode', 'Coding sessions'], ['vm', 'Live evaluation']],
-    file: 'harnesses/infrastructure.ts',
-    foot: 'Requires a configured model provider, ./brain collection, SSH alias, and Claude Code CLI.',
-    code: document.getElementById('harness-code').textContent,
-  },
-  voice: {
-    title: 'Give the assistant\na number of its own.',
-    description: 'Provision a voice number, bridge the assistant’s tools to Telnyx, and place a call with a specific purpose. The person on the line reaches your actual operator.',
-    environment: 'Telnyx: voice + number inventory\nAssistant: ./assistants/dispatch',
-    tools: [['searchNumbers', 'Number inventory'], ['purchaseNumber', 'Provisioning'], ['start', 'Assistant + tool bridge'], ['dial', 'Outbound calls']],
-    file: 'harnesses/voice.ts',
-    foot: 'Requires Telnyx credentials, a configured dispatch assistant, and a reachable tool bridge. Provisioning and calls are billable.',
-    code: `import container from 'luca'
+)</code></pre>
+              <div class="code-foot" id="code-foot">
+                Requires a configured model provider, ./brain collection, SSH alias, and Claude Code
+                CLI.
+              </div>
+            </div>
+          </div>
+          <div class="workbench-bottom">
+            <span
+              >Example configuration. Select a harness to inspect its tools and environment.</span
+            ><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis"
+              >Inspect the APIs ↗</a
+            >
+          </div>
+        </section>
+        <section class="closing" aria-labelledby="closing-title">
+          <div>
+            <h2 id="closing-title">Build it for your environment.<br />Ship it as your tool.</h2>
+            <p>
+              Package your commands, features, endpoints, and assistant definitions into a
+              standalone executable. Configure the external services your operator needs.
+            </p>
+          </div>
+          <pre><code># Your application and its assistant, together.
+luca bundle ops-agent</code></pre>
+        </section>
+        <section class="start" id="start" aria-labelledby="start-heading">
+          <div>
+            <h2 id="start-heading">Build the agent<br />your work requires.</h2>
+            <p>Start with Luca. Make the harness yours.</p>
+          </div>
+          <div class="install">
+            <pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
+luca bootstrap my-agent</code></pre>
+            <div class="install-foot">
+              <a
+                href="https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md"
+                >Getting started ↗</a
+              ><button class="copy" data-copy="install-code">Copy commands</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <div class="wrap">
+      <footer class="footer">
+        <a class="wordmark" href="#" aria-label="Luca home">luca<span aria-hidden="true"></span></a>
+        <p>Lightweight Universal Conversational Architecture.</p>
+        <div class="footer-links">
+          <a href="https://github.com/soederpop/luca">GitHub ↗</a
+          ><a href="https://github.com/soederpop/luca/tree/main/docs">Documentation ↗</a
+          ><a href="https://github.com/soederpop/luca#license">MIT</a>
+        </div>
+      </footer>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <script>
+      const harnesses = {
+        infra: {
+          title: 'Give the on-call agent\naccess to the machine.',
+          description:
+            'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and evaluate the result in the same running process.',
+          environment: 'SSH: staging-api\nWorkspace: ./services/api',
+          tools: [
+            ['contentDb', 'Markdown brain'],
+            ['secureShell', 'Remote execution'],
+            ['claudeCode', 'Coding sessions'],
+            ['vm', 'Live evaluation'],
+          ],
+          file: 'harnesses/infrastructure.ts',
+          foot: 'Requires a configured model provider, ./brain collection, SSH alias, and Claude Code CLI.',
+          code: document.getElementById('harness-code').textContent,
+        },
+        voice: {
+          title: 'Give the assistant\na number of its own.',
+          description:
+            'Provision a voice number, bridge the assistant’s tools to Telnyx, and place a call with a specific purpose. The person on the line reaches your actual operator.',
+          environment: 'Telnyx: voice + number inventory\nAssistant: ./assistants/dispatch',
+          tools: [
+            ['searchNumbers', 'Number inventory'],
+            ['purchaseNumber', 'Provisioning'],
+            ['start', 'Assistant + tool bridge'],
+            ['dial', 'Outbound calls'],
+          ],
+          file: 'harnesses/voice.ts',
+          foot: 'Requires Telnyx credentials, a configured dispatch assistant, and a reachable tool bridge. Provisioning and calls are billable.',
+          code: `import container from 'luca'
 
 const dispatch = container.feature('assistant', {
   folder: container.paths.resolve('assistants/dispatch'),
@@ -139,15 +1490,21 @@ await line.dial('+13125550142', {
   greeting: 'Hi, this is dispatch with your service update.',
   context: 'Confirm the scheduled maintenance window.',
 })`,
-  },
-  coding: {
-    title: 'Make coding agents\npart of a larger system.',
-    description: 'Build a supervisor with access to Claude Code, Codex, and Hermes. Let it delegate implementation, review, and investigation within a configured workspace.',
-    environment: 'Workspace: ./services/api\nAgents: Claude Code / Codex / Hermes',
-    tools: [['claudeCode', 'Implementation sessions'], ['openaiCodex', 'Review sessions'], ['hermesAgent', 'ACP sessions'], ['vm', 'Programmatic coordination']],
-    file: 'harnesses/coding-supervisor.ts',
-    foot: 'Requires configured model access and installed, authenticated coding-agent CLIs.',
-    code: `import container from 'luca'
+        },
+        coding: {
+          title: 'Make coding agents\npart of a larger system.',
+          description:
+            'Build a supervisor with access to Claude Code, Codex, and Hermes. Let it delegate implementation, review, and investigation within a configured workspace.',
+          environment: 'Workspace: ./services/api\nAgents: Claude Code / Codex / Hermes',
+          tools: [
+            ['claudeCode', 'Implementation sessions'],
+            ['openaiCodex', 'Review sessions'],
+            ['hermesAgent', 'ACP sessions'],
+            ['vm', 'Programmatic coordination'],
+          ],
+          file: 'harnesses/coding-supervisor.ts',
+          foot: 'Requires configured model access and installed, authenticated coding-agent CLIs.',
+          code: `import container from 'luca'
 
 const cwd = container.paths.resolve('services/api')
 const supervisor = container.feature('assistant', {
@@ -169,65 +1526,82 @@ await supervisor.ask(
   'Implement idempotent webhook handling. Have a second '
   + 'agent review concurrency and retry behavior.'
 )`,
-  },
-}
-function renderCode(code) {
-  const target = document.getElementById('harness-code')
-  target.replaceChildren()
-  code.split(/(\/\/[^\n]*|#[^\n]*|\x60[^\x60]*\x60|'[^'\n]*'|"[^"\n]*"|\b(?:import|from|const|await|if|throw|new)\b)/g).forEach(token => {
-    const span = document.createElement('span')
-    span.textContent = token
-    if (/^(\/\/|#)/.test(token)) span.className = 'comment'
-    else if (/^['"\x60]/.test(token)) span.className = 'str'
-    else if (/^(import|from|const|await|if|throw|new)$/.test(token)) span.className = 'kw'
-    target.append(span)
-  })
-}
-function selectHarness(key) {
-  const harness = harnesses[key]
-  document.querySelectorAll('[data-harness]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.harness === key)))
-  const title = document.getElementById('mission-title')
-  title.textContent = harness.title
-  title.style.whiteSpace = 'pre-line'
-  document.getElementById('mission-copy').textContent = harness.description
-  const environment = document.getElementById('mission-env')
-  environment.textContent = harness.environment
-  environment.style.whiteSpace = 'pre-line'
-  document.getElementById('code-file').textContent = harness.file
-  document.getElementById('code-foot').textContent = harness.foot
-  const list = document.getElementById('capabilities')
-  list.replaceChildren()
-  harness.tools.forEach(([name, description]) => {
-    const item = document.createElement('li')
-    for (const text of [name, description]) {
-      const span = document.createElement('span')
-      span.textContent = text
-      item.append(span)
-    }
-    list.append(item)
-  })
-  renderCode(harness.code)
-}
-document.querySelectorAll('[data-harness]').forEach(button => button.addEventListener('click', () => selectHarness(button.dataset.harness)))
-renderCode(harnesses.infra.code)
-let statusTimer
-document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
-  const code = document.getElementById(button.dataset.copy)
-  const status = document.getElementById('status')
-  clearTimeout(statusTimer)
-  try {
-    await navigator.clipboard.writeText(code.textContent)
-    status.textContent = 'Copied to clipboard.'
-  } catch {
-    const selection = window.getSelection()
-    const range = document.createRange()
-    range.selectNodeContents(code)
-    selection.removeAllRanges()
-    selection.addRange(range)
-    status.textContent = 'Code selected. Press ⌘C or Ctrl+C to copy.'
-  }
-  statusTimer = setTimeout(() => { status.textContent = '' }, 4000)
-}))
-</script>
-</body>
+        },
+      }
+      function renderCode(code) {
+        const target = document.getElementById('harness-code')
+        target.replaceChildren()
+        code
+          .split(
+            /(\/\/[^\n]*|#[^\n]*|\x60[^\x60]*\x60|'[^'\n]*'|"[^"\n]*"|\b(?:import|from|const|await|if|throw|new)\b)/g,
+          )
+          .forEach((token) => {
+            const span = document.createElement('span')
+            span.textContent = token
+            if (/^(\/\/|#)/.test(token)) span.className = 'comment'
+            else if (/^['"\x60]/.test(token)) span.className = 'str'
+            else if (/^(import|from|const|await|if|throw|new)$/.test(token)) span.className = 'kw'
+            target.append(span)
+          })
+      }
+      function selectHarness(key) {
+        const harness = harnesses[key]
+        document
+          .querySelectorAll('[data-harness]')
+          .forEach((button) =>
+            button.setAttribute('aria-pressed', String(button.dataset.harness === key)),
+          )
+        const title = document.getElementById('mission-title')
+        title.textContent = harness.title
+        title.style.whiteSpace = 'pre-line'
+        document.getElementById('mission-copy').textContent = harness.description
+        const environment = document.getElementById('mission-env')
+        environment.textContent = harness.environment
+        environment.style.whiteSpace = 'pre-line'
+        document.getElementById('code-file').textContent = harness.file
+        document.getElementById('code-foot').textContent = harness.foot
+        const list = document.getElementById('capabilities')
+        list.replaceChildren()
+        harness.tools.forEach(([name, description]) => {
+          const item = document.createElement('li')
+          for (const text of [name, description]) {
+            const span = document.createElement('span')
+            span.textContent = text
+            item.append(span)
+          }
+          list.append(item)
+        })
+        renderCode(harness.code)
+      }
+      document
+        .querySelectorAll('[data-harness]')
+        .forEach((button) =>
+          button.addEventListener('click', () => selectHarness(button.dataset.harness)),
+        )
+      renderCode(harnesses.infra.code)
+      let statusTimer
+      document.querySelectorAll('[data-copy]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          const code = document.getElementById(button.dataset.copy)
+          const status = document.getElementById('status')
+          clearTimeout(statusTimer)
+          try {
+            await navigator.clipboard.writeText(code.textContent)
+            status.textContent = 'Copied to clipboard.'
+          } catch {
+            const selection = window.getSelection()
+            const range = document.createRange()
+            range.selectNodeContents(code)
+            selection.removeAllRanges()
+            selection.addRange(range)
+            status.textContent = 'Code selected. Press ⌘C or Ctrl+C to copy.'
+          }
+          statusTimer = setTimeout(() => {
+            status.textContent = ''
+          }, 4000)
+        }),
+      )
+    </script>
+    <script src="container-scene.js"></script>
+  </body>
 </html>

@@ -1,31 +1,43 @@
 # Luca marketing concept
 
-Unpublished local prototype. Start from the repository root:
+Unpublished local prototype. From the repository root:
 
 ```sh
 bun run design/marketing/preview.ts
 ```
 
-Open http://127.0.0.1:4317. No build or external assets are required.
+Open http://127.0.0.1:4317. No build step, external assets, or rendering libraries are required.
 
-## Positioning
+## Story and conversion
 
-Luca is an AI-native application runtime: APIs, services, CLI toolkits, browser applications, and assistants built from the same architecture. Assistants are embedded in that runtime, sharing its capabilities, state, and events. Task-specific, environment-specific harnesses combine a Contentbase Markdown brain with operational tools and live evaluation. The full application toolkit and embedded assistants are one product story.
+The opening promise is “Build software. Give it an operator.” A developer should understand what they gain before encountering the full API surface.
+
+The walkthrough follows one incident: an API fails, an embedded assistant searches the runbooks, inspects the machine, and can coordinate a coding agent to investigate and verify a fix. Each chapter answers the next practical question:
+
+1. Application: where do the API, services, commands, state, and events live?
+2. Assistant: how does an operator become part of that application?
+3. Knowledge: how does it discover our runbooks and prior decisions?
+4. Operations: how does it reach the real systems involved?
+5. Execution: how does it compose those capabilities into a useful next action?
+
+The completed architecture leads directly to the full infrastructure harness, followed by voice and coding-supervisor variants. Installation is the final action. Binary delivery explains how the developer can turn the application and its assistant into their own tool.
 
 ## Design system
 
-- Carbon `#151719`, panel `#1c1f22`, white `#f0f1ee`, secondary `#a4a9ad`, steel `#444a50`, signal `#c4d4df`.
-- Helvetica Neue / Helvetica for tightly set, oversized display type and quiet body text. SF Mono / Menlo for code and technical identifiers.
-- Broad headline and positioning lead into a full-width harness workbench. The selected mission, concrete configuration, and capability inventory appear together. Subsequent sections explain the shared application runtime, the structured Markdown brain, live evaluation, the operational toolkit, and binary delivery.
-- Alignment is left-led throughout. Tiny radii, flat surfaces, generous space around dense technical content. No decorative objects, mascot, pastel blocks, invented activity logs, metrics, or testimonials.
-- The signature is the actual harness code and its changing environment. A generic architecture illustration was rejected because it hides the operational depth.
+Carbon `#151719`, panel `#1c1f22`, white `#f0f1ee`, secondary `#a4a9ad`, steel `#444a50`, signal `#c4d4df`. Subtle material tones distinguish the categories without turning them into colorful cards. Helvetica Neue / Helvetica carries the narrative; SF Mono / Menlo identifies code and components.
 
-## Examples and verification
+A left-aligned story sits beside a sticky isometric assembly. Five physical compartments each hold six named components. The lid lifts, category trays separate, and the selected compartment expands and comes forward. This assembly is the primary visual; surrounding typography and controls stay quiet.
 
-API signatures were inspected using `luca describe` for `features.assistant`, `secureShell`, `telnyxConnector`, `claudeCode`, `openaiCodex`, `hermesAgent`, `vm`, and `contentDb`. The live-evaluation behavior was also checked against the VM implementation. Examples are recipes for configured environments, not executed demos. Model credentials, installed coding CLIs, SSH aliases, and Telnyx configuration must exist where required.
+The scene is a code-native SVG using a shared isometric projection. Scrolling schedules a single animation frame, with geometry derived from chapter positions. It reverses naturally, supports direct chapter anchors, updates its accessible description, and recalculates after viewport changes. There is no scroll hijacking or continuous animation loop.
 
-All interactions are local presentation controls: harness selection and clipboard copy. No agents, calls, purchases, SSH commands, or deployments are launched by this page.
+On narrow screens the diagram sticks above the narrative. Reduced-motion mode shows an already-expanded assembly and changes emphasis without moving the geometry. The narrative remains readable without JavaScript.
 
-Validation: page JavaScript and all three displayed harnesses pass Bun syntax checks. HTML nesting, unique IDs, and in-page navigation targets were checked. A side-effect-free VM smoke check confirmed that `addContext()` values resolve through `evalCode()`. Browser visual review of this revision remains outstanding.
+## Code and validation
 
-The Markdown brain example was syntax-checked, and Contentbase tool handlers for semantic search, model discovery, document querying, and reading were verified without loading a collection or making external calls. HTML nesting, navigation targets, page JavaScript, and all harness example syntax checks pass after this revision.
+`index.html` contains the narrative and verified harness examples. `container-scene.js` contains the scene projection and scroll behavior. `preview.ts` serves this folder through Luca's Express feature on loopback only.
+
+API signatures were inspected through `luca describe` for the assistant, Contentbase, SSH, Telnyx, VM, and coding-agent wrappers. Coding agents are made available through runtime context and invoked via live evaluation. The examples require the model access, collections, external services, SSH configuration, and installed coding CLIs described beside them. The page does not execute these examples.
+
+Validation includes HTML structure and anchors, Bun syntax checks, simulated forward/reverse scroll and layer navigation at desktop/mobile viewport settings, and all 30 component labels. Both reduced-motion modes were exercised. The initial desktop page was inspected in Chrome; assembled, intermediate, and fully expanded SVG states were rendered separately for visual QA. A full mobile browser visual pass remains outstanding.
+
+Nothing is deployed or published.
