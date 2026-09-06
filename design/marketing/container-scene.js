@@ -24,7 +24,7 @@
       block: '#9562dc',
       left: '#38235f',
       right: '#24193f',
-      items: ['assistant', 'models', 'hooks', 'conversation', 'tools', 'delegation'],
+      items: ['assistant', 'modelProviders', 'hooks', 'conversation', 'tools', 'delegation'],
     },
     {
       name: 'Markdown brain',
@@ -34,7 +34,7 @@
       block: '#bc8c37',
       left: '#513b18',
       right: '#332712',
-      items: ['contentDb', 'Markdown', 'models', 'semantic', 'queries', 'memory'],
+      items: ['contentDb', 'Markdown', 'models', 'semantic', 'skillsLibrary', 'memory'],
     },
     {
       name: 'Operational toolkit',
@@ -44,7 +44,7 @@
       block: '#319d90',
       left: '#134641',
       right: '#0b302e',
-      items: ['secureShell', 'telnyx', 'docker', 'browser', 'databases', 'processes'],
+      items: ['secureShell', 'telnyx', 'docker', 'browser', 'postgres', 'processes'],
     },
     {
       name: 'Live execution',

@@ -1307,6 +1307,30 @@
         margin: 0;
         white-space: pre-wrap;
       }
+      .harness-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        column-gap: 25px;
+        row-gap: 0;
+      }
+      .harness-tab {
+        white-space: normal;
+      }
+      .code-pane pre {
+        max-height: 720px;
+      }
+      @media (max-width: 760px) {
+        .harness-tabs {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0 15px;
+        }
+        .harness-tab {
+          font-size: 12px;
+        }
+        .code-pane pre {
+          max-height: 570px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1526,20 +1550,27 @@ await operator.ask(&#x27;Investigate the failing API.&#x27;)</code></pre>
           </p>
         </section>
         <div class="proof-heading">
-          <h2>Now make it concrete.</h2>
+          <h2>Choose the pieces.<br />Invent the system.</h2>
           <p>
-            Here is the infrastructure harness from the walkthrough. Inspect the code, then see how
-            the same foundation becomes a voice operator or coding supervisor.
+            A construction kit for AI-native software. Combine the same pieces into a database
+            analyst, a model-roaming assistant, or an agent that turns its own history into skills.
+            Start with a working pattern. Make it yours.
           </p>
         </div>
         <section class="workbench" id="harnesses" aria-label="Agent harness examples">
           <div class="workbench-top">
-            <p>One toolkit. Entirely different operators.</p>
+            <p>Six starting points. Your combination comes next.</p>
             <span>TypeScript / Luca runtime</span>
           </div>
           <div class="harness-tabs" aria-label="Choose an agent harness">
             <button class="harness-tab" data-harness="infra" aria-pressed="true">
-              Infrastructure operator</button
+              Infrastructure</button
+            ><button class="harness-tab" data-harness="database" aria-pressed="false">
+              Database to presentation</button
+            ><button class="harness-tab" data-harness="providers" aria-pressed="false">
+              Model discovery</button
+            ><button class="harness-tab" data-harness="skills" aria-pressed="false">
+              History to skills</button
             ><button class="harness-tab" data-harness="voice" aria-pressed="false">
               Voice operator</button
             ><button class="harness-tab" data-harness="coding" aria-pressed="false">
@@ -1741,6 +1772,53 @@ await supervisor.ask(
 )`,
         },
       }
+      Object.assign(harnesses, {
+        database: {
+          title: 'Turn a database\ninto a presentation.',
+          description:
+            'An analyst explores the schema, understands relationships, tests useful hypotheses with SQL, and hands verified findings to Claude Code to build a presentation page.',
+          environment: 'Data: PostgreSQL\nOutput: presentation.html',
+          tools: [
+            ['postgres', 'Schema + SQL exploration'],
+            ['assistant', 'Hypotheses + insights'],
+            ['claudeCode', 'Presentation page'],
+          ],
+          file: 'harnesses/database-analyst.ts',
+          foot: 'Requires DATABASE_URL, a database reader role, configured model access, and authenticated Claude Code. This example does not run in the page.',
+          code: "import container from 'luca'\n\nconst db = container.feature('postgres', {\n  url: process.env.DATABASE_URL!, readOnly: true,\n})\nconst analyst = container.feature('assistant', {\n  systemPrompt: `Explore the schema and relationships first.\n    Propose insights this database could support, then test\n    them with SQL. Report evidence, query definitions,\n    caveats, and chart-ready aggregates.`,\n})\nanalyst.use(db)\nawait analyst.start()\n\nconst findings = await analyst.ask(\n  'Find three meaningful patterns in this database. '\n  + 'Distinguish measured results from hypotheses.'\n)\n\nconst presenter = container.feature('claudeCode', {\n  cwd: container.cwd,\n})\nawait presenter.run(\n  'Build a standalone presentation.html from these findings. '\n  + 'Include charts, the supporting SQL, and limitations. '\n  + 'Use aggregate results, not individual records.\\n' + findings\n)",
+        },
+        providers: {
+          title: 'Change the model.\nKeep the assistant.',
+          description:
+            'Discover model services on your machine, LAN hosts, and Tailscale peers. Start with a discovered model, then continue the same conversation through Claude Code and Codex providers.',
+          environment:
+            'Discovery: localhost / LAN / Tailscale\nBackends: model servers + CLI providers',
+          tools: [
+            ['modelProviders', 'Discover + register'],
+            ['setProvider', 'Switch backends'],
+            ['setModel', 'Choose a served model'],
+            ['vm', 'Shared execution tools'],
+          ],
+          file: 'harnesses/model-roaming.ts',
+          foot: 'Discovery probes OpenAI-compatible services. Requires reachable servers and authenticated CLI providers; supported models and tools depend on each backend.',
+          code: "import container from 'luca'\n\nconst providers = container.feature('modelProviders')\nconst servers = await providers.discover({\n  hosts: ['gpu-box.local'], tailscale: true, register: true,\n})\nconst local = servers.find(s => s.profileId && s.models.length)\nif (!local) throw new Error('No model service discovered')\n\nconst operator = container.feature('assistant', {\n  provider: local.profileId,\n  systemPrompt: 'Help investigate and improve this project.',\n})\noperator.use(container.feature('vm'))\noperator.setModel(local.models[0])\nawait operator.start()\nawait operator.ask('Inspect the project and propose a plan.')\n\n// Continue through configured subscription CLI backends.\noperator.setProvider('claude-code')\nawait operator.ask('Challenge the plan. What did we miss?')\noperator.setProvider('codex')\nawait operator.ask('Implement the agreed plan and verify it.')\n// Conversation history and tools survive each switch.",
+        },
+        skills: {
+          title: 'Turn past sessions\ninto future capabilities.',
+          description:
+            'An assistant inventories Claude Code, Codex, and Hermes histories, finds repeated successful workflows, and writes reusable skills. The next harness can load what the last one learned.',
+          environment: 'Sources: local coding-agent histories\nOutput: skills/*/SKILL.md',
+          tools: [
+            ['claudeCode / openaiCodex', 'Persisted transcripts'],
+            ['hermesAgent', 'Session store + export'],
+            ['vm / fs', 'Mine + write skills'],
+            ['skillsLibrary', 'Register + reuse'],
+          ],
+          file: 'harnesses/session-to-skills.ts',
+          foot: 'Requires local session archives, the Hermes CLI, and configured model access. The agent reads histories in batches and reports coverage; the page reads none of your sessions.',
+          code: "import container from 'luca'\n\nconst library = container.feature('skillsLibrary')\nconst miner = container.feature('assistant', {\n  systemPrompt: `Mine session history using evalCode.\n    Claude: container.fs.walk(claudeHistoryRoot, { include: ['*.jsonl'] });\n    read JSONL via claude.sessionHistoryToMarkdown(path).\n    Codex: codex.listHistorySessions(), then\n    codex.getConversationHistory(sessionId).\n    Hermes: hermes.listSessions({ limit: 100000 }), then\n    hermes.getSessionHistory(id) for the returned IDs.\n    Inventory sessions, flag a reached listing limit, read in batches,\n    and report missing or unreadable history.\n    Find repeatable workflows supported by successful runs.\n    Write skills/<name>/SKILL.md with name and description\n    frontmatter, steps, preconditions, and verification.\n    Exclude credentials and session-specific private data.`,\n})\ncontainer.addContext({\n  claudeHistoryRoot: container.paths.join(\n    container.feature('os').homedir, '.claude', 'projects',\n  ),\n  claude: container.feature('claudeCode'),\n  codex: container.feature('openaiCodex'),\n  hermes: container.feature('hermesAgent'),\n})\ncontainer.fs.ensureDir('skills')\nawait library.start()\nminer.use(library)\nminer.use(container.feature('vm'))\nawait miner.start()\nawait miner.ask('Mine all available histories into reusable skills.')\n\nawait library.addLocation(container.paths.resolve('skills'))\n// Later: assistant.use(library), or Claude Code's skills option.",
+        },
+      })
       function highlightCode(target, code) {
         target.replaceChildren()
         const pattern =

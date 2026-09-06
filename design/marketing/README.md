@@ -20,7 +20,7 @@ The walkthrough follows one incident: an API fails, an embedded assistant search
 4. Operations: how does it reach the real systems involved?
 5. Execution: how does it compose those capabilities into a useful next action?
 
-The completed architecture leads directly to the full infrastructure harness, followed by voice and coding-supervisor variants. Installation is the final action. Binary delivery explains how the developer can turn the application and its assistant into their own tool.
+The completed architecture leads directly to six inspectable harnesses: infrastructure, database-to-presentation, model discovery and switching, history-to-skills, voice, and coding supervision. The framing is a construction kit: choose reusable pieces and invent an application for the task. Installation is the final action. Binary delivery explains how the developer can turn the application and its assistant into their own tool.
 
 ## Design system
 
@@ -45,3 +45,12 @@ Nothing is deployed or published.
 Code highlighting covers all narrative snippets, changing harness examples, and shell commands. Keywords, strings, calls, properties, variables, numbers, and comments have distinct high-contrast colors. A text-preservation check verifies that the highlighter leaves copied source unchanged. Updated colored SVG reveal states were rendered for inspection, and the forward/reverse, responsive, and reduced-motion scene checks pass.
 
 Mechanical verification samples 101 positions in desktop/mobile and reduced-motion modes, checking constant footprints, fixed base position, physical paint order, minimum seating clearance, and nonintersecting layers. The first assembled state and selected compartment were also checked. Narrative code snippets now use preformatted blocks so highlighting and formatting preserve their line breaks.
+
+
+## Additional composition examples
+
+- Database analyst: `postgres` provides read-only SQL tools for schema exploration and evidence-backed insights. Claude Code receives the findings and builds a local presentation page with charts and supporting queries.
+- Model discovery: `modelProviders.discover()` probes localhost, explicitly supplied LAN hosts, and online Tailscale peers. Registered discovered endpoints and authenticated Claude Code/Codex provider profiles can be selected via `setProvider()`; `setModel()` chooses an advertised model. The example continues a conversation across backends.
+- History-to-skills: an assistant inventories Claude Code JSONL files, Codex rollout sessions, and Hermes session exports through live evaluation. It reads in batches, reports coverage and listing limits, writes reusable skill definitions, and registers their location in `skillsLibrary`.
+
+These are inspectable recipes, not services run by the marketing page. No databases were accessed, networks probed, session histories read, skills created, or model calls made while authoring them. All six recipes pass Bun syntax checks and match their selector controls; highlighting preserves copied code. The scene's assembly checks also pass after adding the Postgres, modelProviders, and skillsLibrary labels. The six-option selector uses three columns on desktop and two on mobile.
