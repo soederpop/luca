@@ -1,26 +1,29 @@
 # Luca marketing concept
 
-Local design prototype. No deployment configuration or publishing step.
+Unpublished local prototype. Start from the repository root:
 
-From the repository root, run `bun run design/marketing/preview.ts`, then open
-http://127.0.0.1:4317. The HTML also works directly from disk.
+```sh
+bun run design/marketing/preview.ts
+```
 
-## Design direction
+Open http://127.0.0.1:4317. No build or external assets are required.
 
-An open technical workshop, built around Luca's shared architectural map.
-The audience is TypeScript developers building applications, tools, and AI operators.
-The primary action is exploring a working pattern, followed by starting a project.
+## Positioning
 
-- Palette: paper `#f8f9fd`, ink `#222d57`, blueprint `#254cdd`, lilac `#e6e7fa`, lemon `#f5edaa`, muted `#606982`.
-- Typography: Avenir Next for approachable geometric headlines and body text, with system fallbacks; SF Mono / Menlo for actual code.
-- Layout: left-aligned large headline beside a spatial container diagram; a full-width interactive code workbench; an asymmetric shipping section; a compact installation close.
-- Signature: a blue rounded enclosure with nested capability modules, showing what a container holds. Human and agent inputs share the same enclosure.
-- Restraint: no decorative gradient, fabricated metrics, testimonials, or animated background. The diagram carries the visual identity. Motion only responds to interaction.
+Luca builds task-specific, environment-specific agent harnesses. The container is the enabling architecture; the product story is assistants that operate infrastructure, provision voice systems, supervise coding agents, and evaluate code against a live runtime.
 
-The initial generic feature-card grid was replaced by one shared container map and a code workbench: both explain Luca's architecture instead of merely listing benefits.
+## Design system
 
-## Content and interactions
+- Carbon `#151719`, panel `#1c1f22`, white `#f0f1ee`, secondary `#a4a9ad`, steel `#444a50`, signal `#c4d4df`.
+- Helvetica Neue / Helvetica for tightly set, oversized display type and quiet body text. SF Mono / Menlo for code and technical identifiers.
+- Broad headline and positioning lead into a full-width harness workbench. The selected mission, concrete configuration, and capability inventory appear together. Subsequent sections explain live evaluation, the operator surface, and binary delivery.
+- Alignment is left-led throughout. Tiny radii, flat surfaces, generous space around dense technical content. No decorative objects, mascot, pastel blocks, invented activity logs, metrics, or testimonials.
+- The signature is the actual harness code and its changing environment. A generic architecture illustration was rejected because it hides the operational depth.
 
-Copy and examples are grounded in the repository README. Capability buttons change the diagram description and sample call. The workbench switches among container, assistant, and binary examples. Copy buttons copy displayed code. Installation controls switch between the binary and library paths. Documentation links lead to repository guides.
+## Examples and verification
 
-This is a static demonstration, not a live agent or terminal. It makes no API calls and runs no displayed commands. There are no external assets, tracking, or package dependencies.
+API signatures were inspected using `luca describe` for `features.assistant`, `secureShell`, `telnyxConnector`, `claudeCode`, `openaiCodex`, `hermesAgent`, and `vm`. The live-evaluation behavior was also checked against the VM implementation. Examples are recipes for configured environments, not executed demos. Model credentials, installed coding CLIs, SSH aliases, and Telnyx configuration must exist where required.
+
+All interactions are local presentation controls: harness selection and clipboard copy. No agents, calls, purchases, SSH commands, or deployments are launched by this page.
+
+Validation: page JavaScript and all three displayed harnesses pass Bun syntax checks. HTML nesting, unique IDs, and in-page navigation targets were checked. A side-effect-free VM smoke check confirmed that `addContext()` values resolve through `evalCode()`. Browser visual review of this revision remains outstanding.
