@@ -10,7 +10,7 @@ Open http://127.0.0.1:4317. No build step, external assets, or rendering librari
 
 ## Story and conversion
 
-The opening promise is “Build software. Give it an operator.” A developer should understand what they gain before encountering the full API surface.
+The opening promise is “Build software. Give it an operator.” The introduction establishes that Luca is a single binary that builds other binaries: assemble a task-specific system, then distribute it as a standalone tool. A developer should understand what they gain before encountering the full API surface.
 
 The walkthrough follows one incident: an API fails, an embedded assistant searches the runbooks, inspects the machine, and can coordinate a coding agent to investigate and verify a fix. Each chapter answers the next practical question:
 
@@ -39,6 +39,8 @@ On narrow screens the diagram sticks above the narrative. Reduced-motion mode us
 API signatures were inspected through `luca describe` for the assistant, Contentbase, SSH, Telnyx, VM, and coding-agent wrappers. Coding agents are made available through runtime context and invoked via live evaluation. The examples require the model access, collections, external services, SSH configuration, and installed coding CLIs described beside them. The page does not execute these examples.
 
 Validation includes HTML structure and anchors, Bun syntax checks, simulated forward/reverse scroll and layer navigation at desktop/mobile viewport settings, and all 30 component labels. Both reduced-motion modes were exercised. The initial desktop page was inspected in Chrome; assembled, intermediate, and fully expanded SVG states were rendered separately for visual QA. A full mobile browser visual pass remains outstanding.
+
+The packaging section makes the distribution story explicit: “One binary. That builds your binaries.” Its example uses verified `luca bundle` flags for macOS and Linux and the generated executable naming convention. Bun is needed on the build machine; recipients run the standalone executable with their configured providers and services.
 
 Nothing is deployed or published.
 

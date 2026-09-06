@@ -1357,9 +1357,9 @@
           <h1 id="hero-title">Build software.<br />Give it an operator.</h1>
           <div class="hero-bottom">
             <p>
-              Your application already has the tools to do useful work. Luca gives it an assistant
-              that can understand the system, use those tools, and help operate it—all inside the
-              same runtime.
+              Luca is a single binary for building applications with assistants inside. Assemble
+              the tools, knowledge, and execution environment your task needs. Then compile that
+              system into a binary of its own.
             </p>
             <div class="hero-actions">
               <a class="button" href="#inside"
@@ -1368,7 +1368,7 @@
             </div>
           </div>
           <div class="hero-meta">
-            <span>TypeScript applications</span><span>Embedded assistants</span
+            <span>One binary. Build your own.</span><span>Embedded assistants</span
             ><span>Open source / MIT</span>
           </div>
         </section>
@@ -1643,19 +1643,30 @@ await operator.ask(
         </section>
         <section class="closing" aria-labelledby="closing-title">
           <div>
-            <h2 id="closing-title">Build it for your environment.<br />Ship it as your tool.</h2>
+            <h2 id="closing-title">One binary.<br />That builds your binaries.</h2>
             <p>
-              Package your commands, features, endpoints, and assistant definitions into a
-              standalone executable. Configure the external services your operator needs.
+              Luca is the toolkit you install. The tool you ship is yours: your commands, features,
+              endpoints, and assistant definitions, compiled with the runtime into a standalone
+              executable. Give your team a database analyst, an operations agent, or a coding
+              supervisor they can run as a single file.
+            </p>
+            <p>
+              Build for macOS or Linux with Bun on your build machine. Recipients run the compiled
+              tool without installing Luca or Bun, using their configured model providers and
+              external services.
             </p>
           </div>
-          <pre><code># Your application and its assistant, together.
-luca bundle ops-agent</code></pre>
+          <pre><code># From your Luca project
+luca bundle ops-agent \
+  --targets darwin-arm64,linux-x64
+
+# Your runtime, tools, and assistants inside
+./dist/ops-agent-darwin-arm64 --help</code></pre>
         </section>
         <section class="start" id="start" aria-labelledby="start-heading">
           <div>
             <h2 id="start-heading">Build the agent<br />your work requires.</h2>
-            <p>Start with Luca. Make the harness yours.</p>
+            <p>Install one binary. Assemble your system. Ship your own.</p>
           </div>
           <div class="install">
             <pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
