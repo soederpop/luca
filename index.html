@@ -1,1457 +1,2089 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Luca — Agent-Native TypeScript Runtime</title>
-<meta name="description" content="An agent-native TypeScript runtime that ships as a single binary — and builds yours too. One self-documenting container for humans and AI agents.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  /* ============ THEME (dark-first) ============ */
-  :root {
-    --font-body: 'Sora', system-ui, sans-serif;
-    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
-
-    --bg: #09090b;
-    --bg-subtle: #0f0f13;
-    --surface: #131318;
-    --surface2: #1a1a22;
-    --surface-elevated: #1f1f2a;
-    --border: rgba(255, 255, 255, 0.06);
-    --border-bright: rgba(255, 255, 255, 0.12);
-    --text: #ececf1;
-    --text-dim: #71717a;
-    --text-muted: #52525b;
-
-    --cyan: #06b6d4;
-    --cyan-bright: #22d3ee;
-    --cyan-dim: rgba(6, 182, 212, 0.12);
-    --cyan-glow: rgba(6, 182, 212, 0.25);
-
-    --purple: #a855f7;
-    --purple-bright: #c084fc;
-    --purple-dim: rgba(168, 85, 247, 0.12);
-
-    --amber: #f59e0b;
-    --amber-bright: #fbbf24;
-    --amber-dim: rgba(245, 158, 11, 0.1);
-
-    --green: #10b981;
-    --green-dim: rgba(16, 185, 129, 0.1);
-
-    --rose: #f43f5e;
-    --rose-dim: rgba(244, 63, 94, 0.1);
-  }
-
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #fafafa;
-      --bg-subtle: #f4f4f5;
-      --surface: #ffffff;
-      --surface2: #f4f4f5;
-      --surface-elevated: #ffffff;
-      --border: rgba(0, 0, 0, 0.07);
-      --border-bright: rgba(0, 0, 0, 0.14);
-      --text: #18181b;
-      --text-dim: #71717a;
-      --text-muted: #a1a1aa;
-      --cyan: #0891b2;
-      --cyan-bright: #06b6d4;
-      --cyan-dim: rgba(8, 145, 178, 0.08);
-      --cyan-glow: rgba(8, 145, 178, 0.15);
-      --purple: #9333ea;
-      --purple-bright: #a855f7;
-      --purple-dim: rgba(147, 51, 234, 0.08);
-      --amber: #d97706;
-      --amber-bright: #f59e0b;
-      --amber-dim: rgba(217, 119, 6, 0.08);
-      --green: #059669;
-      --green-dim: rgba(5, 150, 105, 0.08);
-      --rose: #e11d48;
-      --rose-dim: rgba(225, 29, 72, 0.08);
-    }
-  }
-
-  /* ============ RESET ============ */
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-body);
-    line-height: 1.6;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ============ BACKGROUND ATMOSPHERE ============ */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, var(--cyan-glow) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 50%, var(--purple-dim) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 30% at 10% 80%, var(--amber-dim) 0%, transparent 40%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Dot grid overlay */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: radial-gradient(circle, var(--border) 0.5px, transparent 0.5px);
-    background-size: 32px 32px;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.5;
-  }
-
-  /* ============ ANIMATIONS ============ */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeScale {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-  }
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px var(--cyan-dim), 0 0 60px rgba(6,182,212,0.05); }
-    50% { box-shadow: 0 0 30px var(--cyan-glow), 0 0 80px rgba(6,182,212,0.1); }
-  }
-  @keyframes gradient-shift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  @keyframes typing {
-    from { width: 0; }
-    to { width: 100%; }
-  }
-  @keyframes blink {
-    50% { border-color: transparent; }
-  }
-
-  .anim { animation: fadeUp 0.5s ease-out both; animation-delay: calc(var(--i, 0) * 0.08s); }
-  .anim-scale { animation: fadeScale 0.4s ease-out both; animation-delay: calc(var(--i, 0) * 0.06s); }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-delay: 0ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-
-  /* ============ LAYOUT ============ */
-  .wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 40px;
-    position: relative;
-    z-index: 1;
-  }
-
-  section { padding: 100px 0; }
-
-  /* ============ NAV ============ */
-  nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    padding: 0 40px;
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    background: color-mix(in srgb, var(--bg) 80%, transparent);
-    border-bottom: 1px solid var(--border);
-  }
-
-  nav .nav-inner {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 60px;
-  }
-
-  .nav-logo {
-    font-weight: 800;
-    font-size: 20px;
-    letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .nav-logo .logo-mark {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: linear-gradient(135deg, var(--cyan), var(--purple));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    color: white;
-    font-family: var(--font-mono);
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 8px;
-    list-style: none;
-  }
-
-  .nav-links a {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-dim);
-    text-decoration: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    transition: all 0.2s;
-  }
-
-  .nav-links a:hover { color: var(--text); background: var(--border); }
-  .nav-links a.active { color: var(--cyan-bright); }
-
-  .nav-cta {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--bg) !important;
-    background: linear-gradient(135deg, var(--cyan), var(--cyan-bright));
-    padding: 8px 20px !important;
-    border-radius: 8px !important;
-    transition: all 0.2s !important;
-  }
-
-  .nav-cta:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-    color: var(--bg) !important;
-    background: linear-gradient(135deg, var(--cyan), var(--cyan-bright)) !important;
-  }
-
-  /* ============ HERO ============ */
-  .hero {
-    padding-top: 160px;
-    padding-bottom: 80px;
-    text-align: center;
-  }
-
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 16px;
-    border-radius: 100px;
-    background: var(--cyan-dim);
-    border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--cyan-bright);
-    margin-bottom: 32px;
-  }
-
-  .hero-badge .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--cyan-bright);
-    animation: pulse-glow 2s ease-in-out infinite;
-    box-shadow: 0 0 6px var(--cyan);
-  }
-
-  .hero h1 {
-    font-size: clamp(40px, 6vw, 72px);
-    font-weight: 800;
-    letter-spacing: -2px;
-    line-height: 1.05;
-    margin-bottom: 24px;
-    text-wrap: balance;
-  }
-
-  .hero h1 .gradient-text {
-    background: linear-gradient(135deg, var(--cyan-bright), var(--purple-bright), var(--amber-bright));
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: gradient-shift 4s ease-in-out infinite;
-  }
-
-  .hero-sub {
-    font-size: clamp(16px, 2vw, 20px);
-    color: var(--text-dim);
-    max-width: 640px;
-    margin: 0 auto 48px;
-    font-weight: 400;
-    line-height: 1.6;
-  }
-
-  .hero-actions {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 64px;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 28px;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.25s;
-    cursor: pointer;
-    border: none;
-    font-family: var(--font-body);
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--cyan), color-mix(in srgb, var(--cyan) 80%, var(--purple)));
-    color: #000;
-    box-shadow: 0 4px 20px var(--cyan-dim), 0 0 60px rgba(6,182,212,0.08);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 30px var(--cyan-glow), 0 0 80px rgba(6,182,212,0.12);
-  }
-
-  .btn-secondary {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border-bright);
-  }
-
-  .btn-secondary:hover {
-    transform: translateY(-2px);
-    background: var(--surface-elevated);
-    border-color: var(--cyan);
-  }
-
-  /* ============ TERMINAL ============ */
-  .terminal {
-    background: var(--surface);
-    border: 1px solid var(--border-bright);
-    border-radius: 16px;
-    max-width: 720px;
-    margin: 0 auto;
-    overflow: hidden;
-    text-align: left;
-    box-shadow:
-      0 0 0 1px var(--border),
-      0 20px 60px rgba(0, 0, 0, 0.4),
-      0 0 100px var(--cyan-dim);
-    animation: pulse-glow 3s ease-in-out infinite;
-  }
-
-  .terminal-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
-  }
-
-  .terminal-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-  }
-
-  .terminal-dot:nth-child(1) { background: #ff5f57; }
-  .terminal-dot:nth-child(2) { background: #febc2e; }
-  .terminal-dot:nth-child(3) { background: #28c840; }
-
-  .terminal-title {
-    flex: 1;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-right: 44px;
-  }
-
-  .terminal-body {
-    padding: 24px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 2;
-    overflow-x: auto;
-  }
-
-  .terminal-body .line {
-    white-space: nowrap;
-  }
-
-  .t-prompt { color: var(--cyan-bright); }
-  .t-cmd { color: var(--text); }
-  .t-flag { color: var(--purple-bright); }
-  .t-str { color: var(--amber-bright); }
-  .t-comment { color: var(--text-muted); font-style: italic; }
-  .t-output { color: var(--text-dim); }
-  .t-key { color: var(--cyan-bright); }
-  .t-val { color: var(--green); }
-  .t-method { color: var(--purple-bright); }
-  .t-bracket { color: var(--text-dim); }
-  .t-kw { color: var(--rose); }
-  .t-fn { color: var(--amber-bright); }
-
-  /* ============ SECTION HEADERS ============ */
-  .sec-label {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--cyan);
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .sec-label::before {
-    content: '';
-    width: 20px;
-    height: 1px;
-    background: var(--cyan);
-  }
-
-  .sec-title {
-    font-size: clamp(28px, 4vw, 44px);
-    font-weight: 700;
-    letter-spacing: -1.5px;
-    margin-bottom: 16px;
-    text-wrap: balance;
-  }
-
-  .sec-desc {
-    font-size: 17px;
-    color: var(--text-dim);
-    max-width: 600px;
-    margin-bottom: 56px;
-    line-height: 1.7;
-  }
-
-  /* ============ FEATURES GRID ============ */
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  .feature-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px;
-    transition: all 0.3s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--card-accent, var(--cyan)), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
-  .feature-card:hover {
-    border-color: var(--border-bright);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-  }
-
-  .feature-card:hover::before { opacity: 1; }
-
-  .feature-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    margin-bottom: 18px;
-    background: var(--icon-bg, var(--cyan-dim));
-    color: var(--icon-color, var(--cyan-bright));
-    border: 1px solid color-mix(in srgb, var(--icon-color, var(--cyan)) 20%, transparent);
-  }
-
-  .feature-card h3 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    letter-spacing: -0.3px;
-  }
-
-  .feature-card p {
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.6;
-  }
-
-  .feature-card code {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    background: var(--cyan-dim);
-    color: var(--cyan-bright);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
-
-  /* Feature card color variants */
-  .fc-cyan { --card-accent: var(--cyan); --icon-bg: var(--cyan-dim); --icon-color: var(--cyan-bright); }
-  .fc-purple { --card-accent: var(--purple); --icon-bg: var(--purple-dim); --icon-color: var(--purple-bright); }
-  .fc-amber { --card-accent: var(--amber); --icon-bg: var(--amber-dim); --icon-color: var(--amber-bright); }
-  .fc-green { --card-accent: var(--green); --icon-bg: var(--green-dim); --icon-color: var(--green); }
-  .fc-rose { --card-accent: var(--rose); --icon-bg: var(--rose-dim); --icon-color: var(--rose); }
-
-  /* ============ ARCHITECTURE ============ */
-  .arch-visual {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 48px 40px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .arch-visual::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 50% 30%, var(--cyan-dim) 0%, transparent 60%),
-      radial-gradient(ellipse at 20% 80%, var(--purple-dim) 0%, transparent 40%);
-    pointer-events: none;
-  }
-
-  .arch-container-box {
-    position: relative;
-    border: 2px solid color-mix(in srgb, var(--cyan) 40%, transparent);
-    border-radius: 16px;
-    padding: 32px 24px 24px;
-    background: color-mix(in srgb, var(--surface) 90%, var(--cyan) 3%);
-  }
-
-  .arch-container-label {
-    position: absolute;
-    top: -13px;
-    left: 24px;
-    background: var(--surface);
-    padding: 2px 14px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--cyan-bright);
-    border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
-    border-radius: 6px;
-  }
-
-  .arch-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .arch-row:last-child { margin-bottom: 0; }
-
-  .arch-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    text-align: center;
-    transition: all 0.2s;
-  }
-
-  .arch-item:hover {
-    border-color: var(--border-bright);
-    background: var(--surface-elevated);
-  }
-
-  .arch-item .arch-type {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 6px;
-  }
-
-  .arch-item .arch-name {
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .arch-item .arch-detail {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 3px;
-  }
-
-  .at-feature .arch-type { color: var(--cyan-bright); }
-  .at-client .arch-type { color: var(--purple-bright); }
-  .at-server .arch-type { color: var(--amber-bright); }
-  .at-cmd .arch-type { color: var(--green); }
-  .at-agent .arch-type { color: var(--rose); }
-
-  .arch-section-title {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .arch-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 20px 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .arch-divider::before,
-  .arch-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* ============ CODE EXAMPLES ============ */
-  .code-tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 0;
-    padding: 0 4px;
-  }
-
-  .code-tab {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: transparent;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 10px 10px 0 0;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .code-tab:hover { color: var(--text-dim); }
-  .code-tab.active {
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-bottom-color: var(--surface);
-    position: relative;
-    z-index: 2;
-  }
-
-  .code-panels {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0 16px 16px 16px;
-    overflow: hidden;
-  }
-
-  .code-panel {
-    display: none;
-    padding: 28px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.9;
-    overflow-x: auto;
-  }
-
-  .code-panel.active { display: block; }
-
-  .code-panel .line {
-    white-space: pre;
-  }
-
-  /* ============ STATS ROW ============ */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 24px;
-    padding: 64px 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    margin: 0;
-  }
-
-  .stat {
-    text-align: center;
-  }
-
-  .stat-value {
-    font-size: 40px;
-    font-weight: 800;
-    letter-spacing: -2px;
-    line-height: 1;
-    margin-bottom: 8px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .stat-value .accent { color: var(--cyan-bright); }
-
-  .stat-label {
-    font-size: 13px;
-    color: var(--text-dim);
-    font-weight: 500;
-  }
-
-  /* ============ CLI SHOWCASE ============ */
-  .cli-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  .cli-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px;
-    transition: all 0.25s;
-  }
-
-  .cli-card:hover {
-    border-color: var(--border-bright);
-    transform: translateY(-1px);
-  }
-
-  .cli-cmd {
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--cyan-bright);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .cli-cmd::before {
-    content: '$';
-    color: var(--text-muted);
-    font-weight: 400;
-  }
-
-  .cli-desc {
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.6;
-  }
-
-  /* ============ CTA ============ */
-  .cta {
-    text-align: center;
-    padding: 120px 0;
-  }
-
-  .cta-box {
-    background: var(--surface);
-    border: 1px solid var(--border-bright);
-    border-radius: 24px;
-    padding: 64px 48px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .cta-box::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 50% 0%, var(--cyan-glow) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 100%, var(--purple-dim) 0%, transparent 50%);
-    pointer-events: none;
-  }
-
-  .cta h2 {
-    font-size: clamp(28px, 4vw, 40px);
-    font-weight: 700;
-    letter-spacing: -1px;
-    margin-bottom: 16px;
-    position: relative;
-  }
-
-  .cta p {
-    font-size: 17px;
-    color: var(--text-dim);
-    margin-bottom: 36px;
-    position: relative;
-  }
-
-  .cta .hero-actions { position: relative; }
-
-  .install-cmd {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 24px;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--text-dim);
-    margin-bottom: 28px;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .install-cmd:hover {
-    border-color: var(--cyan);
-    color: var(--text);
-  }
-
-  .install-cmd .t-prompt { margin-right: 4px; }
-
-  .copy-hint {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 500;
-  }
-
-  /* ============ FOOTER ============ */
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 40px 0;
-    text-align: center;
-    font-size: 13px;
-    color: var(--text-muted);
-    position: relative;
-    z-index: 1;
-  }
-
-  footer a {
-    color: var(--text-dim);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-
-  footer a:hover { color: var(--cyan-bright); }
-
-  /* ============ PHILOSOPHY CARDS ============ */
-  .philosophy {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-  }
-
-  .phil-card {
-    padding: 32px;
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .phil-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: var(--phil-accent, var(--cyan));
-  }
-
-  .phil-num {
-    font-family: var(--font-mono);
-    font-size: 48px;
-    font-weight: 800;
-    color: var(--border-bright);
-    margin-bottom: 12px;
-    line-height: 1;
-  }
-
-  .phil-card h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    letter-spacing: -0.3px;
-  }
-
-  .phil-card p {
-    font-size: 14px;
-    color: var(--text-dim);
-    line-height: 1.6;
-  }
-
-  /* ============ RESPONSIVE ============ */
-  @media (max-width: 900px) {
-    .wrap { padding: 0 20px; }
-    nav { padding: 0 20px; }
-    .features-grid { grid-template-columns: 1fr 1fr; }
-    .cli-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 32px; }
-    .philosophy { grid-template-columns: 1fr; }
-    .nav-links { display: none; }
-  }
-
-  @media (max-width: 600px) {
-    .features-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: 1fr; gap: 40px; }
-    section { padding: 60px 0; }
-    .hero { padding-top: 120px; }
-    .cta-box { padding: 40px 24px; }
-    .arch-visual { padding: 32px 20px; }
-    .install-cmd { font-size: 11px; padding: 12px 16px; }
-  }
-</style>
-</head>
-<body>
-
-<!-- ===== NAV ===== -->
-<nav>
-  <div class="nav-inner">
-    <div class="nav-logo">
-      <div class="logo-mark">L</div>
-      luca
-    </div>
-    <ul class="nav-links" id="nav">
-      <li><a href="#why">Why Luca</a></li>
-      <li><a href="#architecture">Architecture</a></li>
-      <li><a href="#code">Code</a></li>
-      <li><a href="#cli">CLI</a></li>
-      <li><a href="#get-started" class="nav-cta">Install</a></li>
-    </ul>
-  </div>
-</nav>
-
-<!-- ===== HERO ===== -->
-<section class="hero" id="hero">
-  <div class="wrap">
-    <div class="hero-badge anim" style="--i:0">
-      <span class="dot"></span>
-      Single Binary &middot; Agent-Native
-    </div>
-    <h1 class="anim" style="--i:1">
-      Lightweight Universal<br>
-      <span class="gradient-text">Conversational Architecture</span>
-    </h1>
-    <p class="hero-sub anim" style="--i:2">
-      A universal TypeScript framework you can talk to.
-      Orchestrate a fleet of self-improving agents across servers, browsers, and GPU instances through one observable bus.
-    </p>
-    <div class="hero-actions anim" style="--i:3">
-      <a href="#get-started" class="btn btn-primary">Install Luca</a>
-      <a href="#why" class="btn btn-secondary">See Why</a>
-    </div>
-
-    <div class="terminal anim" style="--i:4">
-      <div class="terminal-bar">
-        <div class="terminal-dot"></div>
-        <div class="terminal-dot"></div>
-        <div class="terminal-dot"></div>
-        <div class="terminal-title">luca &mdash; agent-native</div>
-      </div>
-      <div class="terminal-body">
-        <div class="line"><span class="t-comment">// memory lives in a queryable db backed by markdown</span></div>
-        <div class="line"><span class="t-comment">// <a href="https://contentbase.soederpop.com" target="_blank" rel="noopener" style="color:var(--cyan-bright);text-decoration:underline;font-style:normal">contentbase.soederpop.com</a></span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">docs</span> = container.<span class="t-method">feature</span><span class="t-bracket">(</span><span class="t-str">'contentDb'</span>, { <span class="t-key">rootPath</span>: <span class="t-str">'docs'</span> }<span class="t-bracket">)</span></div>
-        <div class="line">&nbsp;</div>
-        <div class="line"><span class="t-comment">// the central bus for your agent fleet</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">mgr</span> = container.<span class="t-method">feature</span><span class="t-bracket">(</span><span class="t-str">'assistantManager'</span><span class="t-bracket">)</span></div>
-        <div class="line">mgr.<span class="t-method">add</span><span class="t-bracket">(</span><span class="t-str">'researcher'</span>, { <span class="t-key">use</span>: [<span class="t-str">'browserUse'</span>, docs] }<span class="t-bracket">)</span></div>
-        <div class="line">mgr.<span class="t-method">add</span><span class="t-bracket">(</span><span class="t-str">'coder'</span>, { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'proc'</span>, <span class="t-str">'fs'</span>, docs] }<span class="t-bracket">)</span></div>
-        <div class="line">&nbsp;</div>
-        <div class="line"><span class="t-comment">// query tasks, assign to the right agent</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">tasks</span> = <span class="t-kw">await</span> docs.<span class="t-method">query</span>(docs.models.<span class="t-key">Task</span>).<span class="t-method">where</span>(<span class="t-str">'status'</span>, <span class="t-str">'todo'</span>)</div>
-        <div class="line">tasks.<span class="t-method">forEach</span>(<span class="t-cmd">task</span> <span class="t-kw">=></span> mgr.<span class="t-method">assign</span>(<span class="t-str">'coder'</span>, task))</div>
-        <div class="line">&nbsp;</div>
-        <div class="line"><span class="t-kw">await</span> mgr.<span class="t-method">startAll</span><span class="t-bracket">()</span>  <span class="t-comment">// a swarm, not a chatbot</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== STATS ===== -->
-<div class="wrap">
-  <div class="stats-row">
-    <div class="stat anim-scale" style="--i:0">
-      <div class="stat-value"><span class="accent">0</span></div>
-      <div class="stat-label">npm install required</div>
-    </div>
-    <div class="stat anim-scale" style="--i:1">
-      <div class="stat-value">1</div>
-      <div class="stat-label">Binary &mdash; In and Out</div>
-    </div>
-    <div class="stat anim-scale" style="--i:2">
-      <div class="stat-value">20<span class="accent">+</span></div>
-      <div class="stat-label">Built-in Helpers</div>
-    </div>
-    <div class="stat anim-scale" style="--i:3">
-      <div class="stat-value"><span class="accent">&infin;</span></div>
-      <div class="stat-label">Agent Toolkits via use()</div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== WHY LUCA / PHILOSOPHY ===== -->
-<section id="why">
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Why Luca</div>
-    <h2 class="sec-title anim" style="--i:1">Three Ideas That<br>Change Everything</h2>
-    <p class="sec-desc anim" style="--i:2">
-      AI agents today either generate ad-hoc code or fight frameworks that weren't designed for them.
-      Luca assistants build applications using the same components they are made from. They don't just write the code &mdash; they live in its runtime.
-    </p>
-
-    <div class="philosophy">
-      <div class="phil-card anim" style="--i:3; --phil-accent: var(--cyan);">
-        <div class="phil-num">01</div>
-        <h3>One Introspectable Container</h3>
-        <p>Every Luca app has a single container &mdash; features, clients, servers, commands, state, events. Every component describes itself. The human reads the same docs the agent reads. There is one way to do things.</p>
-      </div>
-      <div class="phil-card anim" style="--i:4; --phil-accent: var(--purple);">
-        <div class="phil-num">02</div>
-        <h3>Single Binary In, Single Binary Out</h3>
-        <p>Luca ships as a standalone binary. No runtime dependencies, no package manager. Use it to build your project, then compile your project into its own binary with your commands, features, and assistants baked in.</p>
-      </div>
-      <div class="phil-card anim" style="--i:5; --phil-accent: var(--amber);">
-        <div class="phil-num">03</div>
-        <h3>Assistants That Swarm</h3>
-        <p>Each assistant can <code style="font-size:12px; background:var(--cyan-dim); color:var(--cyan-bright); padding:1px 5px; border-radius:3px; font-family:var(--font-mono);">use()</code> any module and inherit its tools. The <code style="font-size:12px; background:var(--cyan-dim); color:var(--cyan-bright); padding:1px 5px; border-radius:3px; font-family:var(--font-mono);">assistantManager</code> orchestrates many &mdash; across servers, browsers, and GPU instances &mdash; through one observable bus.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== FEATURES ===== -->
-<section id="features">
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Capabilities</div>
-    <h2 class="sec-title anim" style="--i:1">Everything an Agent<br>Needs to Operate</h2>
-    <p class="sec-desc anim" style="--i:2">
-      No imports beyond the container. File I/O, HTTP, databases, git, browser automation, terminal UI, encryption &mdash; all typed, all discoverable at runtime.
-    </p>
-
-    <div class="features-grid">
-      <div class="feature-card fc-rose anim" style="--i:3">
-        <div class="feature-icon" style="--icon-bg: var(--rose-dim); --icon-color: var(--rose);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3c4.97 0 9 3.58 9 8s-4.03 8-9 8c-1.5 0-2.91-.35-4.13-.97L3 19l1.39-4.17C3.5 13.67 3 12.38 3 11c0-4.42 4.03-8 9-8z"/></svg>
-        </div>
-        <h3>Assistant Manager</h3>
-        <p>The <code>assistantManager</code> is a central observable bus for your agent fleet. Spin up specialized assistants, route messages between them, watch their state &mdash; one coordinator for the whole swarm.</p>
-      </div>
-
-      <div class="feature-card fc-purple anim" style="--i:4">
-        <div class="feature-icon" style="--icon-bg: var(--purple-dim); --icon-color: var(--purple-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M6 10l4 3-4 3"/><path d="M12 16h4"/></svg>
-        </div>
-        <h3>Binary Compiler</h3>
-        <p>Compile your project into a standalone executable. No node, no bun, no npm on the target machine. Your users download one file and run it.</p>
-      </div>
-
-      <div class="feature-card fc-cyan anim" style="--i:5">
-        <div class="feature-icon">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h8"/></svg>
-        </div>
-        <h3>File System &amp; Grep</h3>
-        <p>Read, write, watch, and search your project. <code>fs</code>, <code>fileManager</code>, and <code>grep</code> give your agent full project awareness.</p>
-      </div>
-
-      <div class="feature-card fc-green anim" style="--i:6">
-        <div class="feature-icon" style="--icon-bg: var(--green-dim); --icon-color: var(--green);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3v18M6 8h9a3 3 0 010 6H6"/></svg>
-        </div>
-        <h3>Git Integration</h3>
-        <p>Branch info, status, diff, log. The container knows your repo. The agent knows your repo.</p>
-      </div>
-
-      <div class="feature-card fc-amber anim" style="--i:7">
-        <div class="feature-icon" style="--icon-bg: var(--amber-dim); --icon-color: var(--amber-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
-        </div>
-        <h3>Servers &amp; Clients</h3>
-        <p>Express, WebSocket, IPC, MCP. REST and WebSocket clients. Build APIs and real-time systems from the same container.</p>
-      </div>
-
-      <div class="feature-card fc-purple anim" style="--i:8">
-        <div class="feature-icon" style="--icon-bg: var(--purple-dim); --icon-color: var(--purple-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="16" height="16" rx="3"/><path d="M7 8h8M7 11h5M7 14h6"/></svg>
-        </div>
-        <h3>Process &amp; VM</h3>
-        <p>Shell commands with <code>proc.exec()</code>. Sandboxed code execution in the VM. Docker, SSH, and RunPod for remote compute.</p>
-      </div>
-
-      <div class="feature-card fc-cyan anim" style="--i:9">
-        <div class="feature-icon">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M11 7v4l3 3"/></svg>
-        </div>
-        <h3>Observable State</h3>
-        <p>Every helper has reactive state and an event bus. The assistant can watch for changes and act autonomously across the entire system.</p>
-      </div>
-
-      <div class="feature-card fc-amber anim" style="--i:10">
-        <div class="feature-icon" style="--icon-bg: var(--amber-dim); --icon-color: var(--amber-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h14"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="14" cy="11" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/></svg>
-        </div>
-        <h3>Self-Documenting</h3>
-        <p>Every component carries introspection metadata &mdash; method signatures, options, events, state shape. <code>luca describe</code> and agents use the same data.</p>
-      </div>
-
-      <div class="feature-card fc-green anim" style="--i:11">
-        <div class="feature-icon" style="--icon-bg: var(--green-dim); --icon-color: var(--green);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 3a8 8 0 018 8 8 8 0 01-8 8 8 8 0 01-8-8 8 8 0 018-8z"/><path d="M3 11h18M11 3c2.5 2.8 4 5.8 4 8s-1.5 5.2-4 8c-2.5-2.8-4-5.8-4-8s1.5-5.2 4-8z"/></svg>
-        </div>
-        <h3>Distributed &amp; Cross-Runtime</h3>
-        <p>Assistants run anywhere &mdash; server, browser, RunPod GPU. They talk over WebSocket, IPC, or REST. Same container pattern on Node and in the browser via ESM.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== ARCHITECTURE ===== -->
-<section id="architecture">
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Architecture</div>
-    <h2 class="sec-title anim" style="--i:1">One Bus.<br>Agents Everywhere.</h2>
-    <p class="sec-desc anim" style="--i:2">
-      The <code style="font-size:14px; background:var(--cyan-dim); color:var(--cyan-bright); padding:2px 8px; border-radius:4px; font-family:var(--font-mono);">assistantManager</code> is the observable hub. Assistants discover their tools from the container, talk to each other across transports, and run on any machine.
-    </p>
-
-    <div class="arch-visual anim" style="--i:3">
-      <div class="arch-container-box">
-        <div class="arch-container-label">container</div>
-
-        <div class="arch-section-title">Assistant Manager &mdash; Observable Orchestration Bus</div>
-        <div class="arch-row">
-          <div class="arch-item at-agent">
-            <div class="arch-type">Agent</div>
-            <div class="arch-name">researcher</div>
-            <div class="arch-detail">browserUse, fs &middot; local</div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="Build software with an operator inside. Explore how Luca brings applications, assistants, a Markdown brain, operational tools, and live code execution into one runtime."
+    />
+    <title>Luca — Build the system. Put an agent inside it.</title>
+    <style>
+      :root {
+        --bg: #151719;
+        --panel: #1c1f22;
+        --white: #f0f1ee;
+        --muted: #a4a9ad;
+        --steel: #444a50;
+        --line: #33383c;
+        --signal: #c4d4df;
+        --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        --sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 30px;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--white);
+        font: 16px/1.6 var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 5px;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      pre:focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 5px;
+      }
+      ::selection {
+        background: #c4d4df;
+        color: #151719;
+      }
+      p,
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+      }
+      .wrap {
+        width: min(1440px, 100%);
+        padding: 0 64px;
+        margin: auto;
+      }
+      .skip {
+        position: absolute;
+        top: -70px;
+        left: 16px;
+        background: var(--white);
+        color: var(--bg);
+        padding: 12px;
+        z-index: 20;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      .nav {
+        height: 108px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+        border-bottom: 1px solid var(--line);
+      }
+      .wordmark {
+        font-size: 32px;
+        letter-spacing: -2px;
+        font-weight: 700;
+        line-height: 1;
+        text-decoration: none;
+      }
+      .wordmark span {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        background: var(--white);
+        margin-left: 5px;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        font-size: 13px;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: #c7cacc;
+      }
+      .nav-links a:hover {
+        color: white;
+      }
+      .nav-links .github {
+        border: 1px solid #62686c;
+        padding: 9px 17px;
+        color: var(--white);
+      }
+      .hero {
+        padding: 65px 0 56px;
+      }
+      .context {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .context:before {
+        content: '';
+        width: 19px;
+        height: 1px;
+        background: var(--signal);
+      }
+      h1 {
+        font-size: clamp(68px, 8.3vw, 119px);
+        line-height: 0.98;
+        letter-spacing: -6.5px;
+        font-weight: 500;
+        max-width: 1120px;
+      }
+      .hero-bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 65px;
+        margin-top: 37px;
+      }
+      .hero-bottom p {
+        max-width: 680px;
+        font-size: 20px;
+        line-height: 1.55;
+        letter-spacing: -0.3px;
+        color: #b9bec1;
+      }
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        flex-shrink: 0;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: var(--white);
+        color: var(--bg);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 13px 21px;
+        border: 1px solid var(--white);
+        min-height: 46px;
+      }
+      .button:hover {
+        background: #d1d8db;
+      }
+      .quiet-link {
+        font-size: 13px;
+        text-decoration: none;
+        border-bottom: 1px solid var(--steel);
+        padding-bottom: 3px;
+      }
+      .hero-meta {
+        display: flex;
+        gap: 24px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 32px;
+      }
+      .hero-meta span + span:before {
+        content: '/';
+        margin-right: 24px;
+        color: #646b70;
+      }
+      .workbench {
+        border: 1px solid #52585d;
+        background: var(--panel);
+        margin-bottom: 82px;
+      }
+      .workbench-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 17px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .workbench-top p {
+        font-size: 12px;
+      }
+      .workbench-top span {
+        font: 10px var(--mono);
+        color: var(--muted);
+      }
+      .harness-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--line);
+        padding: 0 24px;
+        gap: 35px;
+      }
+      .harness-tab {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        color: var(--muted);
+        padding: 17px 0 15px;
+        font-size: 13px;
+        text-align: left;
+      }
+      .harness-tab[aria-pressed='true'] {
+        border-bottom-color: var(--white);
+        color: var(--white);
+      }
+      .harness-tab:hover {
+        color: var(--white);
+      }
+      .harness-body {
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+      }
+      .mission {
+        padding: 31px 28px;
+        border-right: 1px solid var(--line);
+      }
+      .mission h2 {
+        font-size: 27px;
+        line-height: 1.18;
+        letter-spacing: -0.8px;
+        font-weight: 500;
+      }
+      .mission > p {
+        font-size: 13px;
+        color: #b4b9bd;
+        margin-top: 16px;
+        line-height: 1.8;
+      }
+      .environment {
+        margin-top: 28px;
+        padding-top: 21px;
+        border-top: 1px solid var(--line);
+      }
+      .environment-label {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .environment strong {
+        display: block;
+        font: 12px/1.8 var(--mono);
+        color: var(--white);
+        font-weight: 400;
+        margin-top: 6px;
+      }
+      .capability-list {
+        padding: 0;
+        list-style: none;
+        margin: 25px 0 0;
+      }
+      .capability-list li {
+        font: 11px/1.8 var(--mono);
+        padding: 9px 0;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .capability-list li span:last-child {
+        font-family: var(--sans);
+        color: var(--muted);
+        text-align: right;
+      }
+      .code-pane {
+        min-width: 0;
+        background: #181b1e;
+        display: flex;
+        flex-direction: column;
+      }
+      .code-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 26px;
+        border-bottom: 1px solid #2b3034;
+        font: 11px var(--mono);
+        color: var(--muted);
+      }
+      .copy {
+        border: 1px solid var(--steel);
+        padding: 5px 10px;
+        color: #cbd0d3;
+        background: transparent;
+        font: 11px var(--sans);
+        min-height: 30px;
+      }
+      .copy:hover {
+        background: #30363a;
+      }
+      .code-pane pre {
+        margin: 0;
+        padding: 25px 28px;
+        overflow: auto;
+        font: 12px/1.8 var(--mono);
+        min-height: 451px;
+        tab-size: 2;
+      }
+      .kw {
+        color: #d9e3ed;
+      }
+      .str {
+        color: #c6d1b6;
+      }
+      .comment {
+        color: #899298;
+      }
+      .code-foot {
+        padding: 13px 26px;
+        font-size: 11px;
+        color: #9ca6ad;
+        border-top: 1px solid #2b3034;
+        margin-top: auto;
+      }
+      .workbench-bottom {
+        padding: 15px 24px;
+        display: flex;
+        justify-content: space-between;
+        gap: 25px;
+        font-size: 11px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+      }
+      .workbench-bottom a {
+        color: #cbd1d5;
+      }
+      .start {
+        padding: 55px 0 60px;
+        border-top: 1px solid #62686c;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 80px;
+        align-items: center;
+      }
+      .start h2 {
+        font-weight: 400;
+        font-size: 41px;
+        letter-spacing: -1.4px;
+        line-height: 1.15;
+      }
+      .start p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+      .install {
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .install pre {
+        margin: 0;
+        padding: 22px;
+        font: 11px/1.9 var(--mono);
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .install-foot {
+        padding: 0 22px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .footer {
+        padding: 27px 0 35px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+      }
+      .footer .wordmark {
+        font-size: 25px;
+      }
+      .footer p {
+        font-size: 11px;
+        color: #8f989e;
+      }
+      .footer-links {
+        display: flex;
+        gap: 25px;
+        font-size: 12px;
+        color: #b9c0c4;
+      }
+      .footer-links a {
+        text-decoration: none;
+      }
+      .status {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--white);
+        color: var(--bg);
+        padding: 10px 18px;
+        font-size: 12px;
+        z-index: 30;
+      }
+      .status:empty {
+        display: none;
+      }
+      @media (min-width: 1600px) {
+        .hero {
+          padding-top: 85px;
+        }
+      }
+      @media (max-width: 1150px) {
+        .wrap {
+          padding: 0 36px;
+        }
+        h1 {
+          font-size: 91px;
+          letter-spacing: -5px;
+        }
+        .hero-bottom {
+          gap: 35px;
+        }
+        .hero-bottom p {
+          font-size: 18px;
+        }
+        .hero-actions {
+          gap: 18px;
+        }
+        .harness-body {
+          grid-template-columns: 295px minmax(0, 1fr);
+        }
+        .mission {
+          padding: 27px 22px;
+        }
+        .code-pane pre {
+          font-size: 11px;
+          padding: 23px;
+        }
+        .start {
+          gap: 45px;
+        }
+        .hero-actions .quiet-link {
+          display: none;
+        }
+      }
+      @media (max-width: 760px) {
+        .wrap {
+          padding: 0 22px;
+        }
+        .nav {
+          height: 82px;
+        }
+        .nav-links {
+          gap: 20px;
+        }
+        .nav-links .desktop {
+          display: none;
+        }
+        .nav-links .github {
+          padding: 8px 12px;
+        }
+        .hero {
+          padding: 40px 0 35px;
+        }
+        .context {
+          font-size: 11px;
+          margin-bottom: 27px;
+        }
+        h1 {
+          font-size: clamp(57px, 10.3vw, 78px);
+          letter-spacing: -3.6px;
+          line-height: 1.01;
+        }
+        .hero-bottom {
+          display: block;
+          margin-top: 26px;
+        }
+        .hero-bottom p {
+          font-size: 17px;
+          max-width: 570px;
+        }
+        .hero-actions {
+          margin-top: 24px;
+        }
+        .hero-actions .quiet-link {
+          display: block;
+        }
+        .hero-meta {
+          gap: 12px;
+          font-size: 10px;
+          margin-top: 26px;
+          flex-wrap: wrap;
+        }
+        .hero-meta span + span:before {
+          margin-right: 12px;
+        }
+        .workbench {
+          margin-bottom: 52px;
+        }
+        .workbench-top {
+          padding: 14px 16px;
+        }
+        .workbench-top span {
+          font-size: 9px;
+        }
+        .workbench-top p {
+          font-size: 11px;
+        }
+        .harness-tabs {
+          padding: 0 16px;
+          gap: 25px;
+          overflow-x: auto;
+        }
+        .harness-tab {
+          white-space: nowrap;
+          font-size: 12px;
+          padding: 15px 0;
+        }
+        .harness-body {
+          grid-template-columns: 1fr;
+        }
+        .mission {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 25px 20px;
+        }
+        .mission h2 {
+          font-size: 24px;
+        }
+        .mission > p {
+          max-width: 600px;
+          font-size: 13px;
+        }
+        .environment {
+          margin-top: 20px;
+          padding-top: 16px;
+        }
+        .capability-list {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0 20px;
+          margin-top: 20px;
+        }
+        .capability-list li {
+          font-size: 10px;
+          display: block;
+        }
+        .capability-list li span {
+          display: block;
+        }
+        .capability-list li span:last-child {
+          text-align: left;
+          font-size: 11px;
+        }
+        .code-pane pre {
+          font-size: 10px;
+          min-height: 390px;
+          padding: 19px 16px;
+        }
+        .code-toolbar {
+          padding: 13px 16px;
+        }
+        .code-foot {
+          padding: 13px 16px;
+        }
+        .workbench-bottom {
+          padding: 14px 16px;
+          flex-direction: column;
+          gap: 9px;
+        }
+        .start {
+          grid-template-columns: 1fr;
+          gap: 25px;
+          padding: 39px 0;
+        }
+        .start h2 {
+          font-size: 36px;
+        }
+        .footer {
+          flex-wrap: wrap;
+          gap: 20px;
+        }
+        .footer p {
+          order: 3;
+          flex-basis: 100%;
+          font-size: 10px;
+        }
+        .footer-links {
+          font-size: 11px;
+          gap: 18px;
+        }
+        .install pre {
+          font-size: 10px;
+          padding: 18px;
+        }
+        .install-foot {
+          padding: 0 18px 18px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      .hero {
+        padding: 70px 0 52px;
+      }
+      .hero h1 {
+        font-size: clamp(64px, 7.4vw, 108px);
+        max-width: 1050px;
+        letter-spacing: -5.8px;
+      }
+      .hero-bottom {
+        margin-top: 30px;
+      }
+      .hero-bottom p {
+        max-width: 665px;
+        font-size: 19px;
+      }
+      .hero-meta {
+        margin-top: 25px;
+      }
+      .journey {
+        position: relative;
+        display: grid;
+        grid-template-columns: 42% 58%;
+        border-top: 1px solid var(--line);
+        isolation: isolate;
+      }
+      .chapters {
+        min-width: 0;
+        padding-right: 34px;
+        position: relative;
+        z-index: 2;
+      }
+      .chapter {
+        min-height: 88svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 80px 0;
+        scroll-margin-top: 8vh;
+      }
+      .chapter:first-child {
+        min-height: 80svh;
+      }
+      .chapter:last-child {
+        min-height: 95svh;
+      }
+      .chapter-count {
+        font: 11px var(--mono);
+        color: #a6afb5;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+      .chapter-count:after {
+        content: '';
+        width: 46px;
+        height: 1px;
+        background: var(--steel);
+      }
+      .chapter h2 {
+        font-size: clamp(34px, 3.5vw, 49px);
+        line-height: 1.12;
+        letter-spacing: -1.9px;
+        font-weight: 400;
+        max-width: 460px;
+      }
+      .chapter > p {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #aeb7bd;
+        margin-top: 23px;
+        max-width: 430px;
+      }
+      .chapter-example {
+        margin-top: 27px;
+        border-left: 2px solid #687781;
+        padding: 0 0 0 18px;
+        max-width: 420px;
+      }
+      .chapter-example span {
+        font: 10px var(--mono);
+        color: #98a4ad;
+        display: block;
+        margin-bottom: 9px;
+      }
+      .chapter-example p {
+        font-size: 14px;
+        line-height: 1.7;
+        color: #d4dade;
+      }
+      .chapter code {
+        display: block;
+        margin-top: 24px;
+        font: 11px/1.8 var(--mono);
+        color: #bfcdd6;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .scene-column {
+        position: relative;
+        min-width: 0;
+      }
+      .scene-sticky {
+        position: sticky;
+        top: 10px;
+        height: calc(100svh - 20px);
+        min-height: 570px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .scene-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 18px;
+        font: 10px var(--mono);
+        color: #8f9ba4;
+        gap: 16px;
+      }
+      .scene-head strong {
+        font-weight: 400;
+        color: #dae0e3;
+      }
+      .scene-canvas {
+        width: 100%;
+        height: min(70svh, 730px);
+        display: block;
+        overflow: visible;
+      }
+      .scene-canvas text {
+        font-family: var(--mono);
+      }
+      .scene-footer {
+        padding: 0 18px;
+      }
+      .scene-current {
+        font-size: 12px;
+        color: #dce2e6;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .scene-features {
+        font: 10px/1.8 var(--mono);
+        color: #98a6b0;
+        min-height: 38px;
+        max-width: 510px;
+      }
+      .chapter-nav {
+        display: flex;
+        gap: 8px;
+        margin-top: 17px;
+      }
+      .chapter-nav a {
+        display: block;
+        flex: 1;
+        height: 24px;
+        padding: 10px 0;
+        position: relative;
+        text-decoration: none;
+      }
+      .chapter-nav a:before {
+        content: '';
+        display: block;
+        height: 2px;
+        background: #384047;
+      }
+      .chapter-nav a[aria-current='step']:before {
+        background: #d7e5ef;
+      }
+      .chapter-nav a:hover:before {
+        background: #8194a2;
+      }
+      .chapter-nav a span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      .journey-end {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 70px;
+        border-top: 1px solid var(--steel);
+        padding: 58px 0 70px;
+      }
+      .journey-end h2 {
+        font-size: 42px;
+        line-height: 1.13;
+        font-weight: 400;
+        letter-spacing: -1.6px;
+      }
+      .journey-end p {
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.8;
+        max-width: 520px;
+      }
+      .proof-heading {
+        padding: 24px 0 33px;
+        display: flex;
+        justify-content: space-between;
+        gap: 60px;
+        align-items: end;
+      }
+      .proof-heading h2 {
+        font-size: 43px;
+        font-weight: 400;
+        letter-spacing: -1.7px;
+        line-height: 1.13;
+      }
+      .proof-heading p {
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--muted);
+        max-width: 430px;
+      }
+      .workbench {
+        margin-bottom: 60px;
+      }
+      .closing {
+        padding: 30px 0 55px;
+        display: flex;
+        justify-content: space-between;
+        gap: 60px;
+        align-items: center;
+      }
+      .closing h2 {
+        font-size: 36px;
+        letter-spacing: -1.2px;
+        font-weight: 400;
+        line-height: 1.17;
+        max-width: 500px;
+      }
+      .closing p {
+        font-size: 15px;
+        color: var(--muted);
+        margin-top: 20px;
+        max-width: 500px;
+      }
+      .closing pre {
+        font: 12px/1.9 var(--mono);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 25px;
+        min-width: 340px;
+      }
+      .static-scene-note {
+        font-size: 12px;
+        color: var(--muted);
+        padding: 20px;
+      }
+      .scene-canvas .module-label {
+        font-size: 9px;
+      }
+      .scene-canvas .layer-label {
+        font-size: 11px;
+      }
+      .scene-canvas .lid-title {
+        font: 500 38px var(--sans);
+        letter-spacing: -2px;
+      }
+      @media (max-width: 1100px) {
+        .hero h1 {
+          font-size: 86px;
+          letter-spacing: -4.5px;
+        }
+        .chapters {
+          padding-right: 20px;
+        }
+        .chapter h2 {
+          font-size: 37px;
+        }
+        .chapter > p {
+          font-size: 15px;
+        }
+        .chapter-example p {
+          font-size: 13px;
+        }
+        .scene-head,
+        .scene-footer {
+          padding: 0 5px;
+        }
+        .scene-canvas {
+          width: 110%;
+          margin-left: -5%;
+        }
+        .journey-end {
+          gap: 40px;
+        }
+        .chapter {
+          min-height: 85svh;
+        }
+        .proof-heading {
+          gap: 35px;
+        }
+      }
+      @media (max-width: 760px) {
+        .hero {
+          padding: 40px 0;
+        }
+        .hero h1 {
+          font-size: clamp(52px, 10.2vw, 76px);
+          letter-spacing: -3px;
+        }
+        .hero-bottom p {
+          font-size: 16px;
+        }
+        .journey {
+          display: flex;
+          flex-direction: column;
+        }
+        .scene-column {
+          display: contents;
+        }
+        .scene-sticky {
+          order: -1;
+          top: 0;
+          height: 42svh;
+          min-height: 265px;
+          max-height: 420px;
+          background: var(--bg);
+          z-index: 5;
+          border-bottom: 1px solid var(--line);
+          padding-top: 12px;
+          justify-content: flex-start;
+        }
+        .scene-head {
+          padding: 0 5px;
+          font-size: 9px;
+        }
+        .scene-canvas {
+          height: calc(100% - 58px);
+          width: 100%;
+          margin: 0;
+          overflow: hidden;
+        }
+        .scene-footer {
+          padding: 0;
+        }
+        .scene-current,
+        .scene-features {
+          display: none;
+        }
+        .chapter-nav {
+          margin-top: 0;
+        }
+        .chapter-nav a {
+          height: 20px;
+          padding: 9px 0;
+        }
+        .chapters {
+          padding-right: 0;
+        }
+        .chapter {
+          min-height: 88svh;
+          padding: 45px 0;
+          scroll-margin-top: 44svh;
+          justify-content: center;
+        }
+        .chapter:first-child {
+          min-height: 66svh;
+        }
+        .chapter:last-child {
+          min-height: 82svh;
+        }
+        .chapter h2 {
+          font-size: 35px;
+          max-width: 440px;
+        }
+        .chapter > p {
+          font-size: 15px;
+          max-width: 540px;
+        }
+        .chapter-count {
+          margin-bottom: 17px;
+        }
+        .chapter-example {
+          margin-top: 21px;
+        }
+        .chapter code {
+          font-size: 10px;
+          margin-top: 20px;
+        }
+        .journey-end {
+          display: block;
+          padding: 38px 0 42px;
+        }
+        .journey-end h2 {
+          font-size: 34px;
+        }
+        .journey-end p {
+          margin-top: 23px;
+          font-size: 15px;
+        }
+        .proof-heading {
+          display: block;
+          padding: 15px 0 26px;
+        }
+        .proof-heading h2 {
+          font-size: 35px;
+        }
+        .proof-heading p {
+          margin-top: 19px;
+          font-size: 14px;
+          max-width: 540px;
+        }
+        .closing {
+          display: block;
+          padding: 5px 0 32px;
+        }
+        .closing h2 {
+          font-size: 32px;
+        }
+        .closing p {
+          font-size: 14px;
+        }
+        .closing pre {
+          min-width: 0;
+          font-size: 11px;
+          padding: 20px;
+          margin-top: 25px;
+        }
+        .scene-canvas .module-label {
+          font-size: 11px;
+        }
+        .scene-canvas .layer-label {
+          font-size: 13px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .chapter {
+          min-height: 68svh;
+        }
+        .chapter:first-child,
+        .chapter:last-child {
+          min-height: 68svh;
+        }
+      }
+      @media (max-width: 760px) {
+        .scene-current {
+          display: flex;
+          font-size: 10px;
+          margin-bottom: 0;
+        }
+        .scene-canvas {
+          height: calc(100% - 74px);
+        }
+      }
+      @media (max-width: 760px) and (max-height: 500px) {
+        .scene-sticky {
+          height: 190px;
+          min-height: 190px;
+        }
+        .chapter {
+          scroll-margin-top: 205px;
+        }
+      }
+
+      /* Material palette follows the five architectural categories. */
+      :root {
+        --bg: #10131e;
+        --panel: #181e30;
+        --line: #2c3650;
+        --steel: #475373;
+        --signal: #81b5ff;
+      }
+      body {
+        background: var(--bg);
+      }
+      .hero .context:before {
+        background: #a68bfa;
+      }
+      .button {
+        background: #a8caff;
+        border-color: #a8caff;
+        color: #111a30;
+        box-shadow: 0 5px 24px #448dff20;
+      }
+      .button:hover {
+        background: #c4dbff;
+      }
+      .nav-links .github {
+        border-color: #596ba2;
+      }
+      .workbench {
+        background: #161e30;
+        border-color: #3e5071;
+        box-shadow: 0 24px 70px #03071360;
+      }
+      .code-pane {
+        background: #111929;
+      }
+      .code-toolbar,
+      .code-foot {
+        border-color: #293853;
+      }
+      .harness-tab[aria-pressed='true'] {
+        border-color: #b79aff;
+        color: #ceb9ff;
+      }
+      .chapter code {
+        padding: 17px 19px;
+        border: 1px solid #2b3c59;
+        background: #151e31;
+        box-shadow: 0 12px 28px #03060c30;
+        border-radius: 5px;
+      }
+      .kw {
+        color: #c4a1ff;
+      }
+      .str {
+        color: #a8dfb5;
+      }
+      .function {
+        color: #ffcf86;
+      }
+      .property {
+        color: #82c7ff;
+      }
+      .variable {
+        color: #7adbd6;
+      }
+      .number {
+        color: #ffae93;
+      }
+      .comment {
+        color: #8e9fb9;
+      }
+      .chapter:nth-child(1) {
+        --category: #7baeff;
+      }
+      .chapter:nth-child(2) {
+        --category: #b195ff;
+      }
+      .chapter:nth-child(3) {
+        --category: #f4c773;
+      }
+      .chapter:nth-child(4) {
+        --category: #60d9ca;
+      }
+      .chapter:nth-child(5) {
+        --category: #ef98c5;
+      }
+      .chapter-count {
+        color: var(--category);
+      }
+      .chapter-count:after {
+        background: var(--category);
+        opacity: 0.6;
+      }
+      .chapter-example {
+        border-left-color: var(--category);
+      }
+      .chapter-example span {
+        color: var(--category);
+      }
+      .journey {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        grid-template-columns: 40% 60%;
+      }
+      .chapters {
+        padding-left: max(32px, calc((100vw - 1312px) / 2));
+        padding-right: 25px;
+      }
+      .scene-column {
+        background: radial-gradient(ellipse at 55% 46%, #25407224, transparent 70%);
+      }
+      .scene-sticky {
+        top: 0;
+        height: 100svh;
+        min-height: 620px;
+        padding: 15px 28px 15px 0;
+      }
+      .scene-canvas {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        width: 100%;
+        margin: 0;
+      }
+      .scene-head {
+        padding: 0 25px;
+      }
+      .scene-footer {
+        padding: 0 25px 0 45px;
+      }
+      .scene-current {
+        color: #bfd6ff;
+      }
+      .chapter-nav a:nth-child(1) {
+        --category: #7baeff;
+      }
+      .chapter-nav a:nth-child(2) {
+        --category: #b195ff;
+      }
+      .chapter-nav a:nth-child(3) {
+        --category: #f4c773;
+      }
+      .chapter-nav a:nth-child(4) {
+        --category: #60d9ca;
+      }
+      .chapter-nav a:nth-child(5) {
+        --category: #ef98c5;
+      }
+      .chapter-nav a[aria-current='step']:before {
+        background: var(--category);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--category), transparent 50%);
+      }
+      @media (min-width: 1500px) {
+        .chapters {
+          padding-left: 6vw;
+        }
+        .chapter h2 {
+          font-size: 49px;
+        }
+      }
+      @media (max-width: 1000px) and (min-width: 761px) {
+        .journey {
+          grid-template-columns: 43% 57%;
+        }
+        .chapters {
+          padding-left: 32px;
+        }
+        .scene-sticky {
+          padding-right: 8px;
+        }
+      }
+      @media (max-width: 760px) {
+        .journey {
+          width: auto;
+          margin-left: 0;
+        }
+        .chapters {
+          padding: 0;
+        }
+        .scene-sticky {
+          height: 47svh;
+          min-height: 290px;
+          max-height: 450px;
+          padding: 10px 0 0;
+          background: #10131e;
+        }
+        .scene-head,
+        .scene-footer {
+          padding: 0;
+        }
+        .scene-canvas {
+          height: calc(100% - 70px);
+        }
+        .chapter {
+          scroll-margin-top: 49svh;
+        }
+        .chapter code {
+          padding: 14px;
+        }
+      }
+      @media (max-width: 760px) and (max-height: 500px) {
+        .scene-sticky {
+          height: 200px;
+          min-height: 200px;
+        }
+        .chapter {
+          scroll-margin-top: 215px;
+        }
+      }
+      .chapter-snippet {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      .harness-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        column-gap: 25px;
+        row-gap: 0;
+      }
+      .harness-tab {
+        white-space: normal;
+      }
+      .code-pane pre {
+        max-height: 720px;
+      }
+      @media (max-width: 760px) {
+        .harness-tabs {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0 15px;
+        }
+        .harness-tab {
+          font-size: 12px;
+        }
+        .code-pane pre {
+          max-height: 570px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="wrap">
+      <header>
+        <nav class="nav" aria-label="Main navigation">
+          <a class="wordmark" href="#" aria-label="Luca home"
+            >luca<span aria-hidden="true"></span
+          ></a>
+          <div class="nav-links">
+            <a class="desktop" href="#inside">Inside Luca</a
+            ><a class="desktop" href="#harnesses">Build a harness</a
+            ><a href="https://github.com/soederpop/luca/tree/main/docs">Docs</a
+            ><a class="github" href="https://github.com/soederpop/luca">GitHub ↗</a>
           </div>
-          <div class="arch-item at-agent">
-            <div class="arch-type">Agent</div>
-            <div class="arch-name">coder</div>
-            <div class="arch-detail">git, proc, fs &middot; local</div>
-          </div>
-          <div class="arch-item at-agent">
-            <div class="arch-type">Agent</div>
-            <div class="arch-name">ui-agent</div>
-            <div class="arch-detail">dom, state &middot; browser</div>
-          </div>
-          <div class="arch-item at-agent">
-            <div class="arch-type">Agent</div>
-            <div class="arch-name">gpu-worker</div>
-            <div class="arch-detail">runpod, cuda &middot; remote</div>
-          </div>
-        </div>
-
-        <div class="arch-divider">connected via WebSocket &middot; IPC &middot; REST</div>
-
-        <div class="arch-section-title">Container Registries</div>
-        <div class="arch-row">
-          <div class="arch-item at-feature">
-            <div class="arch-type">Features</div>
-            <div class="arch-name">helpers</div>
-            <div class="arch-detail">fs, git, proc, vm, grep, sqlite...</div>
-          </div>
-          <div class="arch-item at-client">
-            <div class="arch-type">Clients</div>
-            <div class="arch-name">transports</div>
-            <div class="arch-detail">rest, websocket</div>
-          </div>
-          <div class="arch-item at-server">
-            <div class="arch-type">Servers</div>
-            <div class="arch-name">infrastructure</div>
-            <div class="arch-detail">express, websocket, ipc, mcp</div>
-          </div>
-          <div class="arch-item at-cmd">
-            <div class="arch-type">Commands</div>
-            <div class="arch-name">CLI</div>
-            <div class="arch-detail">file-based discovery</div>
-          </div>
-        </div>
-
-        <div class="arch-divider">primitives</div>
-
-        <div class="arch-row">
-          <div class="arch-item">
-            <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">Event Bus</div>
-            <div class="arch-detail">emit, on, once</div>
-          </div>
-          <div class="arch-item">
-            <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">Observable State</div>
-            <div class="arch-detail">reactive, watchable</div>
-          </div>
-          <div class="arch-item">
-            <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">Introspection</div>
-            <div class="arch-detail">self-documenting metadata</div>
-          </div>
-          <div class="arch-item">
-            <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">Binary Compiler</div>
-            <div class="arch-detail">luca bundle &rarr; standalone exe</div>
-          </div>
-        </div>
-      </div>
+        </nav>
+      </header>
     </div>
-  </div>
-</section>
+    <main id="main">
+      <div class="wrap">
+        <section class="hero" aria-labelledby="hero-title">
+          <p class="context">One binary. A TypeScript SDK for AI-native software.</p>
+          <h1 id="hero-title">Build the system.<br />Put an agent inside it.</h1>
+          <div class="hero-bottom">
+            <p>
+              Luca is a single binary that builds any application architecture: HTTP APIs,
+              WebSocket services, CLIs, MCP servers, phone lines, terminal and browser UIs.
+              Assistants are first-class parts of that runtime. They use the same tools, state,
+              and events as your code, answer over any transport you give them, and can inspect,
+              extend, and rebuild the system they run in. Then compile all of it into a binary of
+              your own.
+            </p>
+            <div class="hero-actions">
+              <a class="button" href="#inside"
+                >Open the container <span aria-hidden="true">↓</span></a
+              ><a class="quiet-link" href="#harnesses">See the code</a>
+            </div>
+          </div>
+          <div class="hero-meta">
+            <span>78 features · 7 clients · 4 servers</span><span>Zero install steps</span
+            ><span>Open source / MIT</span>
+          </div>
+        </section>
+        <div class="journey" id="inside">
+          <div class="chapters">
+            <section
+              class="chapter"
+              id="application"
+              data-chapter="0"
+              aria-labelledby="chapter-0-title"
+            >
+              <div class="chapter-count">01 / 08</div>
+              <h2 id="chapter-0-title">Every architecture.<br />One runtime.</h2>
+              <p>
+                The container is a dependency injector, event bus, and state machine in one process. Endpoints mount themselves and generate their own OpenAPI docs. Commands become a CLI. Selectors cache queries. Ink renders terminal UIs. State and events are shared by every part, including the assistants.
+              </p>
+              <div class="chapter-example">
+                <span>Imagine your API starts failing.</span>
+                <p>
+                  The service, its state, and the tools to inspect it are already one object graph. There is nothing to wire together at three in the morning.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;)   // endpoints/ mount themselves
+api.serveOpenAPISpec()                     // docs generated from the routes
+container.state.set(&#x27;incident&#x27;, { service: &#x27;api&#x27;, since: Date.now() })</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="assistant"
+              data-chapter="1"
+              aria-labelledby="chapter-1-title"
+            >
+              <div class="chapter-count">02 / 08</div>
+              <h2 id="chapter-1-title">An operator.<br />Not a chat box.</h2>
+              <p>
+                An assistant is a folder: CORE.md for the prompt, tools.ts for typed tools, hooks.ts for lifecycle. It is a feature like any other, so it shares the container’s state and events. Call use() on any helper and that helper’s tools become the assistant’s tools, with the operating notes it needs already in its prompt. Memory, a skills library, an MCP bridge, and the coding agents live on this tray too.
+              </p>
+              <div class="chapter-example">
+                <span>Hand the failure to the operator.</span>
+                <p>
+                  It calls the functions your code calls, and answers through whatever interface you build: an HTTP route, a socket, an MCP tool, a Telegram bot, a phone call.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const operator = container.feature(&#x27;assistant&#x27;, {
+  folder: &#x27;assistants/operator&#x27;,   // CORE.md + tools.ts + hooks.ts
+})
+operator.use(container.feature(&#x27;memory&#x27;))
+operator.use(container.feature(&#x27;mcpBridge&#x27;, { servers }))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="data"
+              data-chapter="2"
+              aria-labelledby="chapter-2-title"
+            >
+              <div class="chapter-count">03 / 08</div>
+              <h2 id="chapter-2-title">Your Markdown<br />becomes its memory.</h2>
+              <p>
+                A folder of Markdown with frontmatter becomes a typed, queryable database through Contentbase. Semantic search finds the right runbook. Beside it sit SQLite, Postgres, Redis, a locked cross-process store, and a disk cache, each with typed tools the assistant can call.
+              </p>
+              <div class="chapter-example">
+                <span>Find the procedure before touching anything.</span>
+                <p>
+                  The operator reads past incidents and deployment notes to learn what failed and how your team handles it. Your decisions become its defaults.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;contentDb&#x27;, { rootPath: &#x27;./brain&#x27; }))
+operator.use(container.feature(&#x27;postgres&#x27;, { url, readOnly: true }))
+operator.use(container.feature(&#x27;skillsLibrary&#x27;))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="systems"
+              data-chapter="3"
+              aria-labelledby="chapter-3-title"
+            >
+              <div class="chapter-count">04 / 08</div>
+              <h2 id="chapter-3-title">Real tools.<br />Real machines.</h2>
+              <p>
+                Files, ripgrep, child processes, long-running process management, SSH and SCP, tmux sessions, Docker, and git. Each helper ships typed tools and prompt guidance, so attaching one also teaches the assistant how to use it safely.
+              </p>
+              <div class="chapter-example">
+                <span>Inspect the machine that is failing.</span>
+                <p>
+                  Attach SSH for remote diagnostics. Read the logs, check the container, look at the last commit. The same tray runs a deployment agent or a repo maintainer.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;secureShell&#x27;, { host: &#x27;staging-api&#x27; }))
+operator.use(container.feature(&#x27;docker&#x27;))
+operator.use(container.feature(&#x27;git&#x27;))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="integrations"
+              data-chapter="4"
+              aria-labelledby="chapter-4-title"
+            >
+              <div class="chapter-count">05 / 08</div>
+              <h2 id="chapter-4-title">Reach the<br />outside world.</h2>
+              <p>
+                Google Workspace, Telnyx telephony, Telegram, browser automation, text to speech, screen capture, a scheduler for cron and intervals, and a vault for secrets. The same architecture runs an infrastructure operator or an assistant with its own phone number.
+              </p>
+              <div class="chapter-example">
+                <span>Tell the humans.</span>
+                <p>
+                  Post the diagnosis to the on-call channel, or call the engineer on duty. Pull the incident doc from Drive. A different job would schedule itself to run every night instead.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;telegram&#x27;))
+operator.use(container.feature(&#x27;googleDocs&#x27;))
+container.feature(&#x27;scheduler&#x27;).cron(&#x27;*/5 * * * *&#x27;, () => operator.ask(&#x27;Check health.&#x27;))</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="clients"
+              data-chapter="5"
+              aria-labelledby="chapter-5-title"
+            >
+              <div class="chapter-count">06 / 08</div>
+              <h2 id="chapter-5-title">Speak every<br />protocol.</h2>
+              <p>
+                REST that returns parsed JSON and hands back errors as values. WebSocket and Socket.IO with correlated ask() and reply(). Unix-socket IPC between processes. GraphQL. An OpenAI-compatible client that reaches any model server. ContainerLink, which lets one container evaluate code in another. Speech in and out.
+              </p>
+              <div class="chapter-example">
+                <span>Query the upstream.</span>
+                <p>
+                  The operator asks the payment provider’s API what changed, and asks a browser container what the user actually sees.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const upstream = container.client(&#x27;rest&#x27;, { baseURL })
+const status = await upstream.get(&#x27;/status&#x27;)   // parsed JSON, no unwrap
+const ws = container.client(&#x27;websocket&#x27;, { baseURL: wsURL })
+const reply = await ws.ask(&#x27;getUser&#x27;, { id })</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="servers"
+              data-chapter="6"
+              aria-labelledby="chapter-6-title"
+            >
+              <div class="chapter-count">07 / 08</div>
+              <h2 id="chapter-6-title">Serve the operator<br />to everyone.</h2>
+              <p>
+                Express with auto-mounted endpoints. A WebSocket server that bridges to the event bus. IPC over Unix sockets. An MCP server that turns any helper or assistant into tools for Claude Code, Codex, or Cursor. An LLM proxy that fronts local and paid models behind one OpenAI-compatible URL.
+              </p>
+              <div class="chapter-example">
+                <span>Expose the operator.</span>
+                <p>
+                  Your team’s coding agents get it as an MCP tool. The dashboard gets it over a socket. Another process gets it over IPC. One assistant, no copies.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const mcp = container.server(&#x27;mcp&#x27;, { serverName: &#x27;operator&#x27; })
+mcp.tool(&#x27;ask&#x27;, { schema, handler: ({ question }) => operator.ask(question) })
+await mcp.start()   // or: luca mcp --assistant operator</code></pre>
+            </section>
+            <section
+              class="chapter"
+              id="execution"
+              data-chapter="7"
+              aria-labelledby="chapter-7-title"
+            >
+              <div class="chapter-count">08 / 08</div>
+              <h2 id="chapter-7-title">It can rebuild<br />the system it runs in.</h2>
+              <p>
+                Every command, endpoint, script, and snippet runs through the VM, which is why a folder of TypeScript needs no install step. Give that VM to the assistant and it runs TypeScript inside its own live process: the real container, every helper in scope, the runtime’s docs one call away. It can delegate to Claude Code, Codex, or Hermes, fork itself, create and test other assistants, write new tools and skills, and compile a fresh binary of itself.
+              </p>
+              <div class="chapter-example">
+                <span>From diagnosis to a verified fix.</span>
+                <p>
+                  Delegate a patch to a coding agent, read the diff, run the tests, then report. Then write the runbook and a new tool so next time takes one call.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;vm&#x27;))                 // live TypeScript, real process
+operator.use(container.feature(&#x27;assistantsManager&#x27;))  // create, edit, test assistants
+await operator.start()
+await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27;)</code></pre>
+            </section>
+          </div>
+          <aside class="scene-column" aria-label="Exploded view of the Luca container">
+            <div class="scene-sticky">
+              <div class="scene-head">
+                <strong>container</strong><span>Scroll to explore its architecture</span>
+              </div>
+              <svg
+                class="scene-canvas"
+                id="container-scene"
+                viewBox="20 0 760 880"
+                role="img"
+                aria-labelledby="scene-title scene-description"
+              >
+                <title id="scene-title">Luca container, isometric exploded view</title>
+                <desc id="scene-description">
+                  Eight stacked trays expand with the story: application, assistants, data
+                  features, system features, integration features, clients, servers, and execution.
+                  Component names are also provided in the chapter text and diagram caption.
+                </desc></svg
+              ><noscript
+                ><p class="static-scene-note">
+                  Enable JavaScript to see the expanding container. The complete story is available
+                  in the accompanying text.
+                </p></noscript
+              >
+              <div class="scene-footer">
+                <div class="scene-current">
+                  <span id="scene-category">Application</span
+                  ><span id="scene-position">01 / 08</span>
+                </div>
+                <p class="scene-features" id="scene-features">
+                  ui / ink · state · events · commands · endpoints · openapi docs · selectors · bundle
+                </p>
+                <nav class="chapter-nav" aria-label="Container layers">
+                  <a href="#application" aria-label="Explore application" aria-current="step"
+                    ><span>application</span></a
+                  ><a href="#assistant" aria-label="Explore assistants"><span>assistants</span></a
+                  ><a href="#data" aria-label="Explore data features"><span>data</span></a
+                  ><a href="#systems" aria-label="Explore system features"><span>systems</span></a
+                  ><a href="#integrations" aria-label="Explore integration features"
+                    ><span>integrations</span></a
+                  ><a href="#clients" aria-label="Explore clients"><span>clients</span></a
+                  ><a href="#servers" aria-label="Explore servers"><span>servers</span></a
+                  ><a href="#execution" aria-label="Explore execution"><span>execution</span></a>
+                </nav>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <section class="journey-end" aria-labelledby="journey-end-title">
+          <h2 id="journey-end-title">One runtime.<br />An agent that is part of it.</h2>
+          <p>
+            Most agents are clients of your software. A Luca assistant is a component of it. The
+            features give it capabilities, the servers give it interfaces, the VM lets it grow.
+            Start with one useful job. Let the system grow around it, sometimes by itself.
+          </p>
+        </section>
+        <div class="proof-heading">
+          <h2>Choose the pieces.<br />Invent the architecture.</h2>
+          <p>
+            A construction kit for AI-native software. The same pieces become an on-call operator,
+            one assistant on five transports, a database analyst, an architect that builds and
+            tests other assistants, or an agent that turns its own history into skills. Start with a
+            working pattern. Make it yours.
+          </p>
+        </div>
+        <section class="workbench" id="harnesses" aria-label="Agent harness examples">
+          <div class="workbench-top">
+            <p>Eight starting points. Your combination comes next.</p>
+            <span>TypeScript / Luca runtime</span>
+          </div>
+          <div class="harness-tabs" aria-label="Choose an agent harness">
+            <button class="harness-tab" data-harness="infra" aria-pressed="true">
+              Infrastructure</button
+            ><button class="harness-tab" data-harness="transports" aria-pressed="false">
+              Every transport</button
+            ><button class="harness-tab" data-harness="architect" aria-pressed="false">
+              Self-building</button
+            ><button class="harness-tab" data-harness="database" aria-pressed="false">
+              Database to presentation</button
+            ><button class="harness-tab" data-harness="providers" aria-pressed="false">
+              Model discovery</button
+            ><button class="harness-tab" data-harness="skills" aria-pressed="false">
+              History to skills</button
+            ><button class="harness-tab" data-harness="voice" aria-pressed="false">
+              Voice operator</button
+            ><button class="harness-tab" data-harness="coding" aria-pressed="false">
+              Coding supervisor
+            </button>
+          </div>
+          <div class="harness-body">
+            <div class="mission">
+              <h2 id="mission-title">Give the on-call agent<br />access to the machine.</h2>
+              <p id="mission-copy">
+                Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a
+                coding agent, and verify the result from inside the same running process.
+              </p>
+              <div class="environment">
+                <div class="environment-label">Target environment</div>
+                <strong id="mission-env">SSH: staging-api<br />Workspace: ./services/api</strong>
+              </div>
+              <ul class="capability-list" id="capabilities">
+                <li><span>contentDb</span><span>Markdown brain</span></li>
+                <li><span>secureShell</span><span>Remote execution</span></li>
+                <li><span>claudeCode</span><span>Coding sessions</span></li>
+                <li><span>vm</span><span>Live evaluation</span></li>
+              </ul>
+            </div>
+            <div class="code-pane">
+              <div class="code-toolbar">
+                <span id="code-file">harnesses/infrastructure.ts</span
+                ><button class="copy" data-copy="harness-code">Copy code</button>
+              </div>
+              <pre
+                tabindex="0"
+                aria-label="Harness source code"
+              ><code id="harness-code">import container from 'luca'
 
-<!-- ===== CODE EXAMPLES ===== -->
-<section id="code">
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Code</div>
-    <h2 class="sec-title anim" style="--i:1">From Swarm<br>to Standalone Binary</h2>
-    <p class="sec-desc anim" style="--i:2">
-      Orchestrate a fleet of agents, wire up infrastructure, compile it all to a single executable.
-    </p>
+const operator = container.feature('assistant', {
+  systemPrompt: `You operate the staging API.
+    Search the runbooks first. Inspect the service and delegate
+    a patch with coder.run() through evalCode.
+    Verify the result before reporting back.`,
+})
 
-    <div class="anim" style="--i:3">
-      <div class="code-tabs">
-        <button class="code-tab active" data-panel="swarm">Swarm</button>
-        <button class="code-tab" data-panel="assistant">Assistant</button>
-        <button class="code-tab" data-panel="server">Server</button>
-        <button class="code-tab" data-panel="binary">Binary</button>
+operator.use(container.feature('contentDb', {
+  rootPath: './brain',
+}))
+operator.use(container.feature('secureShell', {
+  host: 'staging-api',
+}))
+container.addContext('coder', container.feature('claudeCode', {
+  cwd: container.paths.resolve('services/api'),
+}))
+operator.use(container.feature('vm'))
+
+await operator.start()
+await operator.ask(
+  'Investigate the failing health check on staging-api.'
+)</code></pre>
+              <div class="code-foot" id="code-foot">
+                Requires a configured model provider, ./brain collection, SSH alias, and Claude Code
+                CLI.
+              </div>
+            </div>
+          </div>
+          <div class="workbench-bottom">
+            <span
+              >Example configuration. Select a harness to inspect its tools and environment.</span
+            ><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis"
+              >Inspect the APIs ↗</a
+            >
+          </div>
+        </section>
+        <section class="closing" aria-labelledby="closing-title">
+          <div>
+            <h2 id="closing-title">One binary<br />that builds your binaries.</h2>
+            <p>
+              Luca is the toolkit you install. What you ship is yours: your commands, features,
+              endpoints, and assistants, compiled with the runtime into one executable. Hand your
+              team a database analyst, an operations agent, or a coding supervisor as a single file.
+              An assistant with the VM can run this step too, and ship a new version of itself.
+            </p>
+            <p>
+              Build for macOS or Linux with Bun on the build machine. Recipients run the compiled
+              tool with no Luca, no Bun, and no node_modules, using their own model providers and
+              services. Keep eval and describe in the build and the binary can still introspect
+              itself.
+            </p>
+          </div>
+          <pre><code># From your Luca project
+luca bundle ops-agent \
+  --targets darwin-arm64,linux-x64 \
+  --builtins eval,describe
+
+# Your runtime, tools, and assistants inside
+./dist/ops-agent-darwin-arm64 --help
+./dist/ops-agent-darwin-arm64 chat operator</code></pre>
+        </section>
+        <section class="start" id="start" aria-labelledby="start-heading">
+          <div>
+            <h2 id="start-heading">Build the agent<br />your work needs.</h2>
+            <p>Install one binary. Assemble the system. Ship your own.</p>
+          </div>
+          <div class="install">
+            <pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
+luca bootstrap my-agent
+cd my-agent && luca chat</code></pre>
+            <div class="install-foot">
+              <a
+                href="https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md"
+                >Getting started ↗</a
+              ><button class="copy" data-copy="install-code">Copy commands</button>
+            </div>
+          </div>
+        </section>
       </div>
-
-      <div class="code-panels">
-        <div class="code-panel active" id="panel-swarm">
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">mgr</span> = container.<span class="t-method">feature</span>(<span class="t-str">'assistantManager'</span>)</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// each assistant gets its own tools from the container</span></div>
-<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'researcher'</span>, { <span class="t-key">use</span>: [<span class="t-str">'browserUse'</span>, <span class="t-str">'fs'</span>] })</div>
-<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'coder'</span>,      { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'proc'</span>, <span class="t-str">'fs'</span>] })</div>
-<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'reviewer'</span>,   { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'fs'</span>] })</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// observe the whole fleet</span></div>
-<div class="line">mgr.<span class="t-method">on</span>(<span class="t-str">'agent:message'</span>, ({ <span class="t-cmd">from</span>, <span class="t-cmd">to</span>, <span class="t-cmd">content</span> }) <span class="t-kw">=></span> { <span class="t-comment">/* ... */</span> })</div>
-<div class="line">mgr.<span class="t-method">on</span>(<span class="t-str">'agent:stateChange'</span>, ({ <span class="t-cmd">agent</span>, <span class="t-cmd">state</span> }) <span class="t-kw">=></span> { <span class="t-comment">/* ... */</span> })</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-kw">await</span> mgr.<span class="t-method">startAll</span>()  <span class="t-comment">// launch the swarm</span></div>
+    </main>
+    <div class="wrap">
+      <footer class="footer">
+        <a class="wordmark" href="#" aria-label="Luca home">luca<span aria-hidden="true"></span></a>
+        <p>Lightweight Universal Conversational Architecture.</p>
+        <div class="footer-links">
+          <a href="https://github.com/soederpop/luca">GitHub ↗</a
+          ><a href="https://github.com/soederpop/luca/tree/main/docs">Documentation ↗</a
+          ><a href="https://github.com/soederpop/luca#license">MIT</a>
         </div>
-
-        <div class="code-panel" id="panel-assistant">
-<div class="line"><span class="t-kw">import</span> <span class="t-cmd">container</span> <span class="t-kw">from</span> <span class="t-str">'luca'</span></div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">browser</span> = container.<span class="t-method">feature</span>(<span class="t-str">'browserUse'</span>, { <span class="t-key">headed</span>: <span class="t-val">true</span> })</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">assistant</span> = container.<span class="t-method">feature</span>(<span class="t-str">'assistant'</span>, {</div>
-<div class="line">  <span class="t-key">systemPrompt</span>: <span class="t-str">'You are a web research assistant.'</span>,</div>
-<div class="line">  <span class="t-key">model</span>: <span class="t-str">'gpt-4.1-mini'</span>,</div>
-<div class="line">})</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// browserUse injects its tools automatically</span></div>
-<div class="line">assistant.<span class="t-method">use</span>(browser)</div>
-<div class="line"><span class="t-kw">await</span> assistant.<span class="t-method">start</span>()</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-kw">await</span> assistant.<span class="t-method">ask</span>(<span class="t-str">'Go to hacker news and tell me the top 3 stories'</span>)</div>
-        </div>
-
-        <div class="code-panel" id="panel-server">
-<div class="line"><span class="t-comment">// spin up an Express server with endpoints</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">app</span> = container.<span class="t-method">server</span>(<span class="t-str">'express'</span>)</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// endpoints auto-discovered from your files</span></div>
-<div class="line"><span class="t-kw">await</span> app.<span class="t-method">mountEndpoints</span>()</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// WebSocket server alongside HTTP</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">ws</span> = container.<span class="t-method">server</span>(<span class="t-str">'websocket'</span>)</div>
-<div class="line">ws.<span class="t-method">on</span>(<span class="t-str">'connection'</span>, <span class="t-cmd">socket</span> <span class="t-kw">=></span> {</div>
-<div class="line">  socket.<span class="t-method">send</span>(<span class="t-str">'welcome to luca'</span>)</div>
-<div class="line">})</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-kw">await</span> app.<span class="t-method">start</span>()  <span class="t-comment">// that's it</span></div>
-        </div>
-
-        <div class="code-panel" id="panel-binary">
-<div class="line"><span class="t-comment"># bootstrap a project</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca bootstrap my-tool</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">cd my-tool</span></div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment"># add your own stuff</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold command</span> <span class="t-str">analyze</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold feature</span> <span class="t-str">myCache</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold endpoint</span> <span class="t-str">status</span></div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment"># compile to a single binary</span></div>
-<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca bundle</span></div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-output">  &rarr; dist/my-tool (standalone, no dependencies)</span></div>
-<div class="line"><span class="t-output">  &rarr; your commands, features, assistants &mdash; baked in</span></div>
-        </div>
-      </div>
+      </footer>
     </div>
-  </div>
-</section>
+    <div class="status" id="status" role="status"></div>
+    <script>
+      const harnesses = {
+        infra: {
+          title: 'Give the on-call agent\naccess to the machine.',
+          description:
+            'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and verify the result from inside the same running process.',
+          environment: 'SSH: staging-api\nWorkspace: ./services/api',
+          tools: [
+            ['contentDb', 'Markdown brain'],
+            ['secureShell', 'Remote execution'],
+            ['claudeCode', 'Coding sessions'],
+            ['vm', 'Live evaluation'],
+          ],
+          file: 'harnesses/infrastructure.ts',
+          foot: 'Requires a configured model provider, ./brain collection, SSH alias, and Claude Code CLI.',
+          code: document.getElementById('harness-code').textContent,
+        },
+        voice: {
+          title: 'Give the assistant\na number of its own.',
+          description:
+            'Provision a phone number, bridge the assistant and its tools to Telnyx, and place a call with a purpose. The person who answers is talking to your actual operator, with your runbooks and your tools.',
+          environment: 'Telnyx: voice + number inventory\nAssistant: ./assistants/dispatch',
+          tools: [
+            ['searchNumbers', 'Number inventory'],
+            ['purchaseNumber', 'Provisioning'],
+            ['start', 'Assistant + tool bridge'],
+            ['dial', 'Outbound calls'],
+          ],
+          file: 'harnesses/voice.ts',
+          foot: 'Requires Telnyx credentials, a configured dispatch assistant, and a reachable tool bridge. Provisioning and calls are billable.',
+          code: `import container from 'luca'
 
-<!-- ===== CLI ===== -->
-<section id="cli">
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Command Line</div>
-    <h2 class="sec-title anim" style="--i:1">A CLI That<br>Understands Your Code</h2>
-    <p class="sec-desc anim" style="--i:2">
-      Discover, prototype, serve, and compile &mdash; all from your terminal. Your AI assistant uses the same commands.
-    </p>
+const dispatch = container.feature('assistant', {
+  folder: container.paths.resolve('assistants/dispatch'),
+})
+await dispatch.start()
 
-    <div class="cli-grid">
-      <div class="cli-card anim" style="--i:3">
-        <div class="cli-cmd">luca bootstrap my-app</div>
-        <div class="cli-desc">Scaffold a complete project with commands, endpoints, features, docs, and AI assistant config &mdash; everything wired up.</div>
-      </div>
-      <div class="cli-card anim" style="--i:4">
-        <div class="cli-cmd">luca describe fs</div>
-        <div class="cli-desc">Auto-generated documentation for any feature, client, or server. Methods, options, state, events &mdash; all introspected at runtime.</div>
-      </div>
-      <div class="cli-card anim" style="--i:5">
-        <div class="cli-cmd">luca eval "container.features.available"</div>
-        <div class="cli-desc">Run arbitrary JavaScript against the live container. Inspect state, test features, explore registries interactively.</div>
-      </div>
-      <div class="cli-card anim" style="--i:6">
-        <div class="cli-cmd">luca serve</div>
-        <div class="cli-desc">Start an Express server that auto-discovers your endpoints/ folder. OpenAPI docs and static files included.</div>
-      </div>
-      <div class="cli-card anim" style="--i:7">
-        <div class="cli-cmd">luca bundle</div>
-        <div class="cli-desc">Compile your project into a standalone binary. Custom commands, features, endpoints, and assistants &mdash; all baked in.</div>
-      </div>
-      <div class="cli-card anim" style="--i:8">
-        <div class="cli-cmd">luca console</div>
-        <div class="cli-desc">Drop into a full REPL with the container in scope. Every feature, client, and server at your fingertips.</div>
-      </div>
-    </div>
-  </div>
-</section>
+const telnyx = container.feature('telnyxConnector')
+const [number] = await telnyx.searchNumbers({
+  areaCode: '312', features: ['voice'], limit: 1,
+})
+if (!number) throw new Error('No matching number available')
+await telnyx.purchaseNumber(number.phone_number)
 
-<!-- ===== CTA ===== -->
-<section class="cta" id="get-started">
-  <div class="wrap">
-    <div class="cta-box anim" style="--i:0">
-      <h2>One Download, Unlimited Potential</h2>
-      <p>No dependencies. No node_modules. Agents that talk to each other out of the box.</p>
+const line = container.feature('telnyxConnector', {
+  assistant: dispatch, phoneNumber: number.phone_number,
+})
+await line.start()
+await line.dial('+13125550142', {
+  greeting: 'Hi, this is dispatch with your service update.',
+  context: 'Confirm the scheduled maintenance window.',
+})`,
+        },
+        coding: {
+          title: 'Make coding agents\npart of a larger system.',
+          description:
+            'A supervisor with Claude Code, Codex, and Hermes as callable functions. It delegates implementation to one agent, independent review to another, and refuses to finish until the tests pass. Coding agents become parts, not the product.',
+          environment: 'Workspace: ./services/api\nAgents: Claude Code / Codex / Hermes',
+          tools: [
+            ['claudeCode', 'Implementation sessions'],
+            ['openaiCodex', 'Review sessions'],
+            ['hermesAgent', 'ACP sessions'],
+            ['vm', 'Programmatic coordination'],
+          ],
+          file: 'harnesses/coding-supervisor.ts',
+          foot: 'Requires configured model access and installed, authenticated coding-agent CLIs.',
+          code: `import container from 'luca'
 
-      <div class="install-cmd" onclick="navigator.clipboard.writeText('curl -fsSL https://luca-js.soederpop.com/install.sh | bash').then(() => { this.querySelector('.copy-hint').textContent = 'copied!'; setTimeout(() => this.querySelector('.copy-hint').textContent = 'click to copy', 2000) })">
-        <span class="t-prompt">$</span>
-        <span>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</span>
-        <span class="copy-hint">click to copy</span>
-      </div>
+const cwd = container.paths.resolve('services/api')
+const supervisor = container.feature('assistant', {
+  systemPrompt: \`You supervise changes to the API.
+    Use evalCode to call claude.run(), codex.run(), and
+    hermes.run(). Delegate implementation and independent
+    review. Require passing tests before completion.\`,
+})
 
-      <div class="hero-actions">
-        <a href="https://github.com/soederpop/luca" class="btn btn-primary" target="_blank" rel="noopener">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          View on GitHub
-        </a>
-        <a href="#code" class="btn btn-secondary">See the Code</a>
-      </div>
-    </div>
-  </div>
-</section>
+container.addContext({
+  claude: container.feature('claudeCode', { cwd }),
+  codex: container.feature('openaiCodex', { cwd }),
+  hermes: container.feature('hermesAgent', { cwd }),
+})
+supervisor.use(container.feature('vm'))
 
-<!-- ===== FOOTER ===== -->
-<footer>
-  <div class="wrap">
-    <p>Luca &mdash; An agent-native TypeScript runtime that ships as a single binary.</p>
-    <p style="margin-top:8px">Built with <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a>. Designed for humans and agents.</p>
-  </div>
-</footer>
+await supervisor.start()
+await supervisor.ask(
+  'Implement idempotent webhook handling. Have a second '
+  + 'agent review concurrency and retry behavior.'
+)`,
+        },
+      }
+      Object.assign(harnesses, {
+        transports: {
+          title: 'One assistant.\nEvery transport.',
+          description:
+            'The same assistant, with the same tools and memory, answers an HTTP route, a WebSocket for a browser UI, an MCP tool for Claude Code or Codex, and a Telegram bot. Interfaces are code you write, not a chat window you rent.',
+          environment: 'HTTP: :8080 /ask\nWebSocket: :8081 · MCP: stdio · Telegram: bot',
+          tools: [
+            ['express', 'HTTP endpoint'],
+            ['websocket', 'Live socket + reply()'],
+            ['mcp', 'Tool for other agents'],
+            ['telegram', 'Chat in your pocket'],
+          ],
+          file: 'harnesses/every-transport.ts',
+          foot: 'Requires a configured model provider, DATABASE_URL, and TELEGRAM_BOT_TOKEN. `luca mcp --assistant desk` exposes the same tools without writing the MCP block.',
+          code: `import container from 'luca'
+import { z } from 'zod'
 
-<!-- ===== SCRIPTS ===== -->
-<script>
-// Tab switching
-document.querySelectorAll('.code-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
-  });
-});
+const desk = container.feature('assistant', {
+  folder: container.paths.resolve('assistants/desk'),
+})
+desk.use(container.feature('postgres', {
+  url: process.env.DATABASE_URL!, readOnly: true,
+}))
+await desk.start()
 
-// Nav scroll spy
-const navLinks = document.querySelectorAll('#nav a[href^="#"]');
-const sections = [];
-navLinks.forEach(link => {
-  const id = link.getAttribute('href').slice(1);
-  const el = document.getElementById(id);
-  if (el) sections.push({ el, link });
-});
+// HTTP: any client that can POST
+const api = container.server('express')
+api.app.post('/ask', async (req, res) => {
+  res.json({ answer: await desk.ask(req.body.question) })
+})
+await api.start({ port: 8080 })
 
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      navLinks.forEach(l => l.classList.remove('active'));
-      const match = sections.find(s => s.el === entry.target);
-      if (match) match.link.classList.add('active');
-    }
-  });
-}, { rootMargin: '-20% 0px -70% 0px' });
+// WebSocket: a browser UI with correlated replies
+const live = container.server('websocket', { json: true })
+live.on('message', async (msg) => {
+  if (msg.type === 'ask') msg.reply({ answer: await desk.ask(msg.data.question) })
+})
+await live.start({ port: 8081 })
 
-sections.forEach(s => observer.observe(s.el));
+// MCP: the desk becomes a tool inside Claude Code or Codex
+const mcp = container.server('mcp', { serverName: 'desk' })
+mcp.tool('ask', {
+  description: 'Ask the desk assistant a question',
+  schema: z.object({ question: z.string() }),
+  handler: ({ question }) => desk.ask(question),
+})
+await mcp.start({ transport: 'stdio' })
 
-// Intersection observer for animations
-const animObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.style.animationPlayState = 'running';
-      animObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.1 });
+// Telegram: same brain, different pocket
+const tg = container.feature('telegram')
+tg.handle('message:text', async (ctx) =>
+  ctx.reply(await desk.ask(ctx.message.text)))
+await tg.start()`,
+        },
+        architect: {
+          title: 'An assistant that builds,\ntests, and ships assistants.',
+          description:
+            'Give one assistant the definition tools, the skills library, and the VM. It can create a new assistant, write its typed tools, test it with a real message, roll back a regression, capture the workflow as a skill, and compile the project into a standalone binary. Every write is parse-checked, backed up, and hot-reloaded.',
+          environment: 'Writes: ./assistants/*/{CORE.md,tools.ts,hooks.ts}\nOutput: ./skills/*/SKILL.md · ./dist/<name>-<platform>',
+          tools: [
+            ['assistantsManager', 'create · write · test · rollback'],
+            ['skillsLibrary', 'Teach what it learned'],
+            ['vm', 'Live TypeScript in its own process'],
+            ['proc', 'luca scaffold / luca bundle'],
+          ],
+          file: 'harnesses/architect.ts',
+          foot: 'Requires a configured model provider. Definition writes land only if the file loads; the previous version is kept in .history/. Bundling needs Bun on the build machine.',
+          code: `import container from 'luca'
 
-document.querySelectorAll('.anim, .anim-scale').forEach(el => {
-  el.style.animationPlayState = 'paused';
-  // Don't pause hero elements
-  if (el.closest('.hero') || el.closest('.stats-row')) {
-    el.style.animationPlayState = 'running';
-    return;
-  }
-  animObserver.observe(el);
-});
-</script>
+const architect = container.feature('assistant', {
+  systemPrompt: \`You build and maintain this project's assistants.
+    Read a definition before writing it. After every change,
+    testAssistant with a message that exercises it. If it
+    regressed, rollbackDefinitionFile. When a job repeats,
+    write skills/<name>/SKILL.md and register it with
+    skillsLibrary. Scaffold helpers and ship binaries with
+    proc.execSync('luca scaffold ...') / ('luca bundle ...').\`,
+})
 
-</body>
+architect.use(container.feature('assistantsManager'))
+architect.use(container.feature('skillsLibrary'))
+architect.use(container.feature('vm'))
+await architect.start()
+
+await architect.ask(
+  'Create a "releaseBot" assistant that runs the test suite, '
+  + 'tags a release, and writes the changelog. Give it typed '
+  + 'tools in tools.ts. Test it. Capture the procedure as a '
+  + 'skill. Then bundle this project as "releasebot" for '
+  + 'darwin-arm64 and linux-x64.'
+)
+// It wrote CORE.md and tools.ts, ran a live test turn,
+// registered skills/release/SKILL.md, and left
+// dist/releasebot-darwin-arm64 and dist/releasebot-linux-x64.`,
+        },
+      })
+      Object.assign(harnesses, {
+        database: {
+          title: 'Turn a database\ninto a presentation.',
+          description:
+            'A read-only analyst explores the schema, forms hypotheses, tests them with SQL, and separates measured results from guesses. Claude Code turns the verified findings into a presentation page with the supporting queries.',
+          environment: 'Data: PostgreSQL\nOutput: presentation.html',
+          tools: [
+            ['postgres', 'Schema + SQL exploration'],
+            ['assistant', 'Hypotheses + insights'],
+            ['claudeCode', 'Presentation page'],
+          ],
+          file: 'harnesses/database-analyst.ts',
+          foot: 'Requires DATABASE_URL, a database reader role, configured model access, and authenticated Claude Code. This example does not run in the page.',
+          code: "import container from 'luca'\n\nconst db = container.feature('postgres', {\n  url: process.env.DATABASE_URL!, readOnly: true,\n})\nconst analyst = container.feature('assistant', {\n  systemPrompt: `Explore the schema and relationships first.\n    Propose insights this database could support, then test\n    them with SQL. Report evidence, query definitions,\n    caveats, and chart-ready aggregates.`,\n})\nanalyst.use(db)\nawait analyst.start()\n\nconst findings = await analyst.ask(\n  'Find three meaningful patterns in this database. '\n  + 'Distinguish measured results from hypotheses.'\n)\n\nconst presenter = container.feature('claudeCode', {\n  cwd: container.cwd,\n})\nawait presenter.run(\n  'Build a standalone presentation.html from these findings. '\n  + 'Include charts, the supporting SQL, and limitations. '\n  + 'Use aggregate results, not individual records.\\n' + findings\n)",
+        },
+        providers: {
+          title: 'Change the model.\nKeep the assistant.',
+          description:
+            'Discover model servers on your machine, LAN hosts, and Tailscale peers. Start a conversation on a local model, then continue the same thread, tools included, through Claude Code and Codex. The assistant is yours; the model is a setting.',
+          environment:
+            'Discovery: localhost / LAN / Tailscale\nBackends: model servers + CLI providers',
+          tools: [
+            ['modelProviders', 'Discover + register'],
+            ['setProvider', 'Switch backends'],
+            ['setModel', 'Choose a served model'],
+            ['vm', 'Shared execution tools'],
+          ],
+          file: 'harnesses/model-roaming.ts',
+          foot: 'Discovery probes OpenAI-compatible services. Requires reachable servers and authenticated CLI providers; supported models and tools depend on each backend.',
+          code: "import container from 'luca'\n\nconst providers = container.feature('modelProviders')\nconst servers = await providers.discover({\n  hosts: ['gpu-box.local'], tailscale: true, register: true,\n})\nconst local = servers.find(s => s.profileId && s.models.length)\nif (!local) throw new Error('No model service discovered')\n\nconst operator = container.feature('assistant', {\n  provider: local.profileId,\n  systemPrompt: 'Help investigate and improve this project.',\n})\noperator.use(container.feature('vm'))\noperator.setModel(local.models[0])\nawait operator.start()\nawait operator.ask('Inspect the project and propose a plan.')\n\n// Continue through configured subscription CLI backends.\noperator.setProvider('claude-code')\nawait operator.ask('Challenge the plan. What did we miss?')\noperator.setProvider('codex')\nawait operator.ask('Implement the agreed plan and verify it.')\n// Conversation history and tools survive each switch.",
+        },
+        skills: {
+          title: 'Turn past sessions\ninto future capabilities.',
+          description:
+            'An assistant reads its own past: Claude Code, Codex, and Hermes session histories. It finds the workflows that succeeded repeatedly, writes them as skills, and registers them. The next assistant loads what the last one learned.',
+          environment: 'Sources: local coding-agent histories\nOutput: skills/*/SKILL.md',
+          tools: [
+            ['claudeCode / openaiCodex', 'Persisted transcripts'],
+            ['hermesAgent', 'Session store + export'],
+            ['vm / fs', 'Mine + write skills'],
+            ['skillsLibrary', 'Register + reuse'],
+          ],
+          file: 'harnesses/session-to-skills.ts',
+          foot: 'Requires local session archives, the Hermes CLI, and configured model access. The agent reads histories in batches and reports coverage; the page reads none of your sessions.',
+          code: "import container from 'luca'\n\nconst library = container.feature('skillsLibrary')\nconst miner = container.feature('assistant', {\n  systemPrompt: `Mine session history using evalCode.\n    Claude: container.fs.walk(claudeHistoryRoot, { include: ['*.jsonl'] });\n    read JSONL via claude.sessionHistoryToMarkdown(path).\n    Codex: codex.listHistorySessions(), then\n    codex.getConversationHistory(sessionId).\n    Hermes: hermes.listSessions({ limit: 100000 }), then\n    hermes.getSessionHistory(id) for the returned IDs.\n    Inventory sessions, flag a reached listing limit, read in batches,\n    and report missing or unreadable history.\n    Find repeatable workflows supported by successful runs.\n    Write skills/<name>/SKILL.md with name and description\n    frontmatter, steps, preconditions, and verification.\n    Exclude credentials and session-specific private data.`,\n})\ncontainer.addContext({\n  claudeHistoryRoot: container.paths.join(\n    container.feature('os').homedir, '.claude', 'projects',\n  ),\n  claude: container.feature('claudeCode'),\n  codex: container.feature('openaiCodex'),\n  hermes: container.feature('hermesAgent'),\n})\ncontainer.fs.ensureDir('skills')\nawait library.start()\nminer.use(library)\nminer.use(container.feature('vm'))\nawait miner.start()\nawait miner.ask('Mine all available histories into reusable skills.')\n\nawait library.addLocation(container.paths.resolve('skills'))\n// Later: assistant.use(library), or Claude Code's skills option.",
+        },
+      })
+      function highlightCode(target, code) {
+        target.replaceChildren()
+        const pattern =
+          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|brain|telnyx|line|dispatch|desk|architect|api|live|mcp|tg|db|analyst|presenter|miner|library|providers|local|upstream|ws|status|reply)\b)/g
+        let offset = 0
+        for (const match of code.matchAll(pattern)) {
+          target.append(document.createTextNode(code.slice(offset, match.index)))
+          const token = match[0]
+          const span = document.createElement('span')
+          span.textContent = token
+          if (/^(\/\/|#)/.test(token)) span.className = 'comment'
+          else if (/^['"`]/.test(token)) span.className = 'str'
+          else if (
+            /^(import|from|const|let|await|async|return|if|throw|new|export|function)$/.test(token)
+          )
+            span.className = 'kw'
+          else if (/^(curl|luca|cd)$/.test(token)) span.className = 'function'
+          else if (/^--/.test(token)) span.className = 'property'
+          else if (/^\d/.test(token)) span.className = 'number'
+          else if (/^\s*\(/.test(code.slice(match.index + token.length)))
+            span.className = 'function'
+          else if (/^\s*:/.test(code.slice(match.index + token.length))) span.className = 'property'
+          else span.className = 'variable'
+          target.append(span)
+          offset = match.index + token.length
+        }
+        target.append(document.createTextNode(code.slice(offset)))
+      }
+      function renderCode(code) {
+        highlightCode(document.getElementById('harness-code'), code)
+      }
+      function selectHarness(key) {
+        const harness = harnesses[key]
+        document
+          .querySelectorAll('[data-harness]')
+          .forEach((button) =>
+            button.setAttribute('aria-pressed', String(button.dataset.harness === key)),
+          )
+        const title = document.getElementById('mission-title')
+        title.textContent = harness.title
+        title.style.whiteSpace = 'pre-line'
+        document.getElementById('mission-copy').textContent = harness.description
+        const environment = document.getElementById('mission-env')
+        environment.textContent = harness.environment
+        environment.style.whiteSpace = 'pre-line'
+        document.getElementById('code-file').textContent = harness.file
+        document.getElementById('code-foot').textContent = harness.foot
+        const list = document.getElementById('capabilities')
+        list.replaceChildren()
+        harness.tools.forEach(([name, description]) => {
+          const item = document.createElement('li')
+          for (const text of [name, description]) {
+            const span = document.createElement('span')
+            span.textContent = text
+            item.append(span)
+          }
+          list.append(item)
+        })
+        renderCode(harness.code)
+      }
+      document
+        .querySelectorAll('[data-harness]')
+        .forEach((button) =>
+          button.addEventListener('click', () => selectHarness(button.dataset.harness)),
+        )
+      renderCode(harnesses.infra.code)
+      document
+        .querySelectorAll('.chapter code, .closing code, .install code')
+        .forEach((target) => highlightCode(target, target.textContent))
+      let statusTimer
+      document.querySelectorAll('[data-copy]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          const code = document.getElementById(button.dataset.copy)
+          const status = document.getElementById('status')
+          clearTimeout(statusTimer)
+          try {
+            await navigator.clipboard.writeText(code.textContent)
+            status.textContent = 'Copied to clipboard.'
+          } catch {
+            const selection = window.getSelection()
+            const range = document.createRange()
+            range.selectNodeContents(code)
+            selection.removeAllRanges()
+            selection.addRange(range)
+            status.textContent = 'Code selected. Press ⌘C or Ctrl+C to copy.'
+          }
+          statusTimer = setTimeout(() => {
+            status.textContent = ''
+          }, 4000)
+        }),
+      )
+    </script>
+    <script src="container-scene.js"></script>
+  </body>
 </html>
