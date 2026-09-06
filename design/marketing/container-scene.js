@@ -103,7 +103,9 @@
       reduceMotion.matches ? 44 : 230 * release * ease(1 - Math.abs(focus - index)),
     )
     const elevations = layers.map(
-      (_, index) => index * pitch + gaps.slice(0, index).reduce((sum, gap) => sum + gap, 0),
+      (_, index) =>
+        (layers.length - 1 - index) * pitch +
+        gaps.slice(index + 1).reduce((sum, gap) => sum + gap, 0),
     )
     const lidZ = layers.length * pitch + gaps.reduce((sum, gap) => sum + gap, 0)
     let markup = `<defs>
@@ -121,77 +123,82 @@
     ]
     markup += `<ellipse cx="445" cy="${origin + 38}" rx="335" ry="142" fill="url(#floor-light)"/>`
     markup += polygon(shadow, '#0b1120', '#344d76')
-    layers.forEach((layer, index) => {
-      const emphasis = Math.max(0, 1 - Math.abs(focus - index))
-      const size = 258
-      const half = size / 2
-      const offset = 0
-      const z = elevations[index]
-      markup += `<g data-layer="${index}" data-z="${z}" data-size="${size}"><g filter="url(#tray-shadow)">`
-      markup += cuboid(-half, -half, size, size, z, 22, origin, offset, {
-        top: `url(#tray-${index})`,
-        left: layer.left,
-        right: layer.right,
-        line: layer.color,
-      })
-      // Inset seam defines each category as a physical compartment.
-      const seam = [
-        [-half + 8, -half + 8],
-        [half - 8, -half + 8],
-        [half - 8, half - 8],
-        [-half + 8, half - 8],
-      ].map(([x, y]) => projection(x, y, z + 22.1, origin, offset))
-      markup += polygon(seam, 'none', layer.color, 0.45)
-      const front = projection(-half + 14, half, z + 7, origin, offset)
-      markup += `<text x="${front[0]}" y="${front[1]}" fill="${layer.color}" font-size="8" transform="rotate(30 ${front[0]} ${front[1]})">${layer.label}</text>`
-      // Locating pins and mating collars make the seating axis explicit.
-      for (const [x, y] of [
-        [-119, -119],
-        [119, -119],
-        [-119, 119],
-        [119, 119],
-      ]) {
-        const base = projection(x, y, z + 22, origin)
-        const tip = projection(x, y, z + pitch, origin)
-        markup += `<ellipse cx="${base[0]}" cy="${base[1]}" rx="6" ry="3" fill="#0c1423" stroke="${layer.color}" stroke-width="1"/>`
-        markup += `<path d="M${base[0] - 2} ${base[1]} V${tip[1]} H${tip[0] + 2} V${base[1]}" fill="#8294ac" stroke="#b7c9dd" stroke-width=".65"/>`
-        markup += `<ellipse cx="${tip[0]}" cy="${tip[1]}" rx="2" ry="1.2" fill="#e2ebf7"/>`
-        if (gaps[index] > 2) {
-          const socket = projection(x, y, z + pitch + gaps[index], origin)
-          markup += `<path d="M${tip.join(' ')} L${socket.join(' ')}" stroke="${layer.color}" stroke-dasharray="2 5" stroke-width=".7" opacity=".45"/>`
-        }
-      }
-      // Components remain bolted to their plate: fixed size, pitch, and height.
-      layer.items.forEach((name, itemIndex) => {
-        const col = itemIndex % 2,
-          row = Math.floor(itemIndex / 2)
-        const x = -106 + col * 111
-        const y = -109 + row * 72
-        const lift = 18
-        markup += '<g>'
-        const contact = [
-          [x + 4, y + 6],
-          [x + 102, y + 6],
-          [x + 102, y + 65],
-          [x + 4, y + 65],
-        ].map(([a, b]) => projection(a, b, z + 22.5, origin, offset))
-        markup += `<g filter="url(#contact-shadow)">${polygon(contact, '#020612', 'none', 0.65)}</g>`
-        markup += cuboid(x, y, 96, 57, z + 23, lift, origin, offset, {
-          top: `url(#block-${index})`,
+    // Chapters descend from Application to Execution. Paint from the execution
+    // foundation upward so the physical stack keeps its depth as joints open.
+    layers
+      .map((layer, index) => ({ layer, index }))
+      .reverse()
+      .forEach(({ layer, index }) => {
+        const emphasis = Math.max(0, 1 - Math.abs(focus - index))
+        const size = 258
+        const half = size / 2
+        const offset = 0
+        const z = elevations[index]
+        markup += `<g data-layer="${index}" data-z="${z}" data-size="${size}"><g filter="url(#tray-shadow)">`
+        markup += cuboid(-half, -half, size, size, z, 22, origin, offset, {
+          top: `url(#tray-${index})`,
           left: layer.left,
           right: layer.right,
           line: layer.color,
         })
-        const label = projection(x + 7, y + 33, z + 24 + lift, origin, offset)
-        markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="#f4f5ff" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
+        // Inset seam defines each category as a physical compartment.
+        const seam = [
+          [-half + 8, -half + 8],
+          [half - 8, -half + 8],
+          [half - 8, half - 8],
+          [-half + 8, half - 8],
+        ].map(([x, y]) => projection(x, y, z + 22.1, origin, offset))
+        markup += polygon(seam, 'none', layer.color, 0.45)
+        const front = projection(-half + 14, half, z + 7, origin, offset)
+        markup += `<text x="${front[0]}" y="${front[1]}" fill="${layer.color}" font-size="8" transform="rotate(30 ${front[0]} ${front[1]})">${layer.label}</text>`
+        // Locating pins and mating collars make the seating axis explicit.
+        for (const [x, y] of [
+          [-119, -119],
+          [119, -119],
+          [-119, 119],
+          [119, 119],
+        ]) {
+          const base = projection(x, y, z + 22, origin)
+          const tip = projection(x, y, z + pitch, origin)
+          markup += `<ellipse cx="${base[0]}" cy="${base[1]}" rx="6" ry="3" fill="#0c1423" stroke="${layer.color}" stroke-width="1"/>`
+          markup += `<path d="M${base[0] - 2} ${base[1]} V${tip[1]} H${tip[0] + 2} V${base[1]}" fill="#8294ac" stroke="#b7c9dd" stroke-width=".65"/>`
+          markup += `<ellipse cx="${tip[0]}" cy="${tip[1]}" rx="2" ry="1.2" fill="#e2ebf7"/>`
+          if (gaps[index] > 2) {
+            const socket = projection(x, y, z + pitch + gaps[index], origin)
+            markup += `<path d="M${tip.join(' ')} L${socket.join(' ')}" stroke="${layer.color}" stroke-dasharray="2 5" stroke-width=".7" opacity=".45"/>`
+          }
+        }
+        // Components remain bolted to their plate: fixed size, pitch, and height.
+        layer.items.forEach((name, itemIndex) => {
+          const col = itemIndex % 2,
+            row = Math.floor(itemIndex / 2)
+          const x = -106 + col * 111
+          const y = -109 + row * 72
+          const lift = 18
+          markup += '<g>'
+          const contact = [
+            [x + 4, y + 6],
+            [x + 102, y + 6],
+            [x + 102, y + 65],
+            [x + 4, y + 65],
+          ].map(([a, b]) => projection(a, b, z + 22.5, origin, offset))
+          markup += `<g filter="url(#contact-shadow)">${polygon(contact, '#020612', 'none', 0.65)}</g>`
+          markup += cuboid(x, y, 96, 57, z + 23, lift, origin, offset, {
+            top: `url(#block-${index})`,
+            left: layer.left,
+            right: layer.right,
+            line: layer.color,
+          })
+          const label = projection(x + 7, y + 33, z + 24 + lift, origin, offset)
+          markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="#f4f5ff" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
+        })
+        markup += '</g>'
+        if (release > 0.2 || reduceMotion.matches) {
+          const target = projection(-half, half, z + 14, origin, offset)
+          markup += `<g opacity="1"><path d="M42 ${target[1]} H${target[0] - 13} L${target[0]} ${target[1]}" fill="none" stroke="${layer.color}" stroke-width=".7"/><circle cx="${target[0]}" cy="${target[1]}" r="2" fill="${layer.color}"/><text class="layer-label" x="42" y="${target[1] - 9}" fill="${layer.color}">${layer.label}</text></g>`
+        }
+        markup += '</g>'
       })
-      markup += '</g>'
-      if (release > 0.2 || reduceMotion.matches) {
-        const target = projection(-half, half, z + 14, origin, offset)
-        markup += `<g opacity="1"><path d="M42 ${target[1]} H${target[0] - 13} L${target[0]} ${target[1]}" fill="none" stroke="${layer.color}" stroke-width=".7"/><circle cx="${target[0]}" cy="${target[1]}" r="2" fill="${layer.color}"/><text class="layer-label" x="42" y="${target[1] - 9}" fill="${layer.color}">${layer.label}</text></g>`
-      }
-      markup += '</g>'
-    })
     // Painter order always follows physical height. The lid is a real part,
     // remains opaque, and seats on the top layer's pins when its joint closes.
     markup +=
