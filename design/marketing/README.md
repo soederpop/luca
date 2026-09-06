@@ -24,9 +24,9 @@ The completed architecture leads directly to the full infrastructure harness, fo
 
 ## Design system
 
-Carbon `#151719`, panel `#1c1f22`, white `#f0f1ee`, secondary `#a4a9ad`, steel `#444a50`, signal `#c4d4df`. Subtle material tones distinguish the categories without turning them into colorful cards. Helvetica Neue / Helvetica carries the narrative; SF Mono / Menlo identifies code and components.
+Midnight `#10131e`, panel `#181e30`, white `#f0f1ee`, and blue signal `#81b5ff`. The application is blue, assistants violet, knowledge amber, operations teal, and execution rose. Gradient materials, thicker extruded faces, lit seams, contact shadows, and cast shadows give the assembly depth. Helvetica Neue / Helvetica carries the narrative; SF Mono / Menlo identifies code and components.
 
-A left-aligned story sits beside a sticky isometric assembly. Five physical compartments each hold six named components. The lid lifts, category trays separate, and the selected compartment expands and comes forward. This assembly is the primary visual; surrounding typography and controls stay quiet.
+A left-aligned story sits beside a full-height sticky isometric assembly occupying 60% of the desktop viewport. On mobile, the scene occupies 47% of the viewport height. Five physical compartments each hold six named components. The lid lifts, category trays separate, and the selected compartment expands and comes forward. This assembly is the primary visual; surrounding typography and controls stay quiet.
 
 The scene is a code-native SVG using a shared isometric projection. Scrolling schedules a single animation frame, with geometry derived from chapter positions. It reverses naturally, supports direct chapter anchors, updates its accessible description, and recalculates after viewport changes. There is no scroll hijacking or continuous animation loop.
 
@@ -41,3 +41,5 @@ API signatures were inspected through `luca describe` for the assistant, Content
 Validation includes HTML structure and anchors, Bun syntax checks, simulated forward/reverse scroll and layer navigation at desktop/mobile viewport settings, and all 30 component labels. Both reduced-motion modes were exercised. The initial desktop page was inspected in Chrome; assembled, intermediate, and fully expanded SVG states were rendered separately for visual QA. A full mobile browser visual pass remains outstanding.
 
 Nothing is deployed or published.
+
+Code highlighting covers all narrative snippets, changing harness examples, and shell commands. Keywords, strings, calls, properties, variables, numbers, and comments have distinct high-contrast colors. A text-preservation check verifies that the highlighter leaves copied source unchanged. Updated colored SVG reveal states were rendered for inspection, and the forward/reverse, responsive, and reduced-motion scene checks pass.

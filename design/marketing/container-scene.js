@@ -9,31 +9,51 @@
     {
       name: 'Application runtime',
       label: 'Application',
-      color: '#8b9dab',
+      color: '#7baeff',
+      tray: '#224aa2',
+      block: '#477ce5',
+      left: '#172c60',
+      right: '#101d41',
       items: ['express', 'websocket', 'commands', 'clients', 'state', 'events'],
     },
     {
       name: 'Embedded assistants',
       label: 'Assistants',
-      color: '#a8b4c0',
+      color: '#b195ff',
+      tray: '#583297',
+      block: '#9562dc',
+      left: '#38235f',
+      right: '#24193f',
       items: ['assistant', 'models', 'hooks', 'conversation', 'tools', 'delegation'],
     },
     {
       name: 'Markdown brain',
       label: 'Knowledge',
-      color: '#b9bdaf',
+      color: '#f4c773',
+      tray: '#806023',
+      block: '#bc8c37',
+      left: '#513b18',
+      right: '#332712',
       items: ['contentDb', 'Markdown', 'models', 'semantic', 'queries', 'memory'],
     },
     {
       name: 'Operational toolkit',
       label: 'Operations',
-      color: '#9bb3b4',
+      color: '#60d9ca',
+      tray: '#166c69',
+      block: '#319d90',
+      left: '#134641',
+      right: '#0b302e',
       items: ['secureShell', 'telnyx', 'docker', 'browser', 'databases', 'processes'],
     },
     {
       name: 'Live execution',
       label: 'Execution',
-      color: '#abb2cb',
+      color: '#ef98c5',
+      tray: '#86385f',
+      block: '#be6394',
+      left: '#54263e',
+      right: '#351d2c',
       items: ['vm', 'evalCode', 'claudeCode', 'Codex', 'Hermes', 'TypeScript'],
     },
   ]
@@ -77,14 +97,21 @@
     const origin = 506 + 123 * expansion
     const spacing = 29 + 84 * expansion
     const lidOpen = reduceMotion.matches ? 1 : ease(progress / 0.8)
-    let markup = ''
+    let markup = `<defs>
+      <filter id="tray-shadow" x="-35%" y="-45%" width="180%" height="220%"><feDropShadow dx="0" dy="17" stdDeviation="12" flood-color="#020510" flood-opacity=".8"/></filter>
+      <filter id="contact-shadow" x="-40%" y="-40%" width="200%" height="210%"><feGaussianBlur stdDeviation="3"/></filter>
+      <radialGradient id="floor-light"><stop stop-color="#507ff5" stop-opacity=".22"/><stop offset="1" stop-color="#507ff5" stop-opacity="0"/></radialGradient>
+      <linearGradient id="lid-material" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6295e3"/><stop offset=".5" stop-color="#334b83"/><stop offset="1" stop-color="#253354"/></linearGradient>
+      ${layers.map((layer, index) => `<linearGradient id="tray-${index}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${layer.tray}"/><stop offset="1" stop-color="${layer.right}"/></linearGradient><linearGradient id="block-${index}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${layer.block}"/><stop offset="1" stop-color="${layer.tray}"/></linearGradient>`).join('')}
+    </defs>`
     const shadow = [
       projection(-158, -158, -18, origin),
       projection(158, -158, -18, origin),
       projection(158, 158, -18, origin),
       projection(-158, 158, -18, origin),
     ]
-    markup += polygon(shadow, '#101315', '#242b30')
+    markup += `<ellipse cx="445" cy="${origin + 38}" rx="335" ry="142" fill="url(#floor-light)"/>`
+    markup += polygon(shadow, '#0b1120', '#344d76')
     // Registration rails keep the exploded parts visibly part of one assembly.
     for (const [x, y] of [
       [-132, -132],
@@ -108,13 +135,13 @@
       const half = size / 2
       const offset = -geometryEmphasis * expansion * 72
       const z = index * spacing
-      const opacity = 0.58 + emphasis * 0.42
-      markup += `<g opacity="${opacity}" data-layer="${index}">`
-      markup += cuboid(-half, -half, size, size, z, 14, origin, offset, {
-        top: emphasis > 0.35 ? '#2b343c' : '#222a30',
-        left: '#1b2228',
-        right: '#141b20',
-        line: emphasis > 0.35 ? layer.color : '#586571',
+      const opacity = 0.78 + emphasis * 0.22
+      markup += `<g opacity="${opacity}" data-layer="${index}"><g filter="url(#tray-shadow)">`
+      markup += cuboid(-half, -half, size, size, z, 22, origin, offset, {
+        top: `url(#tray-${index})`,
+        left: layer.left,
+        right: layer.right,
+        line: layer.color,
       })
       // Inset seam defines each category as a physical compartment.
       const seam = [
@@ -122,8 +149,8 @@
         [half - 8, -half + 8],
         [half - 8, half - 8],
         [-half + 8, half - 8],
-      ].map(([x, y]) => projection(x, y, z + 14.1, origin, offset))
-      markup += polygon(seam, 'none', '#45525d', 0.5)
+      ].map(([x, y]) => projection(x, y, z + 22.1, origin, offset))
+      markup += polygon(seam, 'none', layer.color, 0.45)
       const front = projection(-half + 14, half, z + 7, origin, offset)
       markup += `<text x="${front[0]}" y="${front[1]}" fill="${layer.color}" font-size="8" transform="rotate(30 ${front[0]} ${front[1]})">${layer.label}</text>`
       // Six smaller volumes live inside each tray and separate with its reveal.
@@ -132,17 +159,25 @@
           row = Math.floor(itemIndex / 2)
         const x = -106 + col * (111 + spread * 4)
         const y = -109 + row * (72 + spread * 3)
-        const lift = 6 + spread * 12
+        const lift = 14 + spread * 17
         markup += `<g opacity="${0.18 + opened * 0.82}">`
-        markup += cuboid(x, y, 96, 57, z + 15, lift, origin, offset, {
-          top: emphasis > 0.35 ? '#42515d' : '#303c46',
-          left: '#25313a',
-          right: '#1c2730',
-          line: emphasis > 0.35 ? layer.color : '#62717e',
+        const contact = [
+          [x + 4, y + 6],
+          [x + 102, y + 6],
+          [x + 102, y + 65],
+          [x + 4, y + 65],
+        ].map(([a, b]) => projection(a, b, z + 22.5, origin, offset))
+        markup += `<g filter="url(#contact-shadow)">${polygon(contact, '#020612', 'none', 0.65)}</g>`
+        markup += cuboid(x, y, 96, 57, z + 23, lift, origin, offset, {
+          top: `url(#block-${index})`,
+          left: layer.left,
+          right: layer.right,
+          line: layer.color,
         })
-        const label = projection(x + 7, y + 33, z + 16 + lift, origin, offset)
-        markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="${emphasis > 0.35 ? '#f0f2ef' : '#b5c0c9'}" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
+        const label = projection(x + 7, y + 33, z + 24 + lift, origin, offset)
+        markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="#f4f5ff" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
       })
+      markup += '</g>'
       if (expansion > 0.2) {
         const target = projection(-half, half, z + 14, origin, offset)
         markup += `<g opacity="${expansion}"><path d="M42 ${target[1]} H${target[0] - 13} L${target[0]} ${target[1]}" fill="none" stroke="${layer.color}" stroke-width=".7"/><circle cx="${target[0]}" cy="${target[1]}" r="2" fill="${layer.color}"/><text class="layer-label" x="42" y="${target[1] - 9}" fill="${layer.color}">${layer.label}</text></g>`
@@ -162,10 +197,10 @@
       markup +=
         `<g opacity="${1 - lidOpen}">` +
         cuboid(-137, -137, 274, 274, lidZ, 15, origin, 0, {
-          top: '#3b454d',
-          left: '#242d34',
-          right: '#1c252c',
-          line: '#95a5b2',
+          top: 'url(#lid-material)',
+          left: '#26395d',
+          right: '#15243e',
+          line: '#8fbfff',
         })
       const label = projection(-41, 10, lidZ + 16, origin)
       markup += `<text class="lid-title" x="${label[0]}" y="${label[1]}" fill="#dce4e9" transform="rotate(30 ${label[0]} ${label[1]})">luca</text></g>`

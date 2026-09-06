@@ -1094,6 +1094,215 @@
           scroll-margin-top: 205px;
         }
       }
+
+      /* Material palette follows the five architectural categories. */
+      :root {
+        --bg: #10131e;
+        --panel: #181e30;
+        --line: #2c3650;
+        --steel: #475373;
+        --signal: #81b5ff;
+      }
+      body {
+        background: var(--bg);
+      }
+      .hero .context:before {
+        background: #a68bfa;
+      }
+      .button {
+        background: #a8caff;
+        border-color: #a8caff;
+        color: #111a30;
+        box-shadow: 0 5px 24px #448dff20;
+      }
+      .button:hover {
+        background: #c4dbff;
+      }
+      .nav-links .github {
+        border-color: #596ba2;
+      }
+      .workbench {
+        background: #161e30;
+        border-color: #3e5071;
+        box-shadow: 0 24px 70px #03071360;
+      }
+      .code-pane {
+        background: #111929;
+      }
+      .code-toolbar,
+      .code-foot {
+        border-color: #293853;
+      }
+      .harness-tab[aria-pressed='true'] {
+        border-color: #b79aff;
+        color: #ceb9ff;
+      }
+      .chapter code {
+        padding: 17px 19px;
+        border: 1px solid #2b3c59;
+        background: #151e31;
+        box-shadow: 0 12px 28px #03060c30;
+        border-radius: 5px;
+      }
+      .kw {
+        color: #c4a1ff;
+      }
+      .str {
+        color: #a8dfb5;
+      }
+      .function {
+        color: #ffcf86;
+      }
+      .property {
+        color: #82c7ff;
+      }
+      .variable {
+        color: #7adbd6;
+      }
+      .number {
+        color: #ffae93;
+      }
+      .comment {
+        color: #8e9fb9;
+      }
+      .chapter:nth-child(1) {
+        --category: #7baeff;
+      }
+      .chapter:nth-child(2) {
+        --category: #b195ff;
+      }
+      .chapter:nth-child(3) {
+        --category: #f4c773;
+      }
+      .chapter:nth-child(4) {
+        --category: #60d9ca;
+      }
+      .chapter:nth-child(5) {
+        --category: #ef98c5;
+      }
+      .chapter-count {
+        color: var(--category);
+      }
+      .chapter-count:after {
+        background: var(--category);
+        opacity: 0.6;
+      }
+      .chapter-example {
+        border-left-color: var(--category);
+      }
+      .chapter-example span {
+        color: var(--category);
+      }
+      .journey {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        grid-template-columns: 40% 60%;
+      }
+      .chapters {
+        padding-left: max(32px, calc((100vw - 1312px) / 2));
+        padding-right: 25px;
+      }
+      .scene-column {
+        background: radial-gradient(ellipse at 55% 46%, #25407224, transparent 70%);
+      }
+      .scene-sticky {
+        top: 0;
+        height: 100svh;
+        min-height: 620px;
+        padding: 15px 28px 15px 0;
+      }
+      .scene-canvas {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        width: 100%;
+        margin: 0;
+      }
+      .scene-head {
+        padding: 0 25px;
+      }
+      .scene-footer {
+        padding: 0 25px 0 45px;
+      }
+      .scene-current {
+        color: #bfd6ff;
+      }
+      .chapter-nav a:nth-child(1) {
+        --category: #7baeff;
+      }
+      .chapter-nav a:nth-child(2) {
+        --category: #b195ff;
+      }
+      .chapter-nav a:nth-child(3) {
+        --category: #f4c773;
+      }
+      .chapter-nav a:nth-child(4) {
+        --category: #60d9ca;
+      }
+      .chapter-nav a:nth-child(5) {
+        --category: #ef98c5;
+      }
+      .chapter-nav a[aria-current='step']:before {
+        background: var(--category);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--category), transparent 50%);
+      }
+      @media (min-width: 1500px) {
+        .chapters {
+          padding-left: 6vw;
+        }
+        .chapter h2 {
+          font-size: 49px;
+        }
+      }
+      @media (max-width: 1000px) and (min-width: 761px) {
+        .journey {
+          grid-template-columns: 43% 57%;
+        }
+        .chapters {
+          padding-left: 32px;
+        }
+        .scene-sticky {
+          padding-right: 8px;
+        }
+      }
+      @media (max-width: 760px) {
+        .journey {
+          width: auto;
+          margin-left: 0;
+        }
+        .chapters {
+          padding: 0;
+        }
+        .scene-sticky {
+          height: 47svh;
+          min-height: 290px;
+          max-height: 450px;
+          padding: 10px 0 0;
+          background: #10131e;
+        }
+        .scene-head,
+        .scene-footer {
+          padding: 0;
+        }
+        .scene-canvas {
+          height: calc(100% - 70px);
+        }
+        .chapter {
+          scroll-margin-top: 49svh;
+        }
+        .chapter code {
+          padding: 14px;
+        }
+      }
+      @media (max-width: 760px) and (max-height: 500px) {
+        .scene-sticky {
+          height: 200px;
+          min-height: 200px;
+        }
+        .chapter {
+          scroll-margin-top: 215px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1269,7 +1478,7 @@
               <svg
                 class="scene-canvas"
                 id="container-scene"
-                viewBox="0 0 820 780"
+                viewBox="20 0 760 780"
                 role="img"
                 aria-labelledby="scene-title scene-description"
               >
@@ -1528,21 +1737,36 @@ await supervisor.ask(
 )`,
         },
       }
-      function renderCode(code) {
-        const target = document.getElementById('harness-code')
+      function highlightCode(target, code) {
         target.replaceChildren()
-        code
-          .split(
-            /(\/\/[^\n]*|#[^\n]*|\x60[^\x60]*\x60|'[^'\n]*'|"[^"\n]*"|\b(?:import|from|const|await|if|throw|new)\b)/g,
+        const pattern =
+          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|brain|telnyx|line|dispatch)\b)/g
+        let offset = 0
+        for (const match of code.matchAll(pattern)) {
+          target.append(document.createTextNode(code.slice(offset, match.index)))
+          const token = match[0]
+          const span = document.createElement('span')
+          span.textContent = token
+          if (/^(\/\/|#)/.test(token)) span.className = 'comment'
+          else if (/^['"`]/.test(token)) span.className = 'str'
+          else if (
+            /^(import|from|const|let|await|async|return|if|throw|new|export|function)$/.test(token)
           )
-          .forEach((token) => {
-            const span = document.createElement('span')
-            span.textContent = token
-            if (/^(\/\/|#)/.test(token)) span.className = 'comment'
-            else if (/^['"\x60]/.test(token)) span.className = 'str'
-            else if (/^(import|from|const|await|if|throw|new)$/.test(token)) span.className = 'kw'
-            target.append(span)
-          })
+            span.className = 'kw'
+          else if (/^(curl|luca|cd)$/.test(token)) span.className = 'function'
+          else if (/^--/.test(token)) span.className = 'property'
+          else if (/^\d/.test(token)) span.className = 'number'
+          else if (/^\s*\(/.test(code.slice(match.index + token.length)))
+            span.className = 'function'
+          else if (/^\s*:/.test(code.slice(match.index + token.length))) span.className = 'property'
+          else span.className = 'variable'
+          target.append(span)
+          offset = match.index + token.length
+        }
+        target.append(document.createTextNode(code.slice(offset)))
+      }
+      function renderCode(code) {
+        highlightCode(document.getElementById('harness-code'), code)
       }
       function selectHarness(key) {
         const harness = harnesses[key]
@@ -1579,6 +1803,9 @@ await supervisor.ask(
           button.addEventListener('click', () => selectHarness(button.dataset.harness)),
         )
       renderCode(harnesses.infra.code)
+      document
+        .querySelectorAll('.chapter code, .closing code, .install code')
+        .forEach((target) => highlightCode(target, target.textContent))
       let statusTimer
       document.querySelectorAll('[data-copy]').forEach((button) =>
         button.addEventListener('click', async () => {
