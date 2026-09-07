@@ -16,7 +16,16 @@
       block: '#477ce5',
       left: '#172c60',
       right: '#101d41',
-      items: ['ui / ink', 'state', 'events', 'commands', 'endpoints', 'openapi docs', 'selectors', 'bundle'],
+      items: [
+        'ui / ink',
+        'state',
+        'events',
+        'commands',
+        'endpoints',
+        'openapi docs',
+        'selectors',
+        'bundle',
+      ],
     },
     {
       name: 'Assistants',
@@ -26,7 +35,16 @@
       block: '#9562dc',
       left: '#38235f',
       right: '#24193f',
-      items: ['assistant', 'assistantsManager', 'conversation', 'memory', 'skillsLibrary', 'mcpBridge', 'modelProviders', 'claudeCode / codex'],
+      items: [
+        'assistant',
+        'assistantsManager',
+        'conversation',
+        'memory',
+        'skillsLibrary',
+        'mcpBridge',
+        'modelProviders',
+        'claudeCode / codex',
+      ],
     },
     {
       name: 'Features: data and content',
@@ -36,7 +54,16 @@
       block: '#bc8c37',
       left: '#513b18',
       right: '#332712',
-      items: ['contentDb', 'sqlite', 'postgres', 'redis', 'store', 'diskCache', 'semanticSearch', 'docsReader'],
+      items: [
+        'contentDb',
+        'sqlite',
+        'postgres',
+        'redis',
+        'store',
+        'diskCache',
+        'semanticSearch',
+        'docsReader',
+      ],
     },
     {
       name: 'Features: files, process, and shell',
@@ -56,7 +83,16 @@
       block: '#4aa964',
       left: '#1d4d2e',
       right: '#133320',
-      items: ['google workspace', 'telnyx', 'telegram', 'browserUse', 'tts', 'screenCapture', 'scheduler', 'vault'],
+      items: [
+        'google workspace',
+        'telnyx',
+        'telegram',
+        'browserUse',
+        'tts',
+        'screenCapture',
+        'scheduler',
+        'vault',
+      ],
     },
     {
       name: 'Clients',
@@ -66,7 +102,16 @@
       block: '#d27a3c',
       left: '#5b3218',
       right: '#3a2010',
-      items: ['rest', 'websocket', 'socket.io', 'ipc', 'graphql', 'openai', 'containerLink', 'tts / stt'],
+      items: [
+        'rest',
+        'websocket',
+        'socket.io',
+        'ipc',
+        'graphql',
+        'openai',
+        'containerLink',
+        'tts / stt',
+      ],
     },
     {
       name: 'Servers',
@@ -86,7 +131,16 @@
       block: '#be6394',
       left: '#54263e',
       right: '#351d2c',
-      items: ['vm', 'evalCode', 'transpiler', 'typescript', 'introspection', 'helpers / plugins', 'python', 'bun binary'],
+      items: [
+        'vm',
+        'evalCode',
+        'transpiler',
+        'typescript',
+        'introspection',
+        'helpers / plugins',
+        'python',
+        'bun binary',
+      ],
     },
   ]
   const last = layers.length - 1
@@ -100,6 +154,7 @@
   let renderedProgress = NaN
   let activeIndex = -1
   let pending = false
+  let needsMeasure = false
   let chapterCenters = []
 
   function projection(x, y, z, origin, offset = 0) {
@@ -122,26 +177,15 @@
     )
   }
 
-  function draw(progress) {
-    if (Math.abs(progress - renderedProgress) < 0.002) return
-    renderedProgress = progress
-    const focus = clamp(progress, 0, last)
-    const stage = Math.round(focus)
-    // Rigid plates seat on 24-unit locating pins above a 22-unit deck.
-    // Only the joint above the current compartment opens. Upper plates move
-    // together; advancing hands the opening to the next joint without overlap.
-    const pitch = 40
-    const origin = 690
-    const release = ease((progress + 0.8) / 0.8)
-    const gaps = layers.map((_, index) =>
-      reduceMotion.matches ? 34 : 180 * release * ease(1 - Math.abs(focus - index)),
-    )
-    const elevations = layers.map(
-      (_, index) =>
-        (layers.length - 1 - index) * pitch +
-        gaps.slice(index + 1).reduce((sum, gap) => sum + gap, 0),
-    )
-    const lidZ = layers.length * pitch + gaps.reduce((sum, gap) => sum + gap, 0)
+  const pitch = 40
+  const origin = 690
+  let parts = []
+  let lid
+  let labels = []
+
+  // Build geometry once. Scroll only translates existing rigid parts.
+  function buildScene() {
+    const lidZ = 0
     let markup = `<defs>
       <filter id="tray-shadow" x="-35%" y="-45%" width="180%" height="220%"><feDropShadow dx="0" dy="17" stdDeviation="12" flood-color="#020510" flood-opacity=".8"/></filter>
       <filter id="contact-shadow" x="-40%" y="-40%" width="200%" height="210%"><feGaussianBlur stdDeviation="3"/></filter>
@@ -163,11 +207,10 @@
       .map((layer, index) => ({ layer, index }))
       .reverse()
       .forEach(({ layer, index }) => {
-        const emphasis = Math.max(0, 1 - Math.abs(focus - index))
         const size = 258
         const half = size / 2
         const offset = 0
-        const z = elevations[index]
+        const z = 0
         markup += `<g data-layer="${index}" data-z="${z}" data-size="${size}"><g filter="url(#tray-shadow)">`
         markup += cuboid(-half, -half, size, size, z, 22, origin, offset, {
           top: `url(#tray-${index})`,
@@ -197,10 +240,7 @@
           markup += `<ellipse cx="${base[0]}" cy="${base[1]}" rx="6" ry="3" fill="#0c1423" stroke="${layer.color}" stroke-width="1"/>`
           markup += `<path d="M${base[0] - 2} ${base[1]} V${tip[1]} H${tip[0] + 2} V${base[1]}" fill="#8294ac" stroke="#b7c9dd" stroke-width=".65"/>`
           markup += `<ellipse cx="${tip[0]}" cy="${tip[1]}" rx="2" ry="1.2" fill="#e2ebf7"/>`
-          if (gaps[index] > 2) {
-            const socket = projection(x, y, z + pitch + gaps[index], origin)
-            markup += `<path d="M${tip.join(' ')} L${socket.join(' ')}" stroke="${layer.color}" stroke-dasharray="2 5" stroke-width=".7" opacity=".45"/>`
-          }
+          markup += `<path data-guide d="M${tip.join(' ')} v0" stroke="${layer.color}" stroke-dasharray="2 5" stroke-width=".7" opacity=".45"/>`
         }
         // Components remain bolted to their plate: fixed size, pitch, and height.
         const rows = Math.ceil(layer.items.length / 2)
@@ -231,9 +271,9 @@
           markup += `<text class="module-label" x="${label[0]}" y="${label[1]}" fill="#f4f5ff" transform="rotate(30 ${label[0]} ${label[1]})">${name}</text></g>`
         })
         markup += '</g>'
-        if (release > 0.2 || reduceMotion.matches) {
+        {
           const target = projection(-half, half, z + 14, origin, offset)
-          markup += `<g opacity="1"><path d="M42 ${target[1]} H${target[0] - 13} L${target[0]} ${target[1]}" fill="none" stroke="${layer.color}" stroke-width=".7"/><circle cx="${target[0]}" cy="${target[1]}" r="2" fill="${layer.color}"/><text class="layer-label" x="42" y="${target[1] - 9}" fill="${layer.color}">${layer.label}</text></g>`
+          markup += `<g data-layer-label><path d="M42 ${target[1]} H${target[0] - 13} L${target[0]} ${target[1]}" fill="none" stroke="${layer.color}" stroke-width=".7"/><circle cx="${target[0]}" cy="${target[1]}" r="2" fill="${layer.color}"/><text class="layer-label" x="42" y="${target[1] - 9}" fill="${layer.color}">${layer.label}</text></g>`
         }
         markup += '</g>'
       })
@@ -256,13 +296,63 @@
       svg.append(art)
     }
     art.innerHTML = markup
+    parts = layers.map((_, index) => {
+      const node = art.querySelector(`[data-layer="${index}"]`)
+      const guides = [...node.querySelectorAll('[data-guide]')].map((guide) => ({
+        node: guide,
+        start: guide.getAttribute('d').split(' v')[0],
+      }))
+      return { node, guides, z: NaN, gap: NaN }
+    })
+    lid = art.querySelector('[data-lid]')
+    labels = [...art.querySelectorAll('[data-layer-label]')]
+  }
+
+  function draw(progress) {
+    if (Math.abs(progress - renderedProgress) < 0.002) return
+    renderedProgress = progress
+    const focus = clamp(progress, 0, last)
+    const stage = Math.round(focus)
+    const release = ease((progress + 0.8) / 0.8)
+    const gaps = layers.map((_, index) =>
+      reduceMotion.matches ? 34 : 180 * release * ease(1 - Math.abs(focus - index)),
+    )
+    let elevation = 0
+    for (let index = last; index >= 0; index--) {
+      const part = parts[index]
+      const z = round(elevation)
+      const gap = round(gaps[index])
+      if (z !== part.z) {
+        part.node.setAttribute('transform', `translate(0 ${-z})`)
+        part.node.setAttribute('data-z', z)
+        part.z = z
+      }
+      if (gap !== part.gap) {
+        part.guides.forEach((guide) => {
+          // Preserve the pin endpoint while extending toward the mating tray.
+          guide.node.setAttribute('d', `${guide.start} v${-gap}`)
+        })
+        part.gap = gap
+      }
+      elevation += pitch + gaps[index]
+    }
+    const lidZ = round(elevation)
+    if (lid.getAttribute('data-z') !== String(lidZ)) {
+      lid.setAttribute('transform', `translate(0 ${-lidZ})`)
+      lid.setAttribute('data-z', lidZ)
+    }
+    const visible = release > 0.2 || reduceMotion.matches ? 'visible' : 'hidden'
+    if (labels[0]?.getAttribute('visibility') !== visible) {
+      labels.forEach((label) => label.setAttribute('visibility', visible))
+    }
     if (stage !== activeIndex) {
       activeIndex = stage
       document.getElementById('scene-description').textContent =
         `${layers[stage].name}: ${layers[stage].items.join(', ')}. ` +
         `One container with ${layers.length} layers: ${layers.map((layer) => layer.label.toLowerCase()).join(', ')}.`
       document.getElementById('scene-category').textContent = layers[stage].name
-      document.getElementById('scene-position').textContent = `${pad(stage + 1)} / ${pad(layers.length)}`
+      document.getElementById('scene-position').textContent =
+        `${pad(stage + 1)} / ${pad(layers.length)}`
       document.getElementById('scene-features').textContent = layers[stage].items.join(' · ')
       links.forEach((link, index) => {
         if (index === stage) link.setAttribute('aria-current', 'step')
@@ -279,6 +369,10 @@
   }
   function frame() {
     pending = false
+    if (needsMeasure) {
+      measure()
+      needsMeasure = false
+    }
     const viewportAnchor = window.scrollY + window.innerHeight * (mobile.matches ? 0.7 : 0.5)
     let progress = (viewportAnchor - chapterCenters[0]) / (chapterCenters[1] - chapterCenters[0])
     for (let index = 0; index < chapterCenters.length - 1; index++) {
@@ -301,7 +395,8 @@
     }
   }
   function resize() {
-    measure()
+    // Mobile browser chrome can emit bursts of resize events during a swipe.
+    needsMeasure = true
     renderedProgress = NaN
     schedule()
   }
@@ -311,6 +406,7 @@
   mobile.addEventListener('change', resize)
   window.addEventListener('pageshow', resize)
   if (document.fonts) document.fonts.ready.then(resize)
+  buildScene()
   measure()
   frame()
 })()
