@@ -49,6 +49,8 @@ The packaging section makes the distribution story explicit: “One binary. That
 
 Nothing is deployed or published.
 
+Mobile performance: SVG geometry is created once. Scrolling updates existing tray/lid transforms and joint guides, preserving all 717 scene nodes. Mobile disables SVG blur filters while retaining gradients, extruded faces, and solid contact shadows. Resize measurements are coalesced into animation frames. DOM simulation checks 322 forward/reverse positions for each desktop/mobile and reduced-motion combination, including stable node identities, no scroll-time child replacements, stacking geometry, navigation, and resize reuse. This verifies update behavior; physical-device frame rate has not been measured.
+
 Code highlighting covers all narrative snippets, changing harness examples, and shell commands. Keywords, strings, calls, properties, variables, numbers, and comments have distinct high-contrast colors. A text-preservation check verifies that the highlighter leaves copied source unchanged. Updated colored SVG reveal states were rendered for inspection, and the forward/reverse, responsive, and reduced-motion scene checks pass.
 
 Mechanical verification samples 101 positions in desktop/mobile and reduced-motion modes, checking constant footprints, fixed base position, physical paint order, minimum seating clearance, and nonintersecting layers. The first assembled state and selected compartment were also checked. Narrative code snippets now use preformatted blocks so highlighting and formatting preserve their line breaks.
