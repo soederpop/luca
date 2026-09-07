@@ -1266,6 +1266,11 @@
         }
       }
       @media (max-width: 760px) {
+        /* Keep extruded faces and contact shadows; avoid offscreen blur surfaces
+           for every component while the mobile scene moves. */
+        #container-scene [filter] {
+          filter: none;
+        }
         .journey {
           width: auto;
           margin-left: 0;
