@@ -9519,6 +9519,820 @@ setBuildTimeData('features.ink', {
   "category": "ui-output"
 });
 
+setBuildTimeData('features.internetMail', {
+  "id": "features.internetMail",
+  "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+  "shortcut": "features.internetMail",
+  "className": "InternetMail",
+  "methods": {
+    "resolveConfig": {
+      "description": "Apply the provider preset and its username style to the feature options. Never throws, so callers can inspect a half-configured account (that's what `verify()` reports on); `requireConfig()` enforces the required fields at the point of use. The password is deliberately absent from the result — it is read only inside {@link readPassword}.",
+      "parameters": {},
+      "required": [],
+      "returns": "ResolvedMailConfig"
+    },
+    "createImapClient": {
+      "description": "Build a connected-ready ImapFlow client. Tests override this with a fake.",
+      "parameters": {
+        "config": {
+          "type": "ResolvedMailConfig",
+          "description": "Parameter config",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": ""
+            },
+            "address": {
+              "type": "string",
+              "description": ""
+            },
+            "imapUsername": {
+              "type": "string",
+              "description": ""
+            },
+            "smtpUsername": {
+              "type": "string",
+              "description": ""
+            },
+            "passwordEnv": {
+              "type": "string",
+              "description": ""
+            },
+            "mailbox": {
+              "type": "string",
+              "description": ""
+            },
+            "pollIntervalMs": {
+              "type": "number",
+              "description": ""
+            },
+            "maxMessageBytes": {
+              "type": "number",
+              "description": ""
+            },
+            "markAsRead": {
+              "type": "boolean",
+              "description": ""
+            },
+            "outboundEnabled": {
+              "type": "boolean",
+              "description": ""
+            },
+            "trustedSenders": {
+              "type": "string[]",
+              "description": ""
+            },
+            "approvedRecipients": {
+              "type": "string[]",
+              "description": ""
+            },
+            "imap": {
+              "type": "MailTransportConfig",
+              "description": ""
+            },
+            "smtp": {
+              "type": "MailTransportConfig",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "Promise<any>"
+    },
+    "createSmtpTransport": {
+      "description": "Build a Nodemailer SMTP transport. Tests override this with a fake.",
+      "parameters": {
+        "config": {
+          "type": "ResolvedMailConfig",
+          "description": "Parameter config",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": ""
+            },
+            "address": {
+              "type": "string",
+              "description": ""
+            },
+            "imapUsername": {
+              "type": "string",
+              "description": ""
+            },
+            "smtpUsername": {
+              "type": "string",
+              "description": ""
+            },
+            "passwordEnv": {
+              "type": "string",
+              "description": ""
+            },
+            "mailbox": {
+              "type": "string",
+              "description": ""
+            },
+            "pollIntervalMs": {
+              "type": "number",
+              "description": ""
+            },
+            "maxMessageBytes": {
+              "type": "number",
+              "description": ""
+            },
+            "markAsRead": {
+              "type": "boolean",
+              "description": ""
+            },
+            "outboundEnabled": {
+              "type": "boolean",
+              "description": ""
+            },
+            "trustedSenders": {
+              "type": "string[]",
+              "description": ""
+            },
+            "approvedRecipients": {
+              "type": "string[]",
+              "description": ""
+            },
+            "imap": {
+              "type": "MailTransportConfig",
+              "description": ""
+            },
+            "smtp": {
+              "type": "MailTransportConfig",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "Promise<any>"
+    },
+    "parseSource": {
+      "description": "Parse raw RFC 822 source. Tests override this to avoid mailparser.",
+      "parameters": {
+        "source": {
+          "type": "Buffer | string",
+          "description": "Parameter source"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "Promise<any>"
+    },
+    "readCursor": {
+      "description": "The persisted cursor, or null before the first baseline.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<MailCursor | null>"
+    },
+    "verify": {
+      "description": "Check the configuration, secret, IMAP login, and SMTP login independently. Never throws — every failure becomes a structured verdict.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<MailVerification>"
+    },
+    "start": {
+      "description": "Validate config, then poll immediately and on the configured interval.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Clear the interval, wait for an active poll, close SMTP. Cursor stays.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "poll": {
+      "description": "One poll pass: baseline or advance the UID cursor, emit each new trusted message once. Overlapping calls coalesce onto the in-flight pass.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<MailPollResult>"
+    },
+    "checkInbox": {
+      "description": "The most recent messages in the configured mailbox, metadata only.",
+      "parameters": {
+        "options": {
+          "type": "{ limit?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<MailSummary[]>"
+    },
+    "readMessage": {
+      "description": "Read one full message by opaque id. Never alters unread state.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "Promise<StandardMailMessage>"
+    },
+    "searchMessages": {
+      "description": "Interrogate the full archive with IMAP SEARCH. Independent of the poll cursor — never advances `lastUid`, never alters unread state. A `from`/`to` value without an `@` is treated as a bare domain and matched as `@domain`.",
+      "parameters": {
+        "query": {
+          "type": "MailSearchQuery",
+          "description": "Parameter query",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": ""
+            },
+            "to": {
+              "type": "string",
+              "description": ""
+            },
+            "subject": {
+              "type": "string",
+              "description": ""
+            },
+            "text": {
+              "type": "string",
+              "description": ""
+            },
+            "since": {
+              "type": "string",
+              "description": ""
+            },
+            "before": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        },
+        "options": {
+          "type": "{ limit?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<MailSummary[]>"
+    },
+    "isApprovedRecipient": {
+      "description": "",
+      "parameters": {
+        "address": {
+          "type": "string",
+          "description": "Parameter address"
+        }
+      },
+      "required": [
+        "address"
+      ],
+      "returns": "boolean"
+    },
+    "sendMessage": {
+      "description": "Send a new message. Requires `outboundEnabled` and approved recipients.",
+      "parameters": {
+        "input": {
+          "type": "MailSendInput",
+          "description": "Parameter input",
+          "properties": {
+            "to": {
+              "type": "string | string[]",
+              "description": ""
+            },
+            "cc": {
+              "type": "string | string[]",
+              "description": ""
+            },
+            "subject": {
+              "type": "string",
+              "description": ""
+            },
+            "text": {
+              "type": "string",
+              "description": ""
+            },
+            "html": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<MailSendResult>"
+    },
+    "replyToMessage": {
+      "description": "Threaded reply to the original sender only.",
+      "parameters": {
+        "input": {
+          "type": "MailReplyInput",
+          "description": "Parameter input",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "text": {
+              "type": "string",
+              "description": ""
+            },
+            "html": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<MailSendResult>"
+    },
+    "replyAllToMessage": {
+      "description": "Threaded reply to the full To/Cc set, minus anyone not on the allowlist. Fails rather than sending to nobody when filtering empties the set.",
+      "parameters": {
+        "input": {
+          "type": "MailReplyInput",
+          "description": "Parameter input",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "text": {
+              "type": "string",
+              "description": ""
+            },
+            "html": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<MailSendResult & { withheld: string[] }>"
+    }
+  },
+  "getters": {
+    "cursorStore": {
+      "description": "The store holding the poll cursor. A durable JSON document rather than in-process state: two processes polling the same mailbox must agree on what has already been delivered, and a restart has to resume rather than replay.",
+      "returns": "any"
+    },
+    "isStarted": {
+      "description": "",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "log": {
+      "name": "log",
+      "description": "Event emitted by InternetMail",
+      "arguments": {}
+    },
+    "started": {
+      "name": "started",
+      "description": "Event emitted by InternetMail",
+      "arguments": {}
+    },
+    "stopped": {
+      "name": "stopped",
+      "description": "Event emitted by InternetMail",
+      "arguments": {}
+    },
+    "poll:error": {
+      "name": "poll:error",
+      "description": "Event emitted by InternetMail",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
+      "description": "Event emitted by InternetMail",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "networking",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const mail = container.feature('internetMail')\nconst report = await mail.verify()\nconst recent = await mail.checkInbox({ limit: 5 })\nconst hits = await mail.searchMessages({ from: 'example.com', text: 'invoice' })"
+    }
+  ],
+  "types": {
+    "ResolvedMailConfig": {
+      "description": "",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": ""
+        },
+        "address": {
+          "type": "string",
+          "description": ""
+        },
+        "imapUsername": {
+          "type": "string",
+          "description": ""
+        },
+        "smtpUsername": {
+          "type": "string",
+          "description": ""
+        },
+        "passwordEnv": {
+          "type": "string",
+          "description": ""
+        },
+        "mailbox": {
+          "type": "string",
+          "description": ""
+        },
+        "pollIntervalMs": {
+          "type": "number",
+          "description": ""
+        },
+        "maxMessageBytes": {
+          "type": "number",
+          "description": ""
+        },
+        "markAsRead": {
+          "type": "boolean",
+          "description": ""
+        },
+        "outboundEnabled": {
+          "type": "boolean",
+          "description": ""
+        },
+        "trustedSenders": {
+          "type": "string[]",
+          "description": ""
+        },
+        "approvedRecipients": {
+          "type": "string[]",
+          "description": ""
+        },
+        "imap": {
+          "type": "MailTransportConfig",
+          "description": ""
+        },
+        "smtp": {
+          "type": "MailTransportConfig",
+          "description": ""
+        }
+      }
+    },
+    "MailTransportConfig": {
+      "description": "Connection settings for one transport.",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": ""
+        },
+        "port": {
+          "type": "number",
+          "description": ""
+        },
+        "secure": {
+          "type": "boolean",
+          "description": ""
+        },
+        "requireTLS": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "MailCursor": {
+      "description": "",
+      "properties": {
+        "account": {
+          "type": "string",
+          "description": ""
+        },
+        "mailbox": {
+          "type": "string",
+          "description": ""
+        },
+        "uidValidity": {
+          "type": "string",
+          "description": ""
+        },
+        "lastUid": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "MailVerification": {
+      "description": "",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": ""
+        },
+        "config": {
+          "type": "{ ok: boolean; detail: string }",
+          "description": ""
+        },
+        "secret": {
+          "type": "{ ok: boolean; detail: string }",
+          "description": ""
+        },
+        "imap": {
+          "type": "{ ok: boolean; detail: string }",
+          "description": ""
+        },
+        "smtp": {
+          "type": "{ ok: boolean; detail: string }",
+          "description": ""
+        }
+      }
+    },
+    "MailPollResult": {
+      "description": "",
+      "properties": {
+        "polled": {
+          "type": "boolean",
+          "description": ""
+        },
+        "baselined": {
+          "type": "boolean",
+          "description": ""
+        },
+        "emitted": {
+          "type": "number",
+          "description": ""
+        },
+        "skippedUntrusted": {
+          "type": "number",
+          "description": ""
+        },
+        "skippedOversized": {
+          "type": "number",
+          "description": ""
+        },
+        "quarantined": {
+          "type": "number",
+          "description": ""
+        },
+        "lastUid": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "MailSummary": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "uid": {
+          "type": "number",
+          "description": ""
+        },
+        "uidValidity": {
+          "type": "string",
+          "description": ""
+        },
+        "from": {
+          "type": "string",
+          "description": ""
+        },
+        "to": {
+          "type": "string[]",
+          "description": ""
+        },
+        "subject": {
+          "type": "string",
+          "description": ""
+        },
+        "date": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "size": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "seen": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "StandardMailMessage": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "uid": {
+          "type": "number",
+          "description": ""
+        },
+        "uidValidity": {
+          "type": "string",
+          "description": ""
+        },
+        "rfcMessageId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "inReplyTo": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "references": {
+          "type": "string[]",
+          "description": ""
+        },
+        "from": {
+          "type": "string",
+          "description": ""
+        },
+        "to": {
+          "type": "string[]",
+          "description": ""
+        },
+        "cc": {
+          "type": "string[]",
+          "description": ""
+        },
+        "subject": {
+          "type": "string",
+          "description": ""
+        },
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "html": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "date": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "authenticationResults": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "attachments": {
+          "type": "Array<{ filename?: string; contentType: string; size?: number }>",
+          "description": ""
+        },
+        "validation": {
+          "type": "MailValidation",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "MailValidation": {
+      "description": "",
+      "properties": {
+        "auth": {
+          "type": "{ spf: string; dkim: string; dmarc: string; raw: string }",
+          "description": ""
+        },
+        "flags": {
+          "type": "string[]",
+          "description": ""
+        },
+        "trustScore": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "MailSearchQuery": {
+      "description": "",
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "to": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "subject": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "text": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "since": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "before": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "MailSendInput": {
+      "description": "",
+      "properties": {
+        "to": {
+          "type": "string | string[]",
+          "description": ""
+        },
+        "cc": {
+          "type": "string | string[]",
+          "description": "",
+          "optional": true
+        },
+        "subject": {
+          "type": "string",
+          "description": ""
+        },
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "html": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "MailSendResult": {
+      "description": "",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": ""
+        },
+        "accepted": {
+          "type": "string[]",
+          "description": ""
+        },
+        "rejected": {
+          "type": "string[]",
+          "description": ""
+        }
+      }
+    },
+    "MailReplyInput": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "html": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.ipcSocket', {
   "id": "features.ipcSocket",
   "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live socket (and reconnect timers, when `reconnect: true`) keep the event loop running. Call `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished, and if the process still lingers, end with `process.exit(0)`. **Mode locking:** a single IpcSocket instance is locked to one role — the first `listen()` locks it into server mode and the first `connect()` locks it into client mode (attempting the other call afterwards throws). To act as both server and client within one process, create two distinct instances by giving each a different `name` option (instances are memoized per schema-validated options, so the differentiating key must be a real option): `container.feature('ipcSocket', { name: 'hub' })` and `container.feature('ipcSocket', { name: 'spoke' })`. **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Incoming ask() requests carry a requestId — reply to complete them if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId); // Or fire-and-forget back to the sender else ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply: ask the server and await its reply const answer = await ipc.ask({ type: 'question' }); // Answer asks initiated by the server ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
@@ -18967,8 +19781,38 @@ setBuildTimeData('servers.express', {
       "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
-          "description": "Optional info-block overrides (title, version, description)"
+          "type": "OpenAPISpecOptions",
+          "description": "Optional info-block overrides (title, version, description)",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "version": {
+              "type": "string",
+              "description": ""
+            },
+            "description": {
+              "type": "string",
+              "description": ""
+            },
+            "summary": {
+              "type": "string",
+              "description": ""
+            },
+            "servers": {
+              "type": "Array<{ url: string; description?: string }>",
+              "description": "Public URLs for the API. Defaults to the local address the server bound to."
+            },
+            "securitySchemes": {
+              "type": "Record<string, any>",
+              "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`"
+            },
+            "security": {
+              "type": "any[]",
+              "description": "Root security requirement applied to every endpoint that does not export its own"
+            }
+          }
         }
       },
       "required": [],
@@ -18984,8 +19828,38 @@ setBuildTimeData('servers.express', {
       "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
       "parameters": {
         "options": {
-          "type": "{ title?: string; version?: string; description?: string; summary?: string }",
-          "description": "Optional info-block overrides (title, version, description)"
+          "type": "OpenAPISpecOptions",
+          "description": "Info-block overrides (title, version, description), plus",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "version": {
+              "type": "string",
+              "description": ""
+            },
+            "description": {
+              "type": "string",
+              "description": ""
+            },
+            "summary": {
+              "type": "string",
+              "description": ""
+            },
+            "servers": {
+              "type": "Array<{ url: string; description?: string }>",
+              "description": "Public URLs for the API. Defaults to the local address the server bound to."
+            },
+            "securitySchemes": {
+              "type": "Record<string, any>",
+              "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`"
+            },
+            "security": {
+              "type": "any[]",
+              "description": "Root security requirement applied to every endpoint that does not export its own"
+            }
+          }
         }
       },
       "required": [],
@@ -19037,7 +19911,49 @@ setBuildTimeData('servers.express', {
       "language": "ts",
       "code": "// endpoints/status.ts — a rate-limited endpoint module, mounted by `luca serve`:\n//   export const path = '/status'\n//   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods\n//   export async function get() { return { ok: true } }\n\n// Custom middleware via the create hook (runs before endpoints mount)\nconst seen = []\nconst server = container.server('express', {\n create: (app, server) => {\n   app.use((req, res, next) => { seen.push(req.path); next() })\n   return app\n },\n})\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\nconst port = await container.feature('networking').findOpenPort(3410)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/ping'))   // { pong: true }\nconsole.log(seen)                     // ['/ping']\nawait server.stop()"
     }
-  ]
+  ],
+  "types": {
+    "OpenAPISpecOptions": {
+      "description": "Document-level overrides for the generated OpenAPI spec.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "version": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "description": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "summary": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "servers": {
+          "type": "Array<{ url: string; description?: string }>",
+          "description": "Public URLs for the API. Defaults to the local address the server bound to.",
+          "optional": true
+        },
+        "securitySchemes": {
+          "type": "Record<string, any>",
+          "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`",
+          "optional": true
+        },
+        "security": {
+          "type": "any[]",
+          "description": "Root security requirement applied to every endpoint that does not export its own",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('servers.llmProxy', {
@@ -29587,6 +30503,819 @@ export const introspectionData: Record<string, any>[] = [
     "category": "ui-output"
   },
   {
+    "id": "features.internetMail",
+    "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+    "shortcut": "features.internetMail",
+    "className": "InternetMail",
+    "methods": {
+      "resolveConfig": {
+        "description": "Apply the provider preset and its username style to the feature options. Never throws, so callers can inspect a half-configured account (that's what `verify()` reports on); `requireConfig()` enforces the required fields at the point of use. The password is deliberately absent from the result — it is read only inside {@link readPassword}.",
+        "parameters": {},
+        "required": [],
+        "returns": "ResolvedMailConfig"
+      },
+      "createImapClient": {
+        "description": "Build a connected-ready ImapFlow client. Tests override this with a fake.",
+        "parameters": {
+          "config": {
+            "type": "ResolvedMailConfig",
+            "description": "Parameter config",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "description": ""
+              },
+              "address": {
+                "type": "string",
+                "description": ""
+              },
+              "imapUsername": {
+                "type": "string",
+                "description": ""
+              },
+              "smtpUsername": {
+                "type": "string",
+                "description": ""
+              },
+              "passwordEnv": {
+                "type": "string",
+                "description": ""
+              },
+              "mailbox": {
+                "type": "string",
+                "description": ""
+              },
+              "pollIntervalMs": {
+                "type": "number",
+                "description": ""
+              },
+              "maxMessageBytes": {
+                "type": "number",
+                "description": ""
+              },
+              "markAsRead": {
+                "type": "boolean",
+                "description": ""
+              },
+              "outboundEnabled": {
+                "type": "boolean",
+                "description": ""
+              },
+              "trustedSenders": {
+                "type": "string[]",
+                "description": ""
+              },
+              "approvedRecipients": {
+                "type": "string[]",
+                "description": ""
+              },
+              "imap": {
+                "type": "MailTransportConfig",
+                "description": ""
+              },
+              "smtp": {
+                "type": "MailTransportConfig",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "Promise<any>"
+      },
+      "createSmtpTransport": {
+        "description": "Build a Nodemailer SMTP transport. Tests override this with a fake.",
+        "parameters": {
+          "config": {
+            "type": "ResolvedMailConfig",
+            "description": "Parameter config",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "description": ""
+              },
+              "address": {
+                "type": "string",
+                "description": ""
+              },
+              "imapUsername": {
+                "type": "string",
+                "description": ""
+              },
+              "smtpUsername": {
+                "type": "string",
+                "description": ""
+              },
+              "passwordEnv": {
+                "type": "string",
+                "description": ""
+              },
+              "mailbox": {
+                "type": "string",
+                "description": ""
+              },
+              "pollIntervalMs": {
+                "type": "number",
+                "description": ""
+              },
+              "maxMessageBytes": {
+                "type": "number",
+                "description": ""
+              },
+              "markAsRead": {
+                "type": "boolean",
+                "description": ""
+              },
+              "outboundEnabled": {
+                "type": "boolean",
+                "description": ""
+              },
+              "trustedSenders": {
+                "type": "string[]",
+                "description": ""
+              },
+              "approvedRecipients": {
+                "type": "string[]",
+                "description": ""
+              },
+              "imap": {
+                "type": "MailTransportConfig",
+                "description": ""
+              },
+              "smtp": {
+                "type": "MailTransportConfig",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "Promise<any>"
+      },
+      "parseSource": {
+        "description": "Parse raw RFC 822 source. Tests override this to avoid mailparser.",
+        "parameters": {
+          "source": {
+            "type": "Buffer | string",
+            "description": "Parameter source"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "Promise<any>"
+      },
+      "readCursor": {
+        "description": "The persisted cursor, or null before the first baseline.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<MailCursor | null>"
+      },
+      "verify": {
+        "description": "Check the configuration, secret, IMAP login, and SMTP login independently. Never throws — every failure becomes a structured verdict.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<MailVerification>"
+      },
+      "start": {
+        "description": "Validate config, then poll immediately and on the configured interval.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Clear the interval, wait for an active poll, close SMTP. Cursor stays.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "poll": {
+        "description": "One poll pass: baseline or advance the UID cursor, emit each new trusted message once. Overlapping calls coalesce onto the in-flight pass.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<MailPollResult>"
+      },
+      "checkInbox": {
+        "description": "The most recent messages in the configured mailbox, metadata only.",
+        "parameters": {
+          "options": {
+            "type": "{ limit?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<MailSummary[]>"
+      },
+      "readMessage": {
+        "description": "Read one full message by opaque id. Never alters unread state.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "Promise<StandardMailMessage>"
+      },
+      "searchMessages": {
+        "description": "Interrogate the full archive with IMAP SEARCH. Independent of the poll cursor — never advances `lastUid`, never alters unread state. A `from`/`to` value without an `@` is treated as a bare domain and matched as `@domain`.",
+        "parameters": {
+          "query": {
+            "type": "MailSearchQuery",
+            "description": "Parameter query",
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": ""
+              },
+              "to": {
+                "type": "string",
+                "description": ""
+              },
+              "subject": {
+                "type": "string",
+                "description": ""
+              },
+              "text": {
+                "type": "string",
+                "description": ""
+              },
+              "since": {
+                "type": "string",
+                "description": ""
+              },
+              "before": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          },
+          "options": {
+            "type": "{ limit?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<MailSummary[]>"
+      },
+      "isApprovedRecipient": {
+        "description": "",
+        "parameters": {
+          "address": {
+            "type": "string",
+            "description": "Parameter address"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "returns": "boolean"
+      },
+      "sendMessage": {
+        "description": "Send a new message. Requires `outboundEnabled` and approved recipients.",
+        "parameters": {
+          "input": {
+            "type": "MailSendInput",
+            "description": "Parameter input",
+            "properties": {
+              "to": {
+                "type": "string | string[]",
+                "description": ""
+              },
+              "cc": {
+                "type": "string | string[]",
+                "description": ""
+              },
+              "subject": {
+                "type": "string",
+                "description": ""
+              },
+              "text": {
+                "type": "string",
+                "description": ""
+              },
+              "html": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<MailSendResult>"
+      },
+      "replyToMessage": {
+        "description": "Threaded reply to the original sender only.",
+        "parameters": {
+          "input": {
+            "type": "MailReplyInput",
+            "description": "Parameter input",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "text": {
+                "type": "string",
+                "description": ""
+              },
+              "html": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<MailSendResult>"
+      },
+      "replyAllToMessage": {
+        "description": "Threaded reply to the full To/Cc set, minus anyone not on the allowlist. Fails rather than sending to nobody when filtering empties the set.",
+        "parameters": {
+          "input": {
+            "type": "MailReplyInput",
+            "description": "Parameter input",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "text": {
+                "type": "string",
+                "description": ""
+              },
+              "html": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<MailSendResult & { withheld: string[] }>"
+      }
+    },
+    "getters": {
+      "cursorStore": {
+        "description": "The store holding the poll cursor. A durable JSON document rather than in-process state: two processes polling the same mailbox must agree on what has already been delivered, and a restart has to resume rather than replay.",
+        "returns": "any"
+      },
+      "isStarted": {
+        "description": "",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "log": {
+        "name": "log",
+        "description": "Event emitted by InternetMail",
+        "arguments": {}
+      },
+      "started": {
+        "name": "started",
+        "description": "Event emitted by InternetMail",
+        "arguments": {}
+      },
+      "stopped": {
+        "name": "stopped",
+        "description": "Event emitted by InternetMail",
+        "arguments": {}
+      },
+      "poll:error": {
+        "name": "poll:error",
+        "description": "Event emitted by InternetMail",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
+        "description": "Event emitted by InternetMail",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "networking",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const mail = container.feature('internetMail')\nconst report = await mail.verify()\nconst recent = await mail.checkInbox({ limit: 5 })\nconst hits = await mail.searchMessages({ from: 'example.com', text: 'invoice' })"
+      }
+    ],
+    "types": {
+      "ResolvedMailConfig": {
+        "description": "",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": ""
+          },
+          "address": {
+            "type": "string",
+            "description": ""
+          },
+          "imapUsername": {
+            "type": "string",
+            "description": ""
+          },
+          "smtpUsername": {
+            "type": "string",
+            "description": ""
+          },
+          "passwordEnv": {
+            "type": "string",
+            "description": ""
+          },
+          "mailbox": {
+            "type": "string",
+            "description": ""
+          },
+          "pollIntervalMs": {
+            "type": "number",
+            "description": ""
+          },
+          "maxMessageBytes": {
+            "type": "number",
+            "description": ""
+          },
+          "markAsRead": {
+            "type": "boolean",
+            "description": ""
+          },
+          "outboundEnabled": {
+            "type": "boolean",
+            "description": ""
+          },
+          "trustedSenders": {
+            "type": "string[]",
+            "description": ""
+          },
+          "approvedRecipients": {
+            "type": "string[]",
+            "description": ""
+          },
+          "imap": {
+            "type": "MailTransportConfig",
+            "description": ""
+          },
+          "smtp": {
+            "type": "MailTransportConfig",
+            "description": ""
+          }
+        }
+      },
+      "MailTransportConfig": {
+        "description": "Connection settings for one transport.",
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": ""
+          },
+          "port": {
+            "type": "number",
+            "description": ""
+          },
+          "secure": {
+            "type": "boolean",
+            "description": ""
+          },
+          "requireTLS": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "MailCursor": {
+        "description": "",
+        "properties": {
+          "account": {
+            "type": "string",
+            "description": ""
+          },
+          "mailbox": {
+            "type": "string",
+            "description": ""
+          },
+          "uidValidity": {
+            "type": "string",
+            "description": ""
+          },
+          "lastUid": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "MailVerification": {
+        "description": "",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": ""
+          },
+          "config": {
+            "type": "{ ok: boolean; detail: string }",
+            "description": ""
+          },
+          "secret": {
+            "type": "{ ok: boolean; detail: string }",
+            "description": ""
+          },
+          "imap": {
+            "type": "{ ok: boolean; detail: string }",
+            "description": ""
+          },
+          "smtp": {
+            "type": "{ ok: boolean; detail: string }",
+            "description": ""
+          }
+        }
+      },
+      "MailPollResult": {
+        "description": "",
+        "properties": {
+          "polled": {
+            "type": "boolean",
+            "description": ""
+          },
+          "baselined": {
+            "type": "boolean",
+            "description": ""
+          },
+          "emitted": {
+            "type": "number",
+            "description": ""
+          },
+          "skippedUntrusted": {
+            "type": "number",
+            "description": ""
+          },
+          "skippedOversized": {
+            "type": "number",
+            "description": ""
+          },
+          "quarantined": {
+            "type": "number",
+            "description": ""
+          },
+          "lastUid": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "MailSummary": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "uid": {
+            "type": "number",
+            "description": ""
+          },
+          "uidValidity": {
+            "type": "string",
+            "description": ""
+          },
+          "from": {
+            "type": "string",
+            "description": ""
+          },
+          "to": {
+            "type": "string[]",
+            "description": ""
+          },
+          "subject": {
+            "type": "string",
+            "description": ""
+          },
+          "date": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "size": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "seen": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "StandardMailMessage": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "uid": {
+            "type": "number",
+            "description": ""
+          },
+          "uidValidity": {
+            "type": "string",
+            "description": ""
+          },
+          "rfcMessageId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "inReplyTo": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "references": {
+            "type": "string[]",
+            "description": ""
+          },
+          "from": {
+            "type": "string",
+            "description": ""
+          },
+          "to": {
+            "type": "string[]",
+            "description": ""
+          },
+          "cc": {
+            "type": "string[]",
+            "description": ""
+          },
+          "subject": {
+            "type": "string",
+            "description": ""
+          },
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "html": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "date": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "authenticationResults": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "attachments": {
+            "type": "Array<{ filename?: string; contentType: string; size?: number }>",
+            "description": ""
+          },
+          "validation": {
+            "type": "MailValidation",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "MailValidation": {
+        "description": "",
+        "properties": {
+          "auth": {
+            "type": "{ spf: string; dkim: string; dmarc: string; raw: string }",
+            "description": ""
+          },
+          "flags": {
+            "type": "string[]",
+            "description": ""
+          },
+          "trustScore": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "MailSearchQuery": {
+        "description": "",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "to": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "subject": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "text": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "since": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "before": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "MailSendInput": {
+        "description": "",
+        "properties": {
+          "to": {
+            "type": "string | string[]",
+            "description": ""
+          },
+          "cc": {
+            "type": "string | string[]",
+            "description": "",
+            "optional": true
+          },
+          "subject": {
+            "type": "string",
+            "description": ""
+          },
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "html": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "MailSendResult": {
+        "description": "",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "description": ""
+          },
+          "accepted": {
+            "type": "string[]",
+            "description": ""
+          },
+          "rejected": {
+            "type": "string[]",
+            "description": ""
+          }
+        }
+      },
+      "MailReplyInput": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "html": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.ipcSocket",
     "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live socket (and reconnect timers, when `reconnect: true`) keep the event loop running. Call `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished, and if the process still lingers, end with `process.exit(0)`. **Mode locking:** a single IpcSocket instance is locked to one role — the first `listen()` locks it into server mode and the first `connect()` locks it into client mode (attempting the other call afterwards throws). To act as both server and client within one process, create two distinct instances by giving each a different `name` option (instances are memoized per schema-validated options, so the differentiating key must be a real option): `container.feature('ipcSocket', { name: 'hub' })` and `container.feature('ipcSocket', { name: 'spoke' })`. **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Incoming ask() requests carry a requestId — reply to complete them if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId); // Or fire-and-forget back to the sender else ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply: ask the server and await its reply const answer = await ipc.ask({ type: 'question' }); // Answer asks initiated by the server ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
     "shortcut": "features.ipcSocket",
@@ -39000,8 +40729,38 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
-            "description": "Optional info-block overrides (title, version, description)"
+            "type": "OpenAPISpecOptions",
+            "description": "Optional info-block overrides (title, version, description)",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "version": {
+                "type": "string",
+                "description": ""
+              },
+              "description": {
+                "type": "string",
+                "description": ""
+              },
+              "summary": {
+                "type": "string",
+                "description": ""
+              },
+              "servers": {
+                "type": "Array<{ url: string; description?: string }>",
+                "description": "Public URLs for the API. Defaults to the local address the server bound to."
+              },
+              "securitySchemes": {
+                "type": "Record<string, any>",
+                "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`"
+              },
+              "security": {
+                "type": "any[]",
+                "description": "Root security requirement applied to every endpoint that does not export its own"
+              }
+            }
           }
         },
         "required": [],
@@ -39017,8 +40776,38 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
         "parameters": {
           "options": {
-            "type": "{ title?: string; version?: string; description?: string; summary?: string }",
-            "description": "Optional info-block overrides (title, version, description)"
+            "type": "OpenAPISpecOptions",
+            "description": "Info-block overrides (title, version, description), plus",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "version": {
+                "type": "string",
+                "description": ""
+              },
+              "description": {
+                "type": "string",
+                "description": ""
+              },
+              "summary": {
+                "type": "string",
+                "description": ""
+              },
+              "servers": {
+                "type": "Array<{ url: string; description?: string }>",
+                "description": "Public URLs for the API. Defaults to the local address the server bound to."
+              },
+              "securitySchemes": {
+                "type": "Record<string, any>",
+                "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`"
+              },
+              "security": {
+                "type": "any[]",
+                "description": "Root security requirement applied to every endpoint that does not export its own"
+              }
+            }
           }
         },
         "required": [],
@@ -39070,7 +40859,49 @@ export const introspectionData: Record<string, any>[] = [
         "language": "ts",
         "code": "// endpoints/status.ts — a rate-limited endpoint module, mounted by `luca serve`:\n//   export const path = '/status'\n//   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods\n//   export async function get() { return { ok: true } }\n\n// Custom middleware via the create hook (runs before endpoints mount)\nconst seen = []\nconst server = container.server('express', {\n create: (app, server) => {\n   app.use((req, res, next) => { seen.push(req.path); next() })\n   return app\n },\n})\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\nconst port = await container.feature('networking').findOpenPort(3410)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/ping'))   // { pong: true }\nconsole.log(seen)                     // ['/ping']\nawait server.stop()"
       }
-    ]
+    ],
+    "types": {
+      "OpenAPISpecOptions": {
+        "description": "Document-level overrides for the generated OpenAPI spec.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "version": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "description": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "summary": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "servers": {
+            "type": "Array<{ url: string; description?: string }>",
+            "description": "Public URLs for the API. Defaults to the local address the server bound to.",
+            "optional": true
+          },
+          "securitySchemes": {
+            "type": "Record<string, any>",
+            "description": "OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }`",
+            "optional": true
+          },
+          "security": {
+            "type": "any[]",
+            "description": "Root security requirement applied to every endpoint that does not export its own",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "servers.llmProxy",
