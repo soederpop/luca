@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { Feature } from '../../feature'
 import type { Helper } from '../../helper'
+import type { NodeContainer } from '../../node/container'
 import type { FeatureState, FeatureOptions } from '../../feature'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -62,7 +63,8 @@ const McpServerConfigSchema = z.object({
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>
 
 const McpBridgeOptionsSchema = z.object({
-	servers: z.record(z.string(), McpServerConfigSchema).default({}).describe('MCP server configurations keyed by server name'),
+	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting.'),
+	servers: z.record(z.string(), McpServerConfigSchema).default({}).describe('MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile.'),
 	materializeTools: z.boolean().default(true).describe('Register discovered MCP tools as first-class assistant tools'),
 	separator: z.string().default('__').describe('Separator between server name and tool name for materialized tools'),
 })
@@ -139,6 +141,8 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  *
  * Servers with a `command` are spawned locally over stdio; servers with a
  * `url` are reached over the Streamable HTTP transport.
+ * Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk.
+ * Explicit `servers` entries replace file entries with the same name.
  *
  * @example
  * ```ts
@@ -209,18 +213,33 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 	/**
 	 * Connect to all configured MCP servers, discover their capabilities,
 	 * and cache the results. Safe to call multiple times (no-ops if already connected).
+	 * Loads and validates configFile before connecting; unreadable or invalid files reject.
 	 */
 	async connectAll(): Promise<void> {
 		if (this._connected) return
 
 		const opts = this.options as McpBridgeOptions
-		if (!opts.servers || Object.keys(opts.servers).length === 0) {
+		let fileServers: Record<string, McpServerConfig> = {}
+		if (opts.configFile) {
+			const container = this.container as NodeContainer
+			const path = container.paths.resolve(opts.configFile)
+			try {
+				const config = await container.feature('fs').readJsonAsync(path)
+				fileServers = z.object({
+					mcpServers: z.record(z.string(), McpServerConfigSchema),
+				}).parse(config).mcpServers
+			} catch (cause) {
+				throw new Error(`Failed to load MCP config file "${path}"`, { cause })
+			}
+		}
+		const servers = { ...fileServers, ...opts.servers }
+		if (Object.keys(servers).length === 0) {
 			this._connected = true
 			return
 		}
 
 		const results = await Promise.allSettled(
-			Object.entries(opts.servers).map(([name, config]) =>
+			Object.entries(servers).map(([name, config]) =>
 				this.connectServer(name, config)
 			)
 		)
@@ -228,7 +247,7 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 		// Log failures but don't throw — partial connectivity is fine
 		for (let i = 0; i < results.length; i++) {
 			if (results[i]!.status === 'rejected') {
-				const name = Object.keys(opts.servers)[i]!
+				const name = Object.keys(servers)[i]!
 				const err = (results[i] as PromiseRejectedResult).reason
 				this.emit('serverError', name, String(err?.message || err))
 			}

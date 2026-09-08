@@ -16827,12 +16827,12 @@ setBuildTimeData('features.llamaServer', {
 
 setBuildTimeData('features.mcpBridge', {
   "id": "features.mcpBridge",
-  "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport.",
+  "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Explicit `servers` entries replace file entries with the same name.",
   "shortcut": "features.mcpBridge",
   "className": "McpBridge",
   "methods": {
     "connectAll": {
-      "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected).",
+      "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected). Loads and validates configFile before connecting; unreadable or invalid files reject.",
       "parameters": {},
       "required": [],
       "returns": "Promise<void>"
@@ -47286,12 +47286,12 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.mcpBridge",
-    "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport.",
+    "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Explicit `servers` entries replace file entries with the same name.",
     "shortcut": "features.mcpBridge",
     "className": "McpBridge",
     "methods": {
       "connectAll": {
-        "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected).",
+        "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected). Loads and validates configFile before connecting; unreadable or invalid files reject.",
         "parameters": {},
         "required": [],
         "returns": "Promise<void>"

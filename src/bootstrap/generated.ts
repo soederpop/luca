@@ -6597,6 +6597,66 @@ Each can have a corresponding schema export: \`getSchema\`, \`postSchema\`, \`pu
 | \`tags\` | No | Array of tags for OpenAPI grouping |
 | \`get\`, \`post\`, \`put\`, \`patch\`, \`destroy\` | At least one | Handler functions (\`destroy\` maps to DELETE) |
 | \`getSchema\`, \`postSchema\`, \`destroySchema\`, etc. | No | Zod schemas for request validation |
+| \`getResponse\`, \`postResponse\`, etc. | No | Zod schema describing the 200 body, used to type the OpenAPI spec |
+| \`getResponses\`, \`postResponses\`, etc. | No | Raw OpenAPI responses merged over the defaults (202, 404, ...) |
+| \`getUpload\`, \`postUpload\`, etc. | No | Declares multipart file uploads (see below) |
+| \`rateLimit\`, \`getRateLimit\`, etc. | No | IP-keyed sliding-window rate limiting |
+| \`security\` | No | OpenAPI security requirement for this endpoint (\`[]\` marks it public) |
+
+## File Uploads
+
+Multipart bodies are opt-in per method. Export \`<method>Upload\` and the request is
+parsed for you, with each file handed to the handler under its field name:
+
+\`\`\`ts
+import { z } from 'zod'
+
+export const path = '/v1/text-extract/sync'
+
+export const postUpload = {
+  fields: {
+    file: { accept: ['application/pdf'], maxSize: '25mb', required: true },
+  },
+}
+
+export const postSchema = z.object({
+  mode: z.enum(['fast', 'accurate']).default('fast'),
+})
+
+export async function post({ file, mode }) {
+  // file: { fieldName, filename, mimeType, size, buffer }
+  return { pages: await countPages(file.buffer), mode }
+}
+\`\`\`
+
+Text fields in the same form are parsed and validated by \`postSchema\` as usual.
+Set \`multiple: true\` on a field to receive an array of files.
+
+**Uploads are buffered in memory, never written to disk.** That is the right
+trade for documents and images, and the wrong one for large media — hand out a
+pre-signed object storage URL for those instead. The limits exist so the failure
+is a clear status code rather than an out-of-memory process:
+
+| Situation | Response |
+|-----------|----------|
+| File over \`maxSize\` (default 25mb) | 413 |
+| More files than \`maxFiles\` (default 10) | 413 |
+| Content type not in \`accept\` | 415 |
+| A required file field missing, or a file field never declared | 400 |
+| Not a multipart request when a required file is declared | 415 |
+
+The same declaration drives the generated OpenAPI spec, which describes the body
+as \`multipart/form-data\` with a \`format: binary\` property — so the spec and the
+runtime cannot drift apart.
+
+Handlers (and anything they call) can control the status of other failures by
+throwing \`HttpError\`:
+
+\`\`\`ts
+import { HttpError } from 'luca'
+
+throw new HttpError(409, 'That job is already running')
+\`\`\`
 
 ## Starting the Server
 
@@ -11652,6 +11712,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`helpers\` | feature | system | core | The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. |
 | \`hermesAgent\` | feature | agent-wrappers | stable | Hermes Agent CLI wrapper feature. |
 | \`ink\` | feature | ui-output | stable | Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. |
+| \`internetMail\` | feature | networking | experimental | Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. |
 | \`introspectionScanner\` | feature | system | core | Scans TypeScript files for Helper classes and generates introspection data using AST analysis |
 | \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
 | \`jsonTree\` | feature | content-nlp | stable | JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. |

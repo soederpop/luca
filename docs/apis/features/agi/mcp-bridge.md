@@ -2,13 +2,15 @@
 
 > Stability: `stable`
 
-Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls.
+Bridges MCP servers (local stdio or remote Streamable HTTP) to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls.
 
 ## Usage
 
 ```ts
 container.feature('mcpBridge', {
-  // MCP server configurations keyed by server name
+  // Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting.
+  configFile,
+  // MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile.
   servers,
   // Register discovered MCP tools as first-class assistant tools
   materializeTools,
@@ -21,7 +23,8 @@ container.feature('mcpBridge', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `servers` | `object` | MCP server configurations keyed by server name |
+| `configFile` | `string` | Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting. |
+| `servers` | `object` | MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile. |
 | `materializeTools` | `boolean` | Register discovered MCP tools as first-class assistant tools |
 | `separator` | `string` | Separator between server name and tool name for materialized tools |
 
@@ -29,7 +32,7 @@ container.feature('mcpBridge', {
 
 ### connectAll
 
-Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected).
+Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected). Loads and validates configFile before connecting; unreadable or invalid files reject.
 
 **Returns:** `Promise<void>`
 
@@ -234,6 +237,10 @@ const bridge = container.feature('mcpBridge', {
      command: 'npx',
      args: ['-y', '@modelcontextprotocol/server-github'],
      env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },
+   },
+   remote: {
+     url: 'https://mcp.example.com/mcp',
+     headers: { Authorization: `Bearer ${token}` },
    },
  },
 })

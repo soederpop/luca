@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'bun:test'
+import { describe, it, expect, afterEach, spyOn } from 'bun:test'
 import { McpBridge } from '../src/agi/features/mcp-bridge'
 import { AGIContainer } from '../src/agi/container.server'
 import { createServer } from 'node:http'
@@ -33,6 +33,73 @@ describe('McpBridge', () => {
 	})
 
 	describe('connectAll', () => {
+		it('loads mcpServers from a file relative to the container cwd and discovers tools', async () => {
+			const c = new AGIContainer({ cwd: '/tmp' })
+			const configFile = `luca-mcp-${c.utils.uuid()}.json`
+			const fs = c.feature('fs')
+			fs.writeJson(configFile, {
+				mcpServers: { test: { command: 'bun', args: ['run', TEST_SERVER_SCRIPT] } },
+			})
+			try {
+				bridge = c.feature('mcpBridge', { configFile })
+				await bridge.connectAll()
+				expect(bridge.connectedServers).toEqual(['test'])
+				expect(bridge.getServer('test')!.tools.length).toBeGreaterThan(0)
+			} finally {
+				await fs.remove(configFile)
+			}
+		}, 15_000)
+
+		it('merges file servers with explicit entries replacing matching names', async () => {
+			const c = new AGIContainer()
+			const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
+			const fs = c.feature('fs')
+			fs.writeJson(configFile, { mcpServers: {
+				remote: { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer test' } },
+				replaced: { command: 'old', env: { OLD: 'value' } },
+			} })
+			bridge = c.feature('mcpBridge', { configFile, servers: {
+				replaced: { command: 'new', args: [] },
+				added: { command: 'extra', args: [] },
+			} })
+			const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
+			try {
+				await bridge.connectAll()
+				expect(connect).toHaveBeenCalledTimes(3)
+				expect(connect).toHaveBeenCalledWith('remote', {
+					url: 'https://example.com/mcp', headers: { Authorization: 'Bearer test' }, args: [],
+				})
+				expect(connect).toHaveBeenCalledWith('replaced', { command: 'new', args: [] })
+				expect(connect).toHaveBeenCalledWith('added', { command: 'extra', args: [] })
+				await bridge.connectAll()
+				expect(connect).toHaveBeenCalledTimes(3)
+			} finally {
+				connect.mockRestore()
+				await fs.remove(configFile)
+			}
+		})
+
+		it.each([undefined, '{', '{}', '{"mcpServers":{"bad":{"args":42}}}'])(
+			'rejects missing or invalid config files before connecting and allows retry (%s)', async (content) => {
+				const c = new AGIContainer()
+				const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
+				const fs = c.feature('fs')
+				if (content !== undefined) fs.writeFile(configFile, content)
+				bridge = c.feature('mcpBridge', { configFile })
+				const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
+				try {
+					await expect(bridge.connectAll()).rejects.toThrow(`Failed to load MCP config file "${configFile}"`)
+					expect(connect).not.toHaveBeenCalled()
+					fs.writeJson(configFile, { mcpServers: { fixed: { command: 'bun' } } })
+					await bridge.connectAll()
+					expect(connect).toHaveBeenCalledWith('fixed', { command: 'bun', args: [] })
+				} finally {
+					connect.mockRestore()
+					await fs.remove(configFile)
+				}
+			},
+		)
+
 		it('connects to a stdio MCP server and discovers tools', async () => {
 			const c = new AGIContainer()
 			bridge = c.feature('mcpBridge', {
