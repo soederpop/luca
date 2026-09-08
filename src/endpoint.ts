@@ -3,6 +3,11 @@ import type { Container, ContainerContext } from './container.js'
 import { Registry } from './registry.js'
 import { z } from 'zod'
 import { EndpointStateSchema, EndpointOptionsSchema, EndpointEventsSchema } from './schemas/base.js'
+import { HttpError } from './http-error.js'
+import { isMultipartRequest, parseMultipart, type UploadConfig, type UploadedFile } from './multipart.js'
+
+export { HttpError } from './http-error.js'
+export type { UploadConfig, UploadFieldConfig, UploadedFile } from './multipart.js'
 
 export interface AvailableEndpoints {}
 
@@ -50,6 +55,26 @@ export interface EndpointModule {
   putRateLimit?: EndpointRateLimit
   patchRateLimit?: EndpointRateLimit
   deleteRateLimit?: EndpointRateLimit
+  /** Zod schema describing the 200 response body, used to type the OpenAPI spec */
+  getResponse?: z.ZodType
+  postResponse?: z.ZodType
+  putResponse?: z.ZodType
+  patchResponse?: z.ZodType
+  deleteResponse?: z.ZodType
+  /** Raw OpenAPI responses object, merged over the generated defaults (for 202, 404, ...) */
+  getResponses?: Record<string, any>
+  postResponses?: Record<string, any>
+  putResponses?: Record<string, any>
+  patchResponses?: Record<string, any>
+  deleteResponses?: Record<string, any>
+  /** Declares multipart/form-data file uploads — enables parsing and describes the body in the spec */
+  getUpload?: UploadConfig
+  postUpload?: UploadConfig
+  putUpload?: UploadConfig
+  patchUpload?: UploadConfig
+  deleteUpload?: UploadConfig
+  /** OpenAPI security requirement for this endpoint. `[]` marks it public when the spec has a root default. */
+  security?: any[]
   description?: string
   tags?: string[]
 }
@@ -58,11 +83,28 @@ const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
 
 /** All recognized exports on an endpoint module */
 const KNOWN_EXPORTS = new Set([
-  'path', 'description', 'tags', 'default', 'rateLimit',
+  'path', 'description', 'tags', 'default', 'rateLimit', 'security',
   ...HTTP_METHODS,
   ...HTTP_METHODS.map(m => `${m}Schema`),
   ...HTTP_METHODS.map(m => `${m}RateLimit`),
+  ...HTTP_METHODS.map(m => `${m}Response`),
+  ...HTTP_METHODS.map(m => `${m}Responses`),
+  ...HTTP_METHODS.map(m => `${m}Upload`),
 ])
+
+/** Express route params (`:id`, `:id?`) as OpenAPI template params (`{id}`). */
+export function toOpenAPIPath(path: string): string {
+  return path.replace(/:([A-Za-z0-9_]+)\??/g, '{$1}')
+}
+
+/** The route param names declared in an express path, with whether each is optional. */
+export function pathParameterNames(path: string): Array<{ name: string; required: boolean }> {
+  const found: Array<{ name: string; required: boolean }> = []
+  for (const match of path.matchAll(/:([A-Za-z0-9_]+)(\?)?/g)) {
+    found.push({ name: match[1] as string, required: !match[2] })
+  }
+  return found
+}
 
 /**
  * Sliding-window rate limiter keyed by IP address.
@@ -214,6 +256,26 @@ export class Endpoint<
     return this._module?.[`${method}Schema` as keyof EndpointModule] as z.ZodType | undefined
   }
 
+  /** The `<method>Response` zod schema describing the 200 body, if the module declares one. */
+  responseSchema(method: string): z.ZodType | undefined {
+    return this._module?.[`${method}Response` as keyof EndpointModule] as z.ZodType | undefined
+  }
+
+  /** Raw OpenAPI `responses` overrides from `<method>Responses`, merged over the defaults. */
+  responseOverrides(method: string): Record<string, any> | undefined {
+    return this._module?.[`${method}Responses` as keyof EndpointModule] as Record<string, any> | undefined
+  }
+
+  /** The `<method>Upload` multipart declaration, if this method accepts file uploads. */
+  uploadFor(method: string): UploadConfig | undefined {
+    return this._module?.[`${method}Upload` as keyof EndpointModule] as UploadConfig | undefined
+  }
+
+  /** This endpoint's path with express route params rewritten as OpenAPI templates. */
+  get openAPIPath(): string {
+    return toOpenAPIPath(this.path)
+  }
+
   /** Returns the rate limit config for a given method, or undefined if none. */
   rateLimitFor(method: string): EndpointRateLimit | undefined {
     const perMethod = this._module?.[`${method}RateLimit` as keyof EndpointModule] as EndpointRateLimit | undefined
@@ -250,8 +312,22 @@ export class Endpoint<
             return
           }
 
+          // Multipart bodies bypass express.json, so parse them here when the
+          // module declares an upload. Files arrive as named handler params.
+          const upload = endpoint.uploadFor(method)
+          let uploadedFiles: Record<string, UploadedFile | UploadedFile[]> = {}
+          if (upload) {
+            if (isMultipartRequest(req)) {
+              const parsed = await parseMultipart(req, upload)
+              uploadedFiles = parsed.files
+              req.body = { ...(req.body || {}), ...parsed.fields }
+            } else if (Object.values(upload.fields).some(f => f.required)) {
+              throw new HttpError(415, 'Expected multipart/form-data request body')
+            }
+          }
+
           const routeParams = req.params || {}
-          const parameters = { ...req.query, ...req.body, ...routeParams }
+          const parameters = { ...req.query, ...req.body, ...routeParams, ...uploadedFiles }
           const currentSchema = endpoint.schema(method)
           // Route params are merged in for convenience, but a .strict() schema would reject the
           // ones it never declared. Hide those from parse, then put them back on the result so
@@ -259,11 +335,13 @@ export class Endpoint<
           const shape = (currentSchema as any)?.shape
           const parseInput = { ...parameters }
           if (shape) {
-            for (const key of Object.keys(routeParams)) {
+            for (const key of [...Object.keys(routeParams), ...Object.keys(uploadedFiles)]) {
               if (!(key in shape)) delete parseInput[key]
             }
           }
-          const validated = currentSchema ? { ...(currentSchema.parse(parseInput) as Record<string, any>), ...routeParams } : parameters
+          const validated = currentSchema
+            ? { ...(currentSchema.parse(parseInput) as Record<string, any>), ...routeParams, ...uploadedFiles }
+            : parameters
 
           const ctx: EndpointContext = {
             container: endpoint.container,
@@ -289,6 +367,9 @@ export class Endpoint<
               const details = issues.map((e: any) => `${(e.path || []).join('.')}: ${e.message}`).join(', ')
               console.error(`[${method.toUpperCase()} ${endpoint.path}] Validation failed: ${details}`)
               res.status(400).json({ error: `Validation failed: ${details}`, details: issues })
+            } else if (typeof err.statusCode === 'number') {
+              console.error(`[${method.toUpperCase()} ${endpoint.path}] ${err.statusCode}: ${err.message}`)
+              res.status(err.statusCode).json({ error: err.message, ...(err.details ? { details: err.details } : {}) })
             } else {
               console.error(`[${method.toUpperCase()} ${endpoint.path}] ${err.message}`)
               res.status(500).json({ error: err.message })
@@ -303,51 +384,82 @@ export class Endpoint<
     return this
   }
 
+  /**
+   * Describe this endpoint as an OpenAPI 3.1 path item.
+   *
+   * Route params declared in the path (`/things/:id`) are emitted as
+   * `in: path` parameters rather than being mistaken for query string
+   * parameters, `<method>Response` schemas type the 200 body, and a
+   * `<method>Upload` declaration is described as `multipart/form-data`.
+   */
   toOpenAPIPathItem(): Record<string, any> {
     const pathItem: Record<string, any> = {}
+    const routeParams = pathParameterNames(this.path)
+    const routeParamNames = new Set(routeParams.map(p => p.name))
 
     for (const method of this.methods) {
       const methodSchema = this.schema(method)
-      const operationId = `${method}_${this.path.replace(/\//g, '_').replace(/^_/, '')}`
+      const operationId = `${method}_${this.openAPIPath.replace(/[\/{}]/g, '_').replace(/^_/, '')}`
+
+      let jsonSchema: any = undefined
+      if (methodSchema) {
+        try {
+          jsonSchema = (methodSchema as any).toJSONSchema()
+        } catch {
+          // Schema conversion failed, serve without parameter docs
+        }
+      }
+
+      const properties = (jsonSchema?.properties || {}) as Record<string, any>
+      const required: string[] = jsonSchema?.required || []
+
+      // Path params come from the route, but a declared schema field of the
+      // same name carries the better type and description.
+      const parameters: any[] = routeParams.map(({ name, required: isRequired }) => ({
+        name,
+        in: 'path',
+        required: isRequired,
+        schema: properties[name] || { type: 'string' },
+        description: properties[name]?.description || '',
+      }))
 
       const operation: Record<string, any> = {
         operationId,
         summary: this._module?.description || `${method.toUpperCase()} ${this.path}`,
         tags: this._module?.tags || [],
-        responses: {
-          '200': {
-            description: 'Successful response',
-            content: { 'application/json': { schema: { type: 'object' } } },
-          },
-          ...(this.rateLimitFor(method) ? { '429': { description: 'Rate limit exceeded' } } : {}),
-          '400': { description: 'Validation error' },
-          '500': { description: 'Server error' },
-        },
+        responses: this.buildResponses(method),
       }
 
-      if (methodSchema) {
-        try {
-          const jsonSchema = (methodSchema as any).toJSONSchema()
+      if (this._module?.security !== undefined) {
+        operation.security = this._module.security
+      }
 
-          if (method === 'get' || method === 'delete') {
-            operation.parameters = Object.entries((jsonSchema as any).properties || {}).map(
-              ([name, prop]: [string, any]) => ({
-                name,
-                in: 'query',
-                required: (jsonSchema as any).required?.includes(name) || false,
-                schema: prop,
-                description: prop.description || '',
-              })
-            )
-          } else {
-            operation.requestBody = {
-              required: true,
-              content: { 'application/json': { schema: jsonSchema } },
-            }
-          }
-        } catch {
-          // Schema conversion failed, serve without parameter docs
+      const upload = this.uploadFor(method)
+
+      if (method === 'get' || method === 'delete') {
+        for (const [name, prop] of Object.entries(properties)) {
+          if (routeParamNames.has(name)) continue
+          parameters.push({
+            name,
+            in: 'query',
+            required: required.includes(name),
+            schema: prop,
+            description: (prop as any).description || '',
+          })
         }
+      } else if (!upload && jsonSchema) {
+        operation.requestBody = {
+          required: true,
+          content: { 'application/json': { schema: this.omitPathParams(jsonSchema, routeParamNames) } },
+        }
+      }
+
+      if (upload) {
+        operation.requestBody = this.buildUploadRequestBody(upload, jsonSchema, routeParamNames)
+      }
+
+      if (parameters.length > 0) {
+        operation.parameters = parameters
       }
 
       pathItem[method] = operation
@@ -355,7 +467,77 @@ export class Endpoint<
 
     return pathItem
   }
+
+  /** Route params are described as path parameters, so keep them out of the body schema too. */
+  private omitPathParams(jsonSchema: any, routeParamNames: Set<string>): any {
+    if (!jsonSchema?.properties || routeParamNames.size === 0) return jsonSchema
+
+    const properties = Object.fromEntries(
+      Object.entries(jsonSchema.properties).filter(([name]) => !routeParamNames.has(name))
+    )
+    const required = (jsonSchema.required || []).filter((name: string) => !routeParamNames.has(name))
+
+    return { ...jsonSchema, properties, ...(required.length ? { required } : { required: undefined }) }
+  }
+
+  /** The 200 response typed from `<method>Response`, with `<method>Responses` merged over the defaults. */
+  private buildResponses(method: string): Record<string, any> {
+    const responseSchema = this.responseSchema(method)
+    let okSchema: any = { type: 'object' }
+
+    if (responseSchema) {
+      try {
+        okSchema = (responseSchema as any).toJSONSchema()
+      } catch {
+        // fall back to the untyped object
+      }
+    }
+
+    return {
+      '200': {
+        description: 'Successful response',
+        content: { 'application/json': { schema: okSchema } },
+      },
+      ...(this.rateLimitFor(method) ? { '429': { description: 'Rate limit exceeded' } } : {}),
+      '400': { description: 'Validation error' },
+      '500': { description: 'Server error' },
+      ...(this.responseOverrides(method) || {}),
+    }
+  }
+
+  /** Describe a `<method>Upload` declaration as a multipart/form-data body. */
+  private buildUploadRequestBody(
+    upload: UploadConfig,
+    jsonSchema: any,
+    routeParamNames: Set<string>
+  ): Record<string, any> {
+    const fieldSchema = this.omitPathParams(jsonSchema, routeParamNames)
+    const properties: Record<string, any> = { ...(fieldSchema?.properties || {}) }
+    const required: string[] = [...(fieldSchema?.required || [])]
+    const encoding: Record<string, any> = {}
+
+    for (const [name, field] of Object.entries(upload.fields)) {
+      const fileSchema: any = { type: 'string', format: 'binary' }
+      if (field.description) fileSchema.description = field.description
+
+      properties[name] = field.multiple ? { type: 'array', items: fileSchema } : fileSchema
+
+      if (field.required) required.push(name)
+      if (field.accept?.length) encoding[name] = { contentType: field.accept.join(', ') }
+    }
+
+    return {
+      required: Object.values(upload.fields).some(f => f.required),
+      content: {
+        'multipart/form-data': {
+          schema: { type: 'object', properties, ...(required.length ? { required } : {}) },
+          ...(Object.keys(encoding).length ? { encoding } : {}),
+        },
+      },
+    }
+  }
 }
+
 
 export function warnUnknownExports(mod: Record<string, any>, filePath: string): void {
   const unknown = Object.keys(mod).filter(k => !k.startsWith('__') && !KNOWN_EXPORTS.has(k))

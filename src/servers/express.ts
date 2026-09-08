@@ -23,6 +23,20 @@ export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>
 
 const defaultCreate = (app: Express, server: Server) => app
 
+/** Document-level overrides for the generated OpenAPI spec. */
+export interface OpenAPISpecOptions {
+  title?: string
+  version?: string
+  description?: string
+  summary?: string
+  /** Public URLs for the API. Defaults to the local address the server bound to. */
+  servers?: Array<{ url: string; description?: string }>
+  /** OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }` */
+  securitySchemes?: Record<string, any>
+  /** Root security requirement applied to every endpoint that does not export its own */
+  security?: any[]
+}
+
 /**
  * Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback.
  *
@@ -37,6 +51,17 @@ const defaultCreate = (app: Express, server: Server) => app
  * Behavioral contracts worth knowing:
  * - **CORS is ON by default** — pass `cors: false` to disable it, not just omit the option.
  * - JSON and urlencoded body parsers are pre-installed (500mb limit).
+ * - **File uploads are opt-in per endpoint** — export `<method>Upload` (e.g.
+ *   `postUpload = { fields: { file: { accept: ['application/pdf'], maxSize: '25mb' } } }`)
+ *   and multipart bodies are parsed into `{ filename, mimeType, size, buffer }`
+ *   handed to the handler under the field name. Files are buffered in memory and
+ *   capped (25mb per file, 10 files by default), so oversized uploads fail with a
+ *   413 rather than exhausting the process — route genuinely large files to object
+ *   storage instead. Oversized/unaccepted/undeclared fields become 413/415/400.
+ * - The generated OpenAPI spec follows those same declarations: `<method>Upload`
+ *   is described as `multipart/form-data`, `<method>Response` (a zod schema) types
+ *   the 200 body, `<method>Responses` merges raw status entries like 202, and route
+ *   params are templated (`/things/{id}`) and marked `in: path`.
  * - Endpoint handlers receive `(params, ctx)` where `params` merges query + body +
  *   route params; the return value is sent as JSON. Thrown ZodErrors become 400s,
  *   other errors become 500s.
@@ -509,7 +534,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * await server.stop()
      * ```
      */
-    serveOpenAPISpec(options: { title?: string; version?: string; description?: string; summary?: string } = {}): this {
+    serveOpenAPISpec(options: OpenAPISpecOptions = {}): this {
       const server = this
       this.app.get('/openapi.json', (_req: any, res: any) => {
         res.json(server.generateOpenAPISpec(options))
@@ -523,7 +548,9 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * zod method schemas (e.g. `getSchema`), and the server URL from the
      * current port.
      *
-     * @param options - Optional info-block overrides (title, version, description)
+     * @param options - Info-block overrides (title, version, description), plus
+     *   `servers` for the public URL and `securitySchemes` / `security` to
+     *   document authentication
      * @returns The OpenAPI spec as a plain object
      *
      * @example
@@ -537,12 +564,16 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      * console.log(Object.keys(spec.paths))  // ['/status']
      * ```
      */
-    generateOpenAPISpec(options: { title?: string; version?: string; description?: string; summary?: string } = {}): Record<string, any> {
+    generateOpenAPISpec(options: OpenAPISpecOptions = {}): Record<string, any> {
       const paths: Record<string, any> = {}
 
       for (const ep of this._mountedEndpoints) {
-        paths[ep.path] = ep.toOpenAPIPathItem()
+        // Keyed by the OpenAPI-templated path (`/things/{id}`), not the express
+        // one (`/things/:id`) — generated clients build broken URLs otherwise.
+        paths[ep.openAPIPath] = ep.toOpenAPIPathItem()
       }
+
+      const { securitySchemes, security, servers } = options
 
       return {
         openapi: '3.1.0',
@@ -553,7 +584,9 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
           // info.summary is an OpenAPI 3.1 field — only include it when provided
           ...(options.summary ? { summary: options.summary } : {}),
         },
-        servers: [{ url: `http://localhost:${this.port}` }],
+        servers: servers || [{ url: `http://localhost:${this.port}` }],
+        ...(securitySchemes ? { components: { securitySchemes } } : {}),
+        ...(security ? { security } : {}),
         paths,
       }
     }

@@ -107,6 +107,7 @@
     "luca": "./src/cli/cli.ts"
   },
   "scripts": {
+    "demo:voice": "bun run scripts/examples/telnyx-voice-studio/server.ts",
     "eval:agent-dx": "bun run scripts/agent-dx/cli.ts",
     "test:agent-dx": "bun test ./scripts/agent-dx/harness.checks.ts",
     "serve": "bun build:web && luca serve --any-port",
@@ -130,6 +131,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
+    "@types/busboy": "^1.5.4",
     "@types/cacache": "15.0.1",
     "@types/chalk": "2.2.4",
     "@types/child-process-promise": "2.2.6",
@@ -169,6 +171,7 @@
     "@types/marked": "6.0.0",
     "@types/marked-terminal": "6.1.1",
     "axios": "1.18.0",
+    "busboy": "1.6.0",
     "cacache": "17.1.4",
     "chalk": "5.4.1",
     "child-process-promise": "2.2.1",
