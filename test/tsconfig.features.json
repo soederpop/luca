@@ -19,6 +19,7 @@
     "dns.test.ts",
     "nlp.test.ts",
     "opener.test.ts",
-    "display-result.test.ts"
+    "display-result.test.ts",
+    "helper-cache-collisions.test.ts"
   ]
 }

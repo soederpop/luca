@@ -514,12 +514,16 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   buildHelperCacheKey(type: string, id: string, options: any, omitOptionKeys: string[] = []) {
     const hashableOptions = omit(options || {}, uniq(['_cacheKey', 'cached', ...omitOptionKeys]))
 
-    return hashObject({
+    const digest = hashObject({
       __type: type,
       id,
       options: hashableOptions,
       uuid: this.uuid,
     })
+
+    // A short hash can collide. Keep container and helper identity outside the
+    // digest so a collision cannot return an unrelated helper or container.
+    return JSON.stringify([this.uuid, type, id, digest])
   }
 
   /** @internal */
