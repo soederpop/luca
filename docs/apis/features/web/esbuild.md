@@ -19,9 +19,65 @@ container.feature('esbuild')
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `code` | `string` | ✓ | Parameter code |
-| `options` | `esbuild.TransformOptions` |  | Parameter options |
+| `options` | `EsbuildTransformOptions` |  | Parameter options |
 
-**Returns:** `void`
+`EsbuildTransformOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `loader` | `EsbuildLoader` | Which syntax to parse the input as. Defaults to `'ts'`. |
+| `sourcefile` | `string` | Name reported in error messages and source maps. |
+| `banner` | `string` |  |
+| `footer` | `string` |  |
+| `tsconfigRaw` | `string | {
+    compilerOptions?: {
+      alwaysStrict?: boolean
+      importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'
+      jsx?: 'react' | 'react-jsx' | 'react-jsxdev' | 'preserve'
+      jsxFactory?: string
+      jsxFragmentFactory?: string
+      jsxImportSource?: string
+      preserveValueImports?: boolean
+      target?: string
+      useDefineForClassFields?: boolean
+    }
+  }` |  |
+| `sourcemap` | `boolean | 'linked' | 'inline' | 'external' | 'both'` |  |
+| `sourceRoot` | `string` |  |
+| `sourcesContent` | `boolean` |  |
+| `legalComments` | `'none' | 'inline' | 'eof' | 'linked' | 'external'` |  |
+| `format` | `EsbuildFormat` |  |
+| `globalName` | `string` |  |
+| `target` | `string | string[]` | Language level to downlevel to, e.g. `'es2015'`. |
+| `supported` | `Record<string, boolean>` |  |
+| `platform` | `EsbuildPlatform` |  |
+| `minify` | `boolean` |  |
+| `minifyWhitespace` | `boolean` |  |
+| `minifyIdentifiers` | `boolean` |  |
+| `minifySyntax` | `boolean` |  |
+| `mangleProps` | `RegExp` |  |
+| `reserveProps` | `RegExp` |  |
+| `mangleQuoted` | `boolean` |  |
+| `mangleCache` | `Record<string, string | false>` |  |
+| `drop` | `EsbuildDrop[]` |  |
+| `charset` | `EsbuildCharset` |  |
+| `treeShaking` | `boolean` |  |
+| `ignoreAnnotations` | `boolean` |  |
+| `jsx` | `'transform' | 'preserve' | 'automatic'` |  |
+| `jsxFactory` | `string` |  |
+| `jsxFragment` | `string` |  |
+| `jsxImportSource` | `string` |  |
+| `jsxDev` | `boolean` |  |
+| `jsxSideEffects` | `boolean` |  |
+| `define` | `{ [key: string]: string }` |  |
+| `pure` | `string[]` |  |
+| `keepNames` | `boolean` |  |
+| `color` | `boolean` |  |
+| `logLevel` | `EsbuildLogLevel` |  |
+| `logLimit` | `number` |  |
+| `logOverride` | `Record<string, EsbuildLogLevel>` |  |
+
+**Returns:** `Promise<EsbuildTransformResult>`
 
 
 

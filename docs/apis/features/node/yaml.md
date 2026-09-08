@@ -91,6 +91,34 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 
 
 
+### parseObject
+
+Parses a YAML string and guarantees the result is an object (mapping or sequence). Unlike {@link parse} — which returns `undefined` for empty input, `null` for comments-only input, and bare scalars for scalar documents — this method throws a descriptive error in all of those cases, so a typo'd or empty config file fails here instead of as `undefined is not an object` far away. Use this when you expect a config-shaped document; use `parse()` when any YAML value (including scalars or nothing at all) is acceptable.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `yamlStr` | `string` | ✓ | The YAML string to parse |
+
+**Returns:** `T`
+
+```ts
+const yml = container.feature('yaml')
+
+const config = yml.parseObject('host: localhost\nport: 5432\n')
+console.log(config.host) // 'localhost'
+
+// Empty or comments-only input throws instead of returning undefined/null
+try { yml.parseObject('') } catch (err) { console.log(err.message) }
+try { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }
+
+// A bare scalar document throws too
+try { yml.parseObject('just a string') } catch (err) { console.log(err.message) }
+```
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -190,5 +218,23 @@ interface AppConfig {
 
 const typedConfig = yaml.parse<AppConfig>(yamlContent)
 console.log(typedConfig.settings.ports) // [3000, 3001]
+```
+
+
+
+**parseObject**
+
+```ts
+const yml = container.feature('yaml')
+
+const config = yml.parseObject('host: localhost\nport: 5432\n')
+console.log(config.host) // 'localhost'
+
+// Empty or comments-only input throws instead of returning undefined/null
+try { yml.parseObject('') } catch (err) { console.log(err.message) }
+try { yml.parseObject('# just a comment') } catch (err) { console.log(err.message) }
+
+// A bare scalar document throws too
+try { yml.parseObject('just a string') } catch (err) { console.log(err.message) }
 ```
 

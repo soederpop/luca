@@ -168,6 +168,7 @@ Compose the session's `skills` and `skillsFolders` into a generated Claude Code 
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `signal` | `AbortSignal` | Abort the spawned Claude process. |
 | `model` | `string` | Override model for this session. |
 | `cwd` | `string` | Override working directory. |
 | `systemPrompt` | `string` | System prompt for this session. |
@@ -230,6 +231,7 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `signal` | `AbortSignal` | Abort the spawned Claude process. |
 | `model` | `string` | Override model for this session. |
 | `cwd` | `string` | Override working directory. |
 | `systemPrompt` | `string` | System prompt for this session. |
@@ -314,6 +316,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `signal` | `AbortSignal` | Abort the spawned Claude process. |
 | `model` | `string` | Override model for this session. |
 | `cwd` | `string` | Override working directory. |
 | `systemPrompt` | `string` | System prompt for this session. |

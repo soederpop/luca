@@ -145,6 +145,69 @@ const data = await diskCache.get('myData', true) // parse as JSON
 
 
 
+### getJson
+
+Retrieve a JSON value from the cache and return it parsed. The symmetric partner of `setJson()` — you get back the same value you stored, no `json` flag to remember. Prefer this pair over `set()`/`get()` whenever the value is structured data.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `key` | `string` | ✓ | The cache key to retrieve |
+
+**Returns:** `Promise<any>`
+
+```ts
+await diskCache.setJson('config', { theme: 'dark', retries: 3 })
+const config = await diskCache.getJson('config')
+console.log(config.retries) // 3
+```
+
+
+
+### setJson
+
+Store a JSON-serializable value in the cache. The symmetric partner of `getJson()` — the value is serialized for you, so callers never juggle `JSON.stringify` or the `json` flag on `get()`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `key` | `string` | ✓ | The cache key to store under |
+| `value` | `any` | ✓ | Any JSON-serializable value (object, array, string, number, boolean, or null) |
+| `meta` | `any` |  | Optional metadata to associate with the cached item. `meta.ttl` |
+
+**Returns:** `Promise<any>`
+
+```ts
+await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })
+const quote = await diskCache.getJson('quote')
+console.log(quote.price) // 42
+```
+
+
+
+### ensureJson
+
+Ensure a key exists in the cache, storing the JSON-serialized value if it doesn't. Like `ensure()` but takes any JSON-serializable value directly — no manual `JSON.stringify`. Read the value back with `getJson()`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `key` | `string` | ✓ | The cache key to check/set |
+| `value` | `any` | ✓ | The JSON-serializable value to store if the key doesn't exist |
+
+**Returns:** `Promise<string>`
+
+```ts
+await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })
+const config = await diskCache.getJson('config')
+console.log(config.theme) // 'dark'
+```
+
+
+
 ### set
 
 Store a value in the cache
@@ -345,6 +408,36 @@ await diskCache.set('myText', 'Hello World')
 await diskCache.set('myData', { count: 42 })
 const text = await diskCache.get('myText')
 const data = await diskCache.get('myData', true) // parse as JSON
+```
+
+
+
+**getJson**
+
+```ts
+await diskCache.setJson('config', { theme: 'dark', retries: 3 })
+const config = await diskCache.getJson('config')
+console.log(config.retries) // 3
+```
+
+
+
+**setJson**
+
+```ts
+await diskCache.setJson('quote', { symbol: 'LUCA', price: 42 }, { ttl: 60 })
+const quote = await diskCache.getJson('quote')
+console.log(quote.price) // 42
+```
+
+
+
+**ensureJson**
+
+```ts
+await diskCache.ensureJson('config', { theme: 'dark', retries: 3 })
+const config = await diskCache.getJson('config')
+console.log(config.theme) // 'dark'
 ```
 
 

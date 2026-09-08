@@ -45,6 +45,27 @@ await jsonTree.loadTree('settings', 'configuration');
 
 
 
+### loadTreeIfExists
+
+Like {@link loadTree}, but tolerant of a missing base path: when `basePath` does not exist, an empty tree is stored under `key` and no error is thrown. Use this for optional config directories; use `loadTree()` when the directory is expected to exist, so a typo'd path fails loudly instead of returning a silent empty tree.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `basePath` | `string` | ✓ | The root directory path to scan for JSON files |
+| `key` | `string` |  | The key to store the tree under in state (defaults to first segment of basePath) |
+
+**Returns:** `void`
+
+```ts
+// A missing directory yields an empty tree instead of throwing
+await jsonTree.loadTreeIfExists('optional-overrides', 'overrides');
+console.log(jsonTree.tree.overrides); // {}
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -77,6 +98,16 @@ console.log(dbConfig.host); // 'db.example.com'
 
 // Load the same folder again under a custom key
 await jsonTree.loadTree('settings', 'configuration');
+```
+
+
+
+**loadTreeIfExists**
+
+```ts
+// A missing directory yields an empty tree instead of throwing
+await jsonTree.loadTreeIfExists('optional-overrides', 'overrides');
+console.log(jsonTree.tree.overrides); // {}
 ```
 
 

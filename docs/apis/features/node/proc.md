@@ -53,7 +53,7 @@ const log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--d
 
 ### spawnAndCapture
 
-Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.
+Run a command to completion and get `{ stdout, stderr, exitCode, error }`. This is the default way to run a command. Failures are returned, not thrown — check `exitCode` (and `error`) on the result. Arguments are passed as an array, so nothing is split or shell-escaped. Pass `onOutput`/`onError` callbacks to also watch output live as it streams; the full output is still captured in the returned strings either way. Use `spawn()` instead only when you need the raw ChildProcess handle (streaming without waiting for exit, kill(), detached daemons).
 
 **Parameters:**
 
@@ -67,6 +67,7 @@ Spawns a process and captures its output with real-time monitoring capabilities.
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `detached` | `boolean` | Run in a separate process group, allowing callers to cancel the child and its descendants together |
 | `stdio` | `"ignore" | "inherit"` | Standard I/O mode for the child process |
 | `stdout` | `"ignore" | "inherit"` | Stdout mode for the child process |
 | `stderr` | `"ignore" | "inherit"` | Stderr mode for the child process |
@@ -76,7 +77,6 @@ Spawns a process and captures its output with real-time monitoring capabilities.
 | `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
 | `onExit` | `(code: number) => void` | Callback invoked when the process exits |
 | `onStart` | `(childProcess: ReturnType<typeof nodeSpawn>) => void` | Callback invoked when the process starts |
-| `detached` | `boolean` | Run in a separate process group, allowing callers to cancel the child and its descendants together |
 
 **Returns:** `Promise<{
     stderr: string;
@@ -87,26 +87,23 @@ Spawns a process and captures its output with real-time monitoring capabilities.
   }>`
 
 ```ts
-// Basic usage
+// Run a command, get the result — failures come back, they don't throw
 const result = await proc.spawnAndCapture('node', ['--version'])
-console.log(`Node version: ${result.stdout}`)
+if (result.exitCode === 0) {
+ console.log(`Node version: ${result.stdout}`)
+} else {
+ console.error('failed:', result.stderr)
+}
 
-// With real-time output monitoring
+// Watch output live while still capturing it all
 const monitored = await proc.spawnAndCapture('bun', ['--version'], {
  onOutput: (data) => console.log('OUT:', data.trim()),
  onError: (data) => console.error('ERR:', data.trim()),
  onExit: (code) => console.log(`Process exited with code ${code}`)
 })
 
-// Custom working directory, watching output as it streams
-const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
- cwd: 'src',
- onOutput: (data) => {
-   if (data.includes('error')) {
-     console.error('Build error detected:', data)
-   }
- }
-})
+// Custom working directory
+const listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })
 ```
 
 
@@ -153,7 +150,7 @@ console.log('worker pid:', worker.pid)
 
 
 
-### exec
+### execSync
 
 Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.
 
@@ -161,8 +158,8 @@ Execute a command synchronously and return its output. Runs a shell command and 
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `command` | `string` | ✓ | The command to execute |
-| `options` | `any` |  | Options for command execution (cwd, encoding, etc.) |
+| `command` | `string` | ✓ | The command to execute through the shell |
+| `options` | `any` |  | Options forwarded to node's execSync (cwd, encoding, maxBuffer, ...) |
 
 **Returns:** `string`
 
@@ -173,22 +170,112 @@ const version = proc.execSync('node --version')
 // Run in a different directory without changing the container's cwd
 const listing = proc.execSync('ls -1', { cwd: 'src' })
 
-// NOTE: exec throws on a non-zero exit code — commands that can fail
-// (e.g. git outside a repository) belong in a try/catch or execAndCapture
+// NOTE: execSync throws on a non-zero exit code — commands that can fail
+// (e.g. git outside a repository) belong in a try/catch, or better, use
+// tryExec() which runs through a real shell and never throws (the exit
+// code and stderr come back as data).
 ```
 
 
 
-### execSync
+### exec
+
+REMOVED — renamed to `execSync`. Calling this always throws with migration guidance. The old name read as async, so agents kept writing `await proc.exec(...)` and misreading its blocking, string-returning behavior. Use `execSync` (same semantics, honest name) or `tryExec` for the async, non-throwing variant.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `command` | `string` | ✓ | Parameter command |
-| `options` | `any` |  | Parameter options |
+| `command` | `string` | ✓ | Ignored; the call always throws |
+| `options` | `any` |  | Ignored; the call always throws |
 
-**Returns:** `string`
+**Returns:** `never`
+
+```ts
+// proc.exec('ls')            — throws: renamed
+const listing = proc.execSync('ls')          // sync, trimmed stdout
+const safe = await proc.tryExec('ls /maybe') // async, never throws
+```
+
+
+
+### tryExec
+
+Execute a command string through a real shell, asynchronously, and NEVER throw. This is the safe default for running commands that can fail: shell quoting works (unlike `execAndCapture`, which splits naively on spaces), the call is async (unlike `execSync`, which blocks), and a non-zero exit code is returned as data instead of thrown. Inspect `exitCode` yourself.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cmd` | `string` | ✓ | The complete command string, interpreted by /bin/sh (cmd.exe on Windows) — quotes, pipes, and redirects all work |
+| `options` | `SpawnOptions` |  | Options forwarded to spawnAndCapture (cwd, onOutput, onError, ...) |
+
+`SpawnOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `detached` | `boolean` | Run in a separate process group, allowing callers to cancel the child and its descendants together |
+| `stdio` | `"ignore" | "inherit"` | Standard I/O mode for the child process |
+| `stdout` | `"ignore" | "inherit"` | Stdout mode for the child process |
+| `stderr` | `"ignore" | "inherit"` | Stderr mode for the child process |
+| `cwd` | `string` | Working directory for the child process |
+| `environment` | `Record<string, any>` | Environment variables to pass to the child process |
+| `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
+| `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
+| `onExit` | `(code: number) => void` | Callback invoked when the process exits |
+| `onStart` | `(childProcess: ReturnType<typeof nodeSpawn>) => void` | Callback invoked when the process starts |
+
+**Returns:** `Promise<{ stdout: string; stderr: string; exitCode: number }>`
+
+```ts
+// Quoted arguments survive intact
+const ok = await proc.tryExec('echo "two words"')
+console.log(ok.stdout.trim()) // 'two words'
+
+// Failure is data, not an exception
+const bad = await proc.tryExec('git -C /nowhere status')
+if (bad.exitCode !== 0) {
+ console.error('git failed:', bad.stderr.trim())
+}
+```
+
+
+
+### execJson
+
+Execute a command through a real shell and parse its stdout as JSON. The obvious shape for JSON-speaking CLIs (`gh`, `docker inspect`, `curl`). Throws on a non-zero exit code with stderr in the error message, and throws on unparseable stdout with a snippet of the offending output — so a failure is always loud and diagnosable. For a non-throwing variant, use `tryExec` and parse yourself.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cmd` | `string` | ✓ | The complete command string, interpreted by a real shell (quoting works) |
+| `options` | `SpawnOptions` |  | Options forwarded to spawnAndCapture (cwd, ...) |
+
+`SpawnOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `detached` | `boolean` | Run in a separate process group, allowing callers to cancel the child and its descendants together |
+| `stdio` | `"ignore" | "inherit"` | Standard I/O mode for the child process |
+| `stdout` | `"ignore" | "inherit"` | Stdout mode for the child process |
+| `stderr` | `"ignore" | "inherit"` | Stderr mode for the child process |
+| `cwd` | `string` | Working directory for the child process |
+| `environment` | `Record<string, any>` | Environment variables to pass to the child process |
+| `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
+| `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
+| `onExit` | `(code: number) => void` | Callback invoked when the process exits |
+| `onStart` | `(childProcess: ReturnType<typeof nodeSpawn>) => void` | Callback invoked when the process starts |
+
+**Returns:** `Promise<T>`
+
+```ts
+// Parse structured CLI output directly
+const pkg = await proc.execJson<{ name: string }>('cat package.json')
+console.log(pkg.name)
+
+// const pr = await proc.execJson('gh pr view --json title,url')
+```
 
 
 
@@ -320,11 +407,12 @@ const proc = container.feature('proc')
 const result = proc.execSync('echo "Hello World"')
 console.log(result) // 'Hello World'
 
-// Execute and capture output asynchronously
-const { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])
+// The default way to run a command: await completion, get the result.
+// Failures are returned (check exitCode), not thrown.
+const { stdout, stderr, exitCode } = await proc.spawnAndCapture('npm', ['--version'])
 console.log(`npm version: ${stdout}`)
 
-// Execute with callbacks for real-time output
+// Optionally watch output live as it streams (still fully captured)
 await proc.spawnAndCapture('npm', ['install'], {
  onOutput: (data) => console.log('OUT:', data),
  onError: (data) => console.log('ERR:', data)
@@ -358,26 +446,23 @@ const log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--d
 **spawnAndCapture**
 
 ```ts
-// Basic usage
+// Run a command, get the result — failures come back, they don't throw
 const result = await proc.spawnAndCapture('node', ['--version'])
-console.log(`Node version: ${result.stdout}`)
+if (result.exitCode === 0) {
+ console.log(`Node version: ${result.stdout}`)
+} else {
+ console.error('failed:', result.stderr)
+}
 
-// With real-time output monitoring
+// Watch output live while still capturing it all
 const monitored = await proc.spawnAndCapture('bun', ['--version'], {
  onOutput: (data) => console.log('OUT:', data.trim()),
  onError: (data) => console.error('ERR:', data.trim()),
  onExit: (code) => console.log(`Process exited with code ${code}`)
 })
 
-// Custom working directory, watching output as it streams
-const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
- cwd: 'src',
- onOutput: (data) => {
-   if (data.includes('error')) {
-     console.error('Build error detected:', data)
-   }
- }
-})
+// Custom working directory
+const listing = await proc.spawnAndCapture('ls', ['-1'], { cwd: 'src' })
 ```
 
 
@@ -401,7 +486,7 @@ console.log('worker pid:', worker.pid)
 
 
 
-**exec**
+**execSync**
 
 ```ts
 const greeting = proc.execSync('echo "Hello World"')
@@ -410,8 +495,48 @@ const version = proc.execSync('node --version')
 // Run in a different directory without changing the container's cwd
 const listing = proc.execSync('ls -1', { cwd: 'src' })
 
-// NOTE: exec throws on a non-zero exit code — commands that can fail
-// (e.g. git outside a repository) belong in a try/catch or execAndCapture
+// NOTE: execSync throws on a non-zero exit code — commands that can fail
+// (e.g. git outside a repository) belong in a try/catch, or better, use
+// tryExec() which runs through a real shell and never throws (the exit
+// code and stderr come back as data).
+```
+
+
+
+**exec**
+
+```ts
+// proc.exec('ls')            — throws: renamed
+const listing = proc.execSync('ls')          // sync, trimmed stdout
+const safe = await proc.tryExec('ls /maybe') // async, never throws
+```
+
+
+
+**tryExec**
+
+```ts
+// Quoted arguments survive intact
+const ok = await proc.tryExec('echo "two words"')
+console.log(ok.stdout.trim()) // 'two words'
+
+// Failure is data, not an exception
+const bad = await proc.tryExec('git -C /nowhere status')
+if (bad.exitCode !== 0) {
+ console.error('git failed:', bad.stderr.trim())
+}
+```
+
+
+
+**execJson**
+
+```ts
+// Parse structured CLI output directly
+const pkg = await proc.execJson<{ name: string }>('cat package.json')
+console.log(pkg.name)
+
+// const pr = await proc.execJson('gh pr view --json title,url')
 ```
 
 
@@ -470,3 +595,4 @@ if (proc.isProcessRunning('afplay')) {
  console.log('Audio is currently playing')
 }
 ```
+

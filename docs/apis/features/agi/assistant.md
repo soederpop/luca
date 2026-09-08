@@ -34,6 +34,8 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
+  // Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper
+  maxToolTurns,
   // The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted.
   contextWindow,
   // Sampling temperature (0-2)
@@ -48,6 +50,8 @@ container.feature('assistant', {
   presencePenalty,
   // Stop sequences
   stop,
+  // Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } }). Also settable in CORE.md frontmatter. Chat API only
+  extraBody,
   // Conversation history persistence mode
   historyMode,
   // Prepend timestamps to user messages so the assistant can perceive time passing between sessions
@@ -62,6 +66,8 @@ container.feature('assistant', {
   skills,
   // Options for the OpenAI client, passed through to the conversation
   clientOptions,
+  // Delegate images to a vision model when the assistant's own model has no vision. true for defaults, or { prompt, model, url, apiKey, batch, batchPrompt, concurrency }
+  visionSupport,
   // Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config
   config,
 })
@@ -84,6 +90,7 @@ container.feature('assistant', {
 | `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `maxToolTurns` | `number` | Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper |
 | `contextWindow` | `number` | The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted. |
 | `temperature` | `number` | Sampling temperature (0-2) |
 | `topP` | `number` | Nucleus sampling cutoff (0-1) |
@@ -91,6 +98,7 @@ container.feature('assistant', {
 | `frequencyPenalty` | `number` | Frequency penalty (-2 to 2) |
 | `presencePenalty` | `number` | Presence penalty (-2 to 2) |
 | `stop` | `array` | Stop sequences |
+| `extraBody` | `object` | Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } }). Also settable in CORE.md frontmatter. Chat API only |
 | `historyMode` | `string` | Conversation history persistence mode |
 | `injectTimestamps` | `boolean` | Prepend timestamps to user messages so the assistant can perceive time passing between sessions |
 | `allowTools` | `array` | Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching. |
@@ -98,6 +106,7 @@ container.feature('assistant', {
 | `toolNames` | `array` | Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns. |
 | `skills` | `array` | Skill names to preload when the assistant uses the skillsLibrary |
 | `clientOptions` | `object` | Options for the OpenAI client, passed through to the conversation |
+| `visionSupport` | `any` | Delegate images to a vision model when the assistant's own model has no vision. true for defaults, or { prompt, model, url, apiKey, batch, batchPrompt, concurrency } |
 | `config` | `object` | Free-form assistant-specific settings, untouched by the framework and readable from tools.ts/hooks.ts via assistant.config |
 
 ## Methods
@@ -140,11 +149,107 @@ Called immediately after the assistant is constructed. Synchronously loads the s
 
 
 
+### setModel
+
+Switch the model for every subsequent turn. Safe to call mid-chat — the conversation, its history, and its tools are all preserved.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `model` | `string` | ✓ | The model name to use from here on |
+
+**Returns:** `this`
+
+```ts
+assistant.setModel('gpt-5.4')
+await assistant.ask('try that again, more carefully')
+```
+
+
+
+### setProvider
+
+Switch the backend for every subsequent turn — including across transport families (an OpenAI-compatible endpoint to claude-code, say). Safe to call mid-chat: history and tools survive, and an unregistered provider id throws immediately rather than at the next `ask()`. With no explicit `model`, the new provider's own default model takes over.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `provider` | `string | Record<string, any> | null` | ✓ | A registered provider id, an inline provider config, or null for the container default |
+| `options` | `SetProviderOptions` |  | Optional `model` and `providerOptions` to apply along with the switch |
+
+**Returns:** `this`
+
+```ts
+assistant.setProvider('claude-code', { model: 'sonnet' })
+await assistant.ask('pick up where we left off')
+```
+
+
+
+### clearMessages
+
+Wipe this assistant's transcript, keeping its system prompt — "start over". Delegates to `Conversation#clearMessages`, so provider continuation handles are invalidated and `messagesVersion` bumps. Note this only clears the live conversation. A persisted thread is replayed on the next resume unless it is deleted too.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `ClearMessagesOptions` |  | Parameter options |
+
+**Returns:** `MessageEdit`
+
+```ts
+assistant.clearMessages()
+```
+
+
+
+### replaceMessage
+
+Rewrite one message already in this assistant's history — the supported way to redact it. Delegates to `Conversation#replaceMessage`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `selector` | `MessageSelector` | ✓ | Parameter selector |
+| `replacement` | `Message | ((message: Message, index: number) => Message)` | ✓ | Parameter replacement |
+
+**Returns:** `MessageEdit`
+
+```ts
+assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))
+```
+
+
+
+### retryFailedTurn
+
+Retry the recorded failed turn. Delegates to `Conversation#retryFailedTurn`: the surviving user input is re-run without duplication, and the failure's partial output is never replayed as context.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `AskOptions & { expectId?: string }` |  | Parameter options |
+
+**Returns:** `Promise<string>`
+
+```ts
+if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })
+```
+
+
+
 ### disableDelegation
 
 Permanently remove delegation capabilities from a child, including after reload.
 
 **Returns:** `this`
+
+
 
 ### addSystemPromptExtension
 
@@ -175,6 +280,20 @@ Remove a named system prompt extension.
 
 
 
+### toolFilterDecision
+
+Resolve whether one tool survives the assistant's current filters.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | Parameter name |
+
+**Returns:** `ToolFilterDecision`
+
+
+
 ### use
 
 Apply a setup function or a Helper instance to this assistant. When passed a function, it receives the assistant and can configure tools, hooks, event listeners, etc. When passed a Helper instance that exposes tools via toTools(), those tools are automatically added to this assistant.
@@ -183,7 +302,7 @@ Apply a setup function or a Helper instance to this assistant. When passed a fun
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `fnOrHelper` | `((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }` | ✓ | Setup function or Helper instance |
+| `fnOrHelper` | `((assistant: this) => void | Promise<void>) | { toTools: () => ToolsBundle } | ToolsBundle` | ✓ | Setup function or Helper instance |
 
 **Returns:** `this`
 
@@ -312,6 +431,36 @@ Override thread for resume. Call before start().
 
 
 
+### abort
+
+Abort the in-flight turn, if any. The pending `ask()` rejects with a `ConversationAbortError` whose `.partial` property carries the text streamed before the abort. Safe to call when nothing is running (no-op), and it never creates a conversation just to abort one.
+
+**Returns:** `this`
+
+```ts
+assistant.abort()
+```
+
+
+
+### switchThread
+
+Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `threadId` | `string` | ✓ | The thread ID to switch to |
+
+**Returns:** `Promise<this>`
+
+```ts
+await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')
+```
+
+
+
 ### listHistory
 
 List saved conversations for this assistant+project.
@@ -334,6 +483,14 @@ Delete all history for this assistant+project.
 
 
 
+### resolveConfiguredUse
+
+Materialize the `export const use = [...]` entries loaded from tools.ts. Safe to call before start(); entries are consumed once while configuredUse remains available for runtime introspection.
+
+**Returns:** `this`
+
+
+
 ### reload
 
 Reload tools, hooks, and system prompt from disk. Useful during development or when tool/hook files have been modified and you want the assistant to pick up changes without restarting.
@@ -347,6 +504,26 @@ Reload tools, hooks, and system prompt from disk. Useful during development or w
 Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.
 
 **Returns:** `Promise<this>`
+
+
+
+### describeImages
+
+Replace image parts in a content array with text descriptions produced by the configured vision model. Used by ask() when visionSupport is enabled; also callable directly, and `overrides` lets a single call opt into batch mode without reconfiguring the assistant. Two modes: - default: one vision call per image, run `concurrency` at a time. Each image is described in isolation, so the model cannot compare them. - batch: ONE call containing every image, described as an ordered sequence. Use this for video frames or before/after pairs — it is the only mode that can report what changed between images. All image parts collapse into a single text part where the first image was, so the returned array is shorter than the input.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `parts` | `ContentPart[]` | ✓ | Content parts possibly containing image_url entries |
+| `overrides` | `Partial<Pick<VisionSupportConfig, 'batch' | 'prompt' | 'batchPrompt' | 'concurrency'>>` |  | Per-call overrides for batch, prompt, batchPrompt, concurrency |
+
+**Returns:** `Promise<ContentPart[]>`
+
+```ts
+// Describe video frames as one sequence, so motion survives the hand-off
+const described = await assistant.describeImages(frames, { batch: true })
+```
 
 
 
@@ -488,8 +665,10 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
 | `conversation` | `Conversation` |  |
+| `routing` | `ConversationRouting` | Where the assistant's next turn will go: provider, model, OpenAI dialect, and turn loop. Derived live from the underlying conversation. |
 | `availableTools` | `any` |  |
 | `messages` | `any` |  |
+| `failedTurn` | `FailedTurnRecord | null` | The most recent failed turn, or null when the last turn succeeded. See `Conversation` state `failedTurn` for the contract. |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
 | `isFork` | `boolean` | Whether this assistant was created via fork(). |
 | `forkDepth` | `number` | How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc. |
@@ -498,6 +677,10 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `systemPromptExtensions` | `Record<string, string>` | The named extensions appended to the system prompt. |
 | `effectiveSystemPrompt` | `string` | The system prompt with all extensions appended. This is the value passed to the conversation. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
+| `allTools` | `Record<string, ConversationTool>` | Every known tool before allow/forbid/toolNames filters are applied. |
+| `schemas` | `Record<string, z.ZodType>` | Live Zod schemas keyed by tool name. |
+| `toolSources` | `Record<string, string>` | Provenance for every live tool: feature id, tools.ts, or runtime. |
+| `configuredUse` | `any[]` | Resolved entries exported by tools.ts as `use`, retained after startup. |
 | `meta` | `Record<string, any>` | Parsed YAML frontmatter from CORE.md, or empty object if none. |
 | `effectiveOptions` | `AssistantOptions & Record<string, any>` | Merged options where CORE.md frontmatter provides defaults and constructor options take precedence. Prefer this over `this.options` anywhere model parameters or runtime config is consumed. |
 | `config` | `Record<string, any>` | Assistant-specific settings the framework never interprets — the supported home for arbitrary configuration. Every other option is schema-validated, so unknown top-level keys are silently stripped; keys nested under `config` survive untouched. Three layers deep-merge, weakest first: a `config:` block in the assistant's own CORE.md frontmatter, then the workspace's `assistants/options.yml` (`defaults.config` then `<name>.config`), then `config` passed to `create()`. The options.yml layer is what lets a project configure assistants it does not own — ones contributed by a plugin, or discovered from `~/.luca/assistants`. |
@@ -507,6 +690,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `threadPrefix` | `string` | The thread prefix for this assistant+project combination. |
 | `conversationHistory` | `ConversationHistory` | The conversationHistory feature instance. |
 | `currentThreadId` | `string | undefined` | The active thread ID (undefined in lifecycle mode). |
+| `visionSupport` | `VisionSupportConfig | undefined` | Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model. |
 | `availableSubagents` | `string[]` | Names of assistants available as subagents, discovered via the assistantsManager. |
 
 ## Events (Zod v4 schema)
@@ -582,6 +766,18 @@ Emitted as tokens stream in
 | Name | Type | Description |
 |------|------|-------------|
 | `arg0` | `string` | A chunk of streamed text |
+
+
+
+### reasoning
+
+Emitted as a thinking model streams its reasoning, before and between answer chunks. Never included in the response text or message history; availability and shape depend on the provider (raw thinking from local models, summaries from the OpenAI Responses API, nothing from codex/claude-code sessions)
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | A delta of reasoning/thinking text |
 
 
 
@@ -678,6 +874,22 @@ Emitted when the assistant has been initialized
 
 
 
+### visionDescription
+
+Emitted when visionSupport delegates an image to the vision model and receives a description. In batch mode it fires once with batch: true and count set to the number of images described together
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `index` | `number` |  |
+| `description` | `string` |  |
+| `model` | `string` |  |
+| `batch` | `boolean` |  |
+| `count` | `number` |  |
+
+
+
 ### answered
 
 Event emitted by Assistant
@@ -720,6 +932,48 @@ const answer = await assistant.ask('What capabilities do you have?')
 
 
 
+**setModel**
+
+```ts
+assistant.setModel('gpt-5.4')
+await assistant.ask('try that again, more carefully')
+```
+
+
+
+**setProvider**
+
+```ts
+assistant.setProvider('claude-code', { model: 'sonnet' })
+await assistant.ask('pick up where we left off')
+```
+
+
+
+**clearMessages**
+
+```ts
+assistant.clearMessages()
+```
+
+
+
+**replaceMessage**
+
+```ts
+assistant.replaceMessage(-1, message => ({ ...message, content: '[redacted]' }))
+```
+
+
+
+**retryFailedTurn**
+
+```ts
+if (assistant.failedTurn) await assistant.retryFailedTurn({ expectId: assistant.failedTurn.id })
+```
+
+
+
 **use**
 
 ```ts
@@ -735,6 +989,31 @@ assistant
 ```ts
 const profile = me.setting('gwsProfile', 'default')
 const budget = me.setting('limits.maxDownloads', 25)
+```
+
+
+
+**abort**
+
+```ts
+assistant.abort()
+```
+
+
+
+**switchThread**
+
+```ts
+await assistant.switchThread('researcher:1a2b3c4d:2026-08-01')
+```
+
+
+
+**describeImages**
+
+```ts
+// Describe video frames as one sequence, so motion survives the hand-off
+const described = await assistant.describeImages(frames, { batch: true })
 ```
 
 
@@ -790,6 +1069,15 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 
 
 
+**routing**
+
+```ts
+assistant.routing
+// => { provider: 'local', model: 'qwen3-coder', apiMode: 'chat', transport: 'openai' }
+```
+
+
+
 **config**
 
 ```yaml
@@ -803,3 +1091,4 @@ googleWorkspace:
 // assistants/googleWorkspace/tools.ts
 export const use = [container.feature('gws', { profile: me.config.gwsProfile })]
 ```
+

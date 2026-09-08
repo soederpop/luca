@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).
+HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).
 
 ## Usage
 
@@ -158,15 +158,159 @@ if (me?.name === 'AxiosError') console.error(me.status, me.message)
 
 ### handleError
 
-Handle an axios error by emitting 'failure' and returning the error as JSON.
+Handle an axios error by emitting 'failure' and returning the error as a plain JSON object. Unlike axios' bare `error.toJSON()` (which drops the response entirely), the returned object also carries `data` (the parsed response body — validation details, API error codes, rate-limit messages) and `headers` from the failed response when one exists.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `error` | `AxiosError` | ✓ | Parameter error |
+| `error` | `AxiosError` | ✓ | The axios error caught from a failed request |
 
 **Returns:** `Promise<object>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }
+if (result?.name === 'AxiosError') {
+ console.error(result.status, result.data)   // 422 { error: 'validation_failed' }
+}
+```
+
+
+
+### requestOrThrow
+
+Shared implementation for the OrThrow request variants. Sends the request and returns the parsed body on success. On any failure — HTTP error status or connection-level failure — emits 'failure' and **throws** a real Error carrying `status` (numeric HTTP status, when there was a response), `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with a body summary in the message.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `config` | `AxiosRequestConfig` | ✓ | Full axios request config (method, url, data/params, headers, ...) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })
+} catch (err) {
+ console.error(err.status, err.data)   // 422 { error: 'validation_failed' }
+}
+```
+
+
+
+### getOrThrow
+
+Send a GET request that **throws on failure** instead of returning the error. Use this when a failed request has no meaningful "inspect the returned error" semantics (auth checks, listings, lookups). The thrown Error carries `status`, `code`, and `data` (parsed response body).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | ✓ | Request path relative to baseURL |
+| `params` | `any` |  | Query parameters (serialized into the query string) |
+| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ const me = await api.getOrThrow('/me')
+} catch (err) {
+ console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }
+}
+```
+
+
+
+### postOrThrow
+
+Send a POST request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data` (parsed response body — validation details, API error codes).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | ✓ | Request path relative to baseURL |
+| `data` | `any` |  | Request body (JSON-encoded when the `json` option is set) |
+| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ const created = await api.postOrThrow('/users', { name: 'Alice' })
+} catch (err) {
+ console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }
+}
+```
+
+
+
+### putOrThrow
+
+Send a PUT request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | ✓ | Request path relative to baseURL |
+| `data` | `any` |  | Request body (the full replacement representation) |
+| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
+```
+
+
+
+### patchOrThrow
+
+Send a PATCH request that **throws on failure** instead of returning the error. The thrown Error carries `status`, `code`, and `data`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | ✓ | Request path relative to baseURL |
+| `data` | `any` |  | Request body (the partial update) |
+| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
+```
+
+
+
+### deleteOrThrow
+
+Send a DELETE request that **throws on failure** instead of returning the error. Like `delete()`, the second argument is query params, not a body. The thrown Error carries `status`, `code`, and `data`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | ✓ | Request path relative to baseURL |
+| `params` | `any` |  | Query parameters (serialized into the query string) |
+| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+
+**Returns:** `Promise<any>`
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
+```
 
 
 
@@ -280,5 +424,83 @@ const me = await api.get('/me', {}, { headers: { Authorization: `Bearer ${token}
 
 // errors come back as a plain object, not a throw
 if (me?.name === 'AxiosError') console.error(me.status, me.message)
+```
+
+
+
+**handleError**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const result = await api.post('/users', {})   // server replies 422 { error: 'validation_failed' }
+if (result?.name === 'AxiosError') {
+ console.error(result.status, result.data)   // 422 { error: 'validation_failed' }
+}
+```
+
+
+
+**requestOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ await api.requestOrThrow({ method: 'POST', url: '/users', data: {} })
+} catch (err) {
+ console.error(err.status, err.data)   // 422 { error: 'validation_failed' }
+}
+```
+
+
+
+**getOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ const me = await api.getOrThrow('/me')
+} catch (err) {
+ console.error(err.status, err.data)   // e.g. 401 { error: 'invalid_api_key' }
+}
+```
+
+
+
+**postOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+try {
+ const created = await api.postOrThrow('/users', { name: 'Alice' })
+} catch (err) {
+ console.error(err.status, err.data)   // e.g. 422 { error: 'validation_failed' }
+}
+```
+
+
+
+**putOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
+```
+
+
+
+**patchOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
+```
+
+
+
+**deleteOrThrow**
+
+```ts
+const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
+await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
 ```
 

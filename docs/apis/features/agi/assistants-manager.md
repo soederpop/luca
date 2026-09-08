@@ -322,6 +322,213 @@ Generates a markdown summary of all discovered assistants, listing their names a
 
 
 
+### listAssistants
+
+Tool-facing wrapper around {@link toSummary}: markdown listing of every discovered assistant and its definition files. Runs discovery first if it hasn't happened yet, so the tool works on a cold container.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `_args` | `Record<string, never>` |  | Parameter _args |
+
+**Returns:** `Promise<string>`
+
+```ts
+console.log(await manager.listAssistants({}))
+```
+
+
+
+### createAssistant
+
+Create a new assistant definition: `assistants/<name>/` with the given CORE.md and a minimal tools.ts, then re-run discovery so it is immediately available to `create()`. Refuses to touch an existing assistant.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; corePrompt: string }` | ✓ | Arguments |
+
+`{ name: string; corePrompt: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | Folder name for the new assistant |
+| `corePrompt` | `any` | Full CORE.md contents (system prompt, optional frontmatter) |
+
+**Returns:** `Promise<{ created: string; folder: string }>`
+
+```ts
+await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })
+```
+
+
+
+### readDefinitionFile
+
+Read one definition file of a discovered assistant. Only the known definition files (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml) are readable — anything else throws, so a tool call cannot traverse paths.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; file: string }` | ✓ | Arguments |
+
+`{ name: string; file: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant name |
+| `file` | `any` | The definition file to read |
+
+**Returns:** `string`
+
+```ts
+const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })
+```
+
+
+
+### writeDefinitionFile
+
+Overwrite one definition file with complete new contents, guarded two ways: TypeScript files are first written to a staged copy and loaded through the vm feature — a file that fails to load is rejected and the original stays untouched (a broken tools.ts would otherwise silently cripple the assistant). The previous version is backed up to `.history/` in the assistant's folder (the rollback path — no git involved), and any live instance is reloaded so the edit takes effect immediately.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; file: string; content: string }` | ✓ | Arguments |
+
+`{ name: string; file: string; content: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant name |
+| `file` | `any` | The definition file to overwrite |
+| `content` | `any` | The complete new file contents |
+
+**Returns:** `Promise<{ wrote: string; backedUp: string | null; reloaded: boolean }>`
+
+```ts
+await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })
+```
+
+
+
+### listDefinitionHistory
+
+List the `.history/` backups for an assistant, newest first. Every successful {@link writeDefinitionFile} over an existing file creates one.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; file?: string }` | ✓ | Arguments |
+
+`{ name: string; file?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant name |
+| `file` | `any` | Filter to backups of one file |
+
+**Returns:** `string[]`
+
+```ts
+manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })
+```
+
+
+
+### rollbackDefinitionFile
+
+Restore the most recent `.history/` backup of a definition file — the undo for {@link writeDefinitionFile}. Reloads any live instance afterward. The backup itself is kept, so repeated rollbacks are safe.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; file: string }` | ✓ | Arguments |
+
+`{ name: string; file: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant name |
+| `file` | `any` | The definition file to restore |
+
+**Returns:** `Promise<{ restoredFrom: string; reloaded: boolean }>`
+
+```ts
+await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })
+```
+
+
+
+### testAssistant
+
+Spin up a detached instance of an assistant and send it one message — the verification half of the edit → test loop. The instance is created uncached so it does not disturb (or get confused with) a live instance of the same assistant. Makes real model calls.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string; message: string }` | ✓ | Arguments |
+
+`{ name: string; message: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant name (must be a discovered entry) |
+| `message` | `any` | The message to send |
+
+**Returns:** `Promise<{ reply: string; toolCalls: Array<{ tool: string; args: Record<string, any> }>; availableTools: string[] }>`
+
+```ts
+const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })
+```
+
+
+
+### reloadAssistant
+
+Args-object wrapper around {@link reload} for tool consumption.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ name: string }` | ✓ | Arguments |
+
+`{ name: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | `any` | The assistant to reload (must have an active instance) |
+
+**Returns:** `{ reloaded: string[] }`
+
+```ts
+manager.reloadAssistant({ name: 'researcher' })
+```
+
+
+
+### setupToolsConsumer
+
+When an assistant consumes this manager via `use()`, inject the operating doctrine for editing assistants safely.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -556,5 +763,69 @@ const full = await manager.loadAssistantHistory('researcher', { includeMessages:
 
 // Load a specific thread
 const thread = await manager.loadAssistantHistory('researcher', { thread: 'researcher:abc12345:2026-04-12' })
+```
+
+
+
+**listAssistants**
+
+```ts
+console.log(await manager.listAssistants({}))
+```
+
+
+
+**createAssistant**
+
+```ts
+await manager.createAssistant({ name: 'haikuWriter', corePrompt: 'You write haiku about code.' })
+```
+
+
+
+**readDefinitionFile**
+
+```ts
+const core = manager.readDefinitionFile({ name: 'researcher', file: 'CORE.md' })
+```
+
+
+
+**writeDefinitionFile**
+
+```ts
+await manager.writeDefinitionFile({ name: 'haikuWriter', file: 'CORE.md', content: '# New prompt' })
+```
+
+
+
+**listDefinitionHistory**
+
+```ts
+manager.listDefinitionHistory({ name: 'haikuWriter', file: 'tools.ts' })
+```
+
+
+
+**rollbackDefinitionFile**
+
+```ts
+await manager.rollbackDefinitionFile({ name: 'haikuWriter', file: 'tools.ts' })
+```
+
+
+
+**testAssistant**
+
+```ts
+const { reply, toolCalls } = await manager.testAssistant({ name: 'haikuWriter', message: 'Write one about zod' })
+```
+
+
+
+**reloadAssistant**
+
+```ts
+manager.reloadAssistant({ name: 'researcher' })
 ```
 

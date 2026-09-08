@@ -14,6 +14,8 @@ container.feature('redis', {
   prefix,
   // If true, connection is deferred until first command
   lazyConnect,
+  // Per-command timeout in milliseconds passed to ioredis (default 10000). Prevents commands from hanging unboundedly when the server is unreachable — a timed-out command rejects instead of waiting forever.
+  commandTimeout,
 })
 ```
 
@@ -24,8 +26,50 @@ container.feature('redis', {
 | `url` | `string` | Redis connection URL, e.g. redis://localhost:6379. Defaults to redis://localhost:6379 |
 | `prefix` | `string` | Key prefix applied to all get/set/del operations for namespace isolation |
 | `lazyConnect` | `boolean` | If true, connection is deferred until first command |
+| `commandTimeout` | `number` | Per-command timeout in milliseconds passed to ioredis (default 10000). Prevents commands from hanging unboundedly when the server is unreachable — a timed-out command rejects instead of waiting forever. |
 
 ## Methods
+
+### ping
+
+Check whether the redis server is actually reachable. Sends a PING and resolves `true` on a reply, `false` on any error or when no reply arrives within the timeout — it never throws and never hangs, so it is safe as a liveness probe against a server that may not exist at all.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `timeoutMs` | `number` |  | How long to wait for the PONG (default 2000ms) |
+
+**Returns:** `Promise<boolean>`
+
+```ts
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+if (!(await redis.ping())) {
+ console.error('redis is not reachable at', redis.state.get('url'))
+}
+```
+
+
+
+### ensureConnected
+
+Ensure a live connection to the redis server, or throw a descriptive error. Uses {@link ping} under the hood, so it also verifies servers that were configured with `lazyConnect`. Use it at startup to fail fast with a clear message instead of letting the first real command hang or retry forever.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `timeoutMs` | `number` |  | How long to wait for the server to respond (default 5000ms) |
+
+**Returns:** `Promise<this>`
+
+```ts
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+await redis.ensureConnected()        // throws fast if nothing is listening
+await redis.set('worker:status', 'active')
+```
+
+
 
 ### set
 
@@ -359,6 +403,27 @@ await redis.publish('tasks', JSON.stringify({ type: 'ping' }))
 // JSON helpers
 await redis.setJSON('config', { workers: 4, debug: true })
 const config = await redis.getJSON<{ workers: number }>('config')
+```
+
+
+
+**ping**
+
+```ts
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+if (!(await redis.ping())) {
+ console.error('redis is not reachable at', redis.state.get('url'))
+}
+```
+
+
+
+**ensureConnected**
+
+```ts
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+await redis.ensureConnected()        // throws fast if nothing is listening
+await redis.set('worker:status', 'active')
 ```
 
 

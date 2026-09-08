@@ -14,7 +14,7 @@ container.feature('grep')
 
 ### search
 
-Search for a pattern in files and return structured results.
+Search for a pattern in files and return structured results. Zero matches returns `[]`. Any other failure — invalid regex, nonexistent search path, unreadable files — THROWS with the underlying rg/grep stderr in the message, so a broken pattern is never mistaken for "no matches". `maxResults` caps the TOTAL number of returned matches (sliced after parsing). When `before`/`after` context is requested, each match gains `before`/`after` arrays holding the surrounding lines' text.
 
 **Parameters:**
 
@@ -34,7 +34,7 @@ Search for a pattern in files and return structured results.
 | `fixedStrings` | `boolean` | Treat pattern as a fixed string, not regex |
 | `recursive` | `boolean` | Search recursively (default: true) |
 | `hidden` | `boolean` | Include hidden files |
-| `maxResults` | `number` | Max number of results to return |
+| `maxResults` | `number` | Max total number of results to return (results are truncated after parsing; also passed to rg/grep as a per-file bound for performance) |
 | `before` | `number` | Number of context lines before match |
 | `after` | `number` | Number of context lines after match |
 | `filesOnly` | `boolean` | Only return filenames, not match details |

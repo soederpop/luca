@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
+WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. Incoming messages are automatically JSON-parsed by default (with `.toString()` for Buffer data), matching the always-JSON outbound framing and the Luca websocket client; a frame that is not valid JSON is passed through untouched. Pass `json: false` to opt out and receive raw Buffer/string data as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
 
 ## Usage
 
@@ -12,7 +12,7 @@ container.server('websocket', {
   port,
   // Hostname or IP address to bind to
   host,
-  // When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.
+  // Inbound JSON parsing, enabled by DEFAULT: incoming messages are JSON-parsed before emitting the message event, and frames that are not valid JSON are passed through untouched as raw data. Set json: false to opt out and always receive raw Buffer/string data (for binary-protocol consumers). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.
   json,
   // Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port.
   server,
@@ -29,7 +29,7 @@ container.server('websocket', {
 |----------|------|-------------|
 | `port` | `number` | Port number to listen on |
 | `host` | `string` | Hostname or IP address to bind to |
-| `json` | `boolean` | When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing. |
+| `json` | `boolean` | Inbound JSON parsing, enabled by DEFAULT: incoming messages are JSON-parsed before emitting the message event, and frames that are not valid JSON are passed through untouched as raw data. Set json: false to opt out and always receive raw Buffer/string data (for binary-protocol consumers). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing. |
 | `server` | `any` | Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port. |
 | `noServer` | `boolean` | Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server's "upgrade" event. |
 | `path` | `string` | Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding. |
@@ -121,7 +121,7 @@ await server.stop()
 
 ### start
 
-Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port.
+Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port. When a port was explicitly requested (constructor option or start({ port })) and it is busy, start() throws an EADDRINUSE-style Error rather than silently binding a different port. Auto-selection (with a `portChanged` event) only happens when no port was specified.
 
 **Parameters:**
 
@@ -182,6 +182,19 @@ Fires when a message is received from a client. Handler signature: (data, ws)
 |------|------|-------------|
 | `arg0` | `any` | The message data (JSON-parsed object when json option is enabled, raw Buffer/string otherwise) |
 | `arg1` | `any` | The WebSocket client that sent the message — use with server.send(ws, data) to reply |
+
+
+
+### portChanged
+
+Emitted when configure() auto-selects a different port because the default one was busy. Only fires when no port was explicitly requested — an explicit busy port throws EADDRINUSE instead of drifting.
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | The port originally requested |
+| `arg1` | `number` | The open port actually selected |
 
 
 

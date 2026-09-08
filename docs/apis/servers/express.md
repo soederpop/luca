@@ -41,7 +41,7 @@ container.server('express', {
 
 ### start
 
-Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op.
+Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op. Rejects with the listen error (e.g. `code: 'EADDRINUSE'` when the port is busy) instead of hanging — so `await start()` is try/catch-able.
 
 **Parameters:**
 
@@ -223,7 +223,19 @@ Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated fr
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `{ title?: string; version?: string; description?: string }` |  | Optional info-block overrides (title, version, description) |
+| `options` | `OpenAPISpecOptions` |  | Optional info-block overrides (title, version, description) |
+
+`OpenAPISpecOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `title` | `string` |  |
+| `version` | `string` |  |
+| `description` | `string` |  |
+| `summary` | `string` |  |
+| `servers` | `Array<{ url: string; description?: string }>` | Public URLs for the API. Defaults to the local address the server bound to. |
+| `securitySchemes` | `Record<string, any>` | OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }` |
+| `security` | `any[]` | Root security requirement applied to every endpoint that does not export its own |
 
 **Returns:** `this`
 
@@ -252,7 +264,19 @@ Build an OpenAPI 3.1 document describing every mounted endpoint — paths come f
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `{ title?: string; version?: string; description?: string }` |  | Optional info-block overrides (title, version, description) |
+| `options` | `OpenAPISpecOptions` |  | Info-block overrides (title, version, description), plus |
+
+`OpenAPISpecOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `title` | `string` |  |
+| `version` | `string` |  |
+| `description` | `string` |  |
+| `summary` | `string` |  |
+| `servers` | `Array<{ url: string; description?: string }>` | Public URLs for the API. Defaults to the local address the server bound to. |
+| `securitySchemes` | `Record<string, any>` | OpenAPI `components.securitySchemes` — e.g. `{ bearerAuth: { type: 'http', scheme: 'bearer' } }` |
+| `security` | `any[]` | Root security requirement applied to every endpoint that does not export its own |
 
 **Returns:** `Record<string, any>`
 
@@ -276,6 +300,21 @@ console.log(Object.keys(spec.paths))  // ['/status']
 | `httpServer` | `any` | The underlying Node http.Server, available once the app is listening (`undefined` before `start()`). Pass it — or this express server itself — to `container.server('websocket', { server })` to run a WebSocket on the same port via the Upgrade handshake. |
 | `hooks` | `{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }` | The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops. |
 | `app` | `Express` | The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly. |
+
+## Events (Zod v4 schema)
+
+### portChanged
+
+Emitted when configure() auto-selects a different port because the default one was busy. Only fires when no port was explicitly requested — an explicit busy port throws EADDRINUSE instead of drifting.
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | The port originally requested |
+| `arg1` | `number` | The open port actually selected |
+
+
 
 ## State (Zod v4 schema)
 

@@ -27,6 +27,20 @@ container.feature('docker', {
 
 ## Methods
 
+### setupToolsConsumer
+
+When an assistant consumes these tools, inject usage guidance about container lifecycle and command execution.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
+
 ### checkDockerAvailability
 
 Check if Docker is available and working.

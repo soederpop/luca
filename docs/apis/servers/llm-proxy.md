@@ -130,6 +130,21 @@ Fetch logs from the LiteLLM container.
 | `configDir` | `string` | Directory the generated config.yaml and env file live in. |
 | `envFilePath` | `string` | Path of the env file holding the injected secrets. |
 
+## Events (Zod v4 schema)
+
+### portChanged
+
+Emitted when configure() auto-selects a different port because the default one was busy. Only fires when no port was explicitly requested — an explicit busy port throws EADDRINUSE instead of drifting.
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | The port originally requested |
+| `arg1` | `number` | The open port actually selected |
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |

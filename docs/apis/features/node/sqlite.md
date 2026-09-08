@@ -30,6 +30,20 @@ container.feature('sqlite', {
 
 ## Methods
 
+### setupToolsConsumer
+
+When an assistant consumes these tools, inject guidance about the placeholder style and the read/write tool split.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
+
 ### query
 
 Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.
@@ -79,6 +93,62 @@ const { changes, lastInsertRowid } = await db.execute(
  ['hello@example.com']
 )
 console.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)
+```
+
+
+
+### queryOne
+
+Executes a SELECT-like query expected to return a single row. Returns the first result row, or `null` when the query matches nothing — no more `(await query(...))[0] ?? null` dance. Use sqlite placeholders (`?`) for `params`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `queryText` | `string` | ✓ | The SQL query string with optional `?` placeholders |
+| `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
+
+**Returns:** `Promise<T | null>`
+
+```ts
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+
+const user = await db.queryOne<{ id: number; email: string }>(
+ 'SELECT id, email FROM users WHERE email = ?',
+ ['hello@example.com']
+)
+console.log(user) // { id: 1, email: 'hello@example.com' }
+
+const missing = await db.queryOne('SELECT * FROM users WHERE id = ?', [999])
+console.log(missing) // null
+```
+
+
+
+### run
+
+Runs any SQL statement and returns the shape that fits it — no SELECT-vs-write classification required from the caller. The statement's leading keyword (after skipping whitespace, `--` line comments, and `/* ... *\/` block comments) decides the path: `SELECT`, `WITH`, `PRAGMA`, and `EXPLAIN` go through `query()` and return rows; everything else goes through `execute()` and returns `{ changes, lastInsertRowid }`. This removes the silent-failure gotcha where `query('INSERT ...')` returns `[]` or `execute('SELECT ...')` discards the rows.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `queryText` | `string` | ✓ | The SQL statement string with optional `?` placeholders |
+| `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
+
+**Returns:** `Promise<T[] | { changes: number; lastInsertRowid: number | bigint | null }>`
+
+```ts
+const db = container.feature('sqlite') // in-memory
+await db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+
+const meta = await db.run('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+console.log(meta) // { changes: 1, lastInsertRowid: 1 }
+
+const rows = await db.run('SELECT id, email FROM users')
+console.log(rows) // [{ id: 1, email: 'hello@example.com' }]
 ```
 
 
@@ -265,6 +335,40 @@ const { changes, lastInsertRowid } = await db.execute(
  ['hello@example.com']
 )
 console.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)
+```
+
+
+
+**queryOne**
+
+```ts
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+
+const user = await db.queryOne<{ id: number; email: string }>(
+ 'SELECT id, email FROM users WHERE email = ?',
+ ['hello@example.com']
+)
+console.log(user) // { id: 1, email: 'hello@example.com' }
+
+const missing = await db.queryOne('SELECT * FROM users WHERE id = ?', [999])
+console.log(missing) // null
+```
+
+
+
+**run**
+
+```ts
+const db = container.feature('sqlite') // in-memory
+await db.run('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+
+const meta = await db.run('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+console.log(meta) // { changes: 1, lastInsertRowid: 1 }
+
+const rows = await db.run('SELECT id, email FROM users')
+console.log(rows) // [{ id: 1, email: 'hello@example.com' }]
 ```
 
 

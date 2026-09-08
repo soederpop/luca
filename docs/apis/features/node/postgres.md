@@ -10,6 +10,8 @@ Postgres feature for safe SQL execution through Bun's native SQL client. Support
 container.feature('postgres', {
   // Postgres connection URL, e.g. postgres://user:pass@host:5432/db
   url,
+  // Open the session read-only: sets default_transaction_read_only=on via the connection URL so the server rejects writes, and makes execute() throw locally. A determined SQL author can still SET it off — use a SELECT-only role for hard enforcement.
+  readOnly,
 })
 ```
 
@@ -18,8 +20,23 @@ container.feature('postgres', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
+| `readOnly` | `boolean` | Open the session read-only: sets default_transaction_read_only=on via the connection URL so the server rejects writes, and makes execute() throw locally. A determined SQL author can still SET it off — use a SELECT-only role for hard enforcement. |
 
 ## Methods
+
+### setupToolsConsumer
+
+When an assistant consumes these tools, inject guidance about the placeholder style, the read/write tool split, and read-only mode.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
 
 ### query
 
@@ -185,6 +202,11 @@ const users = await postgres.query<{ id: number; email: string }>(
 const rows = await postgres.sql<{ id: number }>`
  select id from users where email = ${'hello@example.com'}
 `
+
+// Read-only session: the server rejects writes and execute() throws locally.
+// Guardrail, not a boundary — arbitrary SQL can SET it back off, so use a
+// SELECT-only role when the caller is untrusted (e.g. an AI assistant).
+const reader = container.feature('postgres', { url: process.env.DATABASE_URL!, readOnly: true })
 ```
 
 

@@ -8,7 +8,7 @@ Provides access to a Contentbase Collection for a folder of structured markdown 
 
 ```ts
 container.feature('contentDb', {
-  // Root directory path containing the structured markdown collection
+  // Root directory path containing the structured markdown collection (resolved against the container cwd)
   rootPath,
 })
 ```
@@ -17,7 +17,7 @@ container.feature('contentDb', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `rootPath` | `string` | Root directory path containing the structured markdown collection |
+| `rootPath` | `string` | Root directory path containing the structured markdown collection (resolved against the container cwd) |
 
 ## Methods
 
@@ -78,13 +78,13 @@ Render a tree view of the collection directory structure. Built with container.f
 
 ### query
 
-Query documents belonging to a specific model definition.
+Query documents belonging to a specific model definition. The query's terminal methods (`fetchAll()`, `first()`, `count()`, ...) auto-load the collection, so you don't need to call `load()` first when you already hold a valid model definition. The usual pre-load failure is the *argument*: `contentDb.models.MyModel` is `undefined` until models are discovered at load time — this method throws a descriptive error in that case instead of the opaque TypeError it used to surface downstream.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `model` | `T` | ✓ | The model definition to query against |
+| `model` | `T` | ✓ | The model definition to query against (e.g. `contentDb.models.Article`) |
 
 **Returns:** `void`
 
@@ -164,7 +164,19 @@ console.log(inline.title) // 'Hello'
 
 ### load
 
-Load the collection, discovering models from models.ts and parsing all documents.
+Load the collection, discovering models from models.ts and parsing all documents. When a models file (models.ts/js/mjs) exists in the collection root but fails to evaluate — a broken import, a syntax error — this throws a descriptive error that includes the underlying failure, instead of silently matching every document against the fallback `Base` model. Pass `{ ignoreModelErrors: true }` to load anyway; the failure is still recorded in the `modelLoadError` state field either way (also exposed via the {@link modelLoadError} getter).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ ignoreModelErrors?: boolean }` |  | Load options |
+
+`{ ignoreModelErrors?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ignoreModelErrors` | `any` | When true, a broken models file is recorded in state but does not abort the load |
 
 **Returns:** `Promise<ContentDb>`
 
@@ -172,6 +184,10 @@ Load the collection, discovering models from models.ts and parsing all documents
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
 console.log(contentDb.isLoaded) // true
+console.log(contentDb.modelLoadError) // null when models.ts loaded cleanly
+
+// Tolerant load: a broken models.ts is recorded instead of thrown
+// await contentDb.load({ ignoreModelErrors: true })
 ```
 
 
@@ -455,6 +471,20 @@ Read multiple documents with optional section filtering.
 
 
 
+### describeContentModel
+
+Describe one content model's shape (or every model when none is given).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ model?: string }` |  | Parameter args |
+
+**Returns:** `void`
+
+
+
 ### queryDocuments
 
 Query documents by model with filters, sort, limit.
@@ -575,10 +605,11 @@ if (!report.valid) {
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
 | `available` | `string[]` | Returns the available document ids in the collection |
+| `modelLoadError` | `string | null` | Error message from the last load()'s models-file evaluation, or null when the models file loaded cleanly (or none exists). |
 | `modelDefinitionTable` | `Record<string, { description: string; glob: string; routePatterns: string[] }>` |  |
 | `fileTree` | `string` |  |
 | `searchIndexStatus` | `{ exists: boolean; documentCount: number; chunkCount: number; embeddingCount: number; lastIndexedAt: any; provider: any; model: any; dimensions: number; dbSizeBytes: number }` | Get the current search index status. |
-| `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. |
+| `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. Throws when the collection has not been loaded yet — models are discovered at load time, so accessing `queries` earlier would return a silently empty map. |
 
 ## Events (Zod v4 schema)
 
@@ -593,9 +624,9 @@ When the content collection is reloaded from disk
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-| `loaded` | `boolean` | Whether the content collection has been loaded and parsed |
 | `tableOfContents` | `string` | Generated table of contents string for the collection |
 | `modelSummary` | `string` | Summary of all discovered content models and their document counts |
+| `modelLoadError` | `any` | Error message when the collection's models file exists but failed to evaluate during load(); null when models loaded cleanly |
 
 ## Examples
 
@@ -663,6 +694,10 @@ console.log(inline.title) // 'Hello'
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
 console.log(contentDb.isLoaded) // true
+console.log(contentDb.modelLoadError) // null when models.ts loaded cleanly
+
+// Tolerant load: a broken models.ts is recorded instead of thrown
+// await contentDb.load({ ignoreModelErrors: true })
 ```
 
 

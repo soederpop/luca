@@ -262,6 +262,45 @@ Like resolveDefaultId(), but throws an actionable error when no provider is avai
 
 
 
+### discover
+
+Scan for live OpenAI-compatible LLM servers by probing `GET /v1/models` on well-known ports (LM Studio 1234, Ollama 11434, llama.cpp 8080, vLLM 8000, and friends — see KNOWN_LLM_PORTS). Probes localhost by default, plus any extra `hosts` you pass, plus every online tailscale peer when the `tailscale` CLI is installed and running. Everything fails gracefully: a host that isn't listening, times out, or answers with something that isn't a models list is simply omitted, and a missing tailscale is skipped silently — discover() never throws for an unreachable target. Results (including empty scans) are cached in state for the latest scan options for this feature instance. Repeat calls reuse them; pass `refresh: true` to rescan. Changed hosts, ports, timeout, tailscale settings, or probe function trigger a new scan. Concurrent identical scans are shared. Read discoveredServers, discoveredModels, hasDiscovered, and discoveredAt synchronously after awaiting discovery. Pass `register: true` to turn each hit into a provider profile (via registerLocal) so assistants can use it immediately; servers whose baseURL already matches a registered profile are reported with that profileId instead of creating a duplicate.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `ModelProviderDiscoverOptions` |  | Parameter options |
+
+`ModelProviderDiscoverOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ports` | `number[]` | Ports to probe on every host. Defaults to KNOWN_LLM_PORTS. |
+| `hosts` | `string[]` | Extra hosts to probe in addition to localhost (IPs or hostnames). |
+| `localhost` | `boolean` | Probe localhost. Default true. |
+| `tailscale` | `boolean` | Look for online tailscale peers and probe them too. Default true; silently skipped when tailscale isn't installed or running. |
+| `timeoutMs` | `number` | Per-probe timeout in milliseconds. Default 1500. |
+| `register` | `boolean` | Register each discovered server as a provider profile (via registerLocal) unless one with the same baseURL already exists. Default false. |
+| `refresh` | `boolean` | Bypass cached results and scan again. Concurrent scans with the same options are shared. |
+| `probe` | `(url: string, init: { signal: AbortSignal }) => Promise<{ ok: boolean; json(): Promise<any> }>` | Injectable fetch used for probes — for tests. Defaults to global fetch. |
+
+**Returns:** `Promise<DiscoveredModelServer[]>`
+
+```ts
+// What's running on this machine?
+const found = await container.feature('modelProviders').discover()
+// [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]
+```
+
+```ts
+// Sweep the tailnet and register everything found as usable providers
+const servers = await container.feature('modelProviders').discover({ register: true })
+for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
+```
+
+
+
 ### resolve
 
 **Parameters:**
@@ -286,6 +325,10 @@ Like resolveDefaultId(), but throws an actionable error when no provider is avai
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `discoveredServers` | `DiscoveredModelServer[]` | Servers from the last completed discovery, cloned for safe synchronous access. Empty before discovery. |
+| `discoveredModels` | `string[]` | Unique model ids advertised by the last discovered servers. Empty before discovery. |
+| `hasDiscovered` | `boolean` | Whether discovery has completed, including a scan that found no servers. |
+| `discoveredAt` | `number | undefined` | Time of the last completed scan in milliseconds since epoch, or undefined before discovery. |
 | `available` | `string[]` | Provider profile ids available for `provider: "..."` lookups. |
 | `profileIds` | `string[]` | Provider profile ids available for `provider: "..."` lookups. |
 | `profiles` | `Record<string, ModelProviderProfile>` | Registered profiles keyed by provider id. Returned profiles are cloned. |
@@ -299,6 +342,9 @@ Like resolveDefaultId(), but throws an actionable error when no provider is avai
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
+| `discoveredServers` | `array` | Servers from the most recently completed discovery |
+| `discoveryKey` | `string` | Scan options identifying the cached discovery |
+| `discoveredAt` | `number` | Time of the cached scan in milliseconds since epoch |
 
 ## Examples
 
@@ -325,5 +371,21 @@ mp.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', {
 
 ```ts
 container.feature('modelProviders').setDefault('anthropic')
+```
+
+
+
+**discover**
+
+```ts
+// What's running on this machine?
+const found = await container.feature('modelProviders').discover()
+// [{ baseURL: 'http://127.0.0.1:1234/v1', hint: 'LM Studio', models: ['qwen2.5-32b'], ... }]
+```
+
+```ts
+// Sweep the tailnet and register everything found as usable providers
+const servers = await container.feature('modelProviders').discover({ register: true })
+for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
 ```
 

@@ -32,14 +32,15 @@ Start the REPL session. Creates a VM context populated with the container and it
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `{ historyPath?: string, context?: any }` |  | Configuration for the REPL session |
+| `options` | `{ historyPath?: string, context?: any, input?: NodeJS.ReadableStream }` |  | Configuration for the REPL session |
 
-`{ historyPath?: string, context?: any }` properties:
+`{ historyPath?: string, context?: any, input?: NodeJS.ReadableStream }` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `historyPath` | `any` | Custom path for the history file (defaults to ~/.cache/luca/repl-{cwdHash}.history) |
 | `context` | `any` | Additional variables to inject into the VM context as globals |
+| `input` | `any` | Readable stream to read from instead of process.stdin (e.g. a fresh tty.ReadStream when process.stdin has been consumed by another UI) |
 
 **Returns:** `void`
 
@@ -51,6 +52,33 @@ await repl.start({
 })
 // Inside the session: `db`, `container`, `fs`, etc. are all in scope,
 // tab completion works on dot paths, and `await` works at the top level.
+```
+
+
+
+### evaluate
+
+Evaluate one line of code in the REPL's VM context without a readline session — the headless core of the interactive loop. Useful for hosts that own the terminal themselves (the chat TUI's /console mode). Builds the VM context on first use, merges any extra context globals, records the result as `_`, and awaits thenables.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `code` | `string` | ✓ | The source to evaluate |
+| `options` | `{ context?: any }` |  | Parameter options |
+
+`{ context?: any }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `context` | `any` | Extra globals merged into the VM context first |
+
+**Returns:** `Promise<{ value?: any; error?: Error }>`
+
+```ts
+const repl = container.feature('repl')
+const { value } = await repl.evaluate('1 + 1')
+console.log(value) // 2
 ```
 
 
@@ -95,5 +123,15 @@ await repl.start({
 })
 // Inside the session: `db`, `container`, `fs`, etc. are all in scope,
 // tab completion works on dot paths, and `await` works at the top level.
+```
+
+
+
+**evaluate**
+
+```ts
+const repl = container.feature('repl')
+const { value } = await repl.evaluate('1 + 1')
+console.log(value) // 2
 ```
 

@@ -558,7 +558,7 @@ Asynchronously ensures a directory exists (fs-extra's name).
 
 ### exists
 
-Synchronously checks if a file or directory exists.
+Synchronously checks if a file or directory exists. NOTE: this stats *through* symlinks, so a dangling symlink (one whose target is missing) reports `false` — and then `symlink()` at the same path throws EEXIST. Symlink-aware callers should use {@link linkExists}, which is lstat-based and returns `true` for dangling links.
 
 **Parameters:**
 
@@ -641,6 +641,45 @@ Synchronously checks if a path exists (fs-extra's name).
 | `path` | `string` | ✓ | Parameter path |
 
 **Returns:** `boolean`
+
+
+
+### linkExists
+
+Synchronously checks whether anything exists at a path *without following symlinks* (lstat-based, fs-extra style). Unlike {@link exists} — which stats through links and reports `false` for a dangling symlink — this returns `true` for a symlink whose target is missing, so it is the right check before creating or replacing a link.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path to check |
+
+**Returns:** `boolean`
+
+```ts
+fs.symlink('missing-target.txt', 'dangling-link')
+fs.exists('dangling-link')     // false — stats through to the missing target
+fs.linkExists('dangling-link') // true — the link entry itself is there
+```
+
+
+
+### linkExistsAsync
+
+Asynchronously checks whether anything exists at a path *without following symlinks* (lstat-based). The async counterpart of {@link linkExists}: returns `true` for dangling symlinks that {@link existsAsync} reports as missing.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path to check |
+
+**Returns:** `Promise<boolean>`
+
+```ts
+fs.symlink('missing-target.txt', 'dangling-link')
+await fs.linkExistsAsync('dangling-link') // true
+```
 
 
 
@@ -846,7 +885,7 @@ if (await fs.isDirectoryAsync('src')) {
 
 ### rmSync
 
-Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.
+Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rm} and {@link removeSync}. Pass `{ force: false }` to get an ENOENT error for missing paths.
 
 **Parameters:**
 
@@ -873,7 +912,7 @@ fs.rmSync('temp/cache', { recursive: true })
 
 ### rm
 
-Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.
+Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too. `force` defaults to `true` — a missing path is silently ignored, matching {@link rmSync} and {@link remove} (the sync and async halves of the pair used to disagree here). Pass `{ force: false }` to get an ENOENT error for missing paths, or use {@link unlink} for node's strict semantics.
 
 **Parameters:**
 
@@ -894,7 +933,8 @@ Asynchronously removes a file. Accepts node-style `{ recursive, force }` options
 ```ts
 fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
-await fs.rm('temp/cache', { recursive: true, force: true })
+await fs.rm('temp/never-existed')             // silent — force defaults true
+await fs.rm('temp/cache', { recursive: true })
 ```
 
 
@@ -1012,7 +1052,7 @@ await fs.deleteFileAsync('temp/cache.tmp')
 
 ### unlink
 
-Asynchronously removes a file (node's `fs/promises` name).
+Asynchronously removes a file (node's `fs/promises` name). NOTE: unlike node's `unlink`, this follows {@link rm}'s idempotent default — a missing path is silently ignored (matching {@link unlinkSync}). Pass through `rm(path, { force: false })` for strict ENOENT behavior.
 
 **Parameters:**
 
@@ -1262,7 +1302,7 @@ Synchronously moves (renames) a file or directory (node's name).
 
 ### walk
 
-Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns.
+Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns. Pattern semantics are gitignore-ish: a pattern with no `/` matches the basename at any depth — `include: ['*.ts']` finds nested `.ts` files, and `exclude: ['node_modules']` prunes every `node_modules` directory in the tree, not just the top-level one. A pattern containing `/` (e.g. `'src/**\/*.ts'`) matches against the path relative to `basePath`.
 
 **Parameters:**
 
@@ -1277,14 +1317,15 @@ Recursively walks a directory and returns arrays of file and directory paths. By
 |----------|------|-------------|
 | `directories` | `boolean` | Whether to include directories in results |
 | `files` | `boolean` | Whether to include files in results |
-| `exclude` | `string | string[]` | ] - Glob patterns to exclude (e.g. 'node_modules', '*.log') |
-| `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned) |
+| `exclude` | `string | string[]` | ] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '*.log') |
+| `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth |
 | `relative` | `boolean` | When true, returned paths are relative to `baseDir` instead of absolute. |
 
 **Returns:** `{ directories: string[], files: string[] }`
 
 ```ts
 const result = fs.walk('src', { files: true, directories: false })
+// '*.ts' matches nested files too; 'node_modules' prunes nested copies
 const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
 
 fs.ensureFile('inbox/contact-1.json', '{}')
@@ -1295,7 +1336,7 @@ const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1
 
 ### walkAsync
 
-Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns.
+Asynchronously and recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`. Supports filtering with exclude and include glob patterns. Pattern semantics match {@link walk} (gitignore-ish): slash-free patterns match basenames at any depth, patterns with `/` match the relative path.
 
 **Parameters:**
 
@@ -1310,8 +1351,8 @@ Asynchronously and recursively walks a directory and returns arrays of file and 
 |----------|------|-------------|
 | `directories` | `boolean` | Whether to include directories in results |
 | `files` | `boolean` | Whether to include files in results |
-| `exclude` | `string | string[]` | ] - Glob patterns to exclude (e.g. 'node_modules', '.git') |
-| `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned) |
+| `exclude` | `string | string[]` | ] - Glob patterns to exclude; slash-free patterns match basenames at any depth and prune matching directories (e.g. 'node_modules', '.git') |
+| `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned); slash-free patterns match basenames at any depth |
 | `relative` | `boolean` | When true, returned paths are relative to `baseDir` instead of absolute. |
 
 **Returns:** `Promise<{ directories: string[], files: string[] }>`
@@ -1595,6 +1636,25 @@ if (await fs.existsAsync('config.json')) {
 
 
 
+**linkExists**
+
+```ts
+fs.symlink('missing-target.txt', 'dangling-link')
+fs.exists('dangling-link')     // false — stats through to the missing target
+fs.linkExists('dangling-link') // true — the link entry itself is there
+```
+
+
+
+**linkExistsAsync**
+
+```ts
+fs.symlink('missing-target.txt', 'dangling-link')
+await fs.linkExistsAsync('dangling-link') // true
+```
+
+
+
 **symlink**
 
 ```ts
@@ -1685,7 +1745,8 @@ fs.rmSync('temp/cache', { recursive: true })
 ```ts
 fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
-await fs.rm('temp/cache', { recursive: true, force: true })
+await fs.rm('temp/never-existed')             // silent — force defaults true
+await fs.rm('temp/cache', { recursive: true })
 ```
 
 
@@ -1785,6 +1846,7 @@ await fs.moveAsync('old-dir', 'new-dir')
 
 ```ts
 const result = fs.walk('src', { files: true, directories: false })
+// '*.ts' matches nested files too; 'node_modules' prunes nested copies
 const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
 
 fs.ensureFile('inbox/contact-1.json', '{}')

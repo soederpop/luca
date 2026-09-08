@@ -65,6 +65,7 @@ Run a prompt in a new Codex session. Spawns a subprocess, streams NDJSON events,
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `signal` | `AbortSignal` | Abort the spawned Codex process. |
 | `model` | `string` |  |
 | `cwd` | `string` |  |
 | `sandbox` | `'read-only' | 'workspace-write' | 'danger-full-access'` |  |
@@ -111,6 +112,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `signal` | `AbortSignal` | Abort the spawned Codex process. |
 | `model` | `string` |  |
 | `cwd` | `string` |  |
 | `sandbox` | `'read-only' | 'workspace-write' | 'danger-full-access'` |  |
