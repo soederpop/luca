@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
+import type { SpeechToTextWS } from 'telnyx/resources/speech-to-text/ws'
 
 export const TelnyxConnectorStateSchema = FeatureStateSchema.extend({
   publicUrl: z.string().optional().describe('The public URL for tool webhooks (tunnel or pre-configured domain)'),
@@ -638,6 +639,38 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
     this._log('[telnyx] 🎙️  TTS generate:', JSON.stringify({ voice, text: text.slice(0, 60) }))
     const resp = await client.textToSpeech.generate(params) as any
     return Buffer.from(resp.base64_audio, 'base64')
+  }
+
+  /**
+   * Open a standalone speech-to-text stream for mono, signed 16-bit little-endian
+   * PCM audio. No phone call or deployed assistant is needed. Attach `event` and
+   * `error` listeners immediately, await `waitForOpen()`, then `send()` audio.
+   * Send `{"type":"CloseStream"}` through `stream.socket` to flush final
+   * transcripts before closing; terminate the socket when the consumer leaves.
+   *
+   * @example
+   * ```ts
+   * const stream = await connector.createTranscriptionStream({ sampleRate: 48000 })
+   * stream.on('event', frame => console.log(frame))
+   * stream.on('error', error => console.error(error.message))
+   * await stream.waitForOpen()
+   * stream.send(pcmChunk)
+   * stream.socket.send(JSON.stringify({ type: 'CloseStream' }))
+   * ```
+   */
+  async createTranscriptionStream(opts: { sampleRate?: number; language?: string } = {}): Promise<SpeechToTextWS> {
+    const sampleRate = opts.sampleRate ?? 48000
+    if (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 96000) {
+      throw new Error('sampleRate must be an integer between 8000 and 96000 Hz')
+    }
+    const client = await this._getClient()
+    const { SpeechToTextWS } = await import('telnyx/resources/speech-to-text/ws')
+    // The installed SDK predates linear16/sample_rate support in the public API.
+    const params = {
+      transcription_engine: 'Deepgram', model: 'nova-3', input_format: 'linear16',
+      sample_rate: sampleRate, language: opts.language ?? 'en-US', interim_results: true,
+    }
+    return new SpeechToTextWS(client, params as any, { handshakeTimeout: 10000 })
   }
 
   /**

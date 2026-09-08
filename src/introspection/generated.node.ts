@@ -16520,6 +16520,23 @@ setBuildTimeData('features.telnyxConnector', {
         }
       ]
     },
+    "createTranscriptionStream": {
+      "description": "Open a standalone speech-to-text stream for mono, signed 16-bit little-endian PCM audio. No phone call or deployed assistant is needed. Attach `event` and `error` listeners immediately, await `waitForOpen()`, then `send()` audio. Send `{\"type\":\"CloseStream\"}` through `stream.socket` to flush final transcripts before closing; terminate the socket when the consumer leaves.",
+      "parameters": {
+        "opts": {
+          "type": "{ sampleRate?: number; language?: string }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "Promise<SpeechToTextWS>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stream = await connector.createTranscriptionStream({ sampleRate: 48000 })\nstream.on('event', frame => console.log(frame))\nstream.on('error', error => console.error(error.message))\nawait stream.waitForOpen()\nstream.send(pcmChunk)\nstream.socket.send(JSON.stringify({ type: 'CloseStream' }))"
+        }
+      ]
+    },
     "streamSpeak": {
       "description": "Stream text-to-speech audio over a WebSocket, yielding `Buffer` chunks as they arrive. First audio chunk typically arrives in <500ms. You can pipe chunks directly to a speaker or file stream.",
       "parameters": {
@@ -36543,6 +36560,23 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const audio = await connector.speak('Hello world', { voice: 'Telnyx.Ultra.Aurora' })\nawait fs.writeFile('/tmp/out.mp3', audio)"
+          }
+        ]
+      },
+      "createTranscriptionStream": {
+        "description": "Open a standalone speech-to-text stream for mono, signed 16-bit little-endian PCM audio. No phone call or deployed assistant is needed. Attach `event` and `error` listeners immediately, await `waitForOpen()`, then `send()` audio. Send `{\"type\":\"CloseStream\"}` through `stream.socket` to flush final transcripts before closing; terminate the socket when the consumer leaves.",
+        "parameters": {
+          "opts": {
+            "type": "{ sampleRate?: number; language?: string }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "Promise<SpeechToTextWS>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stream = await connector.createTranscriptionStream({ sampleRate: 48000 })\nstream.on('event', frame => console.log(frame))\nstream.on('error', error => console.error(error.message))\nawait stream.waitForOpen()\nstream.send(pcmChunk)\nstream.socket.send(JSON.stringify({ type: 'CloseStream' }))"
           }
         ]
       },
