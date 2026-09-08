@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.12.0"
+export const typesBundleVersion = "3.12.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -6548,6 +6548,7 @@ declare const McpServerConfigSchema: z.ZodObject<{
 }, z.core.$strip>;
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 declare const McpBridgeOptionsSchema: z.ZodObject<{
+    configFile: z.ZodOptional<z.ZodString>;
     servers: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         url: z.ZodOptional<z.ZodString>;
@@ -6609,6 +6610,8 @@ interface ConnectedServer {
  *
  * Servers with a \`command\` are spawned locally over stdio; servers with a
  * \`url\` are reached over the Streamable HTTP transport.
+ * Pass \`configFile: 'mcp.json'\` to load an \`mcpServers\` map from disk.
+ * Explicit \`servers\` entries replace file entries with the same name.
  *
  * @example
  * \`\`\`ts
@@ -6632,6 +6635,7 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
     static stability: "stable";
     static category: "ai-assistants";
     static optionsSchema: z.ZodObject<{
+        configFile: z.ZodOptional<z.ZodString>;
         servers: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
             command: z.ZodOptional<z.ZodString>;
             url: z.ZodOptional<z.ZodString>;
@@ -6677,6 +6681,7 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
     /**
      * Connect to all configured MCP servers, discover their capabilities,
      * and cache the results. Safe to call multiple times (no-ops if already connected).
+     * Loads and validates configFile before connecting; unreadable or invalid files reject.
      */
     connectAll(): Promise<void>;
     /**
@@ -13894,6 +13899,9 @@ import type { Container } from './container.js';
 import { Registry } from './registry.js';
 import { z } from 'zod';
 import { EndpointStateSchema, EndpointOptionsSchema } from './schemas/base.js';
+import { type UploadConfig } from './multipart.js';
+export { HttpError } from './http-error.js';
+export type { UploadConfig, UploadFieldConfig, UploadedFile } from './multipart.js';
 export interface AvailableEndpoints {
 }
 export type EndpointState = z.infer<typeof EndpointStateSchema>;
@@ -13933,9 +13941,36 @@ export interface EndpointModule {
     putRateLimit?: EndpointRateLimit;
     patchRateLimit?: EndpointRateLimit;
     deleteRateLimit?: EndpointRateLimit;
+    /** Zod schema describing the 200 response body, used to type the OpenAPI spec */
+    getResponse?: z.ZodType;
+    postResponse?: z.ZodType;
+    putResponse?: z.ZodType;
+    patchResponse?: z.ZodType;
+    deleteResponse?: z.ZodType;
+    /** Raw OpenAPI responses object, merged over the generated defaults (for 202, 404, ...) */
+    getResponses?: Record<string, any>;
+    postResponses?: Record<string, any>;
+    putResponses?: Record<string, any>;
+    patchResponses?: Record<string, any>;
+    deleteResponses?: Record<string, any>;
+    /** Declares multipart/form-data file uploads — enables parsing and describes the body in the spec */
+    getUpload?: UploadConfig;
+    postUpload?: UploadConfig;
+    putUpload?: UploadConfig;
+    patchUpload?: UploadConfig;
+    deleteUpload?: UploadConfig;
+    /** OpenAPI security requirement for this endpoint. \`[]\` marks it public when the spec has a root default. */
+    security?: any[];
     description?: string;
     tags?: string[];
 }
+/** Express route params (\`:id\`, \`:id?\`) as OpenAPI template params (\`{id}\`). */
+export declare function toOpenAPIPath(path: string): string;
+/** The route param names declared in an express path, with whether each is optional. */
+export declare function pathParameterNames(path: string): Array<{
+    name: string;
+    required: boolean;
+}>;
 /**
  * Sliding-window rate limiter keyed by IP address.
  * Tracks timestamps of requests and prunes entries older than the window.
@@ -13986,12 +14021,34 @@ export declare class Endpoint<T extends EndpointState = EndpointState, K extends
     reload(): Promise<this>;
     handler(method: string): EndpointHandler | undefined;
     schema(method: string): z.ZodType | undefined;
+    /** The \`<method>Response\` zod schema describing the 200 body, if the module declares one. */
+    responseSchema(method: string): z.ZodType | undefined;
+    /** Raw OpenAPI \`responses\` overrides from \`<method>Responses\`, merged over the defaults. */
+    responseOverrides(method: string): Record<string, any> | undefined;
+    /** The \`<method>Upload\` multipart declaration, if this method accepts file uploads. */
+    uploadFor(method: string): UploadConfig | undefined;
+    /** This endpoint's path with express route params rewritten as OpenAPI templates. */
+    get openAPIPath(): string;
     /** Returns the rate limit config for a given method, or undefined if none. */
     rateLimitFor(method: string): EndpointRateLimit | undefined;
     /** Access the rate limiter instance (useful for testing or manual resets) */
     get rateLimiter(): RateLimiter;
     mount(app: any): this;
+    /**
+     * Describe this endpoint as an OpenAPI 3.1 path item.
+     *
+     * Route params declared in the path (\`/things/:id\`) are emitted as
+     * \`in: path\` parameters rather than being mistaken for query string
+     * parameters, \`<method>Response\` schemas type the 200 body, and a
+     * \`<method>Upload\` declaration is described as \`multipart/form-data\`.
+     */
     toOpenAPIPathItem(): Record<string, any>;
+    /** Route params are described as path parameters, so keep them out of the body schema too. */
+    private omitPathParams;
+    /** The 200 response typed from \`<method>Response\`, with \`<method>Responses\` merged over the defaults. */
+    private buildResponses;
+    /** Describe a \`<method>Upload\` declaration as a multipart/form-data body. */
+    private buildUploadRequestBody;
 }
 export declare function warnUnknownExports(mod: Record<string, any>, filePath: string): void;
 export declare class EndpointsRegistry extends Registry<Endpoint<any>> {
@@ -14385,6 +14442,23 @@ export declare abstract class Helper<T extends HelperState = HelperState, K exte
     waitFor<Ev extends string & keyof E>(event: Ev): Promise<E[Ev]>;
 }
 //# sourceMappingURL=helper.d.ts.map`,
+  "http-error.d.ts": `/**
+ * An error carrying an HTTP status code. Endpoint handlers (and anything they
+ * call) can throw this to control the response status instead of falling into
+ * the generic 500 path.
+ *
+ * @example
+ * \`\`\`typescript
+ * throw new HttpError(413, 'File exceeds the 25mb limit')
+ * \`\`\`
+ */
+export declare class HttpError extends Error {
+    statusCode: number;
+    details?: any;
+    constructor(statusCode: number, message: string, details?: any);
+}
+export default HttpError;
+//# sourceMappingURL=http-error.d.ts.map`,
   "introspection/categories.d.ts": `/**
  * Helper categories — the single source of truth for grouping features,
  * clients, and servers in \`luca describe\` output, the bootstrapped skill's
@@ -14779,6 +14853,72 @@ declare module '../feature.js' {
 declare const _default: new (options: any, context: import("../container.js").ContainerContext) => Feature<any, any>;
 export default _default;
 //# sourceMappingURL=scan.d.ts.map`,
+  "multipart.d.ts": `/**
+ * Per-field upload rules declared by an endpoint module.
+ */
+export interface UploadFieldConfig {
+    /** Allowed content types. Exact (\`application/pdf\`) or wildcard (\`image/*\`). Anything else is rejected with 415. */
+    accept?: string[];
+    /** Per-file size cap for this field. Number of bytes, or a string like '25mb'. Overrides the upload-level maxSize. */
+    maxSize?: string | number;
+    /** Accept more than one file for this field. The handler receives an array. */
+    multiple?: boolean;
+    /** Reject the request with 400 when this field is absent. */
+    required?: boolean;
+    /** Shown in the generated OpenAPI spec. */
+    description?: string;
+}
+/**
+ * The \`<method>Upload\` export on an endpoint module. Declaring it does three
+ * things at once: turns on multipart parsing for that method, enforces the
+ * limits, and tells the OpenAPI generator to describe the body as
+ * \`multipart/form-data\`.
+ */
+export interface UploadConfig {
+    /** The file fields this endpoint accepts, keyed by form field name. */
+    fields: Record<string, UploadFieldConfig>;
+    /** Default per-file size cap when a field does not set its own (default: '25mb'). */
+    maxSize?: string | number;
+    /** Maximum number of files in one request (default: 10). */
+    maxFiles?: number;
+}
+/** A file parsed out of a multipart request and buffered in memory. */
+export interface UploadedFile {
+    /** The form field the file arrived on */
+    fieldName: string;
+    /** The client-supplied file name (never trust it as a path) */
+    filename: string;
+    /** The client-supplied content type */
+    mimeType: string;
+    /** Size in bytes */
+    size: number;
+    /** The file contents */
+    buffer: Buffer;
+}
+/** Files are buffered in memory, so the default cap is deliberately modest. */
+export declare const DEFAULT_MAX_FILE_SIZE: number;
+export declare const DEFAULT_MAX_FILES = 10;
+/** Turn '25mb' into a byte count. Numbers pass through untouched. */
+export declare function parseBytes(value: string | number | undefined, fallback: number): number;
+/** True when the request carries a multipart body we should parse. */
+export declare function isMultipartRequest(req: any): boolean;
+/**
+ * Parse a multipart/form-data request into buffered files plus text fields.
+ *
+ * Files are held in memory (never written to disk) and capped per field, so an
+ * oversized upload fails fast with a 413 instead of exhausting the process.
+ * For genuinely large files, hand out a pre-signed URL to object storage
+ * instead of routing the bytes through the endpoint.
+ *
+ * @param req - The incoming request stream (an Express/Node IncomingMessage)
+ * @param config - The endpoint's \`<method>Upload\` declaration
+ * @returns The uploaded files keyed by field name (an array when \`multiple\`), plus the text fields
+ */
+export declare function parseMultipart(req: any, config: UploadConfig): Promise<{
+    files: Record<string, UploadedFile | UploadedFile[]>;
+    fields: Record<string, string>;
+}>;
+//# sourceMappingURL=multipart.d.ts.map`,
   "node.d.ts": `import { NodeContainer, Feature } from './node/container';
 import './introspection/generated.node';
 export * from './node/container';
@@ -14828,7 +14968,7 @@ export { RestClient } from './clients/rest';
 export { GraphClient } from './clients/graph';
 export { WebSocketClient } from './clients/websocket';
 export { Command, CommandsRegistry, commands, graftModule, isNativeHelperClass } from './command';
-export { Endpoint, EndpointsRegistry, endpoints } from './endpoint';
+export { Endpoint, EndpointsRegistry, endpoints, HttpError } from './endpoint';
 export { Selector, SelectorsRegistry, selectors } from './selector';
 export { Server, ServersRegistry } from './server';
 export { FeaturesRegistry } from './feature';
@@ -14837,7 +14977,7 @@ export { WebsocketServer } from './servers/socket';
 export type { ContainerContext, ContainerArgv, Plugin, Extension } from './container';
 export type { AvailableClients } from './client';
 export type { AvailableCommands, CommandHandler, CommandArgs } from './command';
-export type { AvailableEndpoints, EndpointContext } from './endpoint';
+export type { AvailableEndpoints, EndpointContext, UploadConfig, UploadFieldConfig, UploadedFile } from './endpoint';
 export type { AvailableSelectors, SelectorsInterface, SelectorRunResult, SimpleSelector } from './selector';
 export type { AvailableFeatures, FeatureOptions, FeatureState } from './feature';
 export type { NodeContainer, NodeFeatures } from './node/container';
@@ -15071,6 +15211,7 @@ import "./features/google-sheets";
 import "./features/grep";
 import "./features/helpers";
 import "./features/ink";
+import "./features/internet-mail";
 import "./features/ipc-socket";
 import "./features/json-tree";
 import "./features/llama-server";
@@ -15124,6 +15265,7 @@ import type { GoogleSheets } from "./features/google-sheets";
 import type { Grep } from "./features/grep";
 import type { Helpers } from "./features/helpers";
 import type { Ink } from "./features/ink";
+import type { InternetMail } from "./features/internet-mail";
 import type { IpcSocket } from "./features/ipc-socket";
 import type { JsonTree } from "./features/json-tree";
 import type { LlamaServer } from "./features/llama-server";
@@ -15177,6 +15319,7 @@ export type { SpreadsheetMeta, SheetInfo, GoogleSheetsState, GoogleSheetsOptions
 export type { GrepMatch, GrepOptions, Grep } from "./features/grep";
 export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
+export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
 export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";
@@ -15231,6 +15374,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     grep: typeof Grep;
     helpers: typeof Helpers;
     ink: typeof Ink;
+    internetMail: typeof InternetMail;
     ipcSocket: typeof IpcSocket;
     jsonTree: typeof JsonTree;
     llamaServer: typeof LlamaServer;
@@ -21810,6 +21954,447 @@ declare module '../../feature' {
     }
 }
 //# sourceMappingURL=ink.d.ts.map`,
+  "node/features/internet-mail.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import type { ContainerContext } from '../../container.js';
+/** Connection settings for one transport. */
+export interface MailTransportConfig {
+    host: string;
+    port: number;
+    secure: boolean;
+    requireTLS?: boolean;
+}
+/**
+ * How a provider derives its login from the account address. iCloud wants the
+ * local part for IMAP but the full address for SMTP; everyone else takes the
+ * full address for both.
+ */
+export type MailUsernameStyle = 'address' | 'local-part';
+export interface MailProviderPreset {
+    imap: MailTransportConfig;
+    smtp: MailTransportConfig;
+    /** Login style per transport, applied when no explicit username is given. */
+    usernames: {
+        imap: MailUsernameStyle;
+        smtp: MailUsernameStyle;
+    };
+}
+/**
+ * Host/port presets for the common standards-based providers. Anything not
+ * listed here works through explicit \`imap:\` / \`smtp:\` option overrides.
+ *
+ * Most of these require an app-specific password rather than the account
+ * password — Google and Apple both refuse plain passwords over IMAP.
+ */
+export declare const MAIL_PROVIDER_PRESETS: Record<string, MailProviderPreset>;
+export interface ResolvedMailConfig {
+    provider: string;
+    address: string;
+    imapUsername: string;
+    smtpUsername: string;
+    passwordEnv: string;
+    mailbox: string;
+    pollIntervalMs: number;
+    maxMessageBytes: number;
+    markAsRead: boolean;
+    outboundEnabled: boolean;
+    trustedSenders: string[];
+    approvedRecipients: string[];
+    imap: MailTransportConfig;
+    smtp: MailTransportConfig;
+}
+export interface MailVerification {
+    ok: boolean;
+    config: {
+        ok: boolean;
+        detail: string;
+    };
+    secret: {
+        ok: boolean;
+        detail: string;
+    };
+    imap: {
+        ok: boolean;
+        detail: string;
+    };
+    smtp: {
+        ok: boolean;
+        detail: string;
+    };
+}
+export interface MailSummary {
+    id: string;
+    uid: number;
+    uidValidity: string;
+    from: string;
+    to: string[];
+    subject: string;
+    date?: string;
+    size?: number;
+    seen?: boolean;
+}
+export interface StandardMailMessage {
+    id: string;
+    uid: number;
+    uidValidity: string;
+    rfcMessageId?: string;
+    inReplyTo?: string;
+    references: string[];
+    from: string;
+    to: string[];
+    cc: string[];
+    subject: string;
+    text: string;
+    html?: string;
+    date?: string;
+    authenticationResults?: string;
+    attachments: Array<{
+        filename?: string;
+        contentType: string;
+        size?: number;
+    }>;
+    validation?: MailValidation;
+}
+export interface MailValidation {
+    auth: {
+        spf: string;
+        dkim: string;
+        dmarc: string;
+        raw: string;
+    };
+    flags: string[];
+    trustScore: number;
+}
+export interface MailPollResult {
+    polled: boolean;
+    baselined: boolean;
+    emitted: number;
+    skippedUntrusted: number;
+    skippedOversized: number;
+    quarantined: number;
+    lastUid: number;
+}
+export interface MailSearchQuery {
+    from?: string;
+    to?: string;
+    subject?: string;
+    text?: string;
+    since?: string;
+    before?: string;
+}
+export interface MailSendInput {
+    to: string | string[];
+    cc?: string | string[];
+    subject: string;
+    text: string;
+    html?: string;
+}
+export interface MailReplyInput {
+    id: string;
+    text: string;
+    html?: string;
+}
+export interface MailSendResult {
+    messageId: string;
+    accepted: string[];
+    rejected: string[];
+}
+interface MailCursor {
+    account: string;
+    mailbox: string;
+    uidValidity: string;
+    lastUid: number;
+}
+/** Extract a verdict for one mechanism from an Authentication-Results header. */
+export declare function extractAuthVerdict(authResults: string, mechanism: string): string;
+/** Parse "Name <email>" (or a bare address) into its parts. */
+export declare function parseMailAddress(raw: string): {
+    name: string;
+    address: string;
+    domain: string;
+};
+/**
+ * Port of the Gmail wing's Authentication-Results scoring: same verdict
+ * extraction, same flags, same deductions. Provider headers may leave verdicts
+ * sparse (iCloud often does) — the score reflects what the edge populated.
+ */
+export declare function validateMailHeaders(headers: {
+    authenticationResults?: string;
+    from?: string;
+    replyTo?: string;
+    returnPath?: string;
+}): MailValidation;
+export declare const InternetMailStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    started: z.ZodDefault<z.ZodBoolean>;
+    polling: z.ZodDefault<z.ZodBoolean>;
+    lastPollAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    emittedCount: z.ZodDefault<z.ZodNumber>;
+}, z.core.$loose>;
+export type InternetMailState = z.infer<typeof InternetMailStateSchema>;
+export declare const InternetMailOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    provider: z.ZodOptional<z.ZodString>;
+    address: z.ZodOptional<z.ZodString>;
+    imapUsername: z.ZodOptional<z.ZodString>;
+    smtpUsername: z.ZodOptional<z.ZodString>;
+    passwordEnv: z.ZodOptional<z.ZodString>;
+    password: z.ZodOptional<z.ZodString>;
+    mailbox: z.ZodOptional<z.ZodString>;
+    pollIntervalMs: z.ZodOptional<z.ZodNumber>;
+    maxMessageBytes: z.ZodOptional<z.ZodNumber>;
+    markAsRead: z.ZodOptional<z.ZodBoolean>;
+    outboundEnabled: z.ZodOptional<z.ZodBoolean>;
+    trustedSenders: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    approvedRecipients: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    cursorStore: z.ZodOptional<z.ZodString>;
+    cursorScope: z.ZodOptional<z.ZodEnum<{
+        project: "project";
+        machine: "machine";
+        tmp: "tmp";
+    }>>;
+    imap: z.ZodOptional<z.ZodObject<{
+        host: z.ZodString;
+        port: z.ZodNumber;
+        secure: z.ZodBoolean;
+        requireTLS: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
+    smtp: z.ZodOptional<z.ZodObject<{
+        host: z.ZodString;
+        port: z.ZodNumber;
+        secure: z.ZodBoolean;
+        requireTLS: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+export type InternetMailOptions = z.infer<typeof InternetMailOptionsSchema>;
+export declare const InternetMailEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    message: z.ZodTuple<[z.ZodCustom<StandardMailMessage, StandardMailMessage>], null>;
+    log: z.ZodTuple<[z.ZodString], null>;
+    'poll:error': z.ZodTuple<[z.ZodCustom<{
+        stage: string;
+        uid?: number;
+        message: string;
+    }, {
+        stage: string;
+        uid?: number;
+        message: string;
+    }>], null>;
+    started: z.ZodTuple<[], null>;
+    stopped: z.ZodTuple<[], null>;
+}, z.core.$strip>;
+/**
+ * Internet Mail Feature — standards-based email over IMAP and SMTP
+ *
+ * Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud,
+ * Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart
+ * to \`googleMail\`: no vendor API, no OAuth, just a username and an
+ * (app-specific) password.
+ *
+ * **Configure it at construction** — the feature reads no config files:
+ * \`\`\`ts
+ * const mail = container.feature('internetMail', {
+ *   provider: 'icloud',
+ *   address: 'you@me.com',
+ *   passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD',
+ *   trustedSenders: ['boss@example.com'],
+ * })
+ * \`\`\`
+ *
+ * **What it gives you:**
+ * - \`verify()\` — config, secret, IMAP login, and SMTP login diagnostics, each
+ *   as an independent verdict so a failure names the thing that failed
+ * - \`poll()\` / \`start()\` / \`stop()\` — cursor-based inbound polling that emits
+ *   one \`message\` event per new \`StandardMailMessage\` from a trusted sender.
+ *   The cursor lives in \`container.store()\`, so a restart resumes rather than
+ *   replaying, and a \`UIDVALIDITY\` change re-baselines instead of duplicating
+ * - \`checkInbox()\` / \`readMessage()\` / \`searchMessages()\` — pull-based reads
+ *   that never advance the poll cursor or alter unread state
+ * - \`sendMessage()\` / \`replyToMessage()\` / \`replyAllToMessage()\` — outbound
+ *   mail gated by \`outboundEnabled\` and the recipient allowlist
+ *
+ * **It fails closed on purpose.** Inbound needs a non-empty \`trustedSenders\`
+ * list, outbound needs \`outboundEnabled\` plus an allowlisted recipient, and
+ * the From is always the configured address. Mail is untrusted input: every
+ * message carries a \`validation\` block scoring SPF/DKIM/DMARC and flagging
+ * display-name spoofing and Reply-To mismatches.
+ *
+ * @example
+ * \`\`\`typescript
+ * const mail = container.feature('internetMail')
+ * const report = await mail.verify()
+ * const recent = await mail.checkInbox({ limit: 5 })
+ * const hits = await mail.searchMessages({ from: 'example.com', text: 'invoice' })
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class InternetMail extends Feature<InternetMailState, InternetMailOptions> {
+    static shortcut: "features.internetMail";
+    static stability: "experimental";
+    static category: "networking";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        started: z.ZodDefault<z.ZodBoolean>;
+        polling: z.ZodDefault<z.ZodBoolean>;
+        lastPollAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        emittedCount: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        provider: z.ZodOptional<z.ZodString>;
+        address: z.ZodOptional<z.ZodString>;
+        imapUsername: z.ZodOptional<z.ZodString>;
+        smtpUsername: z.ZodOptional<z.ZodString>;
+        passwordEnv: z.ZodOptional<z.ZodString>;
+        password: z.ZodOptional<z.ZodString>;
+        mailbox: z.ZodOptional<z.ZodString>;
+        pollIntervalMs: z.ZodOptional<z.ZodNumber>;
+        maxMessageBytes: z.ZodOptional<z.ZodNumber>;
+        markAsRead: z.ZodOptional<z.ZodBoolean>;
+        outboundEnabled: z.ZodOptional<z.ZodBoolean>;
+        trustedSenders: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        approvedRecipients: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        cursorStore: z.ZodOptional<z.ZodString>;
+        cursorScope: z.ZodOptional<z.ZodEnum<{
+            project: "project";
+            machine: "machine";
+            tmp: "tmp";
+        }>>;
+        imap: z.ZodOptional<z.ZodObject<{
+            host: z.ZodString;
+            port: z.ZodNumber;
+            secure: z.ZodBoolean;
+            requireTLS: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>>;
+        smtp: z.ZodOptional<z.ZodObject<{
+            host: z.ZodString;
+            port: z.ZodNumber;
+            secure: z.ZodBoolean;
+            requireTLS: z.ZodOptional<z.ZodBoolean>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        message: z.ZodTuple<[z.ZodCustom<StandardMailMessage, StandardMailMessage>], null>;
+        log: z.ZodTuple<[z.ZodString], null>;
+        'poll:error': z.ZodTuple<[z.ZodCustom<{
+            stage: string;
+            uid?: number;
+            message: string;
+        }, {
+            stage: string;
+            uid?: number;
+            message: string;
+        }>], null>;
+        started: z.ZodTuple<[], null>;
+        stopped: z.ZodTuple<[], null>;
+    }, z.core.$strip>;
+    static description: string;
+    private _pollTimer;
+    private _activePoll;
+    private _smtpTransport;
+    constructor(options: InternetMailOptions, context: ContainerContext);
+    /**
+     * Apply the provider preset and its username style to the feature options.
+     *
+     * Never throws, so callers can inspect a half-configured account (that's
+     * what \`verify()\` reports on); \`requireConfig()\` enforces the required
+     * fields at the point of use. The password is deliberately absent from the
+     * result — it is read only inside {@link readPassword}.
+     */
+    resolveConfig(): ResolvedMailConfig;
+    private requireConfig;
+    /** Read the password. Names where it should come from, never prints the value. */
+    private readPassword;
+    /** Build a connected-ready ImapFlow client. Tests override this with a fake. */
+    protected createImapClient(config: ResolvedMailConfig): Promise<any>;
+    /** Build a Nodemailer SMTP transport. Tests override this with a fake. */
+    protected createSmtpTransport(config: ResolvedMailConfig): Promise<any>;
+    /** Parse raw RFC 822 source. Tests override this to avoid mailparser. */
+    protected parseSource(source: Buffer | string): Promise<any>;
+    private getSmtpTransport;
+    /**
+     * The store holding the poll cursor. A durable JSON document rather than
+     * in-process state: two processes polling the same mailbox must agree on
+     * what has already been delivered, and a restart has to resume rather
+     * than replay.
+     */
+    get cursorStore(): any;
+    /** The persisted cursor, or null before the first baseline. */
+    readCursor(): Promise<MailCursor | null>;
+    private writeCursor;
+    get isStarted(): boolean;
+    /**
+     * Check the configuration, secret, IMAP login, and SMTP login independently.
+     * Never throws — every failure becomes a structured verdict.
+     */
+    verify(): Promise<MailVerification>;
+    /** Validate config, then poll immediately and on the configured interval. */
+    start(): Promise<this>;
+    /** Clear the interval, wait for an active poll, close SMTP. Cursor stays. */
+    stop(): Promise<this>;
+    /**
+     * One poll pass: baseline or advance the UID cursor, emit each new trusted
+     * message once. Overlapping calls coalesce onto the in-flight pass.
+     */
+    poll(): Promise<MailPollResult>;
+    private _pollOnce;
+    /** Fetch full source for one UID and normalize it. Rejects oversized source. */
+    private _fetchAndNormalize;
+    private _normalizeParsed;
+    private parseMessageId;
+    private withMailbox;
+    private summaryFromMeta;
+    /** The most recent messages in the configured mailbox, metadata only. */
+    checkInbox(options?: {
+        limit?: number;
+    }): Promise<MailSummary[]>;
+    /** Read one full message by opaque id. Never alters unread state. */
+    readMessage(id: string): Promise<StandardMailMessage>;
+    /**
+     * Interrogate the full archive with IMAP SEARCH. Independent of the poll
+     * cursor — never advances \`lastUid\`, never alters unread state. A \`from\`/\`to\`
+     * value without an \`@\` is treated as a bare domain and matched as \`@domain\`.
+     */
+    searchMessages(query: MailSearchQuery, options?: {
+        limit?: number;
+    }): Promise<MailSummary[]>;
+    private assertOutboundEnabled;
+    private approvedAddresses;
+    isApprovedRecipient(address: string): boolean;
+    private assertApprovedRecipients;
+    private toList;
+    private deliver;
+    /** Send a new message. Requires \`outboundEnabled\` and approved recipients. */
+    sendMessage(input: MailSendInput): Promise<MailSendResult>;
+    private replySubject;
+    private replyHeaders;
+    /** Threaded reply to the original sender only. */
+    replyToMessage(input: MailReplyInput): Promise<MailSendResult>;
+    /**
+     * Threaded reply to the full To/Cc set, minus anyone not on the allowlist.
+     * Fails rather than sending to nobody when filtering empties the set.
+     */
+    replyAllToMessage(input: MailReplyInput): Promise<MailSendResult & {
+        withheld: string[];
+    }>;
+}
+declare module '../../feature' {
+    interface AvailableFeatures {
+        internetMail: typeof InternetMail;
+    }
+}
+export default InternetMail;
+//# sourceMappingURL=internet-mail.d.ts.map`,
   "node/features/ipc-socket.d.ts": `import { z } from 'zod';
 import { Feature } from "../feature.js";
 import { NodeContainer } from "../container.js";
@@ -29475,6 +30060,7 @@ export default TelnyxAssistantConnector;
 //# sourceMappingURL=telnyx-assistant-connector.d.ts.map`,
   "node/features/telnyx-connector.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
+import type { SpeechToTextWS } from 'telnyx/resources/speech-to-text/ws';
 export declare const TelnyxConnectorStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     publicUrl: z.ZodOptional<z.ZodString>;
@@ -29852,6 +30438,27 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         apiKeyRef?: string;
         voiceSettings?: any;
     }): Promise<Buffer>;
+    /**
+     * Open a standalone speech-to-text stream for mono, signed 16-bit little-endian
+     * PCM audio. No phone call or deployed assistant is needed. Attach \`event\` and
+     * \`error\` listeners immediately, await \`waitForOpen()\`, then \`send()\` audio.
+     * Send \`{"type":"CloseStream"}\` through \`stream.socket\` to flush final
+     * transcripts before closing; terminate the socket when the consumer leaves.
+     *
+     * @example
+     * \`\`\`ts
+     * const stream = await connector.createTranscriptionStream({ sampleRate: 48000 })
+     * stream.on('event', frame => console.log(frame))
+     * stream.on('error', error => console.error(error.message))
+     * await stream.waitForOpen()
+     * stream.send(pcmChunk)
+     * stream.socket.send(JSON.stringify({ type: 'CloseStream' }))
+     * \`\`\`
+     */
+    createTranscriptionStream(opts?: {
+        sampleRate?: number;
+        language?: string;
+    }): Promise<SpeechToTextWS>;
     /**
      * Stream text-to-speech audio over a WebSocket, yielding \`Buffer\` chunks as
      * they arrive. First audio chunk typically arrives in <500ms. You can pipe
@@ -33824,6 +34431,22 @@ export declare const ExpressServerOptionsSchema: z.ZodObject<{
     beforeStart: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
 export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>;
+/** Document-level overrides for the generated OpenAPI spec. */
+export interface OpenAPISpecOptions {
+    title?: string;
+    version?: string;
+    description?: string;
+    summary?: string;
+    /** Public URLs for the API. Defaults to the local address the server bound to. */
+    servers?: Array<{
+        url: string;
+        description?: string;
+    }>;
+    /** OpenAPI \`components.securitySchemes\` — e.g. \`{ bearerAuth: { type: 'http', scheme: 'bearer' } }\` */
+    securitySchemes?: Record<string, any>;
+    /** Root security requirement applied to every endpoint that does not export its own */
+    security?: any[];
+}
 /**
  * Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback.
  *
@@ -33838,6 +34461,17 @@ export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>;
  * Behavioral contracts worth knowing:
  * - **CORS is ON by default** — pass \`cors: false\` to disable it, not just omit the option.
  * - JSON and urlencoded body parsers are pre-installed (500mb limit).
+ * - **File uploads are opt-in per endpoint** — export \`<method>Upload\` (e.g.
+ *   \`postUpload = { fields: { file: { accept: ['application/pdf'], maxSize: '25mb' } } }\`)
+ *   and multipart bodies are parsed into \`{ filename, mimeType, size, buffer }\`
+ *   handed to the handler under the field name. Files are buffered in memory and
+ *   capped (25mb per file, 10 files by default), so oversized uploads fail with a
+ *   413 rather than exhausting the process — route genuinely large files to object
+ *   storage instead. Oversized/unaccepted/undeclared fields become 413/415/400.
+ * - The generated OpenAPI spec follows those same declarations: \`<method>Upload\`
+ *   is described as \`multipart/form-data\`, \`<method>Response\` (a zod schema) types
+ *   the 200 body, \`<method>Responses\` merges raw status entries like 202, and route
+ *   params are templated (\`/things/{id}\`) and marked \`in: path\`.
  * - Endpoint handlers receive \`(params, ctx)\` where \`params\` merges query + body +
  *   route params; the return value is sent as JSON. Thrown ZodErrors become 400s,
  *   other errors become 500s.
@@ -34138,19 +34772,16 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
      * await server.stop()
      * \`\`\`
      */
-    serveOpenAPISpec(options?: {
-        title?: string;
-        version?: string;
-        description?: string;
-        summary?: string;
-    }): this;
+    serveOpenAPISpec(options?: OpenAPISpecOptions): this;
     /**
      * Build an OpenAPI 3.1 document describing every mounted endpoint —
      * paths come from the endpoint modules, parameter schemas from their
      * zod method schemas (e.g. \`getSchema\`), and the server URL from the
      * current port.
      *
-     * @param options - Optional info-block overrides (title, version, description)
+     * @param options - Info-block overrides (title, version, description), plus
+     *   \`servers\` for the public URL and \`securitySchemes\` / \`security\` to
+     *   document authentication
      * @returns The OpenAPI spec as a plain object
      *
      * @example
@@ -34164,12 +34795,7 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
      * console.log(Object.keys(spec.paths))  // ['/status']
      * \`\`\`
      */
-    generateOpenAPISpec(options?: {
-        title?: string;
-        version?: string;
-        description?: string;
-        summary?: string;
-    }): Record<string, any>;
+    generateOpenAPISpec(options?: OpenAPISpecOptions): Record<string, any>;
 }
 export default ExpressServer;
 //# sourceMappingURL=express.d.ts.map`,
