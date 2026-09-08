@@ -89,7 +89,7 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
 
   /** Access the google-drive feature lazily. */
   get drive(): GoogleDrive {
-    return this.container.feature('googleDrive') as unknown as GoogleDrive
+    return this.container.feature('googleDrive', this.options.auth ? { auth: this.options.auth } : {}) as unknown as GoogleDrive
   }
 
   /** Get or create the Docs v1 API client. */

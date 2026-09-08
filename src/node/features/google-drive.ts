@@ -234,11 +234,11 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
     const folder = normalizeDriveFile(folderRes.data)
 
     // List folder contents
-    const { files } = await this.listFolder(folderId, { pageSize: 1000 })
+    const { files, nextPageToken } = await this.listFolder(folderId, { pageSize: 1000 })
     const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder')
     const nonFolders = files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder')
 
-    return { folder, files: nonFolders, folders }
+    return { folder, files: nonFolders, folders, nextPageToken }
   }
 
   /**

@@ -298,6 +298,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     this.emit('authorizationRequired', authUrl)
 
     // Create a promise that resolves when the callback is received
+    let authorizationTimeout: ReturnType<typeof setTimeout> | undefined
     const codePromise = new Promise<string>((resolve, reject) => {
       const server = Bun.serve({
         port,
@@ -334,7 +335,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
       ;(this as any)._callbackServer = server
 
       // Timeout after 5 minutes
-      setTimeout(() => {
+      authorizationTimeout = setTimeout(() => {
         reject(new Error('OAuth2 authorization timed out (5 minutes)'))
       }, 5 * 60 * 1000)
     })
@@ -383,6 +384,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
       this.emit('error', err)
       throw err
     } finally {
+      if (authorizationTimeout) clearTimeout(authorizationTimeout)
       // Shut down callback server
       const server = (this as any)._callbackServer
       if (server) {

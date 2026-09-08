@@ -1,0 +1,24 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../*.ts",
+    "../src/**/*.ts",
+    "../src/**/*.tsx",
+    "../scripts/**/*.ts",
+    "../assistants/**/*.ts",
+    "google-*.test.ts",
+    "docker.test.ts",
+    "tmux.test.ts",
+    "tts.test.ts",
+    "redis.test.ts",
+    "runpod.test.ts",
+    "telegram.test.ts",
+    "process-manager.test.ts",
+    "vault.test.ts",
+    "package-finder.test.ts",
+    "dns.test.ts",
+    "nlp.test.ts",
+    "opener.test.ts",
+    "display-result.test.ts"
+  ]
+}

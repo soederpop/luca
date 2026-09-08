@@ -366,7 +366,6 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
       this.setState({ subscriberConnected: false })
     })
 
-    this.setState({ subscriberConnected: true })
     return this._subscriber
   }
 
@@ -421,11 +420,12 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
     await this._subscriber.unsubscribe(...channels)
 
     const current = this.state.get('subscribedChannels') || []
+    const removed = channels.length ? channels : current
     this.setState({
-      subscribedChannels: current.filter((ch: string) => !channels.includes(ch)),
+      subscribedChannels: current.filter((ch: string) => !removed.includes(ch)),
     })
 
-    for (const ch of channels) {
+    for (const ch of removed) {
       this._messageHandlers.delete(ch)
       this.emit('unsubscribed', ch)
     }
@@ -465,12 +465,10 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
     const docker = this.container.feature('docker', { enable: true })
 
     const containers = await docker.listContainers({ all: true })
-    const existing = containers.find((c: any) =>
-      c.names?.includes(name) || c.names?.includes(`/${name}`)
-    )
+    const existing = containers.find(c => c.name === name || c.name === `/${name}`)
 
     if (existing) {
-      if (existing.status !== 'running') {
+      if (existing.status.toLowerCase() !== 'running' && !/^up\b/i.test(existing.status)) {
         await docker.startContainer(name)
       }
       return existing.id

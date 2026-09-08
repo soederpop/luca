@@ -252,6 +252,7 @@ export class SpawnHandler {
     // Use proc.spawnAndCapture with hooks for real-time streaming
     proc.spawnAndCapture(command, args, {
       cwd,
+      environment: spawnOptions.env,
       onStart: (childProcess: any) => {
         this._childProcess = childProcess
         if (childProcess.pid) {

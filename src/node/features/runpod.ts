@@ -453,7 +453,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		// Encode the download command as base64 and decode+exec on the pod.
 		// This completely sidesteps quoting issues with nohup/& through SSH.
 		const partial = `${remotePath}.partial`
-		const downloadCmd = `wget -q -O '${partial}' '${fallbackUrl}' && mv '${partial}' '${remotePath}'`
+		const downloadCmd = `wget -q -O ${esc(partial)} ${esc(fallbackUrl)} && mv ${esc(partial)} ${esc(remotePath)}`
 		const b64 = Buffer.from(downloadCmd).toString('base64')
 
 		await shell.exec(`echo ${b64} | base64 -d | nohup bash >/dev/null 2>&1 &`)
