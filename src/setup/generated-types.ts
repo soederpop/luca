@@ -12332,6 +12332,26 @@ export declare const argsSchema: z.ZodObject<{
     lint: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 //# sourceMappingURL=introspect.d.ts.map`,
+  "commands/lib/chat-picker.d.ts": `export interface ChatPicker {
+    title: string;
+    items: Array<{
+        label: string;
+        hint?: string;
+        value: string;
+    }>;
+    index: number;
+    /** When present, an additional row accepts a custom answer. */
+    text?: {
+        value: string;
+        cursor: number;
+    };
+    onPick: (value: string) => void | Promise<void>;
+    onText?: (value: string) => void;
+    onCancel?: () => void;
+}
+/** Handle the active picker without touching the chat draft or history. */
+export declare function handlePickerInput(picker: ChatPicker, input: string, key: Record<string, boolean>, close: () => void): void;
+//# sourceMappingURL=chat-picker.d.ts.map`,
   "commands/lib/chat-splash.d.ts": `/**
  * Animated splash screen for \`luca chat\`, built on ui.canvas + ui.animate.
  *
@@ -12406,7 +12426,7 @@ export declare function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResu
  * Two tools, two surfaces:
  *  - showWidget: renders a static block (table/list/markdown/banner) into
  *    the transcript scrollback. Fire-and-forget.
- *  - askUser: takes over the live input region with an interactive picker
+ *  - askUser: takes over the live input region with an interactive prompt
  *    and blocks the turn until the human answers. The selection (or a
  *    cancellation) becomes the tool result.
  */
@@ -12434,6 +12454,7 @@ export declare const showWidgetSchema: z.ZodObject<{
 export declare const askUserSchema: z.ZodObject<{
     kind: z.ZodEnum<{
         confirm: "confirm";
+        text: "text";
         select: "select";
     }>;
     question: z.ZodString;
@@ -12490,6 +12511,7 @@ export declare function createInkSurface(deps: InkSurfaceDeps): {
         askUser: z.ZodObject<{
             kind: z.ZodEnum<{
                 confirm: "confirm";
+                text: "text";
                 select: "select";
             }>;
             question: z.ZodString;

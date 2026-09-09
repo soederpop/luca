@@ -11,7 +11,7 @@ import { z } from 'zod'
  * Two tools, two surfaces:
  *  - showWidget: renders a static block (table/list/markdown/banner) into
  *    the transcript scrollback. Fire-and-forget.
- *  - askUser: takes over the live input region with an interactive picker
+ *  - askUser: takes over the live input region with an interactive prompt
  *    and blocks the turn until the human answers. The selection (or a
  *    cancellation) becomes the tool result.
  */
@@ -35,13 +35,13 @@ export const showWidgetSchema = z.object({
 }).describe('Render a read-only widget into the chat transcript. Use it to present structured results instead of a wall of prose.')
 
 export const askUserSchema = z.object({
-	kind: z.enum(['select', 'confirm']).describe("'select' shows a menu of options; 'confirm' asks a yes/no question"),
+	kind: z.enum(['select', 'confirm', 'text']).describe("'select' shows options; 'confirm' asks yes/no; 'text' asks for a free-form answer. All kinds allow a custom text answer."),
 	question: z.string().describe('The question shown above the choices'),
 	options: z.array(z.object({
 		label: z.string().describe('Text shown for this choice'),
 		value: z.string().optional().describe('Value returned when chosen (defaults to the label)'),
 		hint: z.string().optional().describe('Dim hint text shown after the label'),
-	})).optional().describe("Choices for kind 'select' (2-10 recommended). Ignored for 'confirm'."),
+	})).optional().describe("Choices for kind 'select' (2-10 recommended). Ignored for 'confirm' and 'text'."),
 }).describe("Present an interactive prompt in the terminal and wait for the user's keyboard answer. The result is what they chose, or { cancelled: true } if they pressed escape — respect a cancellation, do not immediately re-ask.")
 
 export const renderUiSchema = z.object({
@@ -67,7 +67,7 @@ export type RenderUiResult = { value: unknown } | { cancelled: true } | { error:
 const PROMPT_EXTENSION = [
 	'You are running inside an interactive terminal chat UI and have three UI tools.',
 	'Use showWidget to present structured information (tables, lists, rendered markdown) instead of large text dumps.',
-	'Use askUser when you need the human to decide something — it renders a keyboard-driven menu and returns their choice as the tool result.',
+	'Use askUser when you need an answer from the human: kind text accepts a free-form answer; select and confirm offer choices plus a custom text answer. It returns their answer as the tool result.',
 	'Use renderUi to build any custom interactive terminal UI: you write an ink (React for terminals) component and it is compiled and mounted live.',
 	'renderUi contract: `export default function Widget({ done, cancel })` — done/cancel are PROPS, destructure them; React and ink imports work normally (useState, Box, Text, useInput, ...); never call render(); ',
 	'inside renderUi source, `container` and every key on container.context (feature instances, container.addContext values) are in scope by bare name; ',

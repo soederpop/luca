@@ -1,6 +1,7 @@
 import * as readline from 'readline'
 import * as util from 'util'
 import { createInkSurface, type ShowWidgetArgs, type AskUserResult } from './ink-surface'
+import { handlePickerInput, type ChatPicker } from './chat-picker'
 
 /**
  * The interactive chat TUI behind `luca chat`.
@@ -110,14 +111,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		// Only surface the ctrl+t hint once a model has actually streamed reasoning
 		sawReasoning: false,
 		mode: 'input' as 'input' | 'picker' | 'console' | 'ui',
-		picker: null as null | {
-			title: string
-			items: Array<{ label: string; hint?: string; value: string }>
-			index: number
-			onPick: (value: string) => void | Promise<void>
-			/** Called when the picker is dismissed (esc, or the turn aborts). */
-			onCancel?: () => void
-		},
+		picker: null as null | ChatPicker,
 		/** Assistant-authored ink component mounted by the renderUi tool. */
 		ui: null as null | {
 			Component: any
@@ -279,7 +273,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		},
 		ask(spec) {
 			return new Promise((resolve) => {
-				if (store.mode === 'picker') {
+				if (store.mode !== 'input') {
 					// Another widget already owns the keyboard — fail the tool call
 					// instead of silently replacing what the user is looking at.
 					resolve({ cancelled: true })
@@ -287,7 +281,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				}
 				const items = spec.kind === 'confirm'
 					? [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]
-					: (spec.options ?? []).map((opt) => ({ label: opt.label, value: opt.value ?? opt.label, hint: opt.hint }))
+					: spec.kind === 'text' ? [] : (spec.options ?? []).map((opt) => ({ label: opt.label, value: opt.value ?? opt.label, hint: opt.hint }))
 				const settle = (result: AskUserResult) => {
 					store.transcript.push({
 						id: uid(),
@@ -302,6 +296,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 					title: spec.question,
 					items,
 					index: 0,
+					text: { value: '', cursor: 0 },
+					onText: (value) => settle({ value, label: value }),
 					onPick: (value) => settle({ value, label: items.find((item) => item.value === value)?.label ?? value }),
 					onCancel: () => settle({ cancelled: true }),
 				}
@@ -1001,13 +997,22 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 
 	function Picker() {
 		const picker = store.picker!
+		const text = picker.text
+		const editing = !!text && picker.index === picker.items.length
+		const answer = text && editing
+			? text.value.slice(0, text.cursor) + colors.inverse(text.value[text.cursor] || ' ') + text.value.slice(text.cursor + 1)
+			: text?.value || ''
 		return h(Box, { flexDirection: 'column', marginTop: 1 },
-			h(Text, null, colors.bold(picker.title) + colors.dim('  ↑↓ move · enter select · esc cancel')),
+			h(Text, null, colors.bold(picker.title) + colors.dim(editing ? '  type answer · enter submit · ↑↓ move · esc cancel' : '  ↑↓ move · enter select · esc cancel')),
 			...picker.items.map((item, index) => h(Text, { key: item.value },
 				(index === picker.index ? colors.cyan('❯ ') : '  ') +
 				(index === picker.index ? colors.bold(item.label) : item.label) +
 				(item.hint ? colors.dim(`  ${item.hint}`) : ''),
 			)),
+			...(text ? [h(Text, { key: 'custom-answer' },
+				(editing ? colors.cyan('❯ ') : '  ') +
+				(picker.items.length ? 'Other — type your answer: ' : 'Your answer: ') + answer,
+			)] : []),
 		)
 	}
 
@@ -1034,25 +1039,11 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			setCtrlCArmed(false)
 
 			if (store.mode === 'picker' && store.picker) {
-				const picker = store.picker
-				if (key.upArrow) { picker.index = Math.max(0, picker.index - 1); bump(); return }
-				if (key.downArrow) { picker.index = Math.min(picker.items.length - 1, picker.index + 1); bump(); return }
-				if (key.escape) {
-					const cancel = picker.onCancel
+				handlePickerInput(store.picker, input, key, () => {
 					store.mode = 'input'
 					store.picker = null
-					bump()
-					cancel?.()
-					return
-				}
-				if (key.return) {
-					const chosen = picker.items[picker.index]
-					store.mode = 'input'
-					store.picker = null
-					bump()
-					if (chosen) void Promise.resolve(picker.onPick(chosen.value))
-					return
-				}
+				})
+				bump()
 				return
 			}
 
