@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import { publishRelease } from '../scripts/lib/local-release'
+import releaseCommand, { argsSchema } from '../commands/release'
 
 function fixture(overrides: { version?: string; workflow?: string; remoteSha?: string; published?: string; fail?: string; assets?: boolean; corruptPublish?: boolean } = {}) {
   const version = overrides.version ?? '3.12.1'
@@ -88,7 +89,7 @@ describe('local release publishing', () => {
     { published: 'sha512-different' }, { fail: 'bun run' }, { fail: 'npm publish' }, { fail: 'npm view' }, { corruptPublish: true }]) {
     it(`refuses promotion when ${JSON.stringify(overrides)}`, async () => {
       const f = fixture(overrides)
-      await expect(publishRelease(f.container, 'v3.12.1')).rejects.toThrow()
+      await expect(publishRelease(f.container, 'v3.12.1', false, { waitTimeout: 0 })).rejects.toThrow()
       expect(f.calls.some(c => c.args[1] === 'edit')).toBe(false)
     })
   }
@@ -119,5 +120,93 @@ describe('local release publishing', () => {
     const f = fixture()
     await expect(publishRelease(f.container, '--help')).rejects.toThrow()
     expect(f.calls).toHaveLength(0)
+  })
+
+  it('waits through a missing tag, workflow startup, and binary uploads before publishing', async () => {
+    const f = fixture()
+    const proc = f.container.feature('proc') as any
+    const spawn = proc.spawnAndCapture
+    let fetched = false
+    let remoteChecks = 0
+    let workflowChecks = 0
+    let releaseChecks = 0
+    proc.spawnAndCapture = async (command: string, args: string[], options: any) => {
+      if (command === 'git' && args[0] === 'show-ref' && !fetched) return { exitCode: 1, error: new Error('exit 1') }
+      if (command === 'git' && args[0] === 'fetch') { fetched = true; return { exitCode: 0, stdout: '' } }
+      if (command === 'gh' && args[0] === 'api' && remoteChecks++ === 0) return { exitCode: 1, stderr: 'HTTP 404: Not Found' }
+      if (command === 'gh' && args[0] === 'run') {
+        workflowChecks++
+        if (workflowChecks === 1) return { exitCode: 0, stdout: '[]' }
+        if (workflowChecks === 2) return { exitCode: 0, stdout: JSON.stringify([{ headSha: 'abc123', status: 'in_progress' }]) }
+      }
+      if (command === 'gh' && args[1] === 'view' && args[0] === 'release') {
+        releaseChecks++
+        if (releaseChecks === 1) return { exitCode: 1, stderr: 'release not found' }
+        if (releaseChecks === 2) return { exitCode: 0, stdout: JSON.stringify({ tagName: 'v3.12.1', assets: [] }) }
+      }
+      return spawn(command, args, options)
+    }
+    await publishRelease(f.container, 'v3.12.1', false, { pollInterval: 0.001, waitTimeout: 2 })
+    expect(fetched).toBe(true)
+    expect(workflowChecks).toBe(5)
+    expect(releaseChecks).toBe(3)
+    expect(f.calls.filter(c => c.args[0] === 'publish')).toHaveLength(1)
+  })
+
+  it('retries temporary GitHub outages', async () => {
+    const f = fixture()
+    const proc = f.container.feature('proc') as any
+    const spawn = proc.spawnAndCapture
+    let attempts = 0
+    proc.spawnAndCapture = async (command: string, args: string[], options: any) => {
+      if (command === 'gh' && args[0] === 'repo' && attempts++ === 0) return { exitCode: 1, stderr: 'HTTP 503: Service Unavailable' }
+      return spawn(command, args, options)
+    }
+    await publishRelease(f.container, 'v3.12.1', true, { pollInterval: 0.001, waitTimeout: 2 })
+    expect(attempts).toBe(2)
+    expect(f.calls.some(c => c.args[0] === 'publish')).toBe(false)
+  })
+
+  it('times out without starting a build or publishing when assets never arrive', async () => {
+    const f = fixture({ assets: false })
+    await expect(publishRelease(f.container, 'v3.12.1', false, { waitTimeout: 0.005, pollInterval: 0.001 })).rejects.toThrow('Timed out waiting')
+    expect(f.calls.some(c => c.command === 'bun' || c.args[0] === 'publish')).toBe(false)
+  })
+
+  it('does not retry authentication failures', async () => {
+    const f = fixture()
+    const proc = f.container.feature('proc') as any
+    let attempts = 0
+    proc.spawnAndCapture = async () => { attempts++; return { exitCode: 1, stderr: 'HTTP 401: Bad credentials' } }
+    await expect(publishRelease(f.container, 'v3.12.1')).rejects.toThrow('Bad credentials')
+    expect(attempts).toBe(1)
+  })
+
+  it('continues from creating a tag through publishing without another command', async () => {
+    const f = fixture()
+    const fs = f.container.feature('fs') as any
+    fs.readFileAsync = async () => JSON.stringify({ version: '3.12.1' })
+    fs.banner = () => {}
+    await releaseCommand.handler(argsSchema.parse({ skipTests: true }), { container: f.container } as any)
+    const push = f.calls.findIndex(c => c.command === 'git' && c.args[0] === 'push')
+    const publish = f.calls.findIndex(c => c.command === 'npm' && c.args[0] === 'publish')
+    expect(push).toBeGreaterThan(-1)
+    expect(publish).toBeGreaterThan(push)
+  })
+
+  it('resumes an existing version tag without trying to recreate it', async () => {
+    const f = fixture()
+    const fs = f.container.feature('fs') as any
+    fs.readFileAsync = async () => JSON.stringify({ version: '3.12.1' })
+    fs.banner = () => {}
+    const proc = f.container.feature('proc') as any
+    const spawn = proc.spawnAndCapture
+    proc.spawnAndCapture = async (command: string, args: string[], options: any) => {
+      if (command === 'git' && args[0] === 'tag' && args[1] === '-l') return { exitCode: 0, stdout: 'v3.12.1' }
+      return spawn(command, args, options)
+    }
+    await releaseCommand.handler(argsSchema.parse({}), { container: f.container } as any)
+    expect(f.calls.some(c => c.command === 'git' && c.args[0] === 'tag')).toBe(false)
+    expect(f.calls.some(c => c.command === 'npm' && c.args[0] === 'publish')).toBe(true)
   })
 })

@@ -29,8 +29,10 @@ With the desired version committed in `package.json`:
 luca release
 ```
 
-This retains the existing behavior: run unit tests, create the version tag, and
-push it so the Release workflow builds the binaries and creates a draft release.
+This runs unit tests, creates and pushes the version tag, then waits for the
+Release workflow to build the binaries and create a draft release. Once ready,
+it publishes to npm and promotes the GitHub release automatically. If the local
+version tag already exists, the command resumes publishing that tag.
 
 ## Publish an existing successful release
 
@@ -47,6 +49,22 @@ assets exist. It exports that commit into a temporary directory, installs locked
 dependencies, runs unit tests and type checking, builds declarations, and packs
 the npm tarball. Your current checkout and uncommitted changes are not packaged.
 The tagged `package.json` version must match the supplied tag.
+
+You can run the command immediately after pushing a tag. It checks readiness
+every 15 seconds for up to 30 minutes, printing the current state as it waits.
+Missing remote tags, workflow startup, queued/running builds, draft creation,
+unfinished binary uploads, and temporary GitHub connection/server errors are
+retried. If the tag is absent locally, the command fetches that specific tag
+from `origin`. Failed/cancelled workflows, authentication errors, and commit
+mismatches stop immediately.
+
+```sh
+luca release v3.12.1 --wait-timeout 3600 --poll-interval 10
+```
+
+Both settings are in seconds. Use `--wait-timeout 0` to check readiness once.
+Press Ctrl+C to stop waiting; rerun the command to resume. A timeout does not
+start local builds or publish anything. Waiting also applies to `--dry-run`.
 
 A dry run completes those checks and compares against any existing npm version,
 without publishing or changing dist-tags or GitHub releases. It needs network

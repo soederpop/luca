@@ -6,8 +6,10 @@ import { publishRelease } from '../scripts/lib/local-release';
 export const positionals = ['tag'];
 
 export const argsSchema = CommandOptionsSchema.extend({
-  tag: z.string().optional().describe('Existing successful release tag to publish locally to npm and GitHub'),
+  tag: z.string().optional().describe('Release tag to wait for and publish locally to npm and GitHub'),
   dryRun: z.boolean().default(false).describe('Validate and pack an existing tag without publishing'),
+  waitTimeout: z.number().nonnegative().default(1800).describe('Seconds to wait for the tag, workflow, and release assets (0 checks once)'),
+  pollInterval: z.number().positive().default(15).describe('Seconds between release readiness checks'),
   skipTests: z
     .boolean()
     .optional()
@@ -19,7 +21,7 @@ async function release(
   context: ContainerContext,
 ) {
   const container = context.container as any;
-  if (options.tag) return publishRelease(container, options.tag, options.dryRun);
+  if (options.tag) return publishRelease(container, options.tag, options.dryRun, options);
   if (options.dryRun) throw new Error('Pass an existing tag with --dry-run');
   const proc = container.feature("proc");
   const fileSystem = container.feature("fs");
@@ -36,10 +38,7 @@ async function release(
     silent: true,
   });
   if (tagCheck.stdout.trim() === tag) {
-    console.error(
-      `\nTag ${tag} already exists. Bump the version in package.json first.`,
-    );
-    throw new Error(`Tag exists. Use luca release ${tag} to publish it.`);
+    return publishRelease(container, tag, false, options);
   }
 
   // Run tests
@@ -78,10 +77,11 @@ async function release(
     `\n✓ Tag ${tag} pushed. GitHub Actions will build, sign, and create the draft release.`,
   );
   console.log(`  https://github.com/soederpop/luca/actions`);
+  await publishRelease(container, tag, false, options);
 }
 
 export default {
-  description: "Create a release tag, or publish an existing successful tag locally to npm and GitHub",
+  description: "Create or resume a release, wait for its binaries, and publish locally to npm and GitHub",
   positionals,
   argsSchema,
   handler: release,
