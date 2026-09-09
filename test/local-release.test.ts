@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'bun:test'
+import { NodeContainer } from '../src/node/container'
 import { publishRelease } from '../scripts/lib/local-release'
 import releaseCommand, { argsSchema } from '../commands/release'
 
@@ -43,12 +44,23 @@ function fixture(overrides: { version?: string; workflow?: string; remoteSha?: s
     container: {
       feature: (name: string) => name === 'proc' ? proc : fs,
       paths: { resolve: (...parts: string[]) => parts.join('/') },
-      os: { tmpdir: () => '/tmp' }, utils: { uuid: () => 'test' },
-    },
+      os: { tmpdir: '/tmp' }, utils: { uuid: () => 'test' },
+    } as unknown as NodeContainer,
   }
 }
 
 describe('local release publishing', () => {
+  it('builds the temporary directory path using the real container OS getter', async () => {
+    const real = new NodeContainer()
+    const f = fixture()
+    const fs = f.container.feature('fs') as any
+    let created = ''
+    fs.ensureFolder = (path: string) => { created = path }
+    await publishRelease({ ...f.container, os: real.os, paths: real.paths } as unknown as NodeContainer, 'v3.12.1', true)
+    expect(created).toBe(real.paths.resolve(real.os.tmpdir, 'luca-release-test', 'source'))
+    expect(f.removed).toBe(true)
+  })
+
   it('publishes the verified tarball before promoting GitHub', async () => {
     const f = fixture()
     await publishRelease(f.container, 'v3.12.1')

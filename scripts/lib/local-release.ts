@@ -1,3 +1,5 @@
+import type { NodeContainer } from '../../src/node/container'
+
 const REGISTRY = 'https://registry.npmjs.org/'
 const ASSETS = ['luca-linux-x64', 'luca-linux-arm64', 'luca-darwin-x64', 'luca-darwin-arm64', 'luca-windows-x64.exe']
 
@@ -9,7 +11,7 @@ export interface ReleaseWaitOptions {
 }
 
 /** Publish a tested tag from an isolated source snapshot, then promote its GitHub release. */
-export async function publishRelease(container: any, tag: string, dryRun = false, wait: ReleaseWaitOptions = {}) {
+export async function publishRelease(container: NodeContainer, tag: string, dryRun = false, wait: ReleaseWaitOptions = {}) {
   if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(tag)) throw new Error('Expected a version tag such as v3.12.1')
   const timeout = wait.waitTimeout ?? 1800
   const interval = wait.pollInterval ?? 15
@@ -77,7 +79,7 @@ export async function publishRelease(container: any, tag: string, dryRun = false
   const prerelease = tag.includes('-')
   if (!prerelease && release.isPrerelease) throw new Error('A stable version tag is marked as a GitHub prerelease')
   const distTag = prerelease ? 'next' : 'latest'
-  const scratch = container.paths.resolve(container.os.tmpdir(), `luca-release-${container.utils.uuid()}`)
+  const scratch = container.paths.resolve(container.os.tmpdir, `luca-release-${container.utils.uuid()}`)
   const source = container.paths.resolve(scratch, 'source')
   fs.ensureFolder(source)
   try {
