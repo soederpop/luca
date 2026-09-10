@@ -9,138 +9,64 @@
   // with one name), taken from `luca describe features|clients|servers`.
   const layers = [
     {
-      name: 'Application',
+      name: 'The application',
       label: 'Application',
       color: '#7baeff',
       tray: '#224aa2',
       block: '#477ce5',
       left: '#172c60',
       right: '#101d41',
-      items: [
-        'ui / ink',
-        'state',
-        'events',
-        'commands',
-        'endpoints',
-        'openapi docs',
-        'selectors',
-        'bundle',
-      ],
+      items: ['express', 'websocket', 'static site', 'endpoints', 'commands', 'state', 'events', 'ipcSocket'],
     },
     {
-      name: 'Assistants',
+      name: 'The features it uses',
+      label: 'Features',
+      color: '#f4c773',
+      tray: '#806023',
+      block: '#bc8c37',
+      left: '#513b18',
+      right: '#332712',
+      items: ['postgres', 'contentDb', 'sqlite', 'scheduler', 'secureShell', 'git', 'docker', 'fs'],
+    },
+    {
+      name: 'The assistants wired in',
       label: 'Assistants',
       color: '#b195ff',
       tray: '#583297',
       block: '#9562dc',
       left: '#38235f',
       right: '#24193f',
-      items: [
-        'assistant',
-        'assistantsManager',
-        'conversation',
-        'memory',
-        'skillsLibrary',
-        'mcpBridge',
-        'modelProviders',
-        'claudeCode / codex',
-      ],
+      items: ['ops', 'support', 'coder', 'CORE.md', 'tools.ts', 'hooks.ts', 'memory', 'skillsLibrary'],
     },
     {
-      name: 'Features: data and content',
-      label: 'Data',
-      color: '#f4c773',
-      tray: '#806023',
-      block: '#bc8c37',
-      left: '#513b18',
-      right: '#332712',
-      items: [
-        'contentDb',
-        'sqlite',
-        'postgres',
-        'redis',
-        'store',
-        'diskCache',
-        'semanticSearch',
-        'docsReader',
-      ],
-    },
-    {
-      name: 'Features: files, process, and shell',
-      label: 'Systems',
-      color: '#60d9ca',
-      tray: '#166c69',
-      block: '#319d90',
-      left: '#134641',
-      right: '#0b302e',
-      items: ['fs', 'grep', 'proc', 'processManager', 'secureShell', 'tmux', 'docker', 'git'],
-    },
-    {
-      name: 'Features: integrations and media',
-      label: 'Integrations',
+      name: 'The doors that reach them',
+      label: 'Access',
       color: '#8fdc95',
       tray: '#2c7a44',
       block: '#4aa964',
       left: '#1d4d2e',
       right: '#133320',
-      items: [
-        'google workspace',
-        'telnyx',
-        'telegram',
-        'browserUse',
-        'tts',
-        'screenCapture',
-        'scheduler',
-        'vault',
-      ],
+      items: ['/admin endpoints', 'phone', 'SMS', 'telegram', 'mcp', 'websocket', 'ipc', 'rest'],
     },
     {
-      name: 'Clients',
-      label: 'Clients',
-      color: '#ffb27a',
-      tray: '#9a5424',
-      block: '#d27a3c',
-      left: '#5b3218',
-      right: '#3a2010',
-      items: [
-        'rest',
-        'websocket',
-        'socket.io',
-        'ipc',
-        'graphql',
-        'openai',
-        'containerLink',
-        'tts / stt',
-      ],
-    },
-    {
-      name: 'Servers',
-      label: 'Servers',
-      color: '#8fd4ff',
-      tray: '#1f6a92',
-      block: '#3d9bd0',
-      left: '#164459',
-      right: '#0e2e3d',
-      items: ['express', 'websocket', 'ipc', 'mcp', 'llmProxy', 'containerLink'],
-    },
-    {
-      name: 'Execution',
-      label: 'Execution',
+      name: 'Self-repair',
+      label: 'Repair',
       color: '#ef98c5',
       tray: '#86385f',
       block: '#be6394',
       left: '#54263e',
       right: '#351d2c',
-      items: [
-        'vm',
-        'evalCode',
-        'transpiler',
-        'typescript',
-        'introspection',
-        'helpers / plugins',
-        'python',
-        'bun binary',
-      ],
+      items: ['vm', 'evalCode', 'processManager', 'claudeCode', 'codex', 'assistantsManager', 'testAssistant', 'rollback'],
+    },
+    {
+      name: 'The shipped binary',
+      label: 'Binary',
+      color: '#8fd4ff',
+      tray: '#1f6a92',
+      block: '#3d9bd0',
+      left: '#164459',
+      right: '#0e2e3d',
+      items: ['luca bundle', 'darwin-arm64', 'linux-x64', 'no install', 'your commands', 'your assistants', 'describe', 'bun runtime'],
     },
   ]
   const last = layers.length - 1
@@ -177,8 +103,8 @@
     )
   }
 
-  const pitch = 40
-  const origin = 690
+  const pitch = 44
+  const origin = 670
   let parts = []
   let lid
   let labels = []
@@ -315,7 +241,7 @@
     const stage = Math.round(focus)
     const release = ease((progress + 0.8) / 0.8)
     const gaps = layers.map((_, index) =>
-      reduceMotion.matches ? 34 : 180 * release * ease(1 - Math.abs(focus - index)),
+      reduceMotion.matches ? 40 : 210 * release * ease(1 - Math.abs(focus - index)),
     )
     let elevation = 0
     for (let index = last; index >= 0; index--) {
