@@ -198,6 +198,27 @@
         letter-spacing: -1px;
         margin: 0 0 28px;
       }
+      .safety {
+        margin-top: 24px;
+      }
+      .safety h2 {
+        font-size: 43px;
+        letter-spacing: -1.7px;
+        line-height: 1.13;
+        margin-bottom: 20px;
+      }
+      .safety-lead {
+        max-width: 640px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.55;
+        margin: 0 0 34px;
+      }
+      @media (max-width: 760px) {
+        .safety h2 {
+          font-size: 30px;
+        }
+      }
       .why-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1389,6 +1410,7 @@
           <div class="nav-links">
             <a class="desktop" href="#inside">Inside Luca</a
             ><a class="desktop" href="#harnesses">Build a harness</a
+            ><a class="desktop" href="#safety">Supply chain</a
             ><a href="https://github.com/soederpop/luca/tree/main/docs">Docs</a
             ><a class="github" href="https://github.com/soederpop/luca">GitHub ↗</a>
           </div>
@@ -1402,12 +1424,12 @@
           <h1 id="hero-title">Build the app.<br />Put the agent inside.</h1>
           <div class="hero-bottom">
             <p>
-              Luca is one binary. It gives you a TypeScript runtime with an agent harness built
-              in. Build your API, your WebSocket server, and your site. Add features such as
-              Postgres and SSH. Add assistants that use those same features. An assistant can have
-              its own REST API, so other agents and apps can ask it for context. It can have a
-              phone number. Then compile all of it into one binary for macOS or Linux. Your app
-              ships with its own operator inside.
+              Luca is a single binary for building apps with operators inside. An operator is an
+              assistant: a prompt with tool calls, running in your process. It is wired to the same
+              modules and capabilities that power your app, so it can read the same data and take
+              the same actions. It answers through the doors you build: an endpoint, a socket, a
+              phone line. You compile the app and its operators into one binary for macOS or Linux.
+              Your software ships with someone on call.
             </p>
             <div class="hero-actions">
               <a class="button" href="#inside"
@@ -1416,7 +1438,7 @@
             </div>
           </div>
           <div class="hero-meta">
-            <span>One binary in. One binary out.</span><span>Agents inside the app</span
+            <span>One binary in. One binary out.</span><span>No npm install</span
             ><span>Open source / MIT</span>
           </div>
         </section>
@@ -1698,6 +1720,45 @@ await line.start()
             <span>Example configuration. Select a harness to see its tools and environment.</span><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis"
               >Inspect the APIs ↗</a
             >
+          </div>
+        </section>
+        <section class="why safety" id="safety" aria-labelledby="safety-title">
+          <h2 id="safety-title">No npm install.<br />No supply chain to trust.</h2>
+          <p class="safety-lead">
+            Luca is a complete system. The runtime, the features, the clients, and the servers are
+            already inside the binary. Your project is a folder of TypeScript. You do not run npm
+            install. Nothing downloads code into your app at build time or at run time.
+          </p>
+          <div class="why-grid">
+            <div>
+              <strong>Curated dependencies.</strong>
+              <p>
+                Every module in Luca is chosen, reviewed, and checked for security before it ships.
+                You get one audited set, not a tree of unknown packages.
+              </p>
+            </div>
+            <div>
+              <strong>Nothing to typosquat.</strong>
+              <p>
+                There is no package list to attack. A coding agent cannot pull in a malicious
+                package by mistake, because it does not install packages at all.
+              </p>
+            </div>
+            <div>
+              <strong>One file to verify.</strong>
+              <p>
+                The binary you ship is the binary you built. Check one hash. Your team and your
+                customers run it without a package manager.
+              </p>
+            </div>
+            <div>
+              <strong>Teach it to your coding agent.</strong>
+              <p>
+                Hand Luca to Claude Code, Codex, or Hermes. It learns the runtime with luca
+                describe and builds apps that are safe by construction, with no supply chain to
+                expose.
+              </p>
+            </div>
           </div>
         </section>
         <section class="closing" aria-labelledby="closing-title">
