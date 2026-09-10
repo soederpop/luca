@@ -8,7 +8,7 @@
       name="description"
       content="Build software with an operator inside. Explore how Luca brings applications, assistants, a Markdown brain, operational tools, and live code execution into one runtime."
     />
-    <title>Luca — Build the system. Put an agent inside it.</title>
+    <title>Luca — Build the app. Put the agent inside.</title>
     <style>
       :root {
         --bg: #151719;
@@ -187,6 +187,46 @@
         text-decoration: none;
         border-bottom: 1px solid var(--steel);
         padding-bottom: 3px;
+      }
+      .why {
+        border-top: 1px solid var(--line);
+        padding: 44px 0 52px;
+      }
+      .why h2 {
+        font-size: 30px;
+        font-weight: 400;
+        letter-spacing: -1px;
+        margin: 0 0 28px;
+      }
+      .why-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 32px;
+      }
+      .why-grid strong {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      .why-grid p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+        margin: 0;
+      }
+      @media (max-width: 1100px) {
+        .why-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 760px) {
+        .why-grid {
+          grid-template-columns: 1fr;
+          gap: 22px;
+        }
+        .why h2 {
+          font-size: 26px;
+        }
       }
       .hero-meta {
         display: flex;
@@ -1358,16 +1398,16 @@
     <main id="main">
       <div class="wrap">
         <section class="hero" aria-labelledby="hero-title">
-          <p class="context">One binary. A TypeScript SDK for AI-native software.</p>
-          <h1 id="hero-title">Build the system.<br />Put an agent inside it.</h1>
+          <p class="context">An agent harness built into the runtime. Shipped as one binary.</p>
+          <h1 id="hero-title">Build the app.<br />Put the agent inside.</h1>
           <div class="hero-bottom">
             <p>
-              Luca is a single binary that builds any application architecture: HTTP APIs,
-              WebSocket services, CLIs, MCP servers, phone lines, terminal and browser UIs.
-              Assistants are first-class parts of that runtime. They use the same tools, state,
-              and events as your code, answer over any transport you give them, and can inspect,
-              extend, and rebuild the system they run in. Then compile all of it into a binary of
-              your own.
+              Luca is one binary. It gives you a TypeScript runtime with an agent harness built
+              in. Build your API, your WebSocket server, and your site. Add features such as
+              Postgres and SSH. Add assistants that use those same features. An assistant can have
+              its own REST API, so other agents and apps can ask it for context. It can have a
+              phone number. Then compile all of it into one binary for macOS or Linux. Your app
+              ships with its own operator inside.
             </p>
             <div class="hero-actions">
               <a class="button" href="#inside"
@@ -1376,183 +1416,145 @@
             </div>
           </div>
           <div class="hero-meta">
-            <span>78 features · 7 clients · 4 servers</span><span>Zero install steps</span
+            <span>One binary in. One binary out.</span><span>Agents inside the app</span
             ><span>Open source / MIT</span>
+          </div>
+        </section>
+        <section class="why" aria-labelledby="why-title">
+          <h2 id="why-title">Why put an agent inside the app?</h2>
+          <div class="why-grid">
+            <div>
+              <strong>Build your own coding harness.</strong>
+              <p>
+                Claude Code, Codex, and Hermes become functions. Your supervisor decides who writes,
+                who reviews, and when the work is done.
+              </p>
+            </div>
+            <div>
+              <strong>Let the app repair itself.</strong>
+              <p>
+                An assistant inside the app reads the logs, restarts a process, and asks a coding
+                agent for a patch. Then it runs the tests.
+              </p>
+            </div>
+            <div>
+              <strong>Call in and ask how it is going.</strong>
+              <p>
+                Phone, text, or Telegram. Ask the app for its status. The assistant reads the real
+                data and answers.
+              </p>
+            </div>
+            <div>
+              <strong>Give the CEO a phone number.</strong>
+              <p>
+                An assistant with the Postgres feature and a prompt that names the tables. The CEO
+                texts “signups today?” and gets a number, not a dashboard.
+              </p>
+            </div>
           </div>
         </section>
         <div class="journey" id="inside">
           <div class="chapters">
-            <section
-              class="chapter"
-              id="application"
-              data-chapter="0"
-              aria-labelledby="chapter-0-title"
-            >
-              <div class="chapter-count">01 / 08</div>
-              <h2 id="chapter-0-title">Every architecture.<br />One runtime.</h2>
+            <section class="chapter" id="application" data-chapter="0" aria-labelledby="chapter-0-title">
+              <div class="chapter-count">01 / 06</div>
+              <h2 id="chapter-0-title">Build the<br />application.</h2>
               <p>
-                The container is a dependency injector, event bus, and state machine in one process. Endpoints mount themselves and generate their own OpenAPI docs. Commands become a CLI. Selectors cache queries. Ink renders terminal UIs. State and events are shared by every part, including the assistants.
+                Start with the parts a normal app has. An HTTP API from the files in endpoints/. A WebSocket server for live data. A static server for your site. Commands for the terminal. Shared state and events connect all of them.
               </p>
               <div class="chapter-example">
-                <span>Imagine your API starts failing.</span>
+                <span>A signup app.</span>
                 <p>
-                  The service, its state, and the tools to inspect it are already one object graph. There is nothing to wire together at three in the morning.
+                  Users sign up on the site. The API writes each signup to Postgres. The socket pushes the new count to the dashboard.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;)   // endpoints/ mount themselves
-api.serveOpenAPISpec()                     // docs generated from the routes
-container.state.set(&#x27;incident&#x27;, { service: &#x27;api&#x27;, since: Date.now() })</code></pre>
+              <pre class="chapter-snippet"><code>const api = container.server(&#x27;express&#x27;, { static: &#x27;public&#x27; })  // endpoints/ mount themselves
+const live = container.server(&#x27;websocket&#x27;, { json: true })
+container.on(&#x27;signup&#x27;, (user) => live.broadcast({ type: &#x27;signup&#x27;, user }))</code></pre>
             </section>
-            <section
-              class="chapter"
-              id="assistant"
-              data-chapter="1"
-              aria-labelledby="chapter-1-title"
-            >
-              <div class="chapter-count">02 / 08</div>
-              <h2 id="chapter-1-title">An operator.<br />Not a chat box.</h2>
+            <section class="chapter" id="features" data-chapter="1" aria-labelledby="chapter-1-title">
+              <div class="chapter-count">02 / 06</div>
+              <h2 id="chapter-1-title">Add the features<br />the app uses.</h2>
               <p>
-                An assistant is a folder: CORE.md for the prompt, tools.ts for typed tools, hooks.ts for lifecycle. It is a feature like any other, so it shares the container’s state and events. Call use() on any helper and that helper’s tools become the assistant’s tools, with the operating notes it needs already in its prompt. Memory, a skills library, an MCP bridge, and the coding agents live on this tray too.
+                Features do the work: Postgres, SQLite, a Markdown database, SSH, git, Docker, a scheduler. Your app uses them. Your assistants will use the same ones. Each feature has typed tools, and it can explain itself to a model.
               </p>
               <div class="chapter-example">
-                <span>Hand the failure to the operator.</span>
+                <span>The data the CEO will ask about.</span>
                 <p>
-                  It calls the functions your code calls, and answers through whatever interface you build: an HTTP route, a socket, an MCP tool, a Telegram bot, a phone call.
+                  The signups live in a Postgres table. The runbooks live in a folder of Markdown. The health check runs every five minutes on the scheduler.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>const operator = container.feature(&#x27;assistant&#x27;, {
-  folder: &#x27;assistants/operator&#x27;,   // CORE.md + tools.ts + hooks.ts
+              <pre class="chapter-snippet"><code>const db = container.feature(&#x27;postgres&#x27;, { url: process.env.DATABASE_URL, readOnly: true })
+const runbooks = container.feature(&#x27;contentDb&#x27;, { rootPath: &#x27;./runbooks&#x27; })
+container.feature(&#x27;scheduler&#x27;).every(&#x27;5m&#x27;, checkHealth)</code></pre>
+            </section>
+            <section class="chapter" id="assistants" data-chapter="2" aria-labelledby="chapter-2-title">
+              <div class="chapter-count">03 / 06</div>
+              <h2 id="chapter-2-title">Wire in<br />the assistants.</h2>
+              <p>
+                An assistant is a folder with a prompt, typed tools, and hooks. Give it a job and the features it needs. It runs inside your app, with the same state and the same events. It is a part of the product, not a chat window next to it.
+              </p>
+              <div class="chapter-example">
+                <span>The ops assistant.</span>
+                <p>
+                  Its prompt says which tables hold signups and performance. Give it the read-only Postgres feature. Now it can answer “How many signups today?” with a real query.
+                </p>
+              </div>
+              <pre class="chapter-snippet"><code>const ops = container.feature(&#x27;assistant&#x27;, {
+  folder: &#x27;assistants/ops&#x27;,   // CORE.md names the tables: users, metrics.requests
 })
-operator.use(container.feature(&#x27;memory&#x27;))
-operator.use(container.feature(&#x27;mcpBridge&#x27;, { servers }))</code></pre>
+ops.use(db)
+ops.use(runbooks)
+await ops.start()</code></pre>
             </section>
-            <section
-              class="chapter"
-              id="data"
-              data-chapter="2"
-              aria-labelledby="chapter-2-title"
-            >
-              <div class="chapter-count">03 / 08</div>
-              <h2 id="chapter-2-title">Your Markdown<br />becomes its memory.</h2>
+            <section class="chapter" id="access" data-chapter="3" aria-labelledby="chapter-3-title">
+              <div class="chapter-count">04 / 06</div>
+              <h2 id="chapter-3-title">Give it a door<br />for each caller.</h2>
               <p>
-                A folder of Markdown with frontmatter becomes a typed, queryable database through Contentbase. Semantic search finds the right runbook. Beside it sit SQLite, Postgres, Redis, a locked cross-process store, and a disk cache, each with typed tools the assistant can call.
+                People and other agents reach the assistant through what you build. An /admin endpoint for the dashboard. A phone number for a call or a text. Telegram. An MCP tool for your coding agents. A socket for another process. Same assistant, same answer, at every door.
               </p>
               <div class="chapter-example">
-                <span>Find the procedure before touching anything.</span>
+                <span>The CEO’s phone number.</span>
                 <p>
-                  The operator reads past incidents and deployment notes to learn what failed and how your team handles it. Your decisions become its defaults.
+                  The CEO calls or texts the number and asks how many signups the app had. The ops assistant queries Postgres and answers. No engineer wakes up.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;contentDb&#x27;, { rootPath: &#x27;./brain&#x27; }))
-operator.use(container.feature(&#x27;postgres&#x27;, { url, readOnly: true }))
-operator.use(container.feature(&#x27;skillsLibrary&#x27;))</code></pre>
+              <pre class="chapter-snippet"><code>const line = container.feature(&#x27;telnyxConnector&#x27;, {
+  assistant: ops, phoneNumber: &#x27;+13125550142&#x27;,
+  allowedCallers: [process.env.CEO_PHONE],
+})
+await line.start()   // calls and texts reach the ops assistant</code></pre>
             </section>
-            <section
-              class="chapter"
-              id="systems"
-              data-chapter="3"
-              aria-labelledby="chapter-3-title"
-            >
-              <div class="chapter-count">04 / 08</div>
-              <h2 id="chapter-3-title">Real tools.<br />Real machines.</h2>
+            <section class="chapter" id="repair" data-chapter="4" aria-labelledby="chapter-4-title">
+              <div class="chapter-count">05 / 06</div>
+              <h2 id="chapter-4-title">Let it repair<br />the app.</h2>
               <p>
-                Files, ripgrep, child processes, long-running process management, SSH and SCP, tmux sessions, Docker, and git. Each helper ships typed tools and prompt guidance, so attaching one also teaches the assistant how to use it safely.
+                Give an assistant the VM and it runs TypeScript inside the live app. It reads logs, restarts a process, runs the tests, and asks Claude Code or Codex for a patch. It can write a new assistant, test it, and roll back a bad change. You decide how much it may do.
               </p>
               <div class="chapter-example">
-                <span>Inspect the machine that is failing.</span>
+                <span>The health check fails at 3 a.m.</span>
                 <p>
-                  Attach SSH for remote diagnostics. Read the logs, check the container, look at the last commit. The same tray runs a deployment agent or a repo maintainer.
+                  The scheduler calls the ops assistant. It reads the error, finds the runbook, restarts the worker, and confirms the check passes. If code must change, it delegates the patch and verifies the tests.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;secureShell&#x27;, { host: &#x27;staging-api&#x27; }))
-operator.use(container.feature(&#x27;docker&#x27;))
-operator.use(container.feature(&#x27;git&#x27;))</code></pre>
+              <pre class="chapter-snippet"><code>ops.use(container.feature(&#x27;processManager&#x27;))
+ops.use(container.feature(&#x27;vm&#x27;))   // evalCode: live TypeScript in this process
+container.addContext(&#x27;coder&#x27;, container.feature(&#x27;claudeCode&#x27;, { cwd: container.cwd }))
+const checkHealth = () => ops.ask(&#x27;Run the health check. Repair what fails. Report.&#x27;)</code></pre>
             </section>
-            <section
-              class="chapter"
-              id="integrations"
-              data-chapter="4"
-              aria-labelledby="chapter-4-title"
-            >
-              <div class="chapter-count">05 / 08</div>
-              <h2 id="chapter-4-title">Reach the<br />outside world.</h2>
+            <section class="chapter" id="binary" data-chapter="5" aria-labelledby="chapter-5-title">
+              <div class="chapter-count">06 / 06</div>
+              <h2 id="chapter-5-title">Ship it as<br />one binary.</h2>
               <p>
-                Google Workspace, Telnyx telephony, Telegram, browser automation, text to speech, screen capture, a scheduler for cron and intervals, and a vault for secrets. The same architecture runs an infrastructure operator or an assistant with its own phone number.
+                Compile the app, the features, and the assistants into one file. Build for macOS and Linux. The people who run it do not install Luca, Bun, or node_modules. The binary can still describe itself.
               </p>
               <div class="chapter-example">
-                <span>Tell the humans.</span>
+                <span>Hand it to the team.</span>
                 <p>
-                  Post the diagnosis to the on-call channel, or call the engineer on duty. Pull the incident doc from Drive. A different job would schedule itself to run every night instead.
+                  The ops team runs one file. It starts the API, the socket, the site, the phone line, and the assistants.
                 </p>
               </div>
-              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;telegram&#x27;))
-operator.use(container.feature(&#x27;googleDocs&#x27;))
-container.feature(&#x27;scheduler&#x27;).cron(&#x27;*/5 * * * *&#x27;, () => operator.ask(&#x27;Check health.&#x27;))</code></pre>
-            </section>
-            <section
-              class="chapter"
-              id="clients"
-              data-chapter="5"
-              aria-labelledby="chapter-5-title"
-            >
-              <div class="chapter-count">06 / 08</div>
-              <h2 id="chapter-5-title">Speak every<br />protocol.</h2>
-              <p>
-                REST that returns parsed JSON and hands back errors as values. WebSocket and Socket.IO with correlated ask() and reply(). Unix-socket IPC between processes. GraphQL. An OpenAI-compatible client that reaches any model server. ContainerLink, which lets one container evaluate code in another. Speech in and out.
-              </p>
-              <div class="chapter-example">
-                <span>Query the upstream.</span>
-                <p>
-                  The operator asks the payment provider’s API what changed, and asks a browser container what the user actually sees.
-                </p>
-              </div>
-              <pre class="chapter-snippet"><code>const upstream = container.client(&#x27;rest&#x27;, { baseURL })
-const status = await upstream.get(&#x27;/status&#x27;)   // parsed JSON, no unwrap
-const ws = container.client(&#x27;websocket&#x27;, { baseURL: wsURL })
-const reply = await ws.ask(&#x27;getUser&#x27;, { id })</code></pre>
-            </section>
-            <section
-              class="chapter"
-              id="servers"
-              data-chapter="6"
-              aria-labelledby="chapter-6-title"
-            >
-              <div class="chapter-count">07 / 08</div>
-              <h2 id="chapter-6-title">Serve the operator<br />to everyone.</h2>
-              <p>
-                Express with auto-mounted endpoints. A WebSocket server that bridges to the event bus. IPC over Unix sockets. An MCP server that turns any helper or assistant into tools for Claude Code, Codex, or Cursor. An LLM proxy that fronts local and paid models behind one OpenAI-compatible URL.
-              </p>
-              <div class="chapter-example">
-                <span>Expose the operator.</span>
-                <p>
-                  Your team’s coding agents get it as an MCP tool. The dashboard gets it over a socket. Another process gets it over IPC. One assistant, no copies.
-                </p>
-              </div>
-              <pre class="chapter-snippet"><code>const mcp = container.server(&#x27;mcp&#x27;, { serverName: &#x27;operator&#x27; })
-mcp.tool(&#x27;ask&#x27;, { schema, handler: ({ question }) => operator.ask(question) })
-await mcp.start()   // or: luca mcp --assistant operator</code></pre>
-            </section>
-            <section
-              class="chapter"
-              id="execution"
-              data-chapter="7"
-              aria-labelledby="chapter-7-title"
-            >
-              <div class="chapter-count">08 / 08</div>
-              <h2 id="chapter-7-title">It can rebuild<br />the system it runs in.</h2>
-              <p>
-                Every command, endpoint, script, and snippet runs through the VM, which is why a folder of TypeScript needs no install step. Give that VM to the assistant and it runs TypeScript inside its own live process: the real container, every helper in scope, the runtime’s docs one call away. It can delegate to Claude Code, Codex, or Hermes, fork itself, create and test other assistants, write new tools and skills, and compile a fresh binary of itself.
-              </p>
-              <div class="chapter-example">
-                <span>From diagnosis to a verified fix.</span>
-                <p>
-                  Delegate a patch to a coding agent, read the diff, run the tests, then report. Then write the runbook and a new tool so next time takes one call.
-                </p>
-              </div>
-              <pre class="chapter-snippet"><code>operator.use(container.feature(&#x27;vm&#x27;))                 // live TypeScript, real process
-operator.use(container.feature(&#x27;assistantsManager&#x27;))  // create, edit, test assistants
-await operator.start()
-await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27;)</code></pre>
+              <pre class="chapter-snippet"><code>luca bundle signup-app --targets darwin-arm64,linux-x64 --builtins eval,describe
+./dist/signup-app-linux-x64 start   # api + socket + site + phone + assistants</code></pre>
             </section>
           </div>
           <aside class="scene-column" aria-label="Exploded view of the Luca container">
@@ -1569,9 +1571,9 @@ await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27
               >
                 <title id="scene-title">Luca container, isometric exploded view</title>
                 <desc id="scene-description">
-                  Eight stacked trays expand with the story: application, assistants, data
-                  features, system features, integration features, clients, servers, and execution.
-                  Component names are also provided in the chapter text and diagram caption.
+                  Six stacked trays open with the story: the application, its features, the
+                  assistants, the doors that reach them, self-repair, and the shipped binary.
+                  Component names are also in the chapter text and the diagram caption.
                 </desc></svg
               ><noscript
                 ><p class="static-scene-note">
@@ -1582,89 +1584,81 @@ await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27
               <div class="scene-footer">
                 <div class="scene-current">
                   <span id="scene-category">Application</span
-                  ><span id="scene-position">01 / 08</span>
+                  ><span id="scene-position">01 / 06</span>
                 </div>
                 <p class="scene-features" id="scene-features">
-                  ui / ink · state · events · commands · endpoints · openapi docs · selectors · bundle
+                  express · websocket · static site · endpoints · commands · state · events · ipcSocket
                 </p>
                 <nav class="chapter-nav" aria-label="Container layers">
                   <a href="#application" aria-label="Explore application" aria-current="step"
                     ><span>application</span></a
-                  ><a href="#assistant" aria-label="Explore assistants"><span>assistants</span></a
-                  ><a href="#data" aria-label="Explore data features"><span>data</span></a
-                  ><a href="#systems" aria-label="Explore system features"><span>systems</span></a
-                  ><a href="#integrations" aria-label="Explore integration features"
-                    ><span>integrations</span></a
-                  ><a href="#clients" aria-label="Explore clients"><span>clients</span></a
-                  ><a href="#servers" aria-label="Explore servers"><span>servers</span></a
-                  ><a href="#execution" aria-label="Explore execution"><span>execution</span></a>
+                  ><a href="#features" aria-label="Explore features"><span>features</span></a
+                  ><a href="#assistants" aria-label="Explore assistants"><span>assistants</span></a
+                  ><a href="#access" aria-label="Explore access"><span>access</span></a
+                  ><a href="#repair" aria-label="Explore self-repair"><span>repair</span></a
+                  ><a href="#binary" aria-label="Explore the binary"><span>binary</span></a>
                 </nav>
               </div>
             </div>
           </aside>
         </div>
         <section class="journey-end" aria-labelledby="journey-end-title">
-          <h2 id="journey-end-title">One runtime.<br />An agent that is part of it.</h2>
+          <h2 id="journey-end-title">One app. One binary.<br />An operator inside.</h2>
           <p>
-            Most agents are clients of your software. A Luca assistant is a component of it. The
-            features give it capabilities, the servers give it interfaces, the VM lets it grow.
-            Start with one useful job. Let the system grow around it, sometimes by itself.
+            Most agents are clients of your software. A Luca assistant is a part of it. The
+            features give it hands. The endpoints, sockets, and phone line give it doors. The VM
+            lets it repair and extend the app. Start with one job. Add the next one when you need it.
           </p>
         </section>
         <div class="proof-heading">
-          <h2>Choose the pieces.<br />Invent the architecture.</h2>
+          <h2>Start from<br />a working pattern.</h2>
           <p>
-            A construction kit for AI-native software. The same pieces become an on-call operator,
-            one assistant on five transports, a database analyst, an architect that builds and
-            tests other assistants, or an agent that turns its own history into skills. Start with a
-            working pattern. Make it yours.
+            Six harnesses from the same story. Each one is code you can copy into a Luca
+            project. Pick the one closest to your job. Change the prompt, the features, and the
+            doors. Ship it.
           </p>
         </div>
         <section class="workbench" id="harnesses" aria-label="Agent harness examples">
           <div class="workbench-top">
-            <p>Eight starting points. Your combination comes next.</p>
+            <p>Six starting points. Your combination comes next.</p>
             <span>TypeScript / Luca runtime</span>
           </div>
           <div class="harness-tabs" aria-label="Choose an agent harness">
-            <button class="harness-tab" data-harness="infra" aria-pressed="true">
-              Infrastructure</button
-            ><button class="harness-tab" data-harness="transports" aria-pressed="false">
-              Every transport</button
-            ><button class="harness-tab" data-harness="architect" aria-pressed="false">
-              Self-building</button
-            ><button class="harness-tab" data-harness="database" aria-pressed="false">
-              Database to presentation</button
-            ><button class="harness-tab" data-harness="providers" aria-pressed="false">
-              Model discovery</button
-            ><button class="harness-tab" data-harness="skills" aria-pressed="false">
-              History to skills</button
-            ><button class="harness-tab" data-harness="voice" aria-pressed="false">
-              Voice operator</button
+            <button class="harness-tab" data-harness="phone" aria-pressed="true">
+              CEO phone line</button
+            ><button class="harness-tab" data-harness="admin" aria-pressed="false">
+              Admin endpoints</button
+            ><button class="harness-tab" data-harness="repair" aria-pressed="false">
+              Self-repair</button
             ><button class="harness-tab" data-harness="coding" aria-pressed="false">
-              Coding supervisor
+              Your coding harness</button
+            ><button class="harness-tab" data-harness="context" aria-pressed="false">
+              Context for other agents</button
+            ><button class="harness-tab" data-harness="architect" aria-pressed="false">
+              It builds assistants
             </button>
           </div>
           <div class="harness-body">
             <div class="mission">
-              <h2 id="mission-title">Give the on-call agent<br />access to the machine.</h2>
+              <h2 id="mission-title">Give the CEO<br />a phone number.</h2>
               <p id="mission-copy">
-                Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a
-                coding agent, and verify the result from inside the same running process.
+                One assistant. A read-only Postgres feature. A prompt that names the signup and
+                performance tables. A phone number that only the CEO can use. Call it or text it.
               </p>
               <div class="environment">
                 <div class="environment-label">Target environment</div>
-                <strong id="mission-env">SSH: staging-api<br />Workspace: ./services/api</strong>
+                <strong id="mission-env">Data: PostgreSQL (read only)<br />Line: Telnyx voice + SMS</strong>
               </div>
               <ul class="capability-list" id="capabilities">
-                <li><span>contentDb</span><span>Markdown brain</span></li>
-                <li><span>secureShell</span><span>Remote execution</span></li>
-                <li><span>claudeCode</span><span>Coding sessions</span></li>
-                <li><span>vm</span><span>Live evaluation</span></li>
+                <li><span>postgres</span><span>Read-only SQL tools</span></li>
+                <li><span>assistant</span><span>Prompt that names the tables</span></li>
+                <li><span>telnyxConnector</span><span>Calls and texts</span></li>
+                <li><span>allowedCallers</span><span>Only the CEO gets through</span></li>
               </ul>
             </div>
             <div class="code-pane">
               <div class="code-toolbar">
-                <span id="code-file">harnesses/infrastructure.ts</span
+                <span id="code-file">harnesses/ceo-line.ts</span
                 ><button class="copy" data-copy="harness-code">Copy code</button>
               </div>
               <pre
@@ -1672,76 +1666,74 @@ await operator.ask(&#x27;Fix the failing API. Verify it. Write the runbook.&#x27
                 aria-label="Harness source code"
               ><code id="harness-code">import container from 'luca'
 
-const operator = container.feature('assistant', {
-  systemPrompt: `You operate the staging API.
-    Search the runbooks first. Inspect the service and delegate
-    a patch with coder.run() through evalCode.
-    Verify the result before reporting back.`,
+const db = container.feature('postgres', {
+  url: process.env.DATABASE_URL!, readOnly: true,
 })
+const ops = container.feature('assistant', {
+  systemPrompt: `You report on the signup app.
+    Signups are rows in public.users (created_at).
+    Latency and errors are in metrics.requests.
+    Answer with one number and one sentence.
+    Never read or repeat personal data.`,
+})
+ops.use(db)
+await ops.start()
 
-operator.use(container.feature('contentDb', {
-  rootPath: './brain',
-}))
-operator.use(container.feature('secureShell', {
-  host: 'staging-api',
-}))
-container.addContext('coder', container.feature('claudeCode', {
-  cwd: container.paths.resolve('services/api'),
-}))
-operator.use(container.feature('vm'))
-
-await operator.start()
-await operator.ask(
-  'Investigate the failing health check on staging-api.'
-)</code></pre>
+const line = container.feature('telnyxConnector', {
+  assistant: ops,
+  phoneNumber: '+13125550142',
+  greeting: 'Signup app. What do you want to know?',
+  allowedCallers: [process.env.CEO_PHONE!],
+  callerPolicy: 'screen',
+})
+await line.start()
+// The CEO texts "signups today?" and gets a number back.</code></pre>
               <div class="code-foot" id="code-foot">
-                Requires a configured model provider, ./brain collection, SSH alias, and Claude Code
-                CLI.
+                Needs DATABASE_URL, a read-only database role, Telnyx credentials, a purchased
+                number, and a model provider. Calls and texts are billable.
               </div>
             </div>
           </div>
           <div class="workbench-bottom">
-            <span
-              >Example configuration. Select a harness to inspect its tools and environment.</span
-            ><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis"
+            <span>Example configuration. Select a harness to see its tools and environment.</span><a id="example-docs" href="https://github.com/soederpop/luca/tree/main/docs/apis"
               >Inspect the APIs ↗</a
             >
           </div>
         </section>
         <section class="closing" aria-labelledby="closing-title">
           <div>
-            <h2 id="closing-title">One binary<br />that builds your binaries.</h2>
+            <h2 id="closing-title">One binary in.<br />One binary out.</h2>
             <p>
-              Luca is the toolkit you install. What you ship is yours: your commands, features,
-              endpoints, and assistants, compiled with the runtime into one executable. Hand your
-              team a database analyst, an operations agent, or a coding supervisor as a single file.
-              An assistant with the VM can run this step too, and ship a new version of itself.
+              Luca is the tool you install. The tool you ship is yours. Your commands, your
+              endpoints, your features, and your assistants compile with the runtime into one
+              file. Give your team a signup app with an operator inside, and give the CEO a phone
+              number. Both come from the same file.
             </p>
             <p>
-              Build for macOS or Linux with Bun on the build machine. Recipients run the compiled
-              tool with no Luca, no Bun, and no node_modules, using their own model providers and
-              services. Keep eval and describe in the build and the binary can still introspect
-              itself.
+              Build for macOS or Linux with Bun on the build machine. The people who run it do not
+              install Luca, Bun, or node_modules. They bring their own model provider and services.
+              Keep eval and describe in the build, and the binary can still explain itself. An
+              assistant with the VM can run this step too and ship a new version of itself.
             </p>
           </div>
           <pre><code># From your Luca project
-luca bundle ops-agent \
+luca bundle signup-app \
   --targets darwin-arm64,linux-x64 \
   --builtins eval,describe
 
-# Your runtime, tools, and assistants inside
-./dist/ops-agent-darwin-arm64 --help
-./dist/ops-agent-darwin-arm64 chat operator</code></pre>
+# API, socket, site, phone line, and assistants inside
+./dist/signup-app-linux-x64 start
+./dist/signup-app-linux-x64 chat ops</code></pre>
         </section>
         <section class="start" id="start" aria-labelledby="start-heading">
           <div>
-            <h2 id="start-heading">Build the agent<br />your work needs.</h2>
-            <p>Install one binary. Assemble the system. Ship your own.</p>
+            <h2 id="start-heading">Build the app.<br />Put the agent inside.</h2>
+            <p>Install one binary. Build your app. Ship your own binary.</p>
           </div>
           <div class="install">
             <pre><code id="install-code">curl -fsSL https://luca-js.soederpop.com/install.sh | bash
-luca bootstrap my-agent
-cd my-agent && luca chat</code></pre>
+luca bootstrap signup-app
+cd signup-app && luca chat</code></pre>
             <div class="install-foot">
               <a
                 href="https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md"
@@ -1766,241 +1758,231 @@ cd my-agent && luca chat</code></pre>
     <div class="status" id="status" role="status"></div>
     <script>
       const harnesses = {
-        infra: {
-          title: 'Give the on-call agent\naccess to the machine.',
+        phone: {
+          title: 'Give the CEO\na phone number.',
           description:
-            'Search the Markdown runbooks, inspect a failing service over SSH, delegate a fix to a coding agent, and verify the result from inside the same running process.',
-          environment: 'SSH: staging-api\nWorkspace: ./services/api',
+            'One assistant. A read-only Postgres feature. A prompt that names the signup and performance tables. A phone number that only the CEO can use. Call it or text it.',
+          environment: 'Data: PostgreSQL (read only)\nLine: Telnyx voice + SMS',
           tools: [
-            ['contentDb', 'Markdown brain'],
-            ['secureShell', 'Remote execution'],
-            ['claudeCode', 'Coding sessions'],
-            ['vm', 'Live evaluation'],
+            ['postgres', 'Read-only SQL tools'],
+            ['assistant', 'Prompt that names the tables'],
+            ['telnyxConnector', 'Calls and texts'],
+            ['allowedCallers', 'Only the CEO gets through'],
           ],
-          file: 'harnesses/infrastructure.ts',
-          foot: 'Requires a configured model provider, ./brain collection, SSH alias, and Claude Code CLI.',
+          file: 'harnesses/ceo-line.ts',
+          foot: 'Needs DATABASE_URL, a read-only database role, Telnyx credentials, a purchased number, and a model provider. Calls and texts are billable.',
           code: document.getElementById('harness-code').textContent,
         },
-        voice: {
-          title: 'Give the assistant\na number of its own.',
+        admin: {
+          title: 'Add /admin endpoints\nthat ask the assistant.',
           description:
-            'Provision a phone number, bridge the assistant and its tools to Telnyx, and place a call with a purpose. The person who answers is talking to your actual operator, with your runbooks and your tools.',
-          environment: 'Telnyx: voice + number inventory\nAssistant: ./assistants/dispatch',
+            'The dashboard and your internal tools reach the same ops assistant over HTTP. One file in endpoints/ becomes a route. Share the assistant through app.locals so every endpoint uses the same instance.',
+          environment: 'Routes: POST /admin/ask · GET /admin/signups\nServer: express + endpoints/',
           tools: [
-            ['searchNumbers', 'Number inventory'],
-            ['purchaseNumber', 'Provisioning'],
-            ['start', 'Assistant + tool bridge'],
-            ['dial', 'Outbound calls'],
+            ['express', 'Routes from files'],
+            ['app.locals', 'One shared assistant'],
+            ['assistant', 'Answers with real queries'],
+            ['postgres', 'Read-only data'],
           ],
-          file: 'harnesses/voice.ts',
-          foot: 'Requires Telnyx credentials, a configured dispatch assistant, and a reachable tool bridge. Provisioning and calls are billable.',
+          file: 'endpoints/admin/ask.ts',
+          foot: 'Put auth in front of /admin before you deploy. The endpoint returns whatever the assistant says, so keep the prompt strict about personal data.',
+          code: `// server.ts
+import container from 'luca'
+
+const ops = container.feature('assistant', { folder: 'assistants/ops' })
+ops.use(container.feature('postgres', {
+  url: process.env.DATABASE_URL!, readOnly: true,
+}))
+await ops.start()
+
+const api = container.server('express', { static: 'public' })
+api.app.locals.ops = ops          // every endpoint file can reach it
+await api.start({ port: 8080 })
+
+// endpoints/admin/ask.ts
+export const path = '/admin/ask'
+export const description = 'Ask the ops assistant a question'
+
+export async function post({ question }, ctx) {
+  const { ops } = ctx.request.app.locals
+  return { answer: await ops.ask(question) }
+}
+
+export async function get(params, ctx) {
+  const { ops } = ctx.request.app.locals
+  return { answer: await ops.ask('How many signups in the last 24 hours?') }
+}
+// GET /admin/ask is the one the dashboard polls.`,
+        },
+        repair: {
+          title: 'Repair the app\nwhile you sleep.',
+          description:
+            'The scheduler runs the health check. When it fails, the ops assistant reads the error, finds the runbook, restarts the worker, and confirms the fix. If code must change, it hands the patch to Claude Code and runs the tests.',
+          environment: 'Check: every 5 minutes\nRepair: processManager · vm · claudeCode',
+          tools: [
+            ['scheduler', 'Runs the check'],
+            ['processManager', 'Restart and read output'],
+            ['vm', 'Live TypeScript in the app'],
+            ['claudeCode', 'Patches, when needed'],
+          ],
+          file: 'harnesses/self-repair.ts',
+          foot: 'Needs a model provider and the Claude Code CLI. Give the assistant only the tools you want it to use at 3 a.m. Log every action.',
           code: `import container from 'luca'
 
-const dispatch = container.feature('assistant', {
-  folder: container.paths.resolve('assistants/dispatch'),
+const ops = container.feature('assistant', {
+  systemPrompt: \`You keep the signup app healthy.
+    Read the runbooks first. Use processManager to restart
+    the worker and read its output. Use evalCode to inspect
+    state. If code must change, call coder.run() with the
+    diagnosis, then run the tests. Report what you did.\`,
 })
-await dispatch.start()
+ops.use(container.feature('contentDb', { rootPath: './runbooks' }))
+ops.use(container.feature('processManager'))
+ops.use(container.feature('vm'))
+container.addContext('coder', container.feature('claudeCode', {
+  cwd: container.cwd,
+}))
+await ops.start()
 
-const telnyx = container.feature('telnyxConnector')
-const [number] = await telnyx.searchNumbers({
-  areaCode: '312', features: ['voice'], limit: 1,
+const rest = container.client('rest', { baseURL: 'http://localhost:8080' })
+container.feature('scheduler').every('5m', async () => {
+  const health = await rest.get('/health')
+  if (health?.ok) return
+  const report = await ops.ask(
+    'The health check failed: ' + JSON.stringify(health)
+    + '. Repair it. Confirm the check passes. Report.'
+  )
+  container.emit('repair', report)
 })
-if (!number) throw new Error('No matching number available')
-await telnyx.purchaseNumber(number.phone_number)
-
-const line = container.feature('telnyxConnector', {
-  assistant: dispatch, phoneNumber: number.phone_number,
-})
-await line.start()
-await line.dial('+13125550142', {
-  greeting: 'Hi, this is dispatch with your service update.',
-  context: 'Confirm the scheduled maintenance window.',
-})`,
+await container.feature('scheduler').run()`,
         },
         coding: {
-          title: 'Make coding agents\npart of a larger system.',
+          title: 'Build your own\ncoding harness.',
           description:
-            'A supervisor with Claude Code, Codex, and Hermes as callable functions. It delegates implementation to one agent, independent review to another, and refuses to finish until the tests pass. Coding agents become parts, not the product.',
-          environment: 'Workspace: ./services/api\nAgents: Claude Code / Codex / Hermes',
+            'Claude Code, Codex, and Hermes become functions. Your supervisor decides who writes, who reviews, and when the work is done. It does not finish until the tests pass.',
+          environment: 'Workspace: ./services/api\nAgents: Claude Code · Codex · Hermes',
           tools: [
-            ['claudeCode', 'Implementation sessions'],
-            ['openaiCodex', 'Review sessions'],
-            ['hermesAgent', 'ACP sessions'],
-            ['vm', 'Programmatic coordination'],
+            ['claudeCode', 'Writes the change'],
+            ['openaiCodex', 'Reviews the change'],
+            ['hermesAgent', 'Investigates'],
+            ['vm', 'Calls them from code'],
           ],
-          file: 'harnesses/coding-supervisor.ts',
-          foot: 'Requires configured model access and installed, authenticated coding-agent CLIs.',
+          file: 'harnesses/coding-harness.ts',
+          foot: 'Needs a model provider and the installed, signed-in coding CLIs. The supervisor runs your tests through the same process.',
           code: `import container from 'luca'
 
 const cwd = container.paths.resolve('services/api')
 const supervisor = container.feature('assistant', {
   systemPrompt: \`You supervise changes to the API.
-    Use evalCode to call claude.run(), codex.run(), and
-    hermes.run(). Delegate implementation and independent
-    review. Require passing tests before completion.\`,
+    Use evalCode to call claude.run(), codex.run(),
+    and hermes.run(). One agent writes. A different
+    agent reviews. Run the tests. Do not finish
+    until they pass.\`,
 })
-
 container.addContext({
   claude: container.feature('claudeCode', { cwd }),
   codex: container.feature('openaiCodex', { cwd }),
   hermes: container.feature('hermesAgent', { cwd }),
 })
 supervisor.use(container.feature('vm'))
-
 await supervisor.start()
+
 await supervisor.ask(
-  'Implement idempotent webhook handling. Have a second '
-  + 'agent review concurrency and retry behavior.'
+  'Make webhook handling idempotent. Have a second '
+  + 'agent review retries and concurrency.'
 )`,
         },
-      }
-      Object.assign(harnesses, {
-        transports: {
-          title: 'One assistant.\nEvery transport.',
+        context: {
+          title: 'Give other agents\nan API for context.',
           description:
-            'The same assistant, with the same tools and memory, answers an HTTP route, a WebSocket for a browser UI, an MCP tool for Claude Code or Codex, and a Telegram bot. Interfaces are code you write, not a chat window you rent.',
-          environment: 'HTTP: :8080 /ask\nWebSocket: :8081 · MCP: stdio · Telegram: bot',
+            'The ops assistant knows the app. Let other agents and apps ask it. REST for anything that can POST. WebSocket for live answers. A Unix socket for a process on the same machine. MCP for Claude Code and Codex.',
+          environment: 'REST: :8080 /context\nWebSocket: :8081 · IPC: /tmp/ops.sock · MCP: stdio',
           tools: [
-            ['express', 'HTTP endpoint'],
-            ['websocket', 'Live socket + reply()'],
-            ['mcp', 'Tool for other agents'],
-            ['telegram', 'Chat in your pocket'],
+            ['express', 'REST door'],
+            ['websocket', 'Live door with reply()'],
+            ['ipcSocket', 'Same-machine door'],
+            ['mcp', 'Door for coding agents'],
           ],
-          file: 'harnesses/every-transport.ts',
-          foot: 'Requires a configured model provider, DATABASE_URL, and TELEGRAM_BOT_TOKEN. `luca mcp --assistant desk` exposes the same tools without writing the MCP block.',
+          file: 'harnesses/context-api.ts',
+          foot: 'All four doors call the same assistant instance, so its memory and its tools stay in one place. `luca mcp --assistant ops` opens the MCP door without code.',
           code: `import container from 'luca'
 import { z } from 'zod'
 
-const desk = container.feature('assistant', {
-  folder: container.paths.resolve('assistants/desk'),
-})
-desk.use(container.feature('postgres', {
+const ops = container.feature('assistant', { folder: 'assistants/ops' })
+ops.use(container.feature('postgres', {
   url: process.env.DATABASE_URL!, readOnly: true,
 }))
-await desk.start()
+await ops.start()
 
-// HTTP: any client that can POST
+// REST: any agent or app that can POST
 const api = container.server('express')
-api.app.post('/ask', async (req, res) => {
-  res.json({ answer: await desk.ask(req.body.question) })
+api.app.post('/context', async (req, res) => {
+  res.json({ answer: await ops.ask(req.body.question) })
 })
 await api.start({ port: 8080 })
 
-// WebSocket: a browser UI with correlated replies
+// WebSocket: live answers with a correlated reply
 const live = container.server('websocket', { json: true })
 live.on('message', async (msg) => {
-  if (msg.type === 'ask') msg.reply({ answer: await desk.ask(msg.data.question) })
+  if (msg.type === 'ask') msg.reply({ answer: await ops.ask(msg.data.question) })
 })
 await live.start({ port: 8081 })
 
-// MCP: the desk becomes a tool inside Claude Code or Codex
-const mcp = container.server('mcp', { serverName: 'desk' })
-mcp.tool('ask', {
-  description: 'Ask the desk assistant a question',
-  schema: z.object({ question: z.string() }),
-  handler: ({ question }) => desk.ask(question),
-})
-await mcp.start({ transport: 'stdio' })
+// IPC: a process on the same machine
+const ipc = container.feature('ipcSocket')
+await ipc.listen('/tmp/ops.sock')
 
-// Telegram: same brain, different pocket
-const tg = container.feature('telegram')
-tg.handle('message:text', async (ctx) =>
-  ctx.reply(await desk.ask(ctx.message.text)))
-await tg.start()`,
+// MCP: a tool inside Claude Code or Codex
+const mcp = container.server('mcp', { serverName: 'ops' })
+mcp.tool('ask', {
+  description: 'Ask the ops assistant about the app',
+  schema: z.object({ question: z.string() }),
+  handler: ({ question }) => ops.ask(question),
+})
+await mcp.start({ transport: 'stdio' })`,
         },
         architect: {
-          title: 'An assistant that builds,\ntests, and ships assistants.',
+          title: 'An assistant that\nbuilds assistants.',
           description:
-            'Give one assistant the definition tools, the skills library, and the VM. It can create a new assistant, write its typed tools, test it with a real message, roll back a regression, capture the workflow as a skill, and compile the project into a standalone binary. Every write is parse-checked, backed up, and hot-reloaded.',
+            'Give one assistant the definition tools, the skills library, and the VM. It can create a new assistant, write its typed tools, test it with a real message, and roll back a bad change. It can save the procedure as a skill. It can compile the project into a new binary.',
           environment: 'Writes: ./assistants/*/{CORE.md,tools.ts,hooks.ts}\nOutput: ./skills/*/SKILL.md · ./dist/<name>-<platform>',
           tools: [
-            ['assistantsManager', 'create · write · test · rollback'],
-            ['skillsLibrary', 'Teach what it learned'],
+            ['assistantsManager', 'Create · write · test · rollback'],
+            ['skillsLibrary', 'Saves what it learned'],
             ['vm', 'Live TypeScript in its own process'],
             ['proc', 'luca scaffold / luca bundle'],
           ],
           file: 'harnesses/architect.ts',
-          foot: 'Requires a configured model provider. Definition writes land only if the file loads; the previous version is kept in .history/. Bundling needs Bun on the build machine.',
+          foot: 'Needs a model provider. A definition file is written only if it loads. The old version is kept in .history/. Bundling needs Bun on the build machine.',
           code: `import container from 'luca'
 
 const architect = container.feature('assistant', {
   systemPrompt: \`You build and maintain this project's assistants.
-    Read a definition before writing it. After every change,
-    testAssistant with a message that exercises it. If it
-    regressed, rollbackDefinitionFile. When a job repeats,
-    write skills/<name>/SKILL.md and register it with
-    skillsLibrary. Scaffold helpers and ship binaries with
-    proc.execSync('luca scaffold ...') / ('luca bundle ...').\`,
+    Read a definition before you write it. After each change,
+    call testAssistant with a message that uses the change.
+    If it got worse, call rollbackDefinitionFile. When a job
+    repeats, write skills/<name>/SKILL.md and register it.
+    Ship binaries with proc.execSync('luca bundle ...').\`,
 })
-
 architect.use(container.feature('assistantsManager'))
 architect.use(container.feature('skillsLibrary'))
 architect.use(container.feature('vm'))
 await architect.start()
 
 await architect.ask(
-  'Create a "releaseBot" assistant that runs the test suite, '
-  + 'tags a release, and writes the changelog. Give it typed '
-  + 'tools in tools.ts. Test it. Capture the procedure as a '
-  + 'skill. Then bundle this project as "releasebot" for '
-  + 'darwin-arm64 and linux-x64.'
+  'Create a "support" assistant for the signup app. Give it '
+  + 'typed tools that read tickets and users. Test it. Save '
+  + 'the procedure as a skill. Then bundle the project as '
+  + '"signup-app" for darwin-arm64 and linux-x64.'
 )
 // It wrote CORE.md and tools.ts, ran a live test turn,
-// registered skills/release/SKILL.md, and left
-// dist/releasebot-darwin-arm64 and dist/releasebot-linux-x64.`,
+// registered skills/support/SKILL.md, and left two binaries in dist/.`,
         },
-      })
-      Object.assign(harnesses, {
-        database: {
-          title: 'Turn a database\ninto a presentation.',
-          description:
-            'A read-only analyst explores the schema, forms hypotheses, tests them with SQL, and separates measured results from guesses. Claude Code turns the verified findings into a presentation page with the supporting queries.',
-          environment: 'Data: PostgreSQL\nOutput: presentation.html',
-          tools: [
-            ['postgres', 'Schema + SQL exploration'],
-            ['assistant', 'Hypotheses + insights'],
-            ['claudeCode', 'Presentation page'],
-          ],
-          file: 'harnesses/database-analyst.ts',
-          foot: 'Requires DATABASE_URL, a database reader role, configured model access, and authenticated Claude Code. This example does not run in the page.',
-          code: "import container from 'luca'\n\nconst db = container.feature('postgres', {\n  url: process.env.DATABASE_URL!, readOnly: true,\n})\nconst analyst = container.feature('assistant', {\n  systemPrompt: `Explore the schema and relationships first.\n    Propose insights this database could support, then test\n    them with SQL. Report evidence, query definitions,\n    caveats, and chart-ready aggregates.`,\n})\nanalyst.use(db)\nawait analyst.start()\n\nconst findings = await analyst.ask(\n  'Find three meaningful patterns in this database. '\n  + 'Distinguish measured results from hypotheses.'\n)\n\nconst presenter = container.feature('claudeCode', {\n  cwd: container.cwd,\n})\nawait presenter.run(\n  'Build a standalone presentation.html from these findings. '\n  + 'Include charts, the supporting SQL, and limitations. '\n  + 'Use aggregate results, not individual records.\\n' + findings\n)",
-        },
-        providers: {
-          title: 'Change the model.\nKeep the assistant.',
-          description:
-            'Discover model servers on your machine, LAN hosts, and Tailscale peers. Start a conversation on a local model, then continue the same thread, tools included, through Claude Code and Codex. The assistant is yours; the model is a setting.',
-          environment:
-            'Discovery: localhost / LAN / Tailscale\nBackends: model servers + CLI providers',
-          tools: [
-            ['modelProviders', 'Discover + register'],
-            ['setProvider', 'Switch backends'],
-            ['setModel', 'Choose a served model'],
-            ['vm', 'Shared execution tools'],
-          ],
-          file: 'harnesses/model-roaming.ts',
-          foot: 'Discovery probes OpenAI-compatible services. Requires reachable servers and authenticated CLI providers; supported models and tools depend on each backend.',
-          code: "import container from 'luca'\n\nconst providers = container.feature('modelProviders')\nconst servers = await providers.discover({\n  hosts: ['gpu-box.local'], tailscale: true, register: true,\n})\nconst local = servers.find(s => s.profileId && s.models.length)\nif (!local) throw new Error('No model service discovered')\n\nconst operator = container.feature('assistant', {\n  provider: local.profileId,\n  systemPrompt: 'Help investigate and improve this project.',\n})\noperator.use(container.feature('vm'))\noperator.setModel(local.models[0])\nawait operator.start()\nawait operator.ask('Inspect the project and propose a plan.')\n\n// Continue through configured subscription CLI backends.\noperator.setProvider('claude-code')\nawait operator.ask('Challenge the plan. What did we miss?')\noperator.setProvider('codex')\nawait operator.ask('Implement the agreed plan and verify it.')\n// Conversation history and tools survive each switch.",
-        },
-        skills: {
-          title: 'Turn past sessions\ninto future capabilities.',
-          description:
-            'An assistant reads its own past: Claude Code, Codex, and Hermes session histories. It finds the workflows that succeeded repeatedly, writes them as skills, and registers them. The next assistant loads what the last one learned.',
-          environment: 'Sources: local coding-agent histories\nOutput: skills/*/SKILL.md',
-          tools: [
-            ['claudeCode / openaiCodex', 'Persisted transcripts'],
-            ['hermesAgent', 'Session store + export'],
-            ['vm / fs', 'Mine + write skills'],
-            ['skillsLibrary', 'Register + reuse'],
-          ],
-          file: 'harnesses/session-to-skills.ts',
-          foot: 'Requires local session archives, the Hermes CLI, and configured model access. The agent reads histories in batches and reports coverage; the page reads none of your sessions.',
-          code: "import container from 'luca'\n\nconst library = container.feature('skillsLibrary')\nconst miner = container.feature('assistant', {\n  systemPrompt: `Mine session history using evalCode.\n    Claude: container.fs.walk(claudeHistoryRoot, { include: ['*.jsonl'] });\n    read JSONL via claude.sessionHistoryToMarkdown(path).\n    Codex: codex.listHistorySessions(), then\n    codex.getConversationHistory(sessionId).\n    Hermes: hermes.listSessions({ limit: 100000 }), then\n    hermes.getSessionHistory(id) for the returned IDs.\n    Inventory sessions, flag a reached listing limit, read in batches,\n    and report missing or unreadable history.\n    Find repeatable workflows supported by successful runs.\n    Write skills/<name>/SKILL.md with name and description\n    frontmatter, steps, preconditions, and verification.\n    Exclude credentials and session-specific private data.`,\n})\ncontainer.addContext({\n  claudeHistoryRoot: container.paths.join(\n    container.feature('os').homedir, '.claude', 'projects',\n  ),\n  claude: container.feature('claudeCode'),\n  codex: container.feature('openaiCodex'),\n  hermes: container.feature('hermesAgent'),\n})\ncontainer.fs.ensureDir('skills')\nawait library.start()\nminer.use(library)\nminer.use(container.feature('vm'))\nawait miner.start()\nawait miner.ask('Mine all available histories into reusable skills.')\n\nawait library.addLocation(container.paths.resolve('skills'))\n// Later: assistant.use(library), or Claude Code's skills option.",
-        },
-      })
+      }
       function highlightCode(target, code) {
         target.replaceChildren()
         const pattern =
-          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|brain|telnyx|line|dispatch|desk|architect|api|live|mcp|tg|db|analyst|presenter|miner|library|providers|local|upstream|ws|status|reply)\b)/g
+          /(\/\/[^\n]*|#[^\n]*|`(?:\\[\s\S]|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(?:import|from|const|let|await|async|return|if|throw|new|export|function)\b|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*(?=\s*\()|\b[A-Za-z_$][\w$]*(?=\s*:)|\b(?:curl|luca|cd)\b|--[a-z][a-z-]*|\b(?:container|operator|assistant|supervisor|ops|line|db|runbooks|api|live|ipc|mcp|architect|rest|health|report|coder|claude|codex|hermes|cwd|user|question|params|ctx)\b)/g
         let offset = 0
         for (const match of code.matchAll(pattern)) {
           target.append(document.createTextNode(code.slice(offset, match.index)))
@@ -2062,7 +2044,7 @@ await architect.ask(
         .forEach((button) =>
           button.addEventListener('click', () => selectHarness(button.dataset.harness)),
         )
-      renderCode(harnesses.infra.code)
+      renderCode(harnesses.phone.code)
       document
         .querySelectorAll('.chapter code, .closing code, .install code')
         .forEach((target) => highlightCode(target, target.textContent))

@@ -10,28 +10,24 @@ Open http://127.0.0.1:4317. No build step, external assets, or rendering librari
 
 ## Story and conversion
 
-The opening promise is “Build the system. Put an agent inside it.” The introduction establishes that Luca is a single binary with a TypeScript SDK for any application architecture, that assistants are components of that runtime rather than clients of it, that with the VM they can extend and rebuild the system they run in, and that the result compiles into a standalone binary. A developer should understand what they gain before encountering the full API surface.
+The opening promise is “Build the app. Put the agent inside.” The copy uses ASD-STE100 Simplified Technical English: short sentences, active voice, one idea per sentence. The introduction says what Luca is (one binary, a TypeScript runtime with an agent harness built in), what you build with it (an API, a WebSocket server, a site, features, assistants with their own doors), and what you ship (one cross-platform binary). A “why” section follows with four reasons to put an agent in production: your own coding harness, self-repair, call in for status, and a phone number the CEO can call or text for signups.
 
-The walkthrough follows one incident: an API fails, an embedded assistant searches the runbooks, inspects the machine, and can coordinate a coding agent to investigate and verify a fix. Each chapter answers the next practical question:
+The walkthrough builds one product, a signup app, in six chapters that match the six trays of the scene:
 
-1. Application: UI, state, events, commands, endpoints, generated API docs, selectors, bundling.
-2. Assistants: assistant, assistantsManager, conversation, memory, skillsLibrary, mcpBridge, modelProviders, coding agents.
-3. Features, data and content: contentDb, sqlite, postgres, redis, store, diskCache, semanticSearch, docsReader.
-4. Features, files, process, and shell: fs, grep, proc, processManager, secureShell, tmux, docker, git.
-5. Features, integrations and media: Google Workspace, telnyx, telegram, browserUse, tts, screenCapture, scheduler, vault.
-6. Clients: rest, websocket, socket.io, ipc, graphql, openai, containerLink, tts / stt.
-7. Servers: express, websocket, ipc, mcp, llmProxy, containerLink.
-8. Execution: vm, evalCode, transpiler, typescript, introspection, helpers / plugins, python, the bun binary.
+1. Application: express, websocket, static site, endpoints, commands, state, events, ipcSocket.
+2. Features: postgres, contentDb, sqlite, scheduler, secureShell, git, docker, fs.
+3. Assistants: ops, support, coder, CORE.md, tools.ts, hooks.ts, memory, skillsLibrary.
+4. Access: /admin endpoints, phone, SMS, telegram, mcp, websocket, ipc, rest.
+5. Repair: vm, evalCode, processManager, claudeCode, codex, assistantsManager, testAssistant, rollback.
+6. Binary: luca bundle, darwin-arm64, linux-x64, no install, your commands, your assistants, describe, bun runtime.
 
-Every item is a real helper id (or a one-word category) from `luca describe features|clients|servers`.
-
-The completed architecture leads directly to eight inspectable harnesses: infrastructure, one assistant on every transport (HTTP, WebSocket, MCP, Telegram), a self-building architect (assistantsManager + skillsLibrary + vm + `luca bundle`), database-to-presentation, model discovery and switching, history-to-skills, voice, and coding supervision. The framing is a construction kit: choose reusable pieces and invent an application for the task. Installation is the final action. Binary delivery explains how the developer can turn the application and its assistant into their own tool.
+The workbench holds six harnesses from the same story: the CEO phone line (postgres + telnyxConnector with allowedCallers), /admin endpoints that ask the assistant, self-repair on a scheduler, your own coding harness, a context API for other agents (REST, WebSocket, IPC, MCP), and an assistant that builds assistants. Every API call in the examples was checked against `luca describe` or the source. The closing section explains `luca bundle`. Installation is the final action.
 
 ## Design system
 
 Midnight `#10131e`, panel `#181e30`, white `#f0f1ee`, and blue signal `#81b5ff`. The application is blue, assistants violet, knowledge amber, operations teal, and execution rose. Gradient materials, thicker extruded faces, lit seams, contact shadows, and cast shadows give the assembly depth. Helvetica Neue / Helvetica carries the narrative; SF Mono / Menlo identifies code and components.
 
-A left-aligned story sits beside a full-height sticky isometric assembly occupying 60% of the desktop viewport. On mobile, the scene occupies 47% of the viewport height. Eight physical compartments hold six to eight named components each, in a two-column grid that tightens to four rows when a tray holds more than six. From top to bottom: Application, Assistants, Data, Systems, Integrations, Clients, Servers, Execution. Every tray has an identical, rigid footprint and seats on locating pins. One joint opens at a time: the selected tray stays aligned while the assembly above it rises as a unit. The lid lifts first to reveal Application; advancing closes that joint and opens the next joint down. Parts remain opaque and are always drawn in physical stacking order. This assembly is the primary visual; surrounding typography and controls stay quiet.
+A left-aligned story sits beside a full-height sticky isometric assembly occupying 60% of the desktop viewport. On mobile, the scene occupies 47% of the viewport height. Six physical compartments hold eight named components each, in a two-column, four-row grid. From top to bottom: Application, Features, Assistants, Access, Repair, Binary. Every tray has an identical, rigid footprint and seats on locating pins. One joint opens at a time: the selected tray stays aligned while the assembly above it rises as a unit. The lid lifts first to reveal Application; advancing closes that joint and opens the next joint down. Parts remain opaque and are always drawn in physical stacking order. This assembly is the primary visual; surrounding typography and controls stay quiet.
 
 The scene is a code-native SVG using a shared isometric projection. Scrolling schedules a single animation frame, with geometry derived from chapter positions. The opening reverses deterministically to reseat the plates, supports direct chapter anchors, updates its accessible description, and recalculates after viewport changes. There is no scroll hijacking or continuous animation loop.
 
@@ -62,4 +58,4 @@ Mechanical verification samples 101 positions in desktop/mobile and reduced-moti
 - Model discovery: `modelProviders.discover()` probes localhost, explicitly supplied LAN hosts, and online Tailscale peers. Registered discovered endpoints and authenticated Claude Code/Codex provider profiles can be selected via `setProvider()`; `setModel()` chooses an advertised model. The example continues a conversation across backends.
 - History-to-skills: an assistant inventories Claude Code JSONL files, Codex rollout sessions, and Hermes session exports through live evaluation. It reads in batches, reports coverage and listing limits, writes reusable skill definitions, and registers their location in `skillsLibrary`.
 
-These are inspectable recipes, not services run by the marketing page. No databases were accessed, networks probed, session histories read, skills created, or model calls made while authoring them. All six recipes pass Bun syntax checks and match their selector controls; highlighting preserves copied code. The scene's assembly checks also pass after adding the Postgres, modelProviders, and skillsLibrary labels. The eight-option selector uses four columns on desktop and two on mobile.
+These are inspectable recipes, not services run by the marketing page. No databases were accessed, networks probed, session histories read, skills created, or model calls made while authoring them. All six recipes pass Bun syntax checks and match their selector controls; highlighting preserves copied code. The scene's assembly checks also pass after adding the Postgres, modelProviders, and skillsLibrary labels. The six-option selector uses three columns on desktop and two on mobile.
