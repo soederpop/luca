@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.12.2"
+export const typesBundleVersion = "3.12.3"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -4728,7 +4728,6 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
     }>>;
     provider: z.ZodOptional<z.ZodAny>;
     providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
-    maxTurns: z.ZodOptional<z.ZodNumber>;
     maxToolTurns: z.ZodOptional<z.ZodNumber>;
     tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
@@ -4813,8 +4812,8 @@ export declare class ConversationAbortError extends Error {
     constructor(partial: string);
 }
 /**
- * Thrown when a native (Responses / Chat Completions) tool loop still wants
- * more tool calls at the configured \`maxToolTurns\` ceiling. Flows through the
+ * Thrown when a tool loop still wants more tool calls at a configured
+ * positive \`maxToolTurns\` ceiling (there is no ceiling by default). Flows through the
  * failed-turn contract: the turn's partial output is rolled back, the input
  * survives with a retryable failed-turn record, and clients get a displayable
  * terminal error instead of a runaway loop.
@@ -5071,7 +5070,6 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         }>>;
         provider: z.ZodOptional<z.ZodAny>;
         providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
-        maxTurns: z.ZodOptional<z.ZodNumber>;
         maxToolTurns: z.ZodOptional<z.ZodNumber>;
         tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
@@ -5520,10 +5518,10 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      */
     replaceMessage(selector: MessageSelector, replacement: Message | ((message: Message, index: number) => Message)): MessageEdit;
     /**
-     * The native tool-loop ceiling. Default 75: measured across 358 real
-     * tool-using turns, p99 depth was 24 and the deepest legitimate run
-     * (a researcher deep-dive) reached 50 — 75 clears that with margin while
-     * still stopping a genuine runaway within one conversation.
+     * The tool-loop ceiling for every provider loop. 0 (the default) means no
+     * cap: the caller decides the budget. Any value <= 0 is treated as 0. For
+     * reference, across 358 measured real tool-using turns p99 depth was 24
+     * and the deepest legitimate run reached 50.
      */
     get maxToolTurns(): number;
     /** Returns the first system/developer text message to use as Responses instructions. */
@@ -35439,7 +35437,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
