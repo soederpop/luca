@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync, rmSync, mkdtempSync, realpathSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import crypto from 'node:crypto'
+import { execSync } from 'child_process'
 
 /**
  * Integration tests that exercise multiple node features working together.
@@ -345,44 +346,63 @@ describe('Integration: DiskCache + Vault encrypted caching', () => {
   })
 })
 
-describe('Integration: Git + FS + Proc (in actual luca repo)', () => {
-  it('git detects the luca repo', () => {
-    const c = new NodeContainer()
-    expect(c.git.isRepo).toBe(true)
+describe('Integration: Git + FS + Proc', () => {
+  // A purpose-built repo, not the luca checkout: `luca release` runs the suite from a
+  // `git archive` snapshot that has no .git, so these must carry their own repository.
+  let repoDir: string
+  let container: NodeContainer
+
+  beforeAll(() => {
+    repoDir = realpathSync(mkdtempSync(join(tmpdir(), 'luca-git-')))
+    mkdirSync(join(repoDir, 'src'), { recursive: true })
+    writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'git-fixture', version: '1.0.0' }))
+    writeFileSync(join(repoDir, 'src', 'index.ts'), 'export const answer = 42\n')
+
+    const git = (args: string) => execSync(`git ${args}`, { cwd: repoDir, stdio: 'pipe' })
+    git('init -q -b main')
+    git('config user.email fixture@example.com')
+    git('config user.name Fixture')
+    git('add -A')
+    git('commit -q -m "seed the fixture repo"')
+    writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'git-fixture', version: '1.0.1' }))
+    git('commit -q -am "bump the fixture version"')
+
+    container = new NodeContainer({ cwd: repoDir })
+  })
+
+  afterAll(() => {
+    rmSync(repoDir, { recursive: true, force: true })
+  })
+
+  it('git detects the repo', () => {
+    expect(container.git.isRepo).toBe(true)
   })
 
   it('git.branch returns current branch name', () => {
-    const c = new NodeContainer()
-    const branch = c.git.branch
-    expect(typeof branch).toBe('string')
-    expect(branch.length).toBeGreaterThan(0)
+    expect(container.git.branch).toBe('main')
   })
 
   it('git.sha returns a commit hash', () => {
-    const c = new NodeContainer()
-    const sha = c.git.sha
+    const sha = container.git.sha
     expect(typeof sha).toBe('string')
     expect(sha).toMatch(/^[a-f0-9]+$/)
   })
 
   it('git.lsFiles returns tracked files', async () => {
-    const c = new NodeContainer()
-    const files = await c.git.lsFiles()
+    const files = await container.git.lsFiles()
     expect(files.length).toBeGreaterThan(0)
     expect(files.some((f: string) => f.includes('package.json'))).toBe(true)
     expect(files.some((f: string) => f.includes('src/'))).toBe(true)
   })
 
   it('git.getLatestChanges returns recent commits', async () => {
-    const c = new NodeContainer()
-    const changes = await c.git.getLatestChanges(5)
+    const changes = await container.git.getLatestChanges(5)
     expect(changes.length).toBeGreaterThan(0)
     expect(changes.length).toBeLessThanOrEqual(5)
   })
 
   it('git.getChangeHistoryForFiles returns history for specific files', () => {
-    const c = new NodeContainer()
-    const history = c.git.getChangeHistoryForFiles('package.json')
+    const history = container.git.getChangeHistoryForFiles('package.json')
     expect(Array.isArray(history)).toBe(true)
     expect(history.length).toBeGreaterThan(0)
   })
