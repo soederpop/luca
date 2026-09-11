@@ -28,9 +28,7 @@ container.feature('conversation', {
   provider,
   // Provider-specific transport options passed to the resolved provider
   providerOptions,
-  // Maximum provider/tool turns for non-OpenAI providers (default 8)
-  maxTurns,
-  // Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError
+  // Ceiling on tool-calling turns per ask(). Default 0 = unlimited; any value <= 0 disables the cap. Hitting a positive ceiling fails the turn with ToolLoopLimitError
   maxToolTurns,
   // Tags for categorizing and searching this conversation
   tags,
@@ -81,8 +79,7 @@ container.feature('conversation', {
 | `api` | `string` | Completion API mode. auto uses the Responses API; set to "chat" for OpenAI-compatible chat-completions endpoints (LM Studio, Ollama, vLLM, etc.) |
 | `provider` | `any` | Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior |
 | `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
-| `maxTurns` | `number` | Maximum provider/tool turns for non-OpenAI providers (default 8) |
-| `maxToolTurns` | `number` | Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError |
+| `maxToolTurns` | `number` | Ceiling on tool-calling turns per ask(). Default 0 = unlimited; any value <= 0 disables the cap. Hitting a positive ceiling fails the turn with ToolLoopLimitError |
 | `tags` | `array` | Tags for categorizing and searching this conversation |
 | `metadata` | `object` | Arbitrary metadata to attach to this conversation |
 | `clientOptions` | `object` | Options for the OpenAI client (e.g. baseURL, apiKey). Point baseURL at any OpenAI-compatible server — local or remote — to override the default connection. |
@@ -453,7 +450,7 @@ Append a message to the conversation state.
 | `isStreaming` | `boolean` | Whether a streaming response is currently in progress. |
 | `contextWindow` | `number` | The context window size for the current model (from options override or auto-detected). |
 | `isNearContextLimit` | `boolean` | Whether the conversation is approaching the context limit. |
-| `maxToolTurns` | `number` | The native tool-loop ceiling. Default 150: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50. The original 75 ceiling was doubled so long agentic sessions never trip it, while a genuine runaway still stops within one conversation. |
+| `maxToolTurns` | `number` | The tool-loop ceiling for every provider loop. 0 (the default) means no cap: the caller decides the budget. Any value <= 0 is treated as 0. For reference, across 358 measured real tool-using turns p99 depth was 24 and the deepest legitimate run reached 50. |
 | `openai` | `any` | Returns the OpenAI client instance from the container. |
 | `history` | `ConversationHistory` | Returns the conversationHistory feature for persistence. |
 

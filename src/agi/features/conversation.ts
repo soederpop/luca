@@ -75,9 +75,8 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Provider-specific transport options (e.g. cwd, askOptions, assistant for claude-session). */
 	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options passed to the resolved provider'),
 	/** Maximum provider/tool turns before the generic (non-OpenAI) transport loop aborts. */
-	maxTurns: z.number().optional().describe('Maximum provider/tool turns for non-OpenAI providers (default 8)'),
-	/** Hard ceiling on native (Responses/Chat Completions) tool-calling turns per ask(). Default 150 — well above observed real-world depth (p99 was 24, deepest legitimate run 50). When the model still wants tools at the ceiling, the turn fails with ToolLoopLimitError instead of spinning. */
-	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError'),
+	/** Optional ceiling on tool-calling turns per ask(), for every provider loop. Default 0 = no cap; the caller owns the budget. Any value <= 0 disables the ceiling. When set and the model still wants tools at the ceiling, the turn fails with ToolLoopLimitError instead of spinning. */
+	maxToolTurns: z.number().optional().describe('Ceiling on tool-calling turns per ask(). Default 0 = unlimited; any value <= 0 disables the cap. Hitting a positive ceiling fails the turn with ToolLoopLimitError'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
@@ -184,8 +183,8 @@ export class ConversationAbortError extends Error {
 }
 
 /**
- * Thrown when a native (Responses / Chat Completions) tool loop still wants
- * more tool calls at the configured `maxToolTurns` ceiling. Flows through the
+ * Thrown when a tool loop still wants more tool calls at a configured
+ * positive `maxToolTurns` ceiling (there is no ceiling by default). Flows through the
  * failed-turn contract: the turn's partial output is rolled back, the input
  * survives with a retryable failed-turn record, and clients get a displayable
  * terminal error instead of a runaway loop.
@@ -1260,14 +1259,14 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
-	 * The native tool-loop ceiling. Default 150: measured across 358 real
-	 * tool-using turns, p99 depth was 24 and the deepest legitimate run
-	 * (a researcher deep-dive) reached 50. The original 75 ceiling was
-	 * doubled so long agentic sessions never trip it, while a genuine
-	 * runaway still stops within one conversation.
+	 * The tool-loop ceiling for every provider loop. 0 (the default) means no
+	 * cap: the caller decides the budget. Any value <= 0 is treated as 0. For
+	 * reference, across 358 measured real tool-using turns p99 depth was 24
+	 * and the deepest legitimate run reached 50.
 	 */
 	get maxToolTurns(): number {
-		return this.options.maxToolTurns ?? 150
+		const limit = this.options.maxToolTurns ?? 0
+		return limit > 0 ? limit : 0
 	}
 
 	/** Returns the first system/developer text message to use as Responses instructions. */
@@ -1685,11 +1684,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	private async runGenericTransportLoop(): Promise<string> {
 		const provider = await this.resolveConfiguredProvider()
 		const tools = this.modelTools
-		const maxTurns = this.options.maxTurns ?? 8
 		let accumulated = ''
 		let finalProviderData: any = undefined
 
-		for (let turn = 1; turn <= maxTurns; turn++) {
+		for (let turn = 1; ; turn++) {
 			this.state.set('streaming', true)
 			this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
@@ -1760,6 +1758,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('turnEnd', { turn, hasToolCalls: toolCalls.length > 0 })
 
 			if (!toolCalls.length) break
+
+			// Same ceiling and same failed-turn contract as the OpenAI loops: the
+			// model still wants tools at maxToolTurns, so stop before running them.
+			if (this.maxToolTurns > 0 && turn >= this.maxToolTurns) {
+				throw new ToolLoopLimitError(this.maxToolTurns, accumulated)
+			}
 
 			this.emit('toolCallsStart', toolCalls)
 			for (const call of toolCalls) {
@@ -2128,7 +2132,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			// The model still wants tools at the ceiling: stop the recursion here,
 			// before executing them, so a tool-calls-tool loop cannot spin until a
 			// provider or budget kills it. Flows through the failed-turn contract.
-			if (turn >= this.maxToolTurns) {
+			if (this.maxToolTurns > 0 && turn >= this.maxToolTurns) {
 				throw new ToolLoopLimitError(this.maxToolTurns, accumulated)
 			}
 			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
@@ -2339,7 +2343,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		if (toolCalls.length > 0) {
 			// Same ceiling as the Responses loop — stop before executing another
 			// round of tools once the model has had maxToolTurns chances to answer.
-			if (turn >= this.maxToolTurns) {
+			if (this.maxToolTurns > 0 && turn >= this.maxToolTurns) {
 				throw new ToolLoopLimitError(this.maxToolTurns, accumulated)
 			}
 			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {

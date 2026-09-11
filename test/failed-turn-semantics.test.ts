@@ -244,13 +244,14 @@ describe('Native tool-loop ceiling', () => {
 
 	const againTool = { again: { description: 'ask for another turn', parameters: {}, handler: async () => 'go again' } }
 
-	it('defaults to 150 and stops a runaway loop with ToolLoopLimitError as a failed turn', async () => {
+	it('defaults to no cap and, when set, stops a runaway loop with ToolLoopLimitError as a failed turn', async () => {
 		const { providers, conversation } = nativeConversation({
 			maxToolTurns: 3,
 			tools: againTool,
 			history: [{ role: 'system', content: 'probe' }],
 		})
-		expect(nativeConversation().conversation.maxToolTurns).toBe(150)
+		expect(nativeConversation().conversation.maxToolTurns).toBe(0)
+		expect(nativeConversation({ maxToolTurns: -1 }).conversation.maxToolTurns).toBe(0)
 		const callsMade = recursiveToolTransport(providers, Number.POSITIVE_INFINITY)
 
 		const pending = conversation.ask('recurse forever')
@@ -302,6 +303,36 @@ describe('Native tool-loop ceiling', () => {
 
 		await expect(conversation.ask('recurse forever')).rejects.toMatchObject({ name: 'ToolLoopLimitError', limit: 2 })
 		expect(counter).toBe(2)
+		expect(conversation.messages.at(-1)).toMatchObject({ role: 'user', content: 'recurse forever' })
+	})
+
+	it('runs uncapped when maxToolTurns is 0', async () => {
+		const { providers, conversation } = nativeConversation({ tools: againTool })
+		const callsMade = recursiveToolTransport(providers, 300)
+		await expect(conversation.ask('go deep')).resolves.toBe('finally done')
+		expect(callsMade()).toBe(301)
+	})
+
+	it('applies the same maxToolTurns ceiling to the generic transport loop (codex, claude-code)', async () => {
+		// The generic loop used to have its own silent `maxTurns` (default 8) that
+		// returned a partial answer at the ceiling. It now shares maxToolTurns
+		// and fails the turn like the OpenAI loops do.
+		const { providers, conversation } = nativeConversation({
+			provider: 'codex',
+			maxToolTurns: 2,
+			tools: againTool,
+		})
+		let calls = 0
+		providers.registerTransport('openai-codex', {
+			apiMode: 'openai-codex',
+			async *stream() {
+				calls++
+				yield { type: 'response', response: { content: '', toolCalls: [{ id: `call_${calls}`, name: 'again', rawArguments: '{}' }] } } as const
+			},
+		})
+
+		await expect(conversation.ask('recurse forever')).rejects.toMatchObject({ name: 'ToolLoopLimitError', limit: 2 })
+		expect(calls).toBe(2)
 		expect(conversation.messages.at(-1)).toMatchObject({ role: 'user', content: 'recurse forever' })
 	})
 })
