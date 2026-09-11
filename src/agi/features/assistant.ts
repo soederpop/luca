@@ -98,7 +98,7 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
-	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper'),
+	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper'),
 
 	/** The model's total context window in tokens. Drives auto-compaction thresholds — set this to your model's real limit (e.g. 16384 for the default local llama-server) so history compacts before the request overflows. Inferred from the model name when omitted. */
 	contextWindow: z.number().optional().describe("The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted."),

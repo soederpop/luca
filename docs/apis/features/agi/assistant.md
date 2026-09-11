@@ -34,7 +34,7 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
-  // Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper
+  // Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper
   maxToolTurns,
   // The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted.
   contextWindow,
@@ -90,7 +90,7 @@ container.feature('assistant', {
 | `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
-| `maxToolTurns` | `number` | Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper |
+| `maxToolTurns` | `number` | Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError; raise it for assistants whose legitimate work runs deeper |
 | `contextWindow` | `number` | The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted. |
 | `temperature` | `number` | Sampling temperature (0-2) |
 | `topP` | `number` | Nucleus sampling cutoff (0-1) |

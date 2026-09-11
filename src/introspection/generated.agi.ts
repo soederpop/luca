@@ -7682,7 +7682,7 @@ setBuildTimeData('features.conversation', {
       "returns": "boolean"
     },
     "maxToolTurns": {
-      "description": "The native tool-loop ceiling. Default 75: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50 — 75 clears that with margin while still stopping a genuine runaway within one conversation.",
+      "description": "The native tool-loop ceiling. Default 150: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50. The original 75 ceiling was doubled so long agentic sessions never trip it, while a genuine runaway still stops within one conversation.",
       "returns": "number"
     },
     "openai": {
@@ -38166,7 +38166,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "boolean"
       },
       "maxToolTurns": {
-        "description": "The native tool-loop ceiling. Default 75: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50 — 75 clears that with margin while still stopping a genuine runaway within one conversation.",
+        "description": "The native tool-loop ceiling. Default 150: measured across 358 real tool-using turns, p99 depth was 24 and the deepest legitimate run (a researcher deep-dive) reached 50. The original 75 ceiling was doubled so long agentic sessions never trip it, while a genuine runaway still stops within one conversation.",
         "returns": "number"
       },
       "openai": {

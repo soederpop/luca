@@ -244,13 +244,13 @@ describe('Native tool-loop ceiling', () => {
 
 	const againTool = { again: { description: 'ask for another turn', parameters: {}, handler: async () => 'go again' } }
 
-	it('defaults to 75 and stops a runaway loop with ToolLoopLimitError as a failed turn', async () => {
+	it('defaults to 150 and stops a runaway loop with ToolLoopLimitError as a failed turn', async () => {
 		const { providers, conversation } = nativeConversation({
 			maxToolTurns: 3,
 			tools: againTool,
 			history: [{ role: 'system', content: 'probe' }],
 		})
-		expect(nativeConversation().conversation.maxToolTurns).toBe(75)
+		expect(nativeConversation().conversation.maxToolTurns).toBe(150)
 		const callsMade = recursiveToolTransport(providers, Number.POSITIVE_INFINITY)
 
 		const pending = conversation.ask('recurse forever')

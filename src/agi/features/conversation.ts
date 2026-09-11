@@ -76,8 +76,8 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options passed to the resolved provider'),
 	/** Maximum provider/tool turns before the generic (non-OpenAI) transport loop aborts. */
 	maxTurns: z.number().optional().describe('Maximum provider/tool turns for non-OpenAI providers (default 8)'),
-	/** Hard ceiling on native (Responses/Chat Completions) tool-calling turns per ask(). Default 75 — chosen from observed real-world depth (p99 was 24, deepest legitimate run 50). When the model still wants tools at the ceiling, the turn fails with ToolLoopLimitError instead of spinning. */
-	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 75). Hitting it fails the turn with ToolLoopLimitError'),
+	/** Hard ceiling on native (Responses/Chat Completions) tool-calling turns per ask(). Default 150 — well above observed real-world depth (p99 was 24, deepest legitimate run 50). When the model still wants tools at the ceiling, the turn fails with ToolLoopLimitError instead of spinning. */
+	maxToolTurns: z.number().optional().describe('Hard ceiling on native tool-calling turns per ask() (default 150). Hitting it fails the turn with ToolLoopLimitError'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
@@ -1260,13 +1260,14 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
-	 * The native tool-loop ceiling. Default 75: measured across 358 real
+	 * The native tool-loop ceiling. Default 150: measured across 358 real
 	 * tool-using turns, p99 depth was 24 and the deepest legitimate run
-	 * (a researcher deep-dive) reached 50 — 75 clears that with margin while
-	 * still stopping a genuine runaway within one conversation.
+	 * (a researcher deep-dive) reached 50. The original 75 ceiling was
+	 * doubled so long agentic sessions never trip it, while a genuine
+	 * runaway still stops within one conversation.
 	 */
 	get maxToolTurns(): number {
-		return this.options.maxToolTurns ?? 75
+		return this.options.maxToolTurns ?? 150
 	}
 
 	/** Returns the first system/developer text message to use as Responses instructions. */
