@@ -2597,6 +2597,25 @@ setBuildTimeData('features.assistant', {
         }
       ]
     },
+    "steer": {
+      "description": "Inject a user message into the turn running right now. It lands in history at the next gap between tool calls; if the model finishes first, it runs as a follow-up turn inside the same `ask()`. Returns false when no turn is active, in which case call `ask()` instead. See `Conversation.steer()`.",
+      "parameters": {
+        "content": {
+          "type": "string | ContentPart[]",
+          "description": "Parameter content"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const reply = assistant.ask('audit the repo')\nassistant.steer('only look at src/, ignore vendor/')\nawait reply"
+        }
+      ]
+    },
     "switchThread": {
       "description": "Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.",
       "parameters": {
@@ -2959,6 +2978,14 @@ setBuildTimeData('features.assistant', {
       "description": "The active thread ID (undefined in lifecycle mode).",
       "returns": "string | undefined"
     },
+    "isTurnActive": {
+      "description": "Whether an ask() or retry currently holds the turn (streaming or running tools).",
+      "returns": "boolean"
+    },
+    "queueDepth": {
+      "description": "ask() calls waiting behind the active turn.",
+      "returns": "number"
+    },
     "visionSupport": {
       "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
       "returns": "VisionSupportConfig | undefined"
@@ -3046,6 +3073,16 @@ setBuildTimeData('features.assistant', {
     },
     "toolError": {
       "name": "toolError",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "steerQueued": {
+      "name": "steerQueued",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "steered": {
+      "name": "steered",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -7467,6 +7504,25 @@ setBuildTimeData('features.conversation', {
       "required": [],
       "returns": "void"
     },
+    "steer": {
+      "description": "Inject a user message into the turn that is running right now, without waiting for it to finish. The content lands in history as a user message at the next gap: after the current tool batch, before the model's next call. If the model stops calling tools before the gap arrives, the steer runs as a follow-up turn inside the same ask(), so it is never lost. Returns false (and does nothing) when no turn is active — the caller should ask() instead, which queues behind nothing and runs at once.",
+      "parameters": {
+        "content": {
+          "type": "string | ContentPart[]",
+          "description": "Parameter content"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const reply = conversation.ask('refactor the auth module')\nconversation.steer('skip the tests directory')\nawait reply"
+        }
+      ]
+    },
     "estimateTokens": {
       "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
       "parameters": {},
@@ -7673,6 +7729,18 @@ setBuildTimeData('features.conversation', {
       "description": "Whether a streaming response is currently in progress.",
       "returns": "boolean"
     },
+    "isTurnActive": {
+      "description": "Whether an ask() (or retry) currently holds the turn. True for the whole turn, not only while tokens stream — tool execution counts.",
+      "returns": "boolean"
+    },
+    "queueDepth": {
+      "description": "How many ask()/retryFailedTurn() calls are waiting behind the active turn.",
+      "returns": "number"
+    },
+    "pendingSteers": {
+      "description": "Steer messages accepted but not yet injected into the in-flight turn.",
+      "returns": "ReadonlyArray<string | ContentPart[]>"
+    },
     "contextWindow": {
       "description": "The context window size for the current model (from options override or auto-detected).",
       "returns": "number"
@@ -7697,6 +7765,21 @@ setBuildTimeData('features.conversation', {
   "events": {
     "routingChanged": {
       "name": "routingChanged",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "steerQueued": {
+      "name": "steerQueued",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "steered": {
+      "name": "steered",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "userMessage": {
+      "name": "userMessage",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -7732,11 +7815,6 @@ setBuildTimeData('features.conversation', {
     },
     "autoCompactTriggered": {
       "name": "autoCompactTriggered",
-      "description": "Event emitted by Conversation",
-      "arguments": {}
-    },
-    "userMessage": {
-      "name": "userMessage",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -33091,6 +33169,25 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "steer": {
+        "description": "Inject a user message into the turn running right now. It lands in history at the next gap between tool calls; if the model finishes first, it runs as a follow-up turn inside the same `ask()`. Returns false when no turn is active, in which case call `ask()` instead. See `Conversation.steer()`.",
+        "parameters": {
+          "content": {
+            "type": "string | ContentPart[]",
+            "description": "Parameter content"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const reply = assistant.ask('audit the repo')\nassistant.steer('only look at src/, ignore vendor/')\nawait reply"
+          }
+        ]
+      },
       "switchThread": {
         "description": "Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.",
         "parameters": {
@@ -33453,6 +33550,14 @@ export const introspectionData: Record<string, any>[] = [
         "description": "The active thread ID (undefined in lifecycle mode).",
         "returns": "string | undefined"
       },
+      "isTurnActive": {
+        "description": "Whether an ask() or retry currently holds the turn (streaming or running tools).",
+        "returns": "boolean"
+      },
+      "queueDepth": {
+        "description": "ask() calls waiting behind the active turn.",
+        "returns": "number"
+      },
       "visionSupport": {
         "description": "Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model.",
         "returns": "VisionSupportConfig | undefined"
@@ -33540,6 +33645,16 @@ export const introspectionData: Record<string, any>[] = [
       },
       "toolError": {
         "name": "toolError",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "steerQueued": {
+        "name": "steerQueued",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "steered": {
+        "name": "steered",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },
@@ -37951,6 +38066,25 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "void"
       },
+      "steer": {
+        "description": "Inject a user message into the turn that is running right now, without waiting for it to finish. The content lands in history as a user message at the next gap: after the current tool batch, before the model's next call. If the model stops calling tools before the gap arrives, the steer runs as a follow-up turn inside the same ask(), so it is never lost. Returns false (and does nothing) when no turn is active — the caller should ask() instead, which queues behind nothing and runs at once.",
+        "parameters": {
+          "content": {
+            "type": "string | ContentPart[]",
+            "description": "Parameter content"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const reply = conversation.ask('refactor the auth module')\nconversation.steer('skip the tests directory')\nawait reply"
+          }
+        ]
+      },
       "estimateTokens": {
         "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
         "parameters": {},
@@ -38157,6 +38291,18 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Whether a streaming response is currently in progress.",
         "returns": "boolean"
       },
+      "isTurnActive": {
+        "description": "Whether an ask() (or retry) currently holds the turn. True for the whole turn, not only while tokens stream — tool execution counts.",
+        "returns": "boolean"
+      },
+      "queueDepth": {
+        "description": "How many ask()/retryFailedTurn() calls are waiting behind the active turn.",
+        "returns": "number"
+      },
+      "pendingSteers": {
+        "description": "Steer messages accepted but not yet injected into the in-flight turn.",
+        "returns": "ReadonlyArray<string | ContentPart[]>"
+      },
       "contextWindow": {
         "description": "The context window size for the current model (from options override or auto-detected).",
         "returns": "number"
@@ -38181,6 +38327,21 @@ export const introspectionData: Record<string, any>[] = [
     "events": {
       "routingChanged": {
         "name": "routingChanged",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "steerQueued": {
+        "name": "steerQueued",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "steered": {
+        "name": "steered",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "userMessage": {
+        "name": "userMessage",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -38216,11 +38377,6 @@ export const introspectionData: Record<string, any>[] = [
       },
       "autoCompactTriggered": {
         "name": "autoCompactTriggered",
-        "description": "Event emitted by Conversation",
-        "arguments": {}
-      },
-      "userMessage": {
-        "name": "userMessage",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },

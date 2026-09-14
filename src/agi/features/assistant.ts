@@ -33,6 +33,8 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	toolCall: z.tuple([z.string().describe('Tool name'), z.any().describe('Tool arguments')]).describe('Emitted when a tool is called'),
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
+	steerQueued: z.tuple([z.any().describe('The steer content (string or ContentPart[])')]).describe('Emitted when steer() accepts a message for the in-flight turn'),
+	steered: z.tuple([z.any().describe('The steer content (string or ContentPart[])')]).describe('Emitted when a steer is injected into history as a user message, between tool calls or as a follow-up turn'),
 	hookFired: z.tuple([z.string().describe('Hook/event name')]).describe('Emitted when a hook function is called'),
 	visionDescription: z.tuple([z.object({ index: z.number(), description: z.string(), model: z.string(), batch: z.boolean().optional(), count: z.number().optional() })]).describe('Emitted when visionSupport delegates an image to the vision model and receives a description. In batch mode it fires once with batch: true and count set to the number of images described together'),
 	reloaded: z.tuple([]).describe('Emitted after tools, hooks, and system prompt are reloaded from disk'),
@@ -1515,6 +1517,35 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Inject a user message into the turn running right now. It lands in
+	 * history at the next gap between tool calls; if the model finishes first,
+	 * it runs as a follow-up turn inside the same `ask()`. Returns false when no
+	 * turn is active, in which case call `ask()` instead. See
+	 * `Conversation.steer()`.
+	 *
+	 * @example
+	 * const reply = assistant.ask('audit the repo')
+	 * assistant.steer('only look at src/, ignore vendor/')
+	 * await reply
+	 */
+	steer(content: string | ContentPart[]): boolean {
+		const conv = this.state.get('conversation') as Conversation | null
+		return conv?.steer(content) ?? false
+	}
+
+	/** Whether an ask() or retry currently holds the turn (streaming or running tools). */
+	get isTurnActive(): boolean {
+		const conv = this.state.get('conversation') as Conversation | null
+		return conv?.isTurnActive ?? false
+	}
+
+	/** ask() calls waiting behind the active turn. */
+	get queueDepth(): number {
+		const conv = this.state.get('conversation') as Conversation | null
+		return conv?.queueDepth ?? 0
+	}
+
+	/**
 	 * Switch to another saved thread mid-session. Unlike `resumeThread()`,
 	 * which only records an override for the next `start()`, this loads the
 	 * thread's history into the live conversation immediately — the message
@@ -1819,6 +1850,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		conversation.on('toolError', async (name: string, error: any) => {
 			await this.triggerHook('toolError', name, error)
 			this.emit('toolError', name, error)
+		})
+		conversation.on('steerQueued', async (content: any) => {
+			await this.triggerHook('steerQueued', content)
+			this.emit('steerQueued', content)
+		})
+		conversation.on('steered', async (content: any) => {
+			await this.triggerHook('steered', content)
+			this.emit('steered', content)
 		})
 
 		// Install interceptor-aware tool executor on the conversation

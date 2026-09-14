@@ -48,7 +48,7 @@ type ToolEv = {
 	error?: string
 }
 
-type Part = { type: 'text'; text: string } | { type: 'reasoning'; text: string } | { type: 'tool'; ev: ToolEv }
+type Part = { type: 'text'; text: string } | { type: 'reasoning'; text: string } | { type: 'tool'; ev: ToolEv } | { type: 'steer'; text: string; delivered: boolean }
 
 type Item =
 	| { id: string; kind: 'user'; who: string; text: string }
@@ -409,6 +409,22 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			settleTool(toolName, { status: 'error', error: error?.message || String(error) })
 		})
 
+		// A steer shows up inside the running turn where it will land: dim while
+		// it waits for the next gap between tool calls, normal once the model
+		// has actually seen it.
+		assistant.on('steerQueued', (content: any) => {
+			const current = ensureCurrent(name)
+			current.parts.push({ type: 'steer', text: steerText(content), delivered: false })
+			bump()
+		})
+		assistant.on('steered', (content: any) => {
+			const text = steerText(content)
+			const parts = store.current?.parts ?? []
+			const part = parts.find((p) => p.type === 'steer' && !p.delivered && p.text === text) as Extract<Part, { type: 'steer' }> | undefined
+			if (part) part.delivered = true
+			bump()
+		})
+
 		assistant.on('autoCompactTriggered', () => {
 			systemLine(colors.dim('⧗ context is getting long — auto-compacting…'))
 		})
@@ -475,6 +491,27 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		void runTurn(target, (assistant) => assistant.ask(text), text)
 	}
 
+	function steerText(content: any): string {
+		if (typeof content === 'string') return content
+		if (Array.isArray(content)) return content.filter((p) => p?.type === 'text').map((p) => p.text).join('')
+		return String(content ?? '')
+	}
+
+	/**
+	 * Steer the running turn: the text reaches the model at its next gap
+	 * between tool calls instead of waiting for the whole turn to finish. Falls
+	 * back to a normal send when nothing is running.
+	 */
+	function steerMessage(text: string) {
+		const target = store.current?.who || store.target
+		const cell = target ? cells.get(target) : undefined
+		if (!store.busy || !cell?.assistant?.steer?.(text)) {
+			if (target) sendMessage(target, text)
+			return
+		}
+		saveHistoryEntry(text)
+	}
+
 	function abortActive() {
 		// A pending askUser/renderUi widget holds the turn open — settle it first
 		// so the tool promise resolves and the abort doesn't leave it dangling.
@@ -532,6 +569,8 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				lines.push('')
 				lines.push(colors.bold('keys'))
 				lines.push(`  ${colors.cyan('esc / ctrl+c')}  ${colors.dim('interrupt the running turn')}`)
+				lines.push(`  ${colors.cyan('enter')}         ${colors.dim('while a turn runs: queue the message for after it')}`)
+				lines.push(`  ${colors.cyan('ctrl+s')}        ${colors.dim('while a turn runs: steer it now (delivered at the next tool-call gap)')}`)
 				lines.push(`  ${colors.cyan('ctrl+o')}        ${colors.dim('toggle expanded tool results')}`)
 				lines.push(`  ${colors.cyan('ctrl+t')}        ${colors.dim('toggle thinking/reasoning output (also /thinking)')}`)
 				lines.push(`  ${colors.cyan('↑ / ↓')}         ${colors.dim('input history (persisted per project)')}`)
@@ -546,6 +585,15 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 			desc: 'Leave the chat',
 			run() {
 				requestExit()
+			},
+		},
+		steer: {
+			desc: 'Interject into the running turn without waiting for it to finish (also ctrl+s)',
+			usage: '<message>',
+			run(args) {
+				const text = args.join(' ').trim()
+				if (!text) return systemLine(colors.dim('usage: /steer <message>'))
+				steerMessage(text)
 			},
 		},
 		clear: {
@@ -946,6 +994,10 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 					const isLive = !!streaming && index === parts.length - 1
 					return h(ReasoningBlock, { key: `r${index}`, text: part.text, streaming: isLive })
 				}
+				if (part.type === 'steer') {
+					const label = part.delivered ? colors.yellow('↳ steer') : colors.dim('↳ steer (waiting for a gap)')
+					return h(Text, { key: `s${index}` }, `${label} ${part.delivered ? part.text : colors.dim(part.text)}`)
+				}
 				return h(Text, { key: `t${index}` }, md(part.text))
 			}),
 		)
@@ -1072,6 +1124,21 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				bump()
 				return
 			}
+			if (key.ctrl && input === 's') {
+				const text = value.trim()
+				if (!text) return
+				setInput('', 0)
+				setHistoryIndex(null)
+				store.notice = ''
+				const mention = parseMention(text)
+				if (mention && assistantNames().includes(mention.name)) {
+					store.target = mention.name
+					if (mention.rest) steerMessage(mention.rest)
+					return
+				}
+				steerMessage(text)
+				return
+			}
 			if (key.ctrl && input === 't') {
 				store.showThinking = !store.showThinking
 				bump()
@@ -1174,7 +1241,7 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 				h(TurnParts, { parts: store.current.parts, expanded, streaming: store.busy }),
 			)] : []),
 			// "working", not "thinking" — the ✻ reasoning line owns that word
-			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`working… ${elapsed}s · esc to interrupt`)}`)] : []),
+			...(store.busy ? [h(Text, null, `${colors.yellow(spinner ?? '·')} ${colors.dim(`working… ${elapsed}s · esc to interrupt · enter queues · ctrl+s steers`)}`)] : []),
 			...store.queue.map((queued, index) => h(Text, { key: `q${index}`, dimColor: true }, `  ⧗ queued: ${queued.text.split('\n')[0]}`)),
 			...(store.mode === 'picker' && store.picker ? [h(Picker, {})] : []),
 			...(store.mode === 'ui' && store.ui ? [h(Box, { flexDirection: 'column', marginTop: 1 },

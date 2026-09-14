@@ -1034,6 +1034,8 @@ export declare const AssistantEventsSchema: z.ZodObject<{
     toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+    steerQueued: z.ZodTuple<[z.ZodAny], null>;
+    steered: z.ZodTuple<[z.ZodAny], null>;
     hookFired: z.ZodTuple<[z.ZodString], null>;
     visionDescription: z.ZodTuple<[z.ZodObject<{
         index: z.ZodNumber;
@@ -1282,6 +1284,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+        steerQueued: z.ZodTuple<[z.ZodAny], null>;
+        steered: z.ZodTuple<[z.ZodAny], null>;
         hookFired: z.ZodTuple<[z.ZodString], null>;
         visionDescription: z.ZodTuple<[z.ZodObject<{
             index: z.ZodNumber;
@@ -1715,6 +1719,23 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * assistant.abort()
      */
     abort(): this;
+    /**
+     * Inject a user message into the turn running right now. It lands in
+     * history at the next gap between tool calls; if the model finishes first,
+     * it runs as a follow-up turn inside the same \`ask()\`. Returns false when no
+     * turn is active, in which case call \`ask()\` instead. See
+     * \`Conversation.steer()\`.
+     *
+     * @example
+     * const reply = assistant.ask('audit the repo')
+     * assistant.steer('only look at src/, ignore vendor/')
+     * await reply
+     */
+    steer(content: string | ContentPart[]): boolean;
+    /** Whether an ask() or retry currently holds the turn (streaming or running tools). */
+    get isTurnActive(): boolean;
+    /** ask() calls waiting behind the active turn. */
+    get queueDepth(): number;
     /**
      * Switch to another saved thread mid-session. Unlike \`resumeThread()\`,
      * which only records an override for the next \`start()\`, this loads the
@@ -4859,6 +4880,8 @@ export declare const ConversationEventsSchema: z.ZodObject<{
     toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
     toolCallsEnd: z.ZodTuple<[], null>;
     toolImages: z.ZodTuple<[z.ZodString, z.ZodNumber], null>;
+    steerQueued: z.ZodTuple<[z.ZodAny], null>;
+    steered: z.ZodTuple<[z.ZodAny], null>;
     chunk: z.ZodTuple<[z.ZodString], null>;
     reasoning: z.ZodTuple<[z.ZodString], null>;
     preview: z.ZodTuple<[z.ZodString], null>;
@@ -5113,6 +5136,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
         toolCallsEnd: z.ZodTuple<[], null>;
         toolImages: z.ZodTuple<[z.ZodString, z.ZodNumber], null>;
+        steerQueued: z.ZodTuple<[z.ZodAny], null>;
+        steered: z.ZodTuple<[z.ZodAny], null>;
         chunk: z.ZodTuple<[z.ZodString], null>;
         reasoning: z.ZodTuple<[z.ZodString], null>;
         preview: z.ZodTuple<[z.ZodString], null>;
@@ -5190,6 +5215,14 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     private _activeInstructions;
     /** AbortController for the current ask() call, if any. */
     private _abortController;
+    /**
+     * Steer messages waiting for the next gap in the in-flight turn. Drained
+     * with the tool images after each tool batch; whatever is left when the
+     * model stops calling tools becomes a follow-up turn inside the same ask().
+     */
+    private _pendingSteers;
+    /** ask()/retryFailedTurn() calls waiting behind the in-flight one. */
+    private _queuedAsks;
     /** FIFO tail used to serialize ask() calls against this mutable conversation. */
     private _askQueue;
     /** Registered stubs: matched against user input to short-circuit the API with a canned response. */
@@ -5404,6 +5437,46 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * accumulated before the abort.
      */
     abort(): void;
+    /**
+     * Whether an ask() (or retry) currently holds the turn. True for the whole
+     * turn, not only while tokens stream — tool execution counts.
+     */
+    get isTurnActive(): boolean;
+    /** How many ask()/retryFailedTurn() calls are waiting behind the active turn. */
+    get queueDepth(): number;
+    /** Steer messages accepted but not yet injected into the in-flight turn. */
+    get pendingSteers(): ReadonlyArray<string | ContentPart[]>;
+    /**
+     * Inject a user message into the turn that is running right now, without
+     * waiting for it to finish. The content lands in history as a user message
+     * at the next gap: after the current tool batch, before the model's next
+     * call. If the model stops calling tools before the gap arrives, the steer
+     * runs as a follow-up turn inside the same ask(), so it is never lost.
+     *
+     * Returns false (and does nothing) when no turn is active — the caller
+     * should ask() instead, which queues behind nothing and runs at once.
+     *
+     * @example
+     * const reply = conversation.ask('refactor the auth module')
+     * conversation.steer('skip the tests directory')
+     * await reply
+     */
+    steer(content: string | ContentPart[]): boolean;
+    /**
+     * Drain queued steers into user-message content parts. Each steer is
+     * emitted as \`steered\` so listeners can mirror it into their transcript.
+     */
+    private flushSteers;
+    /**
+     * Everything that should reach the model as a user message before its next
+     * call: tool images first, then steers. Null when there is nothing.
+     */
+    private flushMidTurnInput;
+    /**
+     * Run the provider turn, then keep running follow-up turns while steers
+     * arrived too late to be injected mid-turn. Returns the last response.
+     */
+    private runProviderTurnWithSteers;
     /** Race arbitrary provider/tool work against the active turn's abort signal. */
     private abortable;
     /** Make custom async transports abortable even when they ignore request.signal. */
@@ -35437,7 +35510,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.3";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

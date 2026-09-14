@@ -226,6 +226,8 @@ export const ConversationEventsSchema = FeatureEventsSchema.extend({
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error object or message')]).describe('Fired when a tool handler throws or the tool is unknown'),
 	toolCallsEnd: z.tuple([]).describe('Fired after all tool calls in a turn have been executed'),
 	toolImages: z.tuple([z.string().describe('Tool name'), z.number().describe('Number of image parts queued')]).describe('Fired when a tool result carries images that will be injected as a user message before the next model turn'),
+	steerQueued: z.tuple([z.any().describe('The steer content (string or ContentPart[])')]).describe('Fired when steer() accepts content for injection into the in-flight turn'),
+	steered: z.tuple([z.any().describe('The steer content (string or ContentPart[])')]).describe('Fired when a queued steer is injected into history as a user message — between tool calls, or as a follow-up turn when the model stopped calling tools first'),
 	chunk: z.tuple([z.string().describe('Text delta from the stream')]).describe('Fired for each streaming text delta'),
 	reasoning: z.tuple([z.string().describe('Reasoning/thinking text delta from the stream')]).describe('Fired for each reasoning delta a thinking model streams before its answer. Never part of the response text or message history. What arrives is provider-shaped: local models stream raw thinking (reasoning_content or inline <think> tags), the OpenAI Responses API streams reasoning summaries only'),
 	preview: z.tuple([z.string().describe('Accumulated text so far')]).describe('Fired after each chunk with the full accumulated text'),
@@ -428,6 +430,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** AbortController for the current ask() call, if any. */
 	private _abortController: AbortController | null = null
+
+	/**
+	 * Steer messages waiting for the next gap in the in-flight turn. Drained
+	 * with the tool images after each tool batch; whatever is left when the
+	 * model stops calling tools becomes a follow-up turn inside the same ask().
+	 */
+	private _pendingSteers: Array<string | ContentPart[]> = []
+
+	/** ask()/retryFailedTurn() calls waiting behind the in-flight one. */
+	private _queuedAsks = 0
 
 	/** FIFO tail used to serialize ask() calls against this mutable conversation. */
 	private _askQueue: Promise<void> = Promise.resolve()
@@ -928,6 +940,92 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this._abortController?.abort()
 	}
 
+	/**
+	 * Whether an ask() (or retry) currently holds the turn. True for the whole
+	 * turn, not only while tokens stream — tool execution counts.
+	 */
+	get isTurnActive(): boolean {
+		return this._abortController !== null
+	}
+
+	/** How many ask()/retryFailedTurn() calls are waiting behind the active turn. */
+	get queueDepth(): number {
+		return this._queuedAsks
+	}
+
+	/** Steer messages accepted but not yet injected into the in-flight turn. */
+	get pendingSteers(): ReadonlyArray<string | ContentPart[]> {
+		return this._pendingSteers
+	}
+
+	/**
+	 * Inject a user message into the turn that is running right now, without
+	 * waiting for it to finish. The content lands in history as a user message
+	 * at the next gap: after the current tool batch, before the model's next
+	 * call. If the model stops calling tools before the gap arrives, the steer
+	 * runs as a follow-up turn inside the same ask(), so it is never lost.
+	 *
+	 * Returns false (and does nothing) when no turn is active — the caller
+	 * should ask() instead, which queues behind nothing and runs at once.
+	 *
+	 * @example
+	 * const reply = conversation.ask('refactor the auth module')
+	 * conversation.steer('skip the tests directory')
+	 * await reply
+	 */
+	steer(content: string | ContentPart[]): boolean {
+		if (!this.isTurnActive) return false
+		this._pendingSteers.push(content)
+		this.emit('steerQueued', content)
+		return true
+	}
+
+	/**
+	 * Drain queued steers into user-message content parts. Each steer is
+	 * emitted as `steered` so listeners can mirror it into their transcript.
+	 */
+	private flushSteers(): ContentPart[] | null {
+		if (!this._pendingSteers.length) return null
+		const pending = this._pendingSteers
+		this._pendingSteers = []
+		const parts: ContentPart[] = []
+		for (const steer of pending) {
+			if (typeof steer === 'string') parts.push({ type: 'text', text: steer })
+			else parts.push(...steer)
+			this.emit('steered', steer)
+		}
+		return parts
+	}
+
+	/**
+	 * Everything that should reach the model as a user message before its next
+	 * call: tool images first, then steers. Null when there is nothing.
+	 */
+	private async flushMidTurnInput(): Promise<ContentPart[] | null> {
+		const images = await this.flushToolImages()
+		const steers = this.flushSteers()
+		if (!images && !steers) return null
+		return [...(images || []), ...(steers || [])]
+	}
+
+	/**
+	 * Run the provider turn, then keep running follow-up turns while steers
+	 * arrived too late to be injected mid-turn. Returns the last response.
+	 */
+	private async runProviderTurnWithSteers(): Promise<string> {
+		let response = await this.runProviderTurn()
+		while (this._pendingSteers.length) {
+			const parts = this.flushSteers()!
+			const content: string | ContentPart[] = parts.length === 1 && parts[0]!.type === 'text'
+				? (parts[0] as any).text
+				: parts
+			this.pushMessage({ role: 'user', content: content as any })
+			this.emit('userMessage', content)
+			response = await this.runProviderTurn()
+		}
+		return response
+	}
+
 	/** Race arbitrary provider/tool work against the active turn's abort signal. */
 	private async abortable<T>(promise: Promise<T>, partial = ''): Promise<T> {
 		const signal = this._abortController?.signal
@@ -1300,7 +1398,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const previous = this._askQueue
 		this._askQueue = new Promise<void>((resolve) => { release = resolve })
 
+		this._queuedAsks++
 		await previous
+		this._queuedAsks--
 		try {
 			return await this.runAsk(content, options)
 		} finally {
@@ -1333,7 +1433,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				return await this._streamStub(stubText)
 			}
 
-			return await this.runProviderTurn()
+			return await this.runProviderTurnWithSteers()
 		})
 	}
 
@@ -1361,7 +1461,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const previous = this._askQueue
 		this._askQueue = new Promise<void>((resolve) => { release = resolve })
 
+		this._queuedAsks++
 		await previous
+		this._queuedAsks--
 		try {
 			return await this.executeTurn(options, async () => {
 				const failed = this.state.get('failedTurn') as FailedTurnRecord | null
@@ -1376,7 +1478,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					throw new Error('retryFailedTurn(): the conversation has moved past the failed turn')
 				}
 				this.state.set('failedTurn', null)
-				return await this.runProviderTurn()
+				return await this.runProviderTurnWithSteers()
 			})
 		} finally {
 			release()
@@ -1413,6 +1515,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this._activeSchema = null
 			this._activeInstructions = null
 			this._abortController = null
+			// Steers belong to the turn they were sent during. An aborted or
+			// failed turn takes its undelivered steers with it.
+			this._pendingSteers = []
 		}
 	}
 
@@ -1773,7 +1878,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				const result = await this.executeTool(call.name, call.rawArguments ?? JSON.stringify(call.arguments ?? {}))
 				this.pushMessage({ role: 'tool', tool_call_id: call.id || '', content: result })
 			}
-			const imageParts = await this.flushToolImages()
+			const imageParts = await this.flushMidTurnInput()
 			if (imageParts) this.pushMessage({ role: 'user', content: imageParts as any })
 			this.emit('toolCallsEnd')
 		}
@@ -2172,7 +2277,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			}
 
 			const nextInput: OpenAI.Responses.ResponseInput = [...functionOutputs]
-			const imageParts = await this.flushToolImages()
+			const imageParts = await this.flushMidTurnInput()
 			if (imageParts) {
 				this.pushMessage({ role: 'user', content: imageParts as any })
 				nextInput.push(toResponsesUserMessage(imageParts))
@@ -2369,7 +2474,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				this.pushMessage(toolMessage)
 			}
 
-			const imageParts = await this.flushToolImages()
+			const imageParts = await this.flushMidTurnInput()
 			if (imageParts) this.pushMessage({ role: 'user', content: imageParts as any })
 
 			this.emit('toolCallsEnd')
