@@ -1164,7 +1164,9 @@ export class ModelProviders extends Feature<ModelProvidersState> {
   static override shortcut = 'features.modelProviders' as const
   static override stability = 'core' as const
   static override category = 'ai-assistants' as const
-  static override optionsSchema = Feature.optionsSchema.extend({})
+  static override optionsSchema = Feature.optionsSchema.extend({
+    useConfigFiles: z.boolean().optional().describe('Read model-providers.yml / assistants/options.yml at construction (default true). Pass false for a hermetic instance that sees only the built-in profiles — tests must, or the developer\'s own machine config changes what they assert'),
+  })
   static { Feature.register(this, 'modelProviders') }
 
   private discoveryPending = new Map<string, Promise<DiscoveredModelServer[]>>()
@@ -1213,10 +1215,15 @@ export class ModelProviders extends Feature<ModelProvidersState> {
     this.registerTransport('openai-responses', new OpenAIResponsesTransport())
     this.registerTransport('openai-codex', new OpenAICodexTransport(this.container))
     this.registerTransport('claude-session', new ClaudeSessionTransport(this.container))
-    try {
-      this.loadConfigFiles()
-    } catch (err: any) {
-      console.warn(`Warning: failed to load model provider config files: ${err?.message || err}`)
+    // Opt-out exists because this reads the developer's home directory: a unit
+    // test that skips it asserts against the built-ins alone, not against
+    // whatever providers happen to be configured on the machine running it.
+    if ((this.options as any).useConfigFiles !== false) {
+      try {
+        this.loadConfigFiles()
+      } catch (err: any) {
+        console.warn(`Warning: failed to load model provider config files: ${err?.message || err}`)
+      }
     }
   }
 
@@ -1312,7 +1319,7 @@ export class ModelProviders extends Feature<ModelProvidersState> {
       const existing = this.get(id)
       const profile: ModelProviderProfile = { ...(existing ?? {}), ...patch, id } as ModelProviderProfile
       profile.label ??= id
-      profile.apiMode ??= DEFAULT_API_MODE_BY_KIND[(profile as any).kind ?? 'llm'] ?? DEFAULT_API_MODE_BY_KIND.llm
+      profile.apiMode ??= DEFAULT_API_MODE_BY_KIND[(profile as any).kind ?? 'llm'] ?? 'openai-chat-completions'
       profile.auth ??= profile.apiKey || profile.apiKeyEnv ? 'apiKey' : 'none'
 
       try {

@@ -7,10 +7,70 @@ Resolve model provider profiles and route requests to provider transports.
 ## Usage
 
 ```ts
-container.feature('modelProviders')
+container.feature('modelProviders', {
+  // Read model-providers.yml / assistants/options.yml at construction (default true). Pass false for a hermetic instance that sees only the built-in profiles — tests must, or the developer's own machine config changes what they assert
+  useConfigFiles,
+})
 ```
 
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `useConfigFiles` | `boolean` | Read model-providers.yml / assistants/options.yml at construction (default true). Pass false for a hermetic instance that sees only the built-in profiles — tests must, or the developer's own machine config changes what they assert |
+
 ## Methods
+
+### loadConfigFiles
+
+Read every config source and register the providers it declares. Runs once in the constructor; call it again to pick up edits in a long-running process. Missing files are skipped; a file that fails to parse is reported with `console.warn` and skipped so a typo can't break startup. `hosts:` maps from all sources are pooled before any entry is registered, so `~/.luca/model-providers.yml` can name the machines and `assistants/options.yml` can just say `mybox: chief/model`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `sources` | `ModelProviderConfigSource[]` |  | Override the files to read. Defaults to `configSources`. |
+
+`ModelProviderConfigSource[]` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `path` | `string` | Absolute path to the YAML file. Missing files are skipped silently. |
+| `key` | `string` | Top-level key holding the providers map. When omitted the whole document is the map, unless it has a `providers:` key, which is then used instead. |
+
+**Returns:** `string[]`
+
+```ts
+const ids = container.feature('modelProviders').loadConfigFiles()
+```
+
+
+
+### registerFromConfig
+
+Register the entries of one `providers:` map (the YAML shape documented on the class) without touching the filesystem. Useful for tests and for plugins that keep provider config somewhere else.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `section` | `Record<string, any>` | ✓ | Map of provider id → shorthand string or profile object. |
+| `options` | `{ hosts?: Record<string, string>; source?: string }` |  | Parameter options |
+
+`{ hosts?: Record<string, string>; source?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `hosts` | `any` | Named base URLs; merged over the section's own `hosts:`. |
+| `source` | `any` | Label used in warnings, typically the file path. |
+
+**Returns:** `string[]`
+
+```ts
+mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })
+```
+
+
 
 ### registerProfile
 
@@ -170,7 +230,7 @@ REPL-friendly provider overview that never exposes raw API keys.
 
 
 
-### describe
+### describeProvider
 
 Describe one provider or, when no id is supplied, all providers. This is intentionally concise and safe for REPL output.
 
@@ -329,6 +389,9 @@ for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
 | `discoveredModels` | `string[]` | Unique model ids advertised by the last discovered servers. Empty before discovery. |
 | `hasDiscovered` | `boolean` | Whether discovery has completed, including a scan that found no servers. |
 | `discoveredAt` | `number | undefined` | Time of the last completed scan in milliseconds since epoch, or undefined before discovery. |
+| `configSources` | `ModelProviderConfigSource[]` | Files consulted by `loadConfigFiles()`, in load order — a later file wins on the same provider id, so project config overrides machine config. 1. `<LUCA_HOME>/model-providers.yml` (default `~/.luca/model-providers.yml`) 2. `<cwd>/assistants/options.yml`, `providers:` section only |
+| `configuredProviderIds` | `string[]` | Profile ids registered from YAML config files, in registration order. Empty when no file declared any. |
+| `loadedConfigSources` | `string[]` | Config files that existed and parsed on the last `loadConfigFiles()`. |
 | `available` | `string[]` | Provider profile ids available for `provider: "..."` lookups. |
 | `profileIds` | `string[]` | Provider profile ids available for `provider: "..."` lookups. |
 | `profiles` | `Record<string, ModelProviderProfile>` | Registered profiles keyed by provider id. Returned profiles are cloned. |
@@ -345,8 +408,42 @@ for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
 | `discoveredServers` | `array` | Servers from the most recently completed discovery |
 | `discoveryKey` | `string` | Scan options identifying the cached discovery |
 | `discoveredAt` | `number` | Time of the cached scan in milliseconds since epoch |
+| `configuredProviderIds` | `array` | Profile ids registered from YAML config files, in registration order |
+| `loadedConfigSources` | `array` | Config files that existed and were parsed on the last loadConfigFiles() |
 
 ## Examples
+
+**features.modelProviders**
+
+```ts
+// Which config files were found, and what they registered:
+const mp = container.feature('modelProviders')
+mp.loadedConfigSources   // ['/Users/me/.luca/model-providers.yml']
+mp.configuredProviderIds // ['qwen36', 'gemma4', 'deepseek-v4', 'secure-box', 'kokoro']
+```
+
+```ts
+// Re-read the files after editing them in a long-running process:
+container.feature('modelProviders').loadConfigFiles()
+```
+
+
+
+**loadConfigFiles**
+
+```ts
+const ids = container.feature('modelProviders').loadConfigFiles()
+```
+
+
+
+**registerFromConfig**
+
+```ts
+mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })
+```
+
+
 
 **registerLocal**
 

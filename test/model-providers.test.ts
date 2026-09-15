@@ -2,15 +2,22 @@ import { describe, expect, it } from 'bun:test'
 import { AGIContainer } from '../src/agi/container.server'
 import { ClaudeSessionTransport, ModelProviders } from '../src/agi/features/model-providers'
 
+// Every instance here is hermetic: `useConfigFiles: false` keeps the developer's
+// own ~/.luca/model-providers.yml out of the assertions. Without it, adding a
+// local provider on port 1234 quietly reassigns the builtin lmstudio profile
+// and unrelated tests start failing.
+const createProviders = (container = new AGIContainer()) =>
+  container.feature('modelProviders', { useConfigFiles: false } as any)
+
 describe('ModelProviders', () => {
   it('is registered in the AGI container', () => {
     const c = new AGIContainer()
     expect(c.features.has('modelProviders')).toBe(true)
-    expect(c.feature('modelProviders')).toBeInstanceOf(ModelProviders)
+    expect(createProviders(c)).toBeInstanceOf(ModelProviders)
   })
 
   it('resolves local OpenAI-compatible presets without API keys', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
 
     const lmstudio = await providers.resolve({ provider: 'lmstudio' })
     expect(lmstudio.id).toBe('lmstudio')
@@ -25,7 +32,7 @@ describe('ModelProviders', () => {
   })
 
   it('registerLocal registers an OpenAI-compatible endpoint with no-auth defaults', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
 
     const resolved = await providers.resolve({ provider: 'chief' })
@@ -39,7 +46,7 @@ describe('ModelProviders', () => {
   })
 
   it('registerLocal flips to apiKey auth and reads the key from the environment', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     process.env.TEST_BOX_KEY = 'sk-box-123'
     try {
       providers.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', { apiKeyEnv: 'TEST_BOX_KEY' })
@@ -52,7 +59,7 @@ describe('ModelProviders', () => {
   })
 
   it('treats provider objects with a baseURL as OpenAI-compatible by default', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const resolved = await providers.resolve({
       provider: { baseURL: 'http://localhost:8000/v1', auth: 'none' },
       model: 'custom-local',
@@ -66,7 +73,7 @@ describe('ModelProviders', () => {
   })
 
   it('exposes a `codex` alias for the openai-codex provider', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const codex = await providers.resolve({ provider: 'codex' })
     expect(codex.id).toBe('codex')
     expect(codex.apiMode).toBe('openai-codex')
@@ -74,7 +81,7 @@ describe('ModelProviders', () => {
   })
 
   it('resolves claude-code as a public provider backed by claude-session api mode', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const resolved = await providers.resolve({ provider: 'claude-code', providerOptions: { id: 'reviewer', cwd: '/tmp/repo' } })
 
     expect(resolved.id).toBe('claude-code')
@@ -85,7 +92,7 @@ describe('ModelProviders', () => {
   })
 
   it('allows tests and extensions to register fake transports', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     providers.registerProfile({ id: 'fake', apiMode: 'fake-mode', auth: 'none', defaultModel: 'fake-model' })
     providers.registerTransport('fake-mode', {
       apiMode: 'fake-mode',
@@ -105,7 +112,7 @@ describe('ModelProviders', () => {
   })
 
   it('exposes REPL-friendly profile and transport inspection helpers', () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
 
     expect(providers.available).toContain('openai')
     expect(providers.profileIds).toContain('claude-code')
@@ -117,7 +124,7 @@ describe('ModelProviders', () => {
   })
 
   it('returns cloned profiles keyed by id', () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const profiles = providers.profiles
 
     profiles.openai!.defaultModel = 'mutated'
@@ -126,7 +133,7 @@ describe('ModelProviders', () => {
   })
 
   it('summarizes providers without exposing raw API keys', () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     providers.registerProfile({
       id: 'secret-box',
       apiMode: 'missing-mode',
@@ -152,7 +159,7 @@ describe('ModelProviders', () => {
   })
 
   it('mutates registered profiles through explicit helpers', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
 
     providers.setDefaultModel('ollama', 'llama4')
     providers.setBaseURL('ollama', 'http://localhost:9999/v1')
@@ -163,7 +170,7 @@ describe('ModelProviders', () => {
   })
 
   it('removes registered profiles and reports whether anything changed', () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     providers.registerLocal('temporary', 'http://localhost:7777/v1', 'tmp-model')
 
     expect(providers.removeProfile('temporary')).toBe(true)
@@ -172,7 +179,7 @@ describe('ModelProviders', () => {
   })
 
   it('routes OpenAI-compatible chat through an OpenAI SDK style client', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const calls: any[] = []
     const fakeClient = {
       chat: {
@@ -239,7 +246,7 @@ describe('ModelProviders', () => {
   })
 
   it('merges extraBody into the chat-completions request body, request keys winning over profile keys', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const calls: any[] = []
     const fakeClient = {
       chat: {
@@ -278,7 +285,7 @@ describe('ModelProviders', () => {
   })
 
   it('streams chat completions when request.stream is true', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const calls: any[] = []
     const fakeClient = {
       chat: {
@@ -335,7 +342,7 @@ describe('ModelProviders', () => {
   })
 
   it('routes the openai-responses api mode through a Responses SDK style client', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const calls: any[] = []
     const finalResponse = {
       id: 'resp_1',
@@ -390,7 +397,7 @@ describe('ModelProviders', () => {
 
   it('routes openai-codex through the openaiCodex feature', async () => {
     const c = new AGIContainer()
-    const providers = c.feature('modelProviders')
+    const providers = createProviders(c)
     const codex = c.feature('openaiCodex') as any
     const runs: any[] = []
     codex.run = async (prompt: string, options: any) => {
@@ -421,7 +428,7 @@ describe('ModelProviders', () => {
 
   it('runs claude headlessly and wires a luca MCP server when providerOptions.assistant is set', async () => {
     const c = new AGIContainer()
-    const providers = c.feature('modelProviders')
+    const providers = createProviders(c)
 
     const runs: any[] = []
     const fakeClaudeCode = {
@@ -464,7 +471,7 @@ describe('ModelProviders', () => {
 
   it('resumes claude session across turns and skips MCP wiring when assistant is false', async () => {
     const c = new AGIContainer()
-    const providers = c.feature('modelProviders')
+    const providers = createProviders(c)
 
     const runs: any[] = []
     const fakeClaudeCode = {
@@ -545,7 +552,7 @@ describe('ModelProviders default provider selection', () => {
 
   it('prefers openai when OPENAI_API_KEY is set', () => {
     return withEnv({ OPENAI_API_KEY: 'sk-test' }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       expect(providers.resolveDefaultId()).toBe('openai')
     })
   })
@@ -555,7 +562,7 @@ describe('ModelProviders default provider selection', () => {
     const { join } = require('node:path')
     fakeLocalInstall(tmp, true)
     return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       expect(providers.resolveDefaultId()).toBe('local')
     })
   })
@@ -565,7 +572,7 @@ describe('ModelProviders default provider selection', () => {
     const { join } = require('node:path')
     fakeLocalInstall(tmp, true)
     return withEnv({ OPENAI_API_KEY: 'sk-test', LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       expect(providers.resolveDefaultId()).toBe('openai')
     })
   })
@@ -574,7 +581,7 @@ describe('ModelProviders default provider selection', () => {
     const tmp = tmpDir()
     const { join } = require('node:path')
     return withEnv({ ANTHROPIC_API_KEY: 'sk-ant', LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       // No transport registered for anthropic-messages out of the box — never
       // pick a default that would route into NotImplementedTransport.
       expect(providers.resolveDefaultId()).toBeUndefined()
@@ -587,7 +594,7 @@ describe('ModelProviders default provider selection', () => {
     const tmp = tmpDir()
     const { join } = require('node:path')
     return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
       expect(providers.resolveDefaultId()).toBe('chief')
     })
@@ -597,7 +604,7 @@ describe('ModelProviders default provider selection', () => {
     const tmp = tmpDir()
     const { join } = require('node:path')
     return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, async () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       expect(providers.resolveDefaultId()).toBeUndefined()
       expect(() => providers.requireDefaultId()).toThrow(/No model provider is available/)
       expect(() => providers.requireDefaultId()).toThrow(/luca setup/)
@@ -607,7 +614,7 @@ describe('ModelProviders default provider selection', () => {
 
   it('setDefault pins the default over the automatic selection', () => {
     return withEnv({ OPENAI_API_KEY: 'sk-test' }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
       providers.setDefault('chief')
       expect(providers.resolveDefaultId()).toBe('chief')
@@ -618,7 +625,7 @@ describe('ModelProviders default provider selection', () => {
 
   it('LUCA_DEFAULT_PROVIDER env var pins the default', () => {
     return withEnv({ OPENAI_API_KEY: 'sk-test', LUCA_DEFAULT_PROVIDER: 'ollama' }, () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       expect(providers.resolveDefaultId()).toBe('ollama')
     })
   })
@@ -627,7 +634,7 @@ describe('ModelProviders default provider selection', () => {
     const tmp = tmpDir()
     const { join } = require('node:path')
     return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, async () => {
-      const providers = new AGIContainer().feature('modelProviders')
+      const providers = createProviders()
       providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
       const resolved = await providers.resolve()
       expect(resolved.id).toBe('chief')
@@ -646,7 +653,7 @@ describe('ModelProviders discover()', () => {
   }
 
   it('caches scans in state, exposes safe synchronous getters, and explicitly refreshes', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     expect(providers.hasDiscovered).toBe(false)
     expect(providers.discoveredServers).toEqual([])
     expect(providers.discoveredModels).toEqual([])
@@ -679,7 +686,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('shares concurrent scans and caches an empty result', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     let calls = 0
     let release!: () => void
     const gate = new Promise<void>(resolve => { release = resolve })
@@ -700,7 +707,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('finds live servers on known localhost ports and skips dead ones', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const found = await providers.discover({
       tailscale: false,
       probe: fakeProbe({
@@ -721,7 +728,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('rejects responses that are not an OpenAI models list', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const found = await providers.discover({
       tailscale: false,
       probe: async () => ({ ok: true, json: async () => ({ hello: 'world' }) }),
@@ -730,7 +737,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('never throws when nothing is listening', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const found = await providers.discover({
       tailscale: false,
       probe: async () => { throw new Error('ECONNREFUSED') },
@@ -739,7 +746,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('register: true creates provider profiles for unknown servers', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const found = await providers.discover({
       tailscale: false,
       hosts: ['192.168.1.50'],
@@ -771,7 +778,7 @@ describe('ModelProviders discover()', () => {
   })
 
   it('probes custom ports and hosts', async () => {
-    const providers = new AGIContainer().feature('modelProviders')
+    const providers = createProviders()
     const found = await providers.discover({
       tailscale: false,
       localhost: false,
@@ -847,7 +854,7 @@ describe('reasoning stream events', () => {
 
   it('chat transport emits reasoning from reasoning_content deltas and inline think tags, keeping content clean', async () => {
     const container = new AGIContainer()
-    const providers = container.feature('modelProviders')
+    const providers = createProviders(container)
     const provider = await providers.resolve({
       provider: { id: 'test-think', apiMode: 'openai-chat-completions', auth: 'none' },
       providerOptions: { client: makeFakeClient() },
