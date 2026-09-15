@@ -100,7 +100,7 @@ Look up a helper class by type and name.
 
 
 
-### describe
+### describeHelper
 
 Get the introspection description for a specific helper.
 

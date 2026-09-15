@@ -264,6 +264,26 @@ Abort the current ask() call. Cancels the in-flight network request and any pend
 
 
 
+### steer
+
+Inject a user message into the turn that is running right now, without waiting for it to finish. The content lands in history as a user message at the next gap: after the current tool batch, before the model's next call. If the model stops calling tools before the gap arrives, the steer runs as a follow-up turn inside the same ask(), so it is never lost. Returns false (and does nothing) when no turn is active — the caller should ask() instead, which queues behind nothing and runs at once.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `content` | `string | ContentPart[]` | ✓ | Parameter content |
+
+**Returns:** `boolean`
+
+```ts
+const reply = conversation.ask('refactor the auth module')
+conversation.steer('skip the tests directory')
+await reply
+```
+
+
+
 ### estimateTokens
 
 Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.
@@ -448,6 +468,9 @@ Append a message to the conversation state.
 | `routing` | `ConversationRouting` | Where the next turn will go: the provider, the model, the OpenAI dialect, and which turn loop runs. Everything here is derived live, so it reflects any mid-conversation `setModel()` / `setProvider()` call. |
 | `apiMode` | `'responses' | 'chat'` | Returns the active completion API mode after resolving auto behavior. |
 | `isStreaming` | `boolean` | Whether a streaming response is currently in progress. |
+| `isTurnActive` | `boolean` | Whether an ask() (or retry) currently holds the turn. True for the whole turn, not only while tokens stream — tool execution counts. |
+| `queueDepth` | `number` | How many ask()/retryFailedTurn() calls are waiting behind the active turn. |
+| `pendingSteers` | `ReadonlyArray<string | ContentPart[]>` | Steer messages accepted but not yet injected into the in-flight turn. |
 | `contextWindow` | `number` | The context window size for the current model (from options override or auto-detected). |
 | `isNearContextLimit` | `boolean` | Whether the conversation is approaching the context limit. |
 | `maxToolTurns` | `number` | The tool-loop ceiling for every provider loop. 0 (the default) means no cap: the caller decides the budget. Any value <= 0 is treated as 0. For reference, across 358 measured real tool-using turns p99 depth was 24 and the deepest legitimate run reached 50. |
@@ -466,6 +489,42 @@ Fired when setModel() or setProvider() changes which backend or model the next t
 |------|------|-------------|
 | `previous` | `any` | The routing in effect before the change |
 | `current` | `any` | The routing the next turn will use |
+
+
+
+### steerQueued
+
+Fired when steer() accepts content for injection into the in-flight turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The steer content (string or ContentPart[]) |
+
+
+
+### steered
+
+Fired when a queued steer is injected into history as a user message — between tool calls, or as a follow-up turn when the model stopped calling tools first
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The steer content (string or ContentPart[]) |
+
+
+
+### userMessage
+
+Fired when a user message is added to the conversation
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The user message content (string or ContentPart[]) |
 
 
 
@@ -557,18 +616,6 @@ Fired when auto-compact kicks in because tokens exceeded the threshold
 | `estimated` | `number` |  |
 | `limit` | `number` |  |
 | `contextWindow` | `number` |  |
-
-
-
-### userMessage
-
-Fired when a user message is added to the conversation
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `any` | The user message content (string or ContentPart[]) |
 
 
 
@@ -869,6 +916,16 @@ await conversation.ask('now try that again with more care')
 ```ts
 conversation.setProvider('claude-code', { model: 'sonnet' })
 conversation.setProvider(null) // back to the container's default provider
+```
+
+
+
+**steer**
+
+```ts
+const reply = conversation.ask('refactor the auth module')
+conversation.steer('skip the tests directory')
+await reply
 ```
 
 

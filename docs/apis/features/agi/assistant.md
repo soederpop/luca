@@ -443,6 +443,26 @@ assistant.abort()
 
 
 
+### steer
+
+Inject a user message into the turn running right now. It lands in history at the next gap between tool calls; if the model finishes first, it runs as a follow-up turn inside the same `ask()`. Returns false when no turn is active, in which case call `ask()` instead. See `Conversation.steer()`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `content` | `string | ContentPart[]` | ✓ | Parameter content |
+
+**Returns:** `boolean`
+
+```ts
+const reply = assistant.ask('audit the repo')
+assistant.steer('only look at src/, ignore vendor/')
+await reply
+```
+
+
+
 ### switchThread
 
 Switch to another saved thread mid-session. Unlike `resumeThread()`, which only records an override for the next `start()`, this loads the thread's history into the live conversation immediately — the message list, response chain, token usage, and cost are all replaced. A thread id with no saved record starts that thread fresh.
@@ -690,6 +710,8 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `threadPrefix` | `string` | The thread prefix for this assistant+project combination. |
 | `conversationHistory` | `ConversationHistory` | The conversationHistory feature instance. |
 | `currentThreadId` | `string | undefined` | The active thread ID (undefined in lifecycle mode). |
+| `isTurnActive` | `boolean` | Whether an ask() or retry currently holds the turn (streaming or running tools). |
+| `queueDepth` | `number` | ask() calls waiting behind the active turn. |
 | `visionSupport` | `VisionSupportConfig | undefined` | Resolved vision delegation config, or undefined when visionSupport is not enabled. Merges the option (constructor or CORE.md frontmatter) with env-var defaults: LUCA_VISION_SUPPORT_MODEL, LUCA_VISION_SUPPORT_URL, LUCA_VISION_SUPPORT_API_KEY, falling back to OPENAI_BASE_URL / OPENAI_API_KEY and the 'gpt-5.2' model. |
 | `availableSubagents` | `string[]` | Names of assistants available as subagents, discovered via the assistantsManager. |
 
@@ -868,6 +890,30 @@ Emitted when a tool call fails
 
 
 
+### steerQueued
+
+Emitted when steer() accepts a message for the in-flight turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The steer content (string or ContentPart[]) |
+
+
+
+### steered
+
+Emitted when a steer is injected into history as a user message, between tool calls or as a follow-up turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The steer content (string or ContentPart[]) |
+
+
+
 ### started
 
 Emitted when the assistant has been initialized
@@ -997,6 +1043,16 @@ const budget = me.setting('limits.maxDownloads', 25)
 
 ```ts
 assistant.abort()
+```
+
+
+
+**steer**
+
+```ts
+const reply = assistant.ask('audit the repo')
+assistant.steer('only look at src/, ignore vendor/')
+await reply
 ```
 
 
