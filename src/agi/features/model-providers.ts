@@ -2,6 +2,7 @@ import { Feature } from '../feature'
 import { z } from 'zod'
 import { FeatureStateSchema } from '../../schemas/base'
 import OpenAI from 'openai'
+import { lucaHome } from '../../setup/paths'
 
 declare module 'luca/feature' {
   interface AvailableFeatures {
@@ -74,6 +75,27 @@ export interface LocalProviderOptions {
   auth?: ModelProviderAuth
 }
 
+/** A YAML file that may contribute provider profiles. See `ModelProviders.configSources`. */
+export interface ModelProviderConfigSource {
+  /** Absolute path to the YAML file. Missing files are skipped silently. */
+  path: string
+  /**
+   * Top-level key holding the providers map. When omitted the whole document is
+   * the map, unless it has a `providers:` key, which is then used instead.
+   */
+  key?: string
+}
+
+/** Keys inside a `providers:` map that are not provider ids. */
+const PROVIDER_CONFIG_RESERVED_KEYS = new Set(['hosts'])
+
+/** apiMode assumed per `kind` when a config entry doesn't name one. */
+const DEFAULT_API_MODE_BY_KIND: Record<string, ModelProviderApiMode> = {
+  llm: 'openai-chat-completions',
+  stt: 'openai-audio',
+  tts: 'openai-audio',
+}
+
 /**
  * Ports commonly used by local OpenAI-compatible LLM servers, probed by
  * `discover()`. The hint is a human-readable guess at what usually listens there.
@@ -124,6 +146,8 @@ export const ModelProvidersStateSchema = FeatureStateSchema.extend({
   })).default([]).describe('Servers from the most recently completed discovery'),
   discoveryKey: z.string().optional().describe('Scan options identifying the cached discovery'),
   discoveredAt: z.number().optional().describe('Time of the cached scan in milliseconds since epoch'),
+  configuredProviderIds: z.array(z.string()).default([]).describe('Profile ids registered from YAML config files, in registration order'),
+  loadedConfigSources: z.array(z.string()).default([]).describe('Config files that existed and were parsed on the last loadConfigFiles()'),
 })
 
 export type ModelProvidersState = z.infer<typeof ModelProvidersStateSchema>
@@ -318,6 +342,10 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
 ]
 
 const BUILTIN_PROFILE_IDS = new Set(BUILTIN_PROFILES.map(profile => profile.id))
+
+function isPlainObject(value: any): value is Record<string, any> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
 
 function cloneProfile(profile: ModelProviderProfile): ModelProviderProfile {
   return {
@@ -1072,6 +1100,64 @@ export class ClaudeSessionTransport implements ModelTransport {
   }
 }
 
+/**
+ * Registry of model provider profiles (OpenAI, Anthropic, Codex, local
+ * OpenAI-compatible servers, …) plus the transports that speak each wire
+ * dialect. Assistants name a provider by id (`provider: chief` in CORE.md
+ * frontmatter) and `resolve()` turns that into a ready-to-call endpoint.
+ *
+ * Profiles come from three places, in this order (later wins on the same id):
+ *
+ *   1. Built-in presets (`openai`, `anthropic`, `lmstudio`, `ollama`, `local`, …).
+ *   2. YAML config files, loaded once when the feature is first created:
+ *      `~/.luca/model-providers.yml` (per machine, honours `LUCA_HOME`) and the
+ *      `providers:` section of `assistants/options.yml` (per project).
+ *   3. Code — `registerLocal()` / `registerProfile()` from `luca.cli.ts`.
+ *
+ * A config file is a map of provider id → entry. An entry is either a
+ * shorthand string or a full profile object, and `hosts:` names base URLs you
+ * reuse. Hosts declared in the machine file are visible to the project file.
+ *
+ * ```yaml
+ * # ~/.luca/model-providers.yml
+ * hosts:
+ *   chief: http://chief:1234/v1
+ *   spark: http://spark-f941:8888/v1
+ * qwen36: chief                        # model defaults to the provider id
+ * gemma4: chief/writer                 # host/model
+ * deepseek-v4: spark/deepseek-v4-flash
+ * secure-box:                          # object form for anything unusual
+ *   host: chief
+ *   model: mixtral
+ *   apiKeyEnv: BOX_API_KEY
+ * kokoro:
+ *   kind: tts                          # llm (default) | stt | tts — picks the apiMode
+ *   baseURL: http://chief:8002
+ *   defaultModel: kokoro
+ * ```
+ *
+ * ```yaml
+ * # assistants/options.yml — same shape, nested under providers:
+ * providers:
+ *   chief: http://chief:1234/v1        # bare URL, model defaults to the id
+ *   secure-box:
+ *     enabled: false                   # skip an entry without deleting it
+ * ```
+ *
+ * Entries merge over an already-registered profile with the same id, so a
+ * project can patch one field of a machine-level or built-in profile without
+ * redeclaring the rest.
+ *
+ * @example
+ * // Which config files were found, and what they registered:
+ * const mp = container.feature('modelProviders')
+ * mp.loadedConfigSources   // ['/Users/me/.luca/model-providers.yml']
+ * mp.configuredProviderIds // ['qwen36', 'gemma4', 'deepseek-v4', 'secure-box', 'kokoro']
+ *
+ * @example
+ * // Re-read the files after editing them in a long-running process:
+ * container.feature('modelProviders').loadConfigFiles()
+ */
 export class ModelProviders extends Feature<ModelProvidersState> {
   static override stateSchema = ModelProvidersStateSchema
   static override description = 'Resolve model provider profiles and route requests to provider transports.'
@@ -1127,6 +1213,177 @@ export class ModelProviders extends Feature<ModelProvidersState> {
     this.registerTransport('openai-responses', new OpenAIResponsesTransport())
     this.registerTransport('openai-codex', new OpenAICodexTransport(this.container))
     this.registerTransport('claude-session', new ClaudeSessionTransport(this.container))
+    try {
+      this.loadConfigFiles()
+    } catch (err: any) {
+      console.warn(`Warning: failed to load model provider config files: ${err?.message || err}`)
+    }
+  }
+
+  /**
+   * Files consulted by `loadConfigFiles()`, in load order — a later file wins
+   * on the same provider id, so project config overrides machine config.
+   *
+   *   1. `<LUCA_HOME>/model-providers.yml` (default `~/.luca/model-providers.yml`)
+   *   2. `<cwd>/assistants/options.yml`, `providers:` section only
+   */
+  get configSources(): ModelProviderConfigSource[] {
+    const { paths } = this.container
+    return [
+      { path: paths.resolve(lucaHome(), 'model-providers.yml') },
+      { path: paths.resolve('assistants/options.yml'), key: 'providers' },
+    ]
+  }
+
+  /** Profile ids registered from YAML config files, in registration order. Empty when no file declared any. */
+  get configuredProviderIds(): string[] {
+    return [...(this.state.get('configuredProviderIds') ?? [])]
+  }
+
+  /** Config files that existed and parsed on the last `loadConfigFiles()`. */
+  get loadedConfigSources(): string[] {
+    return [...(this.state.get('loadedConfigSources') ?? [])]
+  }
+
+  /**
+   * Read every config source and register the providers it declares. Runs once
+   * in the constructor; call it again to pick up edits in a long-running
+   * process. Missing files are skipped; a file that fails to parse is reported
+   * with `console.warn` and skipped so a typo can't break startup.
+   *
+   * `hosts:` maps from all sources are pooled before any entry is registered,
+   * so `~/.luca/model-providers.yml` can name the machines and
+   * `assistants/options.yml` can just say `mybox: chief/model`.
+   *
+   * @param sources Override the files to read. Defaults to `configSources`.
+   * @returns The provider ids registered, in order.
+   *
+   * @example
+   * const ids = container.feature('modelProviders').loadConfigFiles()
+   */
+  loadConfigFiles(sources: ModelProviderConfigSource[] = this.configSources): string[] {
+    const sections: Array<{ path: string; section: Record<string, any> }> = []
+    const hosts: Record<string, string> = {}
+
+    for (const source of sources) {
+      const section = this.readConfigSection(source)
+      if (!section) continue
+      sections.push({ path: source.path, section })
+      if (section.hosts && typeof section.hosts === 'object') Object.assign(hosts, section.hosts)
+    }
+
+    const registered: string[] = []
+    for (const { path, section } of sections) {
+      registered.push(...this.registerFromConfig(section, { hosts, source: path }))
+    }
+
+    this.state.set('loadedConfigSources', sections.map(s => s.path))
+    this.state.set('configuredProviderIds', registered)
+    return registered
+  }
+
+  /**
+   * Register the entries of one `providers:` map (the YAML shape documented on
+   * the class) without touching the filesystem. Useful for tests and for
+   * plugins that keep provider config somewhere else.
+   *
+   * @param section Map of provider id → shorthand string or profile object.
+   * @param options.hosts Named base URLs; merged over the section's own `hosts:`.
+   * @param options.source Label used in warnings, typically the file path.
+   * @returns The provider ids registered, in order. Disabled entries are omitted.
+   *
+   * @example
+   * mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })
+   */
+  registerFromConfig(
+    section: Record<string, any>,
+    options: { hosts?: Record<string, string>; source?: string } = {},
+  ): string[] {
+    const ownHosts = section.hosts && typeof section.hosts === 'object' ? section.hosts : {}
+    const hosts: Record<string, string> = { ...ownHosts, ...(options.hosts ?? {}) }
+    const label = options.source ?? 'provider config'
+    const registered: string[] = []
+
+    for (const [id, value] of Object.entries(section)) {
+      if (PROVIDER_CONFIG_RESERVED_KEYS.has(id)) continue
+      const patch = this.normalizeConfigEntry(id, value, hosts, label)
+      if (!patch) continue
+
+      const existing = this.get(id)
+      const profile: ModelProviderProfile = { ...(existing ?? {}), ...patch, id } as ModelProviderProfile
+      profile.label ??= id
+      profile.apiMode ??= DEFAULT_API_MODE_BY_KIND[(profile as any).kind ?? 'llm'] ?? DEFAULT_API_MODE_BY_KIND.llm
+      profile.auth ??= profile.apiKey || profile.apiKeyEnv ? 'apiKey' : 'none'
+
+      try {
+        this.registerProfile(profile)
+        registered.push(id)
+      } catch (err: any) {
+        console.warn(`Warning: ${label}: failed to register provider "${id}": ${err?.message || err}`)
+      }
+    }
+
+    return registered
+  }
+
+  /** Parse one config file and return its providers map, or undefined when absent, empty, or unparseable. */
+  private readConfigSection(source: ModelProviderConfigSource): Record<string, any> | undefined {
+    const { fs } = this.container
+    if (!fs.exists(source.path)) return undefined
+
+    let doc: any
+    try {
+      const raw = fs.readFileSync(source.path, 'utf8') as string
+      doc = this.container.feature('yaml').parse(raw)
+    } catch (err: any) {
+      console.warn(`Warning: failed to parse ${source.path}: ${err?.message || err}`)
+      return undefined
+    }
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return undefined
+
+    const section = source.key ? doc[source.key] : (isPlainObject(doc.providers) ? doc.providers : doc)
+    return isPlainObject(section) ? section : undefined
+  }
+
+  /**
+   * Turn one config entry into a profile patch. Shorthand strings:
+   * `host`, `host/model`, or `https://…/v1`. Objects may use `host`
+   * (looked up in `hosts`) and `model` as friendlier aliases for
+   * `baseURL` / `defaultModel`. Returns null for `enabled: false`.
+   */
+  private normalizeConfigEntry(
+    id: string,
+    value: any,
+    hosts: Record<string, string>,
+    label: string,
+  ): Partial<ModelProviderProfile> | null {
+    let raw: Record<string, any>
+    if (typeof value === 'string') {
+      if (/^https?:\/\//.test(value)) raw = { baseURL: value, model: id }
+      else {
+        const slash = value.indexOf('/')
+        raw = slash === -1 ? { host: value, model: id } : { host: value.slice(0, slash), model: value.slice(slash + 1) }
+      }
+    } else if (isPlainObject(value)) {
+      raw = { ...value }
+    } else {
+      console.warn(`Warning: ${label}: provider "${id}" must be a string or object, got ${value === null ? 'null' : typeof value}`)
+      return null
+    }
+    if (raw.enabled === false) return null
+
+    const { enabled: _enabled, host, model, ...rest } = raw
+    const patch: Record<string, any> = { ...rest }
+
+    if (host) {
+      const baseURL = hosts[host]
+      if (!baseURL && !/^https?:\/\//.test(host)) {
+        console.warn(`Warning: ${label}: provider "${id}" references unknown host "${host}" — add it under hosts:`)
+      }
+      patch.baseURL = baseURL || host
+    }
+    if (model) patch.defaultModel = model
+    return patch
   }
 
   registerProfile(profile: ModelProviderProfile) {
@@ -1329,6 +1586,7 @@ export class ModelProviders extends Feature<ModelProvidersState> {
       'No model provider is available. Luca needs at least one of:\n' +
       '  • OPENAI_API_KEY set in the environment (uses OpenAI)\n' +
       '  • a local model — run `luca setup` to download llama-server and a local chat model\n' +
+      '  • a custom provider declared in ~/.luca/model-providers.yml or under providers: in assistants/options.yml, e.g. mybox: http://host:port/v1\n' +
       "  • a custom provider registered in luca.cli.ts, e.g. container.feature('modelProviders').registerLocal('mybox', 'http://host:port/v1', 'model-name')"
     )
   }

@@ -17925,10 +17925,70 @@ setBuildTimeData('features.memory', {
 
 setBuildTimeData('features.modelProviders', {
   "id": "features.modelProviders",
-  "description": "ModelProviders helper",
+  "description": "Registry of model provider profiles (OpenAI, Anthropic, Codex, local OpenAI-compatible servers, …) plus the transports that speak each wire dialect. Assistants name a provider by id (`provider: chief` in CORE.md frontmatter) and `resolve()` turns that into a ready-to-call endpoint. Profiles come from three places, in this order (later wins on the same id): 1. Built-in presets (`openai`, `anthropic`, `lmstudio`, `ollama`, `local`, …). 2. YAML config files, loaded once when the feature is first created: `~/.luca/model-providers.yml` (per machine, honours `LUCA_HOME`) and the `providers:` section of `assistants/options.yml` (per project). 3. Code — `registerLocal()` / `registerProfile()` from `luca.cli.ts`. A config file is a map of provider id → entry. An entry is either a shorthand string or a full profile object, and `hosts:` names base URLs you reuse. Hosts declared in the machine file are visible to the project file. ```yaml # ~/.luca/model-providers.yml hosts: chief: http://chief:1234/v1 spark: http://spark-f941:8888/v1 qwen36: chief                        # model defaults to the provider id gemma4: chief/writer                 # host/model deepseek-v4: spark/deepseek-v4-flash secure-box:                          # object form for anything unusual host: chief model: mixtral apiKeyEnv: BOX_API_KEY kokoro: kind: tts                          # llm (default) | stt | tts — picks the apiMode baseURL: http://chief:8002 defaultModel: kokoro ``` ```yaml # assistants/options.yml — same shape, nested under providers: providers: chief: http://chief:1234/v1        # bare URL, model defaults to the id secure-box: enabled: false                   # skip an entry without deleting it ``` Entries merge over an already-registered profile with the same id, so a project can patch one field of a machine-level or built-in profile without redeclaring the rest.",
   "shortcut": "features.modelProviders",
   "className": "ModelProviders",
   "methods": {
+    "loadConfigFiles": {
+      "description": "Read every config source and register the providers it declares. Runs once in the constructor; call it again to pick up edits in a long-running process. Missing files are skipped; a file that fails to parse is reported with `console.warn` and skipped so a typo can't break startup. `hosts:` maps from all sources are pooled before any entry is registered, so `~/.luca/model-providers.yml` can name the machines and `assistants/options.yml` can just say `mybox: chief/model`.",
+      "parameters": {
+        "sources": {
+          "type": "ModelProviderConfigSource[]",
+          "description": "Override the files to read. Defaults to `configSources`.",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Absolute path to the YAML file. Missing files are skipped silently."
+            },
+            "key": {
+              "type": "string",
+              "description": "Top-level key holding the providers map. When omitted the whole document is the map, unless it has a `providers:` key, which is then used instead."
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ids = container.feature('modelProviders').loadConfigFiles()"
+        }
+      ]
+    },
+    "registerFromConfig": {
+      "description": "Register the entries of one `providers:` map (the YAML shape documented on the class) without touching the filesystem. Useful for tests and for plugins that keep provider config somewhere else.",
+      "parameters": {
+        "section": {
+          "type": "Record<string, any>",
+          "description": "Map of provider id → shorthand string or profile object."
+        },
+        "options": {
+          "type": "{ hosts?: Record<string, string>; source?: string }",
+          "description": "Parameter options",
+          "properties": {
+            "hosts": {
+              "type": "any",
+              "description": "Named base URLs; merged over the section's own `hosts:`."
+            },
+            "source": {
+              "type": "any",
+              "description": "Label used in warnings, typically the file path."
+            }
+          }
+        }
+      },
+      "required": [
+        "section"
+      ],
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })"
+        }
+      ]
+    },
     "registerProfile": {
       "description": "",
       "parameters": {
@@ -18328,6 +18388,18 @@ setBuildTimeData('features.modelProviders', {
       "description": "Time of the last completed scan in milliseconds since epoch, or undefined before discovery.",
       "returns": "number | undefined"
     },
+    "configSources": {
+      "description": "Files consulted by `loadConfigFiles()`, in load order — a later file wins on the same provider id, so project config overrides machine config. 1. `<LUCA_HOME>/model-providers.yml` (default `~/.luca/model-providers.yml`) 2. `<cwd>/assistants/options.yml`, `providers:` section only",
+      "returns": "ModelProviderConfigSource[]"
+    },
+    "configuredProviderIds": {
+      "description": "Profile ids registered from YAML config files, in registration order. Empty when no file declared any.",
+      "returns": "string[]"
+    },
+    "loadedConfigSources": {
+      "description": "Config files that existed and parsed on the last `loadConfigFiles()`.",
+      "returns": "string[]"
+    },
     "available": {
       "description": "Provider profile ids available for `provider: \"...\"` lookups.",
       "returns": "string[]"
@@ -18363,7 +18435,31 @@ setBuildTimeData('features.modelProviders', {
   "envVars": [],
   "stability": "core",
   "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// Which config files were found, and what they registered:\nconst mp = container.feature('modelProviders')\nmp.loadedConfigSources   // ['/Users/me/.luca/model-providers.yml']\nmp.configuredProviderIds // ['qwen36', 'gemma4', 'deepseek-v4', 'secure-box', 'kokoro']"
+    },
+    {
+      "language": "ts",
+      "code": "// Re-read the files after editing them in a long-running process:\ncontainer.feature('modelProviders').loadConfigFiles()"
+    }
+  ],
   "types": {
+    "ModelProviderConfigSource": {
+      "description": "A YAML file that may contribute provider profiles. See `ModelProviders.configSources`.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute path to the YAML file. Missing files are skipped silently."
+        },
+        "key": {
+          "type": "string",
+          "description": "Top-level key holding the providers map. When omitted the whole document is the map, unless it has a `providers:` key, which is then used instead.",
+          "optional": true
+        }
+      }
+    },
     "ModelProviderProfile": {
       "description": "",
       "properties": {
@@ -48460,10 +48556,70 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.modelProviders",
-    "description": "ModelProviders helper",
+    "description": "Registry of model provider profiles (OpenAI, Anthropic, Codex, local OpenAI-compatible servers, …) plus the transports that speak each wire dialect. Assistants name a provider by id (`provider: chief` in CORE.md frontmatter) and `resolve()` turns that into a ready-to-call endpoint. Profiles come from three places, in this order (later wins on the same id): 1. Built-in presets (`openai`, `anthropic`, `lmstudio`, `ollama`, `local`, …). 2. YAML config files, loaded once when the feature is first created: `~/.luca/model-providers.yml` (per machine, honours `LUCA_HOME`) and the `providers:` section of `assistants/options.yml` (per project). 3. Code — `registerLocal()` / `registerProfile()` from `luca.cli.ts`. A config file is a map of provider id → entry. An entry is either a shorthand string or a full profile object, and `hosts:` names base URLs you reuse. Hosts declared in the machine file are visible to the project file. ```yaml # ~/.luca/model-providers.yml hosts: chief: http://chief:1234/v1 spark: http://spark-f941:8888/v1 qwen36: chief                        # model defaults to the provider id gemma4: chief/writer                 # host/model deepseek-v4: spark/deepseek-v4-flash secure-box:                          # object form for anything unusual host: chief model: mixtral apiKeyEnv: BOX_API_KEY kokoro: kind: tts                          # llm (default) | stt | tts — picks the apiMode baseURL: http://chief:8002 defaultModel: kokoro ``` ```yaml # assistants/options.yml — same shape, nested under providers: providers: chief: http://chief:1234/v1        # bare URL, model defaults to the id secure-box: enabled: false                   # skip an entry without deleting it ``` Entries merge over an already-registered profile with the same id, so a project can patch one field of a machine-level or built-in profile without redeclaring the rest.",
     "shortcut": "features.modelProviders",
     "className": "ModelProviders",
     "methods": {
+      "loadConfigFiles": {
+        "description": "Read every config source and register the providers it declares. Runs once in the constructor; call it again to pick up edits in a long-running process. Missing files are skipped; a file that fails to parse is reported with `console.warn` and skipped so a typo can't break startup. `hosts:` maps from all sources are pooled before any entry is registered, so `~/.luca/model-providers.yml` can name the machines and `assistants/options.yml` can just say `mybox: chief/model`.",
+        "parameters": {
+          "sources": {
+            "type": "ModelProviderConfigSource[]",
+            "description": "Override the files to read. Defaults to `configSources`.",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the YAML file. Missing files are skipped silently."
+              },
+              "key": {
+                "type": "string",
+                "description": "Top-level key holding the providers map. When omitted the whole document is the map, unless it has a `providers:` key, which is then used instead."
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ids = container.feature('modelProviders').loadConfigFiles()"
+          }
+        ]
+      },
+      "registerFromConfig": {
+        "description": "Register the entries of one `providers:` map (the YAML shape documented on the class) without touching the filesystem. Useful for tests and for plugins that keep provider config somewhere else.",
+        "parameters": {
+          "section": {
+            "type": "Record<string, any>",
+            "description": "Map of provider id → shorthand string or profile object."
+          },
+          "options": {
+            "type": "{ hosts?: Record<string, string>; source?: string }",
+            "description": "Parameter options",
+            "properties": {
+              "hosts": {
+                "type": "any",
+                "description": "Named base URLs; merged over the section's own `hosts:`."
+              },
+              "source": {
+                "type": "any",
+                "description": "Label used in warnings, typically the file path."
+              }
+            }
+          }
+        },
+        "required": [
+          "section"
+        ],
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })"
+          }
+        ]
+      },
       "registerProfile": {
         "description": "",
         "parameters": {
@@ -48863,6 +49019,18 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Time of the last completed scan in milliseconds since epoch, or undefined before discovery.",
         "returns": "number | undefined"
       },
+      "configSources": {
+        "description": "Files consulted by `loadConfigFiles()`, in load order — a later file wins on the same provider id, so project config overrides machine config. 1. `<LUCA_HOME>/model-providers.yml` (default `~/.luca/model-providers.yml`) 2. `<cwd>/assistants/options.yml`, `providers:` section only",
+        "returns": "ModelProviderConfigSource[]"
+      },
+      "configuredProviderIds": {
+        "description": "Profile ids registered from YAML config files, in registration order. Empty when no file declared any.",
+        "returns": "string[]"
+      },
+      "loadedConfigSources": {
+        "description": "Config files that existed and parsed on the last `loadConfigFiles()`.",
+        "returns": "string[]"
+      },
       "available": {
         "description": "Provider profile ids available for `provider: \"...\"` lookups.",
         "returns": "string[]"
@@ -48898,7 +49066,31 @@ export const introspectionData: Record<string, any>[] = [
     "envVars": [],
     "stability": "core",
     "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// Which config files were found, and what they registered:\nconst mp = container.feature('modelProviders')\nmp.loadedConfigSources   // ['/Users/me/.luca/model-providers.yml']\nmp.configuredProviderIds // ['qwen36', 'gemma4', 'deepseek-v4', 'secure-box', 'kokoro']"
+      },
+      {
+        "language": "ts",
+        "code": "// Re-read the files after editing them in a long-running process:\ncontainer.feature('modelProviders').loadConfigFiles()"
+      }
+    ],
     "types": {
+      "ModelProviderConfigSource": {
+        "description": "A YAML file that may contribute provider profiles. See `ModelProviders.configSources`.",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute path to the YAML file. Missing files are skipped silently."
+          },
+          "key": {
+            "type": "string",
+            "description": "Top-level key holding the providers map. When omitted the whole document is the map, unless it has a `providers:` key, which is then used instead.",
+            "optional": true
+          }
+        }
+      },
       "ModelProviderProfile": {
         "description": "",
         "properties": {

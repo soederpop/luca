@@ -36,8 +36,14 @@ export async function main(container: any) {
   // ───────────────────────────────────────────────────────────────────────────
 
   // 1) Local model providers ──────────────────────────────────────────────────
-  // Register self-hosted, OpenAI-compatible endpoints (LM Studio, Ollama, vLLM,
-  // llama.cpp, a LAN GPU box) once here, then reference them by id from any
+  // Self-hosted, OpenAI-compatible endpoints (LM Studio, Ollama, vLLM,
+  // llama.cpp, a LAN GPU box) are easiest to declare in YAML — no code needed:
+  //   ~/.luca/model-providers.yml        (this machine, every project)
+  //   assistants/options.yml  providers:  (this project only)
+  // e.g.  chief: http://chief:1234/v1   or   writer: chief/gemma4
+  // → luca describe modelProviders
+  //
+  // Or register them here in code, then reference them by id from any
   // assistant's CORE.md frontmatter:  provider: chief
   // registerLocal defaults to the openai-chat-completions dialect and no auth —
   // you just give it a base URL and a default model. For a server that needs a

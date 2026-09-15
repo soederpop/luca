@@ -69,6 +69,13 @@ export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
 const RESERVED_OVERRIDE_KEYS = new Set(['disabled'])
 
 /**
+ * Top-level keys in `assistants/options.yml` that are sections, not assistant
+ * names. `defaults` merges into every assistant; `providers` is consumed by
+ * `modelProviders` (see `luca describe modelProviders`).
+ */
+const TOP_LEVEL_SECTION_KEYS = new Set(['defaults', 'providers'])
+
+/**
  * Optional lifecycle hooks module loaded from `assistants/hooks.ts` at the
  * workspace level. All exports are optional; hooks that throw are logged and
  * swallowed so a bad hook cannot break assistant creation. Distinct from
@@ -581,7 +588,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		// as an override that matches nothing.
 		const known = new Set(this._allNames())
 		const unused = Object.keys(map).filter(
-			(k) => k !== 'defaults' && !RESERVED_OVERRIDE_KEYS.has(k) && !known.has(k),
+			(k) => !TOP_LEVEL_SECTION_KEYS.has(k) && !RESERVED_OVERRIDE_KEYS.has(k) && !known.has(k),
 		)
 		if (unused.length > 0) this.emit('unusedOverrides', unused)
 		this._warnAboutStrippedOverrideKeys(map)
@@ -598,7 +605,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const declared = new Set(Object.keys(shape))
 
 		for (const [section, overrides] of Object.entries(map)) {
-			if (RESERVED_OVERRIDE_KEYS.has(section)) continue
+			if (RESERVED_OVERRIDE_KEYS.has(section) || section === 'providers') continue
 			if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) continue
 			const stripped = Object.keys(overrides).filter((k) => !declared.has(k) && !RESERVED_OVERRIDE_KEYS.has(k))
 			if (!stripped.length) continue
