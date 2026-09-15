@@ -284,7 +284,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * @param name - The helper name
    * @returns Markdown description of the helper's interface
    */
-  describe(type: RegistryType, name: string): string {
+  describeHelper(type: RegistryType, name: string): string {
     const { registry } = this.registryMap[type]
     return registry.describe(name)
   }

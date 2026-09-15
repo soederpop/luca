@@ -135,7 +135,7 @@ describe('ModelProviders', () => {
       defaultModel: 'secret-model',
     })
 
-    const summary = providers.describe('secret-box') as any
+    const summary = providers.describeProvider('secret-box') as any
 
     expect(summary).toEqual({
       id: 'secret-box',

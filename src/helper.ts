@@ -114,6 +114,14 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 
   /**
+   * Alias for `introspectAsText()`. Mirrors the `luca describe <name>` CLI vocabulary
+   * so `Fs.describe()` reads the same as `luca describe fs`.
+   */
+  static describe(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
+  }
+
+  /**
    * Returns the introspection data formatted as a TypeScript interface declaration.
    * Useful for AI agents that reason better with structured type information,
    * or for generating `.d.ts` files that accurately describe a helper's public API.
@@ -160,6 +168,19 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     const introspection = this.introspect()
     if (!introspection) return ''
     return presentIntrospectionAsMarkdown(introspection, depth, section)
+  }
+
+  /**
+   * Alias for `introspectAsText()`. Mirrors the `luca describe <name>` CLI vocabulary
+   * so `container.feature('fs').describe()` reads the same as `luca describe fs`.
+   *
+   * @example
+   * ```ts
+   * console.log(container.feature('fs').describe('methods'))
+   * ```
+   */
+  describe(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
   }
 
   /**

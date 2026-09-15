@@ -1246,7 +1246,7 @@ export class ModelProviders extends Feature<ModelProvidersState> {
    * Describe one provider or, when no id is supplied, all providers.
    * This is intentionally concise and safe for REPL output.
    */
-  describe(id?: string): ModelProviderSummary | ModelProviderSummary[] {
+  describeProvider(id?: string): ModelProviderSummary | ModelProviderSummary[] {
     if (!id) return this.summary()
     const profile = this.get(id)
     if (!profile) throw new Error(`Unknown model provider: ${id}`)

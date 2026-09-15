@@ -7256,7 +7256,7 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
      * Describe one provider or, when no id is supplied, all providers.
      * This is intentionally concise and safe for REPL output.
      */
-    describe(id?: string): ModelProviderSummary | ModelProviderSummary[];
+    describeProvider(id?: string): ModelProviderSummary | ModelProviderSummary[];
     /** Set a provider's default model. */
     setDefaultModel(providerId: string, model: string): this;
     /** Set a provider's base URL. */
@@ -14381,6 +14381,11 @@ export declare abstract class Helper<T extends HelperState = HelperState, K exte
     static introspect(section?: IntrospectionSection): HelperIntrospection | undefined;
     static introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string;
     /**
+     * Alias for \`introspectAsText()\`. Mirrors the \`luca describe <name>\` CLI vocabulary
+     * so \`Fs.describe()\` reads the same as \`luca describe fs\`.
+     */
+    static describe(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string;
+    /**
      * Returns the introspection data formatted as a TypeScript interface declaration.
      * Useful for AI agents that reason better with structured type information,
      * or for generating \`.d.ts\` files that accurately describe a helper's public API.
@@ -14412,6 +14417,16 @@ export declare abstract class Helper<T extends HelperState = HelperState, K exte
      * that section, or a number for the starting heading depth (backward compatible).
      */
     introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string;
+    /**
+     * Alias for \`introspectAsText()\`. Mirrors the \`luca describe <name>\` CLI vocabulary
+     * so \`container.feature('fs').describe()\` reads the same as \`luca describe fs\`.
+     *
+     * @example
+     * \`\`\`ts
+     * console.log(container.feature('fs').describe('methods'))
+     * \`\`\`
+     */
+    describe(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string;
     /**
      * Returns the introspection data formatted as a TypeScript interface declaration.
      * Useful for AI agents that reason better with structured type information,
@@ -21588,7 +21603,7 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
      * @param name - The helper name
      * @returns Markdown description of the helper's interface
      */
-    describe(type: RegistryType, name: string): string;
+    describeHelper(type: RegistryType, name: string): string;
     /**
      * Load a module either via native \`import()\` or the VM's virtual module system.
      * Uses the same \`useNativeImport\` check as discovery to decide the loading strategy.
@@ -35510,7 +35525,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.12.3";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.13.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -36236,7 +36251,7 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
      * @param name - The helper name
      * @returns Markdown description of the helper's interface
      */
-    describe(type: RegistryType, name: string): string;
+    describeHelper(type: RegistryType, name: string): string;
 }
 export default Helpers;
 //# sourceMappingURL=helpers.d.ts.map`,

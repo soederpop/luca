@@ -14792,7 +14792,7 @@ setBuildTimeData('features.helpers', {
         }
       ]
     },
-    "describe": {
+    "describeHelper": {
       "description": "Get the introspection description for a specific helper.",
       "parameters": {
         "type": {
@@ -18139,7 +18139,7 @@ setBuildTimeData('features.modelProviders', {
       "required": [],
       "returns": "ModelProviderSummary[]"
     },
-    "describe": {
+    "describeProvider": {
       "description": "Describe one provider or, when no id is supplied, all providers. This is intentionally concise and safe for REPL output.",
       "parameters": {
         "id": {
@@ -45336,7 +45336,7 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
-      "describe": {
+      "describeHelper": {
         "description": "Get the introspection description for a specific helper.",
         "parameters": {
           "type": {
@@ -48674,7 +48674,7 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "ModelProviderSummary[]"
       },
-      "describe": {
+      "describeProvider": {
         "description": "Describe one provider or, when no id is supplied, all providers. This is intentionally concise and safe for REPL output.",
         "parameters": {
           "id": {

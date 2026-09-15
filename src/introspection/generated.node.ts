@@ -9209,7 +9209,7 @@ setBuildTimeData('features.helpers', {
         }
       ]
     },
-    "describe": {
+    "describeHelper": {
       "description": "Get the introspection description for a specific helper.",
       "parameters": {
         "type": {
@@ -30194,7 +30194,7 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
-      "describe": {
+      "describeHelper": {
         "description": "Get the introspection description for a specific helper.",
         "parameters": {
           "type": {
