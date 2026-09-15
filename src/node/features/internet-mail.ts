@@ -70,6 +70,7 @@ export interface ResolvedMailConfig {
   mailbox: string
   pollIntervalMs: number
   maxMessageBytes: number
+  attachmentDir: string
   markAsRead: boolean
   outboundEnabled: boolean
   trustedSenders: string[]
@@ -115,6 +116,17 @@ export interface StandardMailMessage {
   authenticationResults?: string
   attachments: Array<{ filename?: string; contentType: string; size?: number }>
   validation?: MailValidation
+}
+
+/** One attachment written to disk by {@link InternetMail.downloadAttachments}. */
+export interface MailAttachmentFile {
+  /** Sanitized name the file was written under — never the raw sender value. */
+  filename: string
+  contentType: string
+  /** Bytes written, i.e. the decoded length. */
+  size: number
+  /** Absolute path of the written file. */
+  path: string
 }
 
 export interface MailValidation {
@@ -183,6 +195,29 @@ export function parseMailAddress(raw: string): { name: string; address: string; 
   const match = value.match(/^(?:"?([^"<]*?)"?\s+)?<?([^\s>]+@([^\s>]+))>?$/)
   if (!match) return { name: '', address: value, domain: '' }
   return { name: (match[1] || '').trim(), address: match[2]!, domain: match[3]!.toLowerCase() }
+}
+
+/**
+ * Turn a sender-supplied attachment name into something safe to write.
+ *
+ * Attachment filenames are attacker-controlled: they arrive in a MIME header
+ * and nothing validates them. This strips every directory component (both
+ * separators, so a Windows-style `..\\dir\\x` cannot slip past a POSIX-only
+ * split), reduces the remainder to a conservative character set, and removes
+ * leading dots so nothing lands as a dotfile or as `..`. Parts with no name at
+ * all — common for inline images and `multipart/*` bodies — get a positional
+ * fallback named from the content type.
+ */
+export function safeAttachmentFilename(filename: unknown, index: number, contentType?: unknown): string {
+  const base = String(filename ?? '').split(/[\\/]/).pop()?.trim() || ''
+  const cleaned = base
+    .replace(/[^A-Za-z0-9._ -]/g, '_')
+    .replace(/^\.+/, '')
+    .slice(0, 180)
+    .trim()
+  if (cleaned) return cleaned
+  const ext = String(contentType ?? '').split('/').pop()?.replace(/[^a-z0-9]/gi, '').slice(0, 12) || 'bin'
+  return `attachment-${index}.${ext}`
 }
 
 /**
@@ -264,7 +299,8 @@ export const InternetMailOptionsSchema = FeatureOptionsSchema.extend({
   password: z.string().optional().describe('The password itself, for callers that already hold the secret. Prefer passwordEnv'),
   mailbox: z.string().optional().describe('Mailbox to poll (default INBOX)'),
   pollIntervalMs: z.number().optional().describe('Poll interval in milliseconds (default 45000)'),
-  maxMessageBytes: z.number().optional().describe('Skip messages larger than this (default 5 MiB)'),
+  maxMessageBytes: z.number().optional().describe('Skip messages larger than this (default 5 MiB). Raise it for mailboxes carrying scanned PDFs — oversized mail cannot be read or have its attachments downloaded'),
+  attachmentDir: z.string().optional().describe("Folder downloadAttachments() writes under, relative to the container cwd (default '.luca/mail-attachments')"),
   markAsRead: z.boolean().optional().describe('Add \\Seen after successful dispatch (default false)'),
   outboundEnabled: z.boolean().optional().describe('Master switch for all sends and replies (default false)'),
   trustedSenders: z.array(z.string()).optional().describe('Exact addresses whose inbound mail is emitted by poll()'),
@@ -311,6 +347,9 @@ export const InternetMailEventsSchema = FeatureEventsSchema.extend({
  *   replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating
  * - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads
  *   that never advance the poll cursor or alter unread state
+ * - `downloadAttachments()` — the opt-in way to get attachment bytes onto
+ *   disk. Messages carry attachment *metadata* only; bodies never arrive
+ *   unasked-for
  * - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound
  *   mail gated by `outboundEnabled` and the recipient allowlist
  *
@@ -381,6 +420,7 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
       mailbox: String(pick('mailbox', 'INBOX')),
       pollIntervalMs: Number(pick('pollIntervalMs', 45_000)),
       maxMessageBytes: Number(pick('maxMessageBytes', 5_242_880)),
+      attachmentDir: String(pick('attachmentDir', '.luca/mail-attachments')),
       markAsRead: Boolean(pick('markAsRead', false)),
       outboundEnabled: Boolean(pick('outboundEnabled', false)),
       trustedSenders: (pick<string[]>('trustedSenders', []) || []).map(s => String(s).toLowerCase().trim()).filter(Boolean),
@@ -702,15 +742,24 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
     }
   }
 
-  /** Fetch full source for one UID and normalize it. Rejects oversized source. */
-  private async _fetchAndNormalize(client: any, config: ResolvedMailConfig, uidValidity: string, uid: number): Promise<StandardMailMessage> {
+  /**
+   * Fetch full source for one UID and hand back the mailparser result — the
+   * only place attachment `content` buffers exist. Rejects oversized source so
+   * reads and downloads agree on what `maxMessageBytes` covers.
+   */
+  private async _fetchParsed(client: any, config: ResolvedMailConfig, uid: number): Promise<any> {
     const full = await client.fetchOne(String(uid), { source: true, flags: true }, { uid: true })
     const source: Buffer = full?.source
     if (!source) throw new Error('no source returned')
     if (source.length > config.maxMessageBytes) {
-      throw new Error(`source is ${source.length} bytes, over maxMessageBytes (${config.maxMessageBytes})`)
+      throw new Error(`source is ${source.length} bytes, over maxMessageBytes (${config.maxMessageBytes}) — raise maxMessageBytes to read this message`)
     }
-    const parsed = await this.parseSource(source)
+    return this.parseSource(source)
+  }
+
+  /** Fetch full source for one UID and normalize it. Rejects oversized source. */
+  private async _fetchAndNormalize(client: any, config: ResolvedMailConfig, uidValidity: string, uid: number): Promise<StandardMailMessage> {
+    const parsed = await this._fetchParsed(client, config, uid)
     return this._normalizeParsed(config, uidValidity, uid, parsed)
   }
 
@@ -825,6 +874,79 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
       const uidValidity = String(client.mailbox.uidValidity)
       return this._fetchAndNormalize(client, config, uidValidity, uid)
     })
+  }
+
+  /**
+   * Write one message's attachments to disk and return what was written.
+   *
+   * This is the deliberate, opt-in way to get attachment *bytes*. `poll()` and
+   * {@link readMessage} stay metadata-only on purpose: an attachment body is
+   * untrusted input that has no business landing in a prompt by default. Call
+   * this when you actually want the file.
+   *
+   * Like every other pull-based read it uses `BODY.PEEK`, so it neither
+   * advances the poll cursor nor touches unread state — a human working the
+   * same mailbox sees no change.
+   *
+   * Files land in `<dir>/<uid>/`, never `<dir>/` directly, so two messages that
+   * both carry `invoice.pdf` cannot overwrite each other. Sender-supplied
+   * filenames are sanitized by {@link safeAttachmentFilename} and the resolved
+   * target is re-checked against the folder, so a hostile name cannot escape it.
+   *
+   * A message whose raw source is over `maxMessageBytes` is refused here just
+   * as it is by {@link readMessage}. The default is 5 MiB, which a mailbox of
+   * scanned PDFs will exceed — raise `maxMessageBytes` for those accounts.
+   *
+   * @param id Opaque message id from `checkInbox()`, `searchMessages()`, or a `message` event
+   * @param options.out Folder to write under, instead of the configured `attachmentDir`
+   *
+   * @example
+   * ```typescript
+   * const [newest] = await mail.checkInbox({ limit: 1 })
+   * const files = await mail.downloadAttachments(newest.id)
+   * // => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]
+   * ```
+   */
+  async downloadAttachments(id: string, options: { out?: string } = {}): Promise<MailAttachmentFile[]> {
+    const config = this.requireConfig()
+    const { mailbox, uid } = this.parseMessageId(id)
+    const parsed = await this.withMailbox(mailbox, client => this._fetchParsed(client, config, uid))
+
+    const attachments: any[] = parsed?.attachments || []
+    if (!attachments.length) return []
+
+    const fs = this.container.feature('fs')
+    const paths = this.container.paths
+    const dir = paths.resolve(options.out || config.attachmentDir, String(uid))
+    await fs.ensureFolderAsync(dir)
+
+    const written: MailAttachmentFile[] = []
+    let index = 0
+    for (const attachment of attachments) {
+      index += 1
+      const filename = safeAttachmentFilename(attachment?.filename, index, attachment?.contentType)
+      const target = paths.resolve(dir, filename)
+      // Belt and braces: sanitizing already removed the separators, but the
+      // write only happens if the resolved path is genuinely inside `dir`.
+      const inside = paths.relative(dir, target)
+      if (!inside || inside.startsWith('..') || inside.includes('/') || inside.includes('\\')) {
+        throw new Error(`internetMail.downloadAttachments: refusing to write "${filename}" outside ${dir}`)
+      }
+      const content: Buffer = attachment?.content
+      if (!content) {
+        this.emit('log', `uid ${uid}: attachment ${filename} has no decoded content — skipped`)
+        continue
+      }
+      await fs.writeFileAsync(target, content)
+      written.push({
+        filename,
+        contentType: String(attachment?.contentType || 'application/octet-stream'),
+        size: content.length,
+        path: target,
+      })
+    }
+    this.emit('log', `uid ${uid}: wrote ${written.length} attachment(s) to ${dir}`)
+    return written
   }
 
   /**

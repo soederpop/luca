@@ -15615,7 +15615,7 @@ setBuildTimeData('features.ink', {
 
 setBuildTimeData('features.internetMail', {
   "id": "features.internetMail",
-  "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+  "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
   "shortcut": "features.internetMail",
   "className": "InternetMail",
   "methods": {
@@ -15662,6 +15662,10 @@ setBuildTimeData('features.internetMail', {
             },
             "maxMessageBytes": {
               "type": "number",
+              "description": ""
+            },
+            "attachmentDir": {
+              "type": "string",
               "description": ""
             },
             "markAsRead": {
@@ -15733,6 +15737,10 @@ setBuildTimeData('features.internetMail', {
             },
             "maxMessageBytes": {
               "type": "number",
+              "description": ""
+            },
+            "attachmentDir": {
+              "type": "string",
               "description": ""
             },
             "markAsRead": {
@@ -15833,6 +15841,35 @@ setBuildTimeData('features.internetMail', {
         "id"
       ],
       "returns": "Promise<StandardMailMessage>"
+    },
+    "downloadAttachments": {
+      "description": "Write one message's attachments to disk and return what was written. This is the deliberate, opt-in way to get attachment *bytes*. `poll()` and {@link readMessage} stay metadata-only on purpose: an attachment body is untrusted input that has no business landing in a prompt by default. Call this when you actually want the file. Like every other pull-based read it uses `BODY.PEEK`, so it neither advances the poll cursor nor touches unread state — a human working the same mailbox sees no change. Files land in `<dir>/<uid>/`, never `<dir>/` directly, so two messages that both carry `invoice.pdf` cannot overwrite each other. Sender-supplied filenames are sanitized by {@link safeAttachmentFilename} and the resolved target is re-checked against the folder, so a hostile name cannot escape it. A message whose raw source is over `maxMessageBytes` is refused here just as it is by {@link readMessage}. The default is 5 MiB, which a mailbox of scanned PDFs will exceed — raise `maxMessageBytes` for those accounts.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Opaque message id from `checkInbox()`, `searchMessages()`, or a `message` event"
+        },
+        "options": {
+          "type": "{ out?: string }",
+          "description": "Parameter options",
+          "properties": {
+            "out": {
+              "type": "any",
+              "description": "Folder to write under, instead of the configured `attachmentDir`"
+            }
+          }
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "Promise<MailAttachmentFile[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const [newest] = await mail.checkInbox({ limit: 1 })\nconst files = await mail.downloadAttachments(newest.id)\n// => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]"
+        }
+      ]
     },
     "searchMessages": {
       "description": "Interrogate the full archive with IMAP SEARCH. Independent of the poll cursor — never advances `lastUid`, never alters unread state. A `from`/`to` value without an `@` is treated as a bare domain and matched as `@domain`.",
@@ -16062,6 +16099,10 @@ setBuildTimeData('features.internetMail', {
         },
         "maxMessageBytes": {
           "type": "number",
+          "description": ""
+        },
+        "attachmentDir": {
+          "type": "string",
           "description": ""
         },
         "markAsRead": {
@@ -16324,6 +16365,27 @@ setBuildTimeData('features.internetMail', {
         "trustScore": {
           "type": "number",
           "description": ""
+        }
+      }
+    },
+    "MailAttachmentFile": {
+      "description": "One attachment written to disk by {@link InternetMail.downloadAttachments}.",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "Sanitized name the file was written under — never the raw sender value."
+        },
+        "contentType": {
+          "type": "string",
+          "description": ""
+        },
+        "size": {
+          "type": "number",
+          "description": "Bytes written, i.e. the decoded length."
+        },
+        "path": {
+          "type": "string",
+          "description": "Absolute path of the written file."
         }
       }
     },
@@ -46252,7 +46314,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.internetMail",
-    "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+    "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
     "shortcut": "features.internetMail",
     "className": "InternetMail",
     "methods": {
@@ -46299,6 +46361,10 @@ export const introspectionData: Record<string, any>[] = [
               },
               "maxMessageBytes": {
                 "type": "number",
+                "description": ""
+              },
+              "attachmentDir": {
+                "type": "string",
                 "description": ""
               },
               "markAsRead": {
@@ -46370,6 +46436,10 @@ export const introspectionData: Record<string, any>[] = [
               },
               "maxMessageBytes": {
                 "type": "number",
+                "description": ""
+              },
+              "attachmentDir": {
+                "type": "string",
                 "description": ""
               },
               "markAsRead": {
@@ -46470,6 +46540,35 @@ export const introspectionData: Record<string, any>[] = [
           "id"
         ],
         "returns": "Promise<StandardMailMessage>"
+      },
+      "downloadAttachments": {
+        "description": "Write one message's attachments to disk and return what was written. This is the deliberate, opt-in way to get attachment *bytes*. `poll()` and {@link readMessage} stay metadata-only on purpose: an attachment body is untrusted input that has no business landing in a prompt by default. Call this when you actually want the file. Like every other pull-based read it uses `BODY.PEEK`, so it neither advances the poll cursor nor touches unread state — a human working the same mailbox sees no change. Files land in `<dir>/<uid>/`, never `<dir>/` directly, so two messages that both carry `invoice.pdf` cannot overwrite each other. Sender-supplied filenames are sanitized by {@link safeAttachmentFilename} and the resolved target is re-checked against the folder, so a hostile name cannot escape it. A message whose raw source is over `maxMessageBytes` is refused here just as it is by {@link readMessage}. The default is 5 MiB, which a mailbox of scanned PDFs will exceed — raise `maxMessageBytes` for those accounts.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Opaque message id from `checkInbox()`, `searchMessages()`, or a `message` event"
+          },
+          "options": {
+            "type": "{ out?: string }",
+            "description": "Parameter options",
+            "properties": {
+              "out": {
+                "type": "any",
+                "description": "Folder to write under, instead of the configured `attachmentDir`"
+              }
+            }
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "Promise<MailAttachmentFile[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const [newest] = await mail.checkInbox({ limit: 1 })\nconst files = await mail.downloadAttachments(newest.id)\n// => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]"
+          }
+        ]
       },
       "searchMessages": {
         "description": "Interrogate the full archive with IMAP SEARCH. Independent of the poll cursor — never advances `lastUid`, never alters unread state. A `from`/`to` value without an `@` is treated as a bare domain and matched as `@domain`.",
@@ -46699,6 +46798,10 @@ export const introspectionData: Record<string, any>[] = [
           },
           "maxMessageBytes": {
             "type": "number",
+            "description": ""
+          },
+          "attachmentDir": {
+            "type": "string",
             "description": ""
           },
           "markAsRead": {
@@ -46961,6 +47064,27 @@ export const introspectionData: Record<string, any>[] = [
           "trustScore": {
             "type": "number",
             "description": ""
+          }
+        }
+      },
+      "MailAttachmentFile": {
+        "description": "One attachment written to disk by {@link InternetMail.downloadAttachments}.",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Sanitized name the file was written under — never the raw sender value."
+          },
+          "contentType": {
+            "type": "string",
+            "description": ""
+          },
+          "size": {
+            "type": "number",
+            "description": "Bytes written, i.e. the decoded length."
+          },
+          "path": {
+            "type": "string",
+            "description": "Absolute path of the written file."
           }
         }
       },

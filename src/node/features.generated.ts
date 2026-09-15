@@ -139,7 +139,7 @@ export type { SpreadsheetMeta, SheetInfo, GoogleSheetsState, GoogleSheetsOptions
 export type { GrepMatch, GrepOptions, Grep } from "./features/grep";
 export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
-export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
+export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailAttachmentFile, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
 export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";

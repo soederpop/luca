@@ -80,4 +80,39 @@ describeWithRequirements('internetMail live (real IMAP + SMTP)', [address, passw
     await mail.stop()
     await mail.cursorStore.delete()
   }, 180_000)
+
+  it('downloads attachments to disk without touching unread state', async () => {
+    const mail = createMail()
+    const fs = container.feature('fs') as any
+    const out = container.paths.resolve(require('os').tmpdir(), `luca-mail-live-${container.utils.uuid().slice(0, 8)}`)
+
+    // Nothing here sends an attachment, so work with whatever the mailbox has.
+    const summaries = await mail.checkInbox({ limit: 25 })
+    let target: any = null
+    for (const summary of summaries) {
+      const full = await mail.readMessage(summary.id).catch(() => null)
+      if (full?.attachments?.length) { target = { summary, full }; break }
+    }
+    if (!target) {
+      console.log('no message with attachments in the last 25 — skipping the download assertions')
+      return
+    }
+
+    const before = target.summary.seen
+    const written = await mail.downloadAttachments(target.summary.id, { out })
+    try {
+      expect(written.length).toBe(target.full.attachments.length)
+      for (const file of written) {
+        expect(await fs.existsAsync(file.path)).toBe(true)
+        // Every file is inside the uid folder — no sender name escaped it
+        expect(container.paths.relative(container.paths.resolve(out, String(target.summary.uid)), file.path)).toBe(file.filename)
+        expect(file.size).toBeGreaterThan(0)
+      }
+      // Reading bodies must not mark anything read
+      const after = (await mail.checkInbox({ limit: 25 })).find(s => s.uid === target.summary.uid)
+      expect(after?.seen).toBe(before)
+    } finally {
+      await fs.remove(out).catch(() => {})
+    }
+  }, 180_000)
 })

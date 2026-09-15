@@ -2,7 +2,7 @@
 
 > Stability: `experimental`
 
-Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.
+Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.
 
 ## Usage
 
@@ -24,8 +24,10 @@ container.feature('internetMail', {
   mailbox,
   // Poll interval in milliseconds (default 45000)
   pollIntervalMs,
-  // Skip messages larger than this (default 5 MiB)
+  // Skip messages larger than this (default 5 MiB). Raise it for mailboxes carrying scanned PDFs — oversized mail cannot be read or have its attachments downloaded
   maxMessageBytes,
+  // Folder downloadAttachments() writes under, relative to the container cwd (default '.luca/mail-attachments')
+  attachmentDir,
   // Add \Seen after successful dispatch (default false)
   markAsRead,
   // Master switch for all sends and replies (default false)
@@ -57,7 +59,8 @@ container.feature('internetMail', {
 | `password` | `string` | The password itself, for callers that already hold the secret. Prefer passwordEnv |
 | `mailbox` | `string` | Mailbox to poll (default INBOX) |
 | `pollIntervalMs` | `number` | Poll interval in milliseconds (default 45000) |
-| `maxMessageBytes` | `number` | Skip messages larger than this (default 5 MiB) |
+| `maxMessageBytes` | `number` | Skip messages larger than this (default 5 MiB). Raise it for mailboxes carrying scanned PDFs — oversized mail cannot be read or have its attachments downloaded |
+| `attachmentDir` | `string` | Folder downloadAttachments() writes under, relative to the container cwd (default '.luca/mail-attachments') |
 | `markAsRead` | `boolean` | Add \Seen after successful dispatch (default false) |
 | `outboundEnabled` | `boolean` | Master switch for all sends and replies (default false) |
 | `trustedSenders` | `array` | Exact addresses whose inbound mail is emitted by poll() |
@@ -99,6 +102,7 @@ Build a connected-ready ImapFlow client. Tests override this with a fake.
 | `mailbox` | `string` |  |
 | `pollIntervalMs` | `number` |  |
 | `maxMessageBytes` | `number` |  |
+| `attachmentDir` | `string` |  |
 | `markAsRead` | `boolean` |  |
 | `outboundEnabled` | `boolean` |  |
 | `trustedSenders` | `string[]` |  |
@@ -132,6 +136,7 @@ Build a Nodemailer SMTP transport. Tests override this with a fake.
 | `mailbox` | `string` |  |
 | `pollIntervalMs` | `number` |  |
 | `maxMessageBytes` | `number` |  |
+| `attachmentDir` | `string` |  |
 | `markAsRead` | `boolean` |  |
 | `outboundEnabled` | `boolean` |  |
 | `trustedSenders` | `string[]` |  |
@@ -222,6 +227,33 @@ Read one full message by opaque id. Never alters unread state.
 | `id` | `string` | ✓ | Parameter id |
 
 **Returns:** `Promise<StandardMailMessage>`
+
+
+
+### downloadAttachments
+
+Write one message's attachments to disk and return what was written. This is the deliberate, opt-in way to get attachment *bytes*. `poll()` and {@link readMessage} stay metadata-only on purpose: an attachment body is untrusted input that has no business landing in a prompt by default. Call this when you actually want the file. Like every other pull-based read it uses `BODY.PEEK`, so it neither advances the poll cursor nor touches unread state — a human working the same mailbox sees no change. Files land in `<dir>/<uid>/`, never `<dir>/` directly, so two messages that both carry `invoice.pdf` cannot overwrite each other. Sender-supplied filenames are sanitized by {@link safeAttachmentFilename} and the resolved target is re-checked against the folder, so a hostile name cannot escape it. A message whose raw source is over `maxMessageBytes` is refused here just as it is by {@link readMessage}. The default is 5 MiB, which a mailbox of scanned PDFs will exceed — raise `maxMessageBytes` for those accounts.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | ✓ | Opaque message id from `checkInbox()`, `searchMessages()`, or a `message` event |
+| `options` | `{ out?: string }` |  | Parameter options |
+
+`{ out?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `out` | `any` | Folder to write under, instead of the configured `attachmentDir` |
+
+**Returns:** `Promise<MailAttachmentFile[]>`
+
+```ts
+const [newest] = await mail.checkInbox({ limit: 1 })
+const files = await mail.downloadAttachments(newest.id)
+// => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]
+```
 
 
 
@@ -389,5 +421,15 @@ const mail = container.feature('internetMail')
 const report = await mail.verify()
 const recent = await mail.checkInbox({ limit: 5 })
 const hits = await mail.searchMessages({ from: 'example.com', text: 'invoice' })
+```
+
+
+
+**downloadAttachments**
+
+```ts
+const [newest] = await mail.checkInbox({ limit: 1 })
+const files = await mail.downloadAttachments(newest.id)
+// => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]
 ```
 

@@ -6,6 +6,7 @@ import {
   MAIL_PROVIDER_PRESETS,
   validateMailHeaders,
   parseMailAddress,
+  safeAttachmentFilename,
   type ResolvedMailConfig,
   type StandardMailMessage,
 } from '../src/node/features/internet-mail'
@@ -28,6 +29,7 @@ interface FakeMessage {
   malformed?: boolean
   flags?: string[]
   date?: string
+  attachments?: Array<{ filename?: string; contentType?: string; content?: Buffer }>
 }
 
 class FakeImapClient {
@@ -197,7 +199,12 @@ function createMail(opts: HarnessOptions = {}) {
       headers: new Map(message.authenticationResults
         ? [['authentication-results', message.authenticationResults]]
         : []),
-      attachments: [],
+      attachments: (message.attachments || []).map(a => ({
+        filename: a.filename,
+        contentType: a.contentType || 'application/octet-stream',
+        content: a.content,
+        size: a.content?.length,
+      })),
       date: message.date ? new Date(message.date) : undefined,
     }
   }
@@ -711,5 +718,140 @@ describe('internetMail real dependency wiring', () => {
     expect(message.text.trim()).toBe('hello from a real MIME body')
     expect(message.rfcMessageId).toBe('<abc@example.com>')
     expect(message.validation.trustScore).toBe(100)
+  })
+})
+
+// ── Attachment downloads ──────────────────────────────────────────────────────
+
+describe('safeAttachmentFilename', () => {
+  it('strips directory components, both separators, and leading dots', () => {
+    expect(safeAttachmentFilename('../../etc/passwd', 1)).toBe('passwd')
+    expect(safeAttachmentFilename('..\\windows\\system32\\x.dll', 1)).toBe('x.dll')
+    expect(safeAttachmentFilename('/absolute/invoice.pdf', 1)).toBe('invoice.pdf')
+    expect(safeAttachmentFilename('..', 1, 'application/pdf')).toBe('attachment-1.pdf')
+    expect(safeAttachmentFilename('.bashrc', 1)).toBe('bashrc')
+  })
+
+  it('names unnamed parts from the content type', () => {
+    expect(safeAttachmentFilename(undefined, 3, 'application/pdf')).toBe('attachment-3.pdf')
+    expect(safeAttachmentFilename('', 2, undefined)).toBe('attachment-2.bin')
+    expect(safeAttachmentFilename(null, 1, 'image/png')).toBe('attachment-1.png')
+  })
+
+  it('reduces the rest to a conservative character set and bounds the length', () => {
+    expect(safeAttachmentFilename('in;voice$(rm -rf).pdf', 1)).toBe('in_voice__rm -rf_.pdf')
+    expect(safeAttachmentFilename(`${'a'.repeat(400)}.pdf`, 1).length).toBeLessThanOrEqual(180)
+  })
+})
+
+describe('internetMail attachment downloads', () => {
+  const fs = container.feature('fs') as any
+  const tmpRoots: string[] = []
+
+  const attachmentHarness = (attachments: FakeMessage['attachments']) => {
+    const out = container.paths.resolve(
+      require('os').tmpdir(),
+      `luca-mail-attach-${container.utils.uuid().slice(0, 8)}`,
+    )
+    tmpRoots.push(out)
+    const harness = createMail({
+      config: { ...baseConfig, attachmentDir: out },
+      store: {
+        uidValidity: '1000',
+        messages: [{ uid: 42, from: 'trusted@example.com', subject: 'Invoice', attachments }],
+      },
+    })
+    return { ...harness, out }
+  }
+
+  afterAll(async () => {
+    for (const root of tmpRoots) {
+      try { await fs.remove(root) } catch {}
+    }
+  })
+
+  it('writes attachment bodies under a uid-namespaced folder', async () => {
+    const body = Buffer.from('%PDF-1.4 fake invoice')
+    const { mail, out, clients } = attachmentHarness([
+      { filename: 'invoice.pdf', contentType: 'application/pdf', content: body },
+    ])
+
+    const written = await mail.downloadAttachments('imap:INBOX:1000:42')
+
+    expect(written).toHaveLength(1)
+    expect(written[0]!.filename).toBe('invoice.pdf')
+    expect(written[0]!.contentType).toBe('application/pdf')
+    expect(written[0]!.size).toBe(body.length)
+    // uid namespacing is what keeps two messages' invoice.pdf apart
+    expect(written[0]!.path).toBe(container.paths.resolve(out, '42', 'invoice.pdf'))
+    expect(String(await fs.readFileAsync(written[0]!.path))).toBe(body.toString())
+
+    // Read-only: no \Seen write, and the poll cursor was never touched
+    expect(clients[0]!.flagWrites).toHaveLength(0)
+    expect(await mail.readCursor()).toBeNull()
+  })
+
+  it('returns an empty list for a message with no attachments', async () => {
+    const { mail, out } = attachmentHarness([])
+    expect(await mail.downloadAttachments('imap:INBOX:1000:42')).toEqual([])
+    // Nothing to write means no folder is created either
+    expect(await fs.existsAsync(container.paths.resolve(out, '42'))).toBe(false)
+  })
+
+  it('names attachments that arrive without a filename', async () => {
+    const { mail } = attachmentHarness([
+      { contentType: 'application/pdf', content: Buffer.from('one') },
+      { filename: '', contentType: 'image/png', content: Buffer.from('two') },
+    ])
+
+    const written = await mail.downloadAttachments('imap:INBOX:1000:42')
+    expect(written.map(w => w.filename)).toEqual(['attachment-1.pdf', 'attachment-2.png'])
+  })
+
+  it('cannot be made to write outside the target folder by a hostile filename', async () => {
+    const { mail, out } = attachmentHarness([
+      { filename: '../../etc/passwd', contentType: 'text/plain', content: Buffer.from('pwned') },
+      { filename: '..\\windows\\system32\\evil.dll', contentType: 'application/octet-stream', content: Buffer.from('pwned') },
+      { filename: '.ssh/authorized_keys', contentType: 'text/plain', content: Buffer.from('pwned') },
+    ])
+
+    const written = await mail.downloadAttachments('imap:INBOX:1000:42')
+    const dir = container.paths.resolve(out, '42')
+
+    expect(written.map(w => w.filename)).toEqual(['passwd', 'evil.dll', 'authorized_keys'])
+    for (const file of written) {
+      expect(file.path).toBe(container.paths.resolve(dir, file.filename))
+      expect(container.paths.relative(dir, file.path)).toBe(file.filename)
+    }
+    // The escapes the names were aiming at do not exist
+    expect(await fs.existsAsync(container.paths.resolve(out, 'etc/passwd'))).toBe(false)
+    expect(await fs.existsAsync(container.paths.resolve(dir, '../../etc'))).toBe(false)
+  })
+
+  it('refuses a message whose source is over maxMessageBytes', async () => {
+    const out = container.paths.resolve(require('os').tmpdir(), `luca-mail-attach-${container.utils.uuid().slice(0, 8)}`)
+    tmpRoots.push(out)
+    const { mail } = createMail({
+      config: { ...baseConfig, attachmentDir: out, maxMessageBytes: 64 },
+      store: {
+        uidValidity: '1000',
+        messages: [{ uid: 42, from: 'trusted@example.com', sourceSize: 4096, attachments: [{ filename: 'big.pdf', content: Buffer.from('x') }] }],
+      },
+    })
+    await expect(mail.downloadAttachments('imap:INBOX:1000:42')).rejects.toThrow('over maxMessageBytes')
+  })
+
+  it('rejects an id that is not an internet-mail message id', async () => {
+    const { mail } = attachmentHarness([])
+    await expect(mail.downloadAttachments('not-an-id')).rejects.toThrow('is not an internet-mail message id')
+  })
+
+  it('leaves the metadata-only contract on readMessage intact', async () => {
+    const { mail } = attachmentHarness([
+      { filename: 'invoice.pdf', contentType: 'application/pdf', content: Buffer.from('%PDF') },
+    ])
+    const message = await mail.readMessage('imap:INBOX:1000:42')
+    expect(message.attachments).toEqual([{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 4 }])
+    expect(Object.keys(message.attachments[0]!)).not.toContain('content')
   })
 })
