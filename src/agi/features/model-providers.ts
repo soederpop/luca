@@ -132,6 +132,22 @@ export interface DiscoveredModelServer {
   profileId?: string
 }
 
+/**
+ * A `model-providers.yml`-shaped document distilled from discovery results:
+ * a `hosts:` map of named base URLs plus one shorthand `id: host/model` entry
+ * per server. Feed it to `luca setup --providers` or write it yourself.
+ */
+export interface ModelProviderConfigSuggestion {
+  /** Named base URLs, ready for the `hosts:` key of a config file. */
+  hosts: Record<string, string>
+  /**
+   * Provider entries keyed by id. Normally a `host/model` shorthand string;
+   * an object form is used when the model id itself contains a slash (a
+   * llama-server gguf path, say), which the shorthand cannot express.
+   */
+  providers: Record<string, string | { host: string; model: string }>
+}
+
 export const ModelProvidersStateSchema = FeatureStateSchema.extend({
   discoveredServers: z.array(z.object({
     baseURL: z.string(),
@@ -1741,6 +1757,81 @@ export class ModelProviders extends Feature<ModelProvidersState> {
   /** localhost/loopback aliases and trailing slashes all describe the same server. */
   private normalizeBaseURL(baseURL: string): string {
     return baseURL.replace(/\/+$/, '').replace('://localhost:', '://127.0.0.1:').replace('://0.0.0.0:', '://127.0.0.1:')
+  }
+
+  /** A config-file host name for a discovered server: `local` for loopback, else its tailscale hostname or host. */
+  private hostKeyFor(server: DiscoveredModelServer): string {
+    const loopback = ['127.0.0.1', 'localhost', '0.0.0.0', '::1']
+    const raw = server.source === 'localhost' && loopback.includes(server.host)
+      ? 'local'
+      : (server.hostname ?? server.host)
+    const key = raw.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
+    return key || `server-${server.port}`
+  }
+
+  /**
+   * Shape discovery results as a config-file document — a `hosts:` map plus
+   * `id: host/model` shorthand entries — which is exactly the format
+   * `loadConfigFiles()` reads. The building block behind
+   * `luca setup --providers`.
+   *
+   * Host names are `local` for loopback servers and the tailscale hostname (or
+   * bare host) otherwise. Provider ids are `<host>-<port>`, matching what
+   * `discover({ register: true })` registers. Use the options to merge into an
+   * existing file without clobbering what's already declared there:
+   *
+   *   - `hosts` — host names already present. A server whose baseURL is already
+   *     named reuses that name; a name taken by a *different* URL gets the port
+   *     appended so nothing is overwritten.
+   *   - `existingProviderIds` — ids already present. A collision gets a `-2`,
+   *     `-3`, … suffix instead of replacing the user's entry.
+   *   - `models` — per-baseURL default model override, keyed by `server.baseURL`.
+   *
+   * @example
+   * const found = await container.feature('modelProviders').discover()
+   * const config = container.feature('modelProviders').suggestConfig(found)
+   * // { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }
+   */
+  suggestConfig(
+    servers: DiscoveredModelServer[],
+    options: {
+      hosts?: Record<string, string>
+      existingProviderIds?: string[]
+      models?: Record<string, string>
+    } = {},
+  ): ModelProviderConfigSuggestion {
+    const hosts: Record<string, string> = { ...(options.hosts ?? {}) }
+    const hostKeyByURL = new Map<string, string>()
+    for (const [key, url] of Object.entries(hosts)) hostKeyByURL.set(this.normalizeBaseURL(url), key)
+
+    const taken = new Set(options.existingProviderIds ?? [])
+    const providers: Record<string, string | { host: string; model: string }> = {}
+
+    for (const server of servers) {
+      const url = this.normalizeBaseURL(server.baseURL)
+      const name = this.hostKeyFor(server)
+      let hostKey = hostKeyByURL.get(url)
+      if (!hostKey) {
+        hostKey = name
+        if (hosts[hostKey] !== undefined && this.normalizeBaseURL(hosts[hostKey]!) !== url) {
+          hostKey = `${name}-${server.port}`
+        }
+        hosts[hostKey] = server.baseURL
+        hostKeyByURL.set(url, hostKey)
+      }
+
+      const baseId = `${name}-${server.port}`
+      let id = baseId
+      for (let n = 2; taken.has(id); n++) id = `${baseId}-${n}`
+      taken.add(id)
+
+      const model = options.models?.[server.baseURL] ?? server.models[0] ?? 'local-model'
+      // `host/model` parses at the first slash, so a slashed model id needs the
+      // explicit object form to survive a config round-trip.
+      providers[id] = model.includes('/') ? { host: hostKey, model } : `${hostKey}/${model}`
+    }
+
+    return { hosts, providers }
   }
 
   /**

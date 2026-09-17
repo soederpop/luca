@@ -4,6 +4,7 @@ import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import type { NodeContainer } from '../node/container.js'
 import { lucaHome } from '../setup/paths.js'
+import type { DiscoveredModelServer, ModelProviderConfigSuggestion } from '../agi/features/model-providers'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 import { resolveModelPath, DEFAULT_LOCAL_MODEL } from '../node/features/semantic-search.js'
 import { installedBinaryPath, chatModelPath, DEFAULT_CHAT_MODEL, CHAT_MODEL_SOURCES, resolvedReleaseTag } from '../node/features/llama-server.js'
@@ -21,6 +22,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'chat-model': z.boolean().default(false).describe(`Download the llama-server binary and the local chat model (${DEFAULT_CHAT_MODEL}, ${CHAT_MODEL_SOURCES[DEFAULT_CHAT_MODEL]?.approxSize})`),
 	'skip-models': z.boolean().default(false).describe('Install the llama-server binary and write project types, but skip all model weight downloads'),
 	types: z.boolean().default(false).describe('Only write TypeScript declarations + tsconfig.json into the current project'),
+	providers: z.boolean().default(false).describe('Scan for running OpenAI-compatible servers (localhost + tailscale) and offer to write ~/.luca/model-providers.yml or assistants/options.yml'),
 })
 
 interface SetupState {
@@ -91,6 +93,271 @@ function progressLine(label: string) {
 	}
 }
 
+// ── `luca setup --providers` ────────────────────────────────────────────────
+
+/** The two config files a discovered provider list can be written to. */
+export interface ProvidersDestination {
+	kind: 'machine' | 'project'
+	path: string
+}
+
+export function providersDestinations(container: NodeContainer): ProvidersDestination[] {
+	return [
+		{ kind: 'machine', path: container.paths.resolve(lucaHome(), 'model-providers.yml') },
+		{ kind: 'project', path: container.paths.resolve('assistants/options.yml') },
+	]
+}
+
+function isPlainObject(value: any): value is Record<string, any> {
+	return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** One-line rendering of a suggestion entry for terminal output. */
+function describeProviderEntry(entry: string | { host: string; model: string }): string {
+	return typeof entry === 'string' ? entry : `${entry.host}/${entry.model}`
+}
+
+/** Loopback aliases and trailing slashes all describe the same endpoint. */
+function normalizeURL(baseURL: string): string {
+	return baseURL.replace(/\/+$/, '').replace('://localhost:', '://127.0.0.1:').replace('://0.0.0.0:', '://127.0.0.1:')
+}
+
+/**
+ * `host:port` for an endpoint, with loopback aliases folded together. Used to
+ * decide whether a discovered server is already configured — an existing entry
+ * may name a tailscale peer by hostname while discovery reports its IP.
+ */
+function hostPortKey(url: string): string {
+	try {
+		const parsed = new URL(url)
+		const host = ['localhost', '0.0.0.0', '::1'].includes(parsed.hostname) ? '127.0.0.1' : parsed.hostname
+		const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80')
+		return `${host}:${port}`
+	} catch {
+		return normalizeURL(url)
+	}
+}
+
+/**
+ * Fold a suggestion into an existing config document, preserving every other
+ * key already in the file. Provider ids come from `suggestConfig()`, which
+ * avoids collisions with ids already present, so nothing the user wrote is
+ * replaced — only host names and new provider entries are added.
+ */
+export function mergeProviderConfig(doc: any, suggestion: ModelProviderConfigSuggestion, target: ProvidersDestination) {
+	const next: Record<string, any> = isPlainObject(doc) ? { ...doc } : {}
+	const nested = isPlainObject(next.providers)
+	const section: Record<string, any> = nested ? { ...next.providers } : (target.kind === 'project' ? {} : next)
+	const hosts = isPlainObject(section.hosts) ? { ...section.hosts } : {}
+	Object.assign(hosts, suggestion.hosts)
+	section.hosts = hosts
+	for (const [id, entry] of Object.entries(suggestion.providers)) section[id] = entry
+	if (nested || target.kind === 'project') next.providers = section
+	return next
+}
+
+/** The `providers:` map already present in a document, or the whole document for the machine file. */
+function existingProviderSection(doc: any, target: ProvidersDestination): Record<string, any> {
+	if (!isPlainObject(doc)) return {}
+	if (isPlainObject(doc.providers)) return doc.providers
+	return target.kind === 'project' ? {} : doc
+}
+
+/**
+ * `luca setup --providers`: scan for live OpenAI-compatible servers and offer
+ * to write them into `~/.luca/model-providers.yml` (machine-wide) or the
+ * `providers:` section of `assistants/options.yml` (this project). Interactive
+ * when stdin is a TTY; otherwise it prints the suggested YAML and writes
+ * nothing.
+ */
+async function setupProviders(
+	container: NodeContainer,
+	ui: any,
+	interactive: boolean,
+): Promise<{ done?: string; skipped?: string }> {
+	const fs = container.feature('fs')
+	const yaml = container.feature('yaml')
+	const mp = container.feature('modelProviders') as any
+
+	ui.print('\n  Scanning for OpenAI-compatible model servers ...')
+	let servers: DiscoveredModelServer[] = []
+	try {
+		servers = await mp.discover({ refresh: true })
+	} catch (err: any) {
+		ui.print.red(`  ✗ Discovery failed: ${err?.message ?? err}`)
+		return { skipped: 'model providers (discovery failed)' }
+	}
+
+	if (!servers.length) {
+		ui.print.dim('    · no server answered GET /v1/models on the known ports (localhost or tailscale)')
+		ui.print.dim('      start a local server — `luca setup` installs llama-server — or add hosts, then retry')
+		return { skipped: 'model providers (nothing discovered)' }
+	}
+
+	ui.print('')
+	for (const server of servers) {
+		const where = server.source === 'tailscale' ? `${server.hostname ?? server.host} (tailscale)` : server.host
+		const models = server.models.length
+			? server.models.slice(0, 3).join(', ') + (server.models.length > 3 ? ` … +${server.models.length - 3}` : '')
+			: 'no models advertised'
+		ui.print(`    ${ui.colors.green('●')} ${server.baseURL}  ${ui.colors.dim(`[${server.hint ?? 'unknown'} · ${where} · ${server.latencyMs}ms]`)}`)
+		ui.print(`      ${ui.colors.dim(models)}`)
+	}
+
+	// An endpoint is "already usable" when a config file declares it, or when it
+	// is the machine's own llama-server (`local`) — that one is a built-in and
+	// needs no entry. Built-in lmstudio/ollama are deliberately *not* covered,
+	// since a model-specific entry for them is the useful thing to generate.
+	const covered = new Set(
+		[
+			...(mp.configuredProviderIds as string[]).map(id => mp.get(id)?.baseURL),
+			mp.get('local')?.baseURL,
+		]
+			.filter((url: any): url is string => !!url)
+			.map(hostPortKey),
+	)
+	const candidates = servers.filter((server: DiscoveredModelServer) => {
+		if (covered.has(hostPortKey(server.baseURL))) return false
+		// A configured tailscale entry names the peer, while discovery reports its IP.
+		return !(server.hostname && covered.has(`${server.hostname}:${server.port}`))
+	})
+
+	if (!candidates.length) {
+		ui.print.dim('\n  · every discovered server is already covered by a configured or built-in provider — nothing to add')
+		return { skipped: 'model providers (all already configured)' }
+	}
+
+	if (!interactive) {
+		const suggestion = mp.suggestConfig(candidates, { existingProviderIds: mp.configuredProviderIds })
+		ui.print('\n  Non-interactive terminal — nothing written. Suggested ~/.luca/model-providers.yml:\n')
+		ui.print(yaml.stringify({ hosts: suggestion.hosts, ...suggestion.providers }))
+		return { skipped: 'model providers (non-interactive — printed suggestion instead)' }
+	}
+
+	const destinations = providersDestinations(container)
+	const machine = destinations.find(d => d.kind === 'machine')!
+	const project = destinations.find(d => d.kind === 'project')!
+
+	const { destination } = await ui.wizard([{
+		type: 'list',
+		name: 'destination',
+		message: 'Where should the discovered providers be written?',
+		choices: [
+			{ name: `Machine-wide — ${machine.path}`, value: 'machine' },
+			{ name: `This project — ${project.path}`, value: 'project' },
+			{ name: 'Neither — print the YAML instead', value: 'print' },
+		],
+		default: 'machine',
+	}])
+
+	if (destination === 'print') {
+		const suggestion = mp.suggestConfig(candidates, { existingProviderIds: mp.configuredProviderIds })
+		ui.print('')
+		ui.print(yaml.stringify({ hosts: suggestion.hosts, ...suggestion.providers }))
+		return { skipped: 'model providers (printed, nothing written)' }
+	}
+
+	const target = destination === 'project' ? project : machine
+	const raw = fs.exists(target.path) ? String(fs.readFileSync(target.path, 'utf8')) : ''
+	let doc: any
+	if (raw) {
+		try {
+			doc = yaml.parse(raw)
+		} catch (err: any) {
+			ui.print.red(`\n  ✗ ${target.path} is not valid YAML — fix it before writing:`)
+			ui.print.yellow(`    ${(err?.message ?? String(err)).split('\n').join('\n    ')}`)
+			return { skipped: `model providers (${target.path} did not parse)` }
+		}
+	}
+
+	const section = existingProviderSection(doc, target)
+	const existingHosts = isPlainObject(section.hosts) ? section.hosts : {}
+	const existingIds = Object.keys(section).filter(key => key !== 'hosts')
+
+	const { chosen } = await ui.wizard([{
+		type: 'checkbox',
+		name: 'chosen',
+		message: 'Which servers should be written?',
+		choices: candidates.map(server => ({
+			name: `${server.baseURL} — ${server.hint ?? server.host}`,
+			value: server.baseURL,
+			checked: true,
+		})),
+	}])
+	const selected = candidates.filter(server => ((chosen as string[]) ?? []).includes(server.baseURL))
+	if (!selected.length) {
+		ui.print.dim('  Nothing selected — nothing written.')
+		return { skipped: 'model providers (nothing selected)' }
+	}
+
+	const models: Record<string, string> = {}
+	for (const server of selected) {
+		if (server.models.length <= 1) continue
+		const { model } = await ui.wizard([{
+			type: 'list',
+			name: 'model',
+			message: `Default model for ${server.baseURL}`,
+			choices: server.models,
+			default: server.models[0],
+		}])
+		models[server.baseURL] = model
+	}
+
+	const suggestion = mp.suggestConfig(selected, { hosts: existingHosts, existingProviderIds: existingIds, models })
+	const addedIds = Object.keys(suggestion.providers)
+	const addedHosts = Object.entries(suggestion.hosts).filter(([key]) => !(key in existingHosts))
+
+	ui.print('\n  Will add:')
+	ui.print(`    hosts: ${addedHosts.map(([key, url]) => `${key}: ${url}`).join(', ') || '(none new)'}`)
+	for (const id of addedIds) ui.print(`    ${id}: ${describeProviderEntry(suggestion.providers[id])}`)
+
+	const next = mergeProviderConfig(doc, suggestion, target)
+	const header = target.kind === 'machine'
+		? `# Machine-wide model providers, available to every luca project on this machine.\n# Written by \`luca setup --providers\` on ${new Date().toISOString().slice(0, 10)}.\n# Shape: luca describe modelProviders\n\n`
+		: ''
+	const content = header + yaml.stringify(next)
+
+	// A rewrite drops hand-written comments. Say so and let the user opt out
+	// rather than silently flattening a file they curated.
+	const commentCount = (raw.match(/^\s*#/gm) ?? []).length
+	if (commentCount > 0) {
+		const { action } = await ui.wizard([{
+			type: 'list',
+			name: 'action',
+			message: `${target.path} has ${commentCount} comment line(s); rewriting will drop them.`,
+			choices: [
+				{ name: 'Rewrite it, keeping every provider entry', value: 'write' },
+				{ name: 'Print the YAML and leave the file alone', value: 'print' },
+				{ name: 'Cancel', value: 'cancel' },
+			],
+			default: 'print',
+		}])
+		if (action === 'cancel') {
+			ui.print.dim('  Cancelled — nothing written.')
+			return { skipped: 'model providers (cancelled)' }
+		}
+		if (action === 'print') {
+			ui.print('')
+			ui.print(content.trimEnd())
+			return { skipped: 'model providers (printed, file untouched)' }
+		}
+	} else {
+		const ok = await confirm(ui, `Write ${addedIds.length} provider(s) to ${target.path}?`, true)
+		if (!ok) {
+			ui.print.dim('  Skipped — nothing written.')
+			return { skipped: 'model providers (cancelled)' }
+		}
+	}
+
+	fs.ensureFolder(target.kind === 'machine' ? lucaHome() : container.paths.resolve('assistants'))
+	fs.writeFileSync(target.path, content)
+	ui.print.green(`\n  ✓ Wrote ${addedIds.length} provider(s) to ${target.path}`)
+	ui.print.dim(`    ${addedIds.join(', ')}`)
+	ui.print.dim("    Reload a running process with container.feature('modelProviders').loadConfigFiles()")
+	return { done: `model providers (${addedIds.length} in ${target.path})` }
+}
+
+
 export async function setup(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as unknown as NodeContainer
 	const fs = container.feature('fs')
@@ -101,26 +368,29 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	const state = await scanState(container, fs)
 	printStateReport(ui, state)
 
-	const flagged = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models'] || options.types
+	const flagged = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models'] || options.types || options.providers
+	const doProviders = options.providers
 	let doBinary: boolean
 	let doEmbedWeights: boolean
 	let doChatWeights: boolean
 	let doTypes: boolean
 	let doDescribeIndex = false
 
+	const runStack = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models']
 	if (flagged) {
-		if (options.types) {
-			doBinary = false
-			doEmbedWeights = false
-			doChatWeights = false
-			doTypes = true
-		} else {
+		if (runStack) {
 			doBinary = true
 			doEmbedWeights = options.yes || options['local-embeddings']
 			doChatWeights = options['chat-model']
-			doTypes = (options.yes || options['skip-models']) && state.isProject
+			doTypes = (options.yes || options['skip-models'] || options.types) && state.isProject
 			if (options['skip-models']) { doEmbedWeights = false; doChatWeights = false }
 			doDescribeIndex = (options.yes || options['local-embeddings']) && !state.describeIndexReady
+		} else {
+			// `--types` and/or `--providers` only — leave the llama-server stack alone
+			doBinary = false
+			doEmbedWeights = false
+			doChatWeights = false
+			doTypes = !!options.types && state.isProject
 		}
 	} else if (process.stdin.isTTY) {
 		// ── Guided walkthrough ───────────────────────────────────────
@@ -317,6 +587,13 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 		skipped.push('project types — write later with `luca setup --types`')
 	}
 
+	// ── Model providers (independent of the llama-server stack) ──────
+	if (doProviders) {
+		const result = await setupProviders(container, ui, !!process.stdin.isTTY)
+		if (result.done) done.push(result.done)
+		else if (result.skipped) skipped.push(result.skipped)
+	}
+
 	// ── Summary ──────────────────────────────────────────────────────
 	ui.print('')
 	if (done.length) ui.print.green(`  ✓ Setup complete: ${done.join(', ')}`)
@@ -326,7 +603,7 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 }
 
 commands.registerHandler('setup', {
-	description: 'One-time machine setup: download the llama-server binary and local model weights (embedding + chat, each optional), and write TypeScript types into your project',
+	description: 'One-time machine setup: download the llama-server binary and local model weights (embedding + chat, each optional), write TypeScript types into your project, and optionally scan for running model servers to write a provider config',
 	argsSchema,
 	examples: [
 		'luca setup',
@@ -334,6 +611,7 @@ commands.registerHandler('setup', {
 		{ command: 'luca setup --local-embeddings', description: 'Download llama-server and the embedding model for local semantic search' },
 		{ command: 'luca setup --chat-model', description: `Download llama-server and the local chat model (${DEFAULT_CHAT_MODEL}) for a fully offline assistant` },
 		{ command: 'luca setup --types', description: 'Write TypeScript declarations + tsconfig.json into the current project' },
+		{ command: 'luca setup --providers', description: 'Scan localhost + tailscale for OpenAI-compatible servers and write them to ~/.luca/model-providers.yml or assistants/options.yml' },
 	],
 	handler: setup,
 })

@@ -361,6 +361,45 @@ for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
 
 
 
+### suggestConfig
+
+Shape discovery results as a config-file document — a `hosts:` map plus `id: host/model` shorthand entries — which is exactly the format `loadConfigFiles()` reads. The building block behind `luca setup --providers`. Host names are `local` for loopback servers and the tailscale hostname (or bare host) otherwise. Provider ids are `<host>-<port>`, matching what `discover({ register: true })` registers. Use the options to merge into an existing file without clobbering what's already declared there: - `hosts` — host names already present. A server whose baseURL is already named reuses that name; a name taken by a *different* URL gets the port appended so nothing is overwritten. - `existingProviderIds` — ids already present. A collision gets a `-2`, `-3`, … suffix instead of replacing the user's entry. - `models` — per-baseURL default model override, keyed by `server.baseURL`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `servers` | `DiscoveredModelServer[]` | ✓ | Parameter servers |
+
+`DiscoveredModelServer[]` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `baseURL` | `string` | OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1 |
+| `host` | `string` | Host or IP the server was reached at. |
+| `port` | `number` |  |
+| `source` | `'localhost' | 'tailscale'` | Where the host came from: the local machine or a tailscale peer. |
+| `hostname` | `string` | Tailscale node hostname, when the host is a tailscale peer. |
+| `hint` | `string` | Best guess at which server usually listens on this port. |
+| `models` | `string[]` | Model ids reported by GET /v1/models. |
+| `latencyMs` | `number` | Round-trip time of the /v1/models probe. |
+| `profileId` | `string` | Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`. |
+| `options` | `{
+      hosts?: Record<string, string>
+      existingProviderIds?: string[]
+      models?: Record<string, string>
+    }` |  | Parameter options |
+
+**Returns:** `ModelProviderConfigSuggestion`
+
+```ts
+const found = await container.feature('modelProviders').discover()
+const config = container.feature('modelProviders').suggestConfig(found)
+// { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }
+```
+
+
+
 ### resolve
 
 **Parameters:**
@@ -484,5 +523,15 @@ const found = await container.feature('modelProviders').discover()
 // Sweep the tailnet and register everything found as usable providers
 const servers = await container.feature('modelProviders').discover({ register: true })
 for (const s of servers) console.log(s.profileId, s.baseURL, s.models)
+```
+
+
+
+**suggestConfig**
+
+```ts
+const found = await container.feature('modelProviders').discover()
+const config = container.feature('modelProviders').suggestConfig(found)
+// { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }
 ```
 

@@ -18416,6 +18416,67 @@ setBuildTimeData('features.modelProviders', {
         }
       ]
     },
+    "suggestConfig": {
+      "description": "Shape discovery results as a config-file document — a `hosts:` map plus `id: host/model` shorthand entries — which is exactly the format `loadConfigFiles()` reads. The building block behind `luca setup --providers`. Host names are `local` for loopback servers and the tailscale hostname (or bare host) otherwise. Provider ids are `<host>-<port>`, matching what `discover({ register: true })` registers. Use the options to merge into an existing file without clobbering what's already declared there: - `hosts` — host names already present. A server whose baseURL is already named reuses that name; a name taken by a *different* URL gets the port appended so nothing is overwritten. - `existingProviderIds` — ids already present. A collision gets a `-2`, `-3`, … suffix instead of replacing the user's entry. - `models` — per-baseURL default model override, keyed by `server.baseURL`.",
+      "parameters": {
+        "servers": {
+          "type": "DiscoveredModelServer[]",
+          "description": "Parameter servers",
+          "properties": {
+            "baseURL": {
+              "type": "string",
+              "description": "OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1"
+            },
+            "host": {
+              "type": "string",
+              "description": "Host or IP the server was reached at."
+            },
+            "port": {
+              "type": "number",
+              "description": ""
+            },
+            "source": {
+              "type": "'localhost' | 'tailscale'",
+              "description": "Where the host came from: the local machine or a tailscale peer."
+            },
+            "hostname": {
+              "type": "string",
+              "description": "Tailscale node hostname, when the host is a tailscale peer."
+            },
+            "hint": {
+              "type": "string",
+              "description": "Best guess at which server usually listens on this port."
+            },
+            "models": {
+              "type": "string[]",
+              "description": "Model ids reported by GET /v1/models."
+            },
+            "latencyMs": {
+              "type": "number",
+              "description": "Round-trip time of the /v1/models probe."
+            },
+            "profileId": {
+              "type": "string",
+              "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`."
+            }
+          }
+        },
+        "options": {
+          "type": "{\n      hosts?: Record<string, string>\n      existingProviderIds?: string[]\n      models?: Record<string, string>\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "servers"
+      ],
+      "returns": "ModelProviderConfigSuggestion",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const found = await container.feature('modelProviders').discover()\nconst config = container.feature('modelProviders').suggestConfig(found)\n// { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }"
+        }
+      ]
+    },
     "resolve": {
       "description": "",
       "parameters": {
@@ -18763,6 +18824,19 @@ setBuildTimeData('features.modelProviders', {
           "type": "string",
           "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`.",
           "optional": true
+        }
+      }
+    },
+    "ModelProviderConfigSuggestion": {
+      "description": "A `model-providers.yml`-shaped document distilled from discovery results: a `hosts:` map of named base URLs plus one shorthand `id: host/model` entry per server. Feed it to `luca setup --providers` or write it yourself.",
+      "properties": {
+        "hosts": {
+          "type": "Record<string, string>",
+          "description": "Named base URLs, ready for the `hosts:` key of a config file."
+        },
+        "providers": {
+          "type": "Record<string, string | { host: string; model: string }>",
+          "description": "Provider entries keyed by id. Normally a `host/model` shorthand string; an object form is used when the model id itself contains a slash (a llama-server gguf path, say), which the shorthand cannot express."
         }
       }
     },
@@ -49118,6 +49192,67 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "suggestConfig": {
+        "description": "Shape discovery results as a config-file document — a `hosts:` map plus `id: host/model` shorthand entries — which is exactly the format `loadConfigFiles()` reads. The building block behind `luca setup --providers`. Host names are `local` for loopback servers and the tailscale hostname (or bare host) otherwise. Provider ids are `<host>-<port>`, matching what `discover({ register: true })` registers. Use the options to merge into an existing file without clobbering what's already declared there: - `hosts` — host names already present. A server whose baseURL is already named reuses that name; a name taken by a *different* URL gets the port appended so nothing is overwritten. - `existingProviderIds` — ids already present. A collision gets a `-2`, `-3`, … suffix instead of replacing the user's entry. - `models` — per-baseURL default model override, keyed by `server.baseURL`.",
+        "parameters": {
+          "servers": {
+            "type": "DiscoveredModelServer[]",
+            "description": "Parameter servers",
+            "properties": {
+              "baseURL": {
+                "type": "string",
+                "description": "OpenAI-compatible base URL, e.g. http://127.0.0.1:1234/v1"
+              },
+              "host": {
+                "type": "string",
+                "description": "Host or IP the server was reached at."
+              },
+              "port": {
+                "type": "number",
+                "description": ""
+              },
+              "source": {
+                "type": "'localhost' | 'tailscale'",
+                "description": "Where the host came from: the local machine or a tailscale peer."
+              },
+              "hostname": {
+                "type": "string",
+                "description": "Tailscale node hostname, when the host is a tailscale peer."
+              },
+              "hint": {
+                "type": "string",
+                "description": "Best guess at which server usually listens on this port."
+              },
+              "models": {
+                "type": "string[]",
+                "description": "Model ids reported by GET /v1/models."
+              },
+              "latencyMs": {
+                "type": "number",
+                "description": "Round-trip time of the /v1/models probe."
+              },
+              "profileId": {
+                "type": "string",
+                "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`."
+              }
+            }
+          },
+          "options": {
+            "type": "{\n      hosts?: Record<string, string>\n      existingProviderIds?: string[]\n      models?: Record<string, string>\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "servers"
+        ],
+        "returns": "ModelProviderConfigSuggestion",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const found = await container.feature('modelProviders').discover()\nconst config = container.feature('modelProviders').suggestConfig(found)\n// { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }"
+          }
+        ]
+      },
       "resolve": {
         "description": "",
         "parameters": {
@@ -49465,6 +49600,19 @@ export const introspectionData: Record<string, any>[] = [
             "type": "string",
             "description": "Provider profile id serving this baseURL — an existing profile that matched, or the one created by `register: true`.",
             "optional": true
+          }
+        }
+      },
+      "ModelProviderConfigSuggestion": {
+        "description": "A `model-providers.yml`-shaped document distilled from discovery results: a `hosts:` map of named base URLs plus one shorthand `id: host/model` entry per server. Feed it to `luca setup --providers` or write it yourself.",
+        "properties": {
+          "hosts": {
+            "type": "Record<string, string>",
+            "description": "Named base URLs, ready for the `hosts:` key of a config file."
+          },
+          "providers": {
+            "type": "Record<string, string | { host: string; model: string }>",
+            "description": "Provider entries keyed by id. Normally a `host/model` shorthand string; an object form is used when the model id itself contains a slash (a llama-server gguf path, say), which the shorthand cannot express."
           }
         }
       },
