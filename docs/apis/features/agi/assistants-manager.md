@@ -146,7 +146,7 @@ console.log(manager.isDisabled('googleWorkspace')) // false
 
 ### discover
 
-Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.
+Discovers assistants by listing subdirectories in cwd/assistants/, ~/.luca/assistants/, and any folders added via `addDiscoveryFolder()` (plugins). Each subdirectory containing a CORE.md is an assistant. When the same name appears in more than one location the project folder wins, then the home folder, then extra folders; the shadowed folders are recorded on the winning entry's `shadows` array.
 
 **Returns:** `Promise<this>`
 

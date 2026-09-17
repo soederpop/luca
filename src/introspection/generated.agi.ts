@@ -3551,7 +3551,7 @@ setBuildTimeData('features.assistantsManager', {
       ]
     },
     "discover": {
-      "description": "Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.",
+      "description": "Discovers assistants by listing subdirectories in cwd/assistants/, ~/.luca/assistants/, and any folders added via `addDiscoveryFolder()` (plugins). Each subdirectory containing a CORE.md is an assistant. When the same name appears in more than one location the project folder wins, then the home folder, then extra folders; the shadowed folders are recorded on the winning entry's `shadows` array.",
       "parameters": {},
       "required": [],
       "returns": "Promise<this>"
@@ -4064,6 +4064,15 @@ setBuildTimeData('features.assistantsManager', {
         "meta": {
           "type": "Record<string, any>",
           "description": "Frontmatter metadata parsed from CORE.md.",
+          "optional": true
+        },
+        "source": {
+          "type": "'project' | 'home' | 'extra' | 'registered'",
+          "description": "Which discovery location this definition came from ('registered' = runtime factory, no folder)."
+        },
+        "shadows": {
+          "type": "string[]",
+          "description": "Folders of same-named definitions this one shadows, lowest priority last.",
           "optional": true
         }
       }
@@ -34279,7 +34288,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "discover": {
-        "description": "Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.",
+        "description": "Discovers assistants by listing subdirectories in cwd/assistants/, ~/.luca/assistants/, and any folders added via `addDiscoveryFolder()` (plugins). Each subdirectory containing a CORE.md is an assistant. When the same name appears in more than one location the project folder wins, then the home folder, then extra folders; the shadowed folders are recorded on the winning entry's `shadows` array.",
         "parameters": {},
         "required": [],
         "returns": "Promise<this>"
@@ -34792,6 +34801,15 @@ export const introspectionData: Record<string, any>[] = [
           "meta": {
             "type": "Record<string, any>",
             "description": "Frontmatter metadata parsed from CORE.md.",
+            "optional": true
+          },
+          "source": {
+            "type": "'project' | 'home' | 'extra' | 'registered'",
+            "description": "Which discovery location this definition came from ('registered' = runtime factory, no folder)."
+          },
+          "shadows": {
+            "type": "string[]",
+            "description": "Folders of same-named definitions this one shadows, lowest priority last.",
             "optional": true
           }
         }

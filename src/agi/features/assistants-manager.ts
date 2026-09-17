@@ -35,6 +35,10 @@ export interface AssistantEntry {
 	about?: string
 	/** Frontmatter metadata parsed from CORE.md. */
 	meta?: Record<string, any>
+	/** Which discovery location this definition came from ('registered' = runtime factory, no folder). */
+	source: 'project' | 'home' | 'extra' | 'registered'
+	/** Folders of same-named definitions this one shadows, lowest priority last. */
+	shadows?: string[]
 }
 
 export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
@@ -436,10 +440,12 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/,
-	 * cwd/assistants/, and any folders added via `addDiscoveryFolder()`.
-	 * Each subdirectory containing a CORE.md is an assistant. Earlier locations
-	 * take precedence when the same name appears in multiple folders.
+	 * Discovers assistants by listing subdirectories in cwd/assistants/,
+	 * ~/.luca/assistants/, and any folders added via `addDiscoveryFolder()`
+	 * (plugins). Each subdirectory containing a CORE.md is an assistant.
+	 * When the same name appears in more than one location the project folder
+	 * wins, then the home folder, then extra folders; the shadowed folders are
+	 * recorded on the winning entry's `shadows` array.
 	 *
 	 * @returns {Promise<this>} This instance, for chaining
 	 */
@@ -448,13 +454,22 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 		const discovered: Record<string, AssistantEntry> = {}
 
-		const locations = [
-			`${os.homedir}/.luca/assistants`,
-			paths.resolve('assistants'),
-			...(this.state.get('extraFolders') as string[]),
+		// Highest priority first: a project assistant replaces a same-named one
+		// from the home folder or from a plugin (extra) folder.
+		const locations: Array<{ path: string; source: AssistantEntry['source'] }> = [
+			{ path: paths.resolve('assistants'), source: 'project' },
+			{ path: `${os.homedir}/.luca/assistants`, source: 'home' },
+			...(this.state.get('extraFolders') as string[]).map((path) => ({
+				path,
+				source: 'extra' as const,
+			})),
 		]
 
-		for (const location of locations) {
+		const seenLocations = new Set<string>()
+
+		for (const { path: location, source } of locations) {
+			if (seenLocations.has(location)) continue
+			seenLocations.add(location)
 			if (!fs.exists(location)) continue
 
 			const dirEntries = fs.readdirSync(location)
@@ -466,37 +481,42 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 				const hasCorePrompt = fs.exists(`${folder}/CORE.md`)
 				if (!hasCorePrompt) continue
 
-				// Don't overwrite earlier entries (home takes precedence for same name)
-				if (!discovered[entry]) {
-					const hasAbout = fs.exists(`${folder}/ABOUT.md`)
-					let about: string | undefined
-					let meta: Record<string, any> | undefined
+				const winner = discovered[entry]
+				if (winner) {
+					// A higher-priority location already claimed this name.
+					winner.shadows = [...(winner.shadows ?? []), folder]
+					continue
+				}
 
-					if (hasAbout) {
-						about = fs.readFileSync(`${folder}/ABOUT.md`, 'utf8') as string
-					}
+				const hasAbout = fs.exists(`${folder}/ABOUT.md`)
+				let about: string | undefined
+				let meta: Record<string, any> | undefined
 
-					try {
-						const coreContent = fs.readFileSync(`${folder}/CORE.md`, 'utf8') as string
-						const fmMatch = coreContent.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-						if (fmMatch) {
-							const yaml = this.container.feature('yaml')
-							meta = yaml.parse(fmMatch[1]!)
-						}
-					} catch {
-						// CORE.md exists but couldn't be parsed — skip meta
-					}
+				if (hasAbout) {
+					about = fs.readFileSync(`${folder}/ABOUT.md`, 'utf8') as string
+				}
 
-					discovered[entry] = {
-						name: entry,
-						folder,
-						hasCorePrompt: true,
-						hasTools: fs.exists(`${folder}/tools.ts`),
-						hasHooks: fs.exists(`${folder}/hooks.ts`),
-						hasVoice: fs.exists(`${folder}/voice.yml`),
-						...(about != null && { about }),
-						...(meta != null && { meta }),
+				try {
+					const coreContent = fs.readFileSync(`${folder}/CORE.md`, 'utf8') as string
+					const fmMatch = coreContent.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+					if (fmMatch) {
+						const yaml = this.container.feature('yaml')
+						meta = yaml.parse(fmMatch[1]!)
 					}
+				} catch {
+					// CORE.md exists but couldn't be parsed — skip meta
+				}
+
+				discovered[entry] = {
+					name: entry,
+					folder,
+					source,
+					hasCorePrompt: true,
+					hasTools: fs.exists(`${folder}/tools.ts`),
+					hasHooks: fs.exists(`${folder}/hooks.ts`),
+					hasVoice: fs.exists(`${folder}/voice.yml`),
+					...(about != null && { about }),
+					...(meta != null && { meta }),
 				}
 			}
 		}
@@ -687,6 +707,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			.map((name): AssistantEntry => ({
 				name,
 				folder: '',
+				source: 'registered',
 				hasCorePrompt: false,
 				hasTools: false,
 				hasHooks: false,
