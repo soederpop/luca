@@ -122,7 +122,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, DiscoveredModelServer, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -2006,6 +2006,10 @@ export interface AssistantEntry {
     about?: string;
     /** Frontmatter metadata parsed from CORE.md. */
     meta?: Record<string, any>;
+    /** Which discovery location this definition came from ('registered' = runtime factory, no folder). */
+    source: 'project' | 'home' | 'extra' | 'registered';
+    /** Folders of same-named definitions this one shadows, lowest priority last. */
+    shadows?: string[];
 }
 export declare const AssistantsManagerEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -2260,10 +2264,12 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      */
     get disabledAssistants(): string[];
     /**
-     * Discovers assistants by listing subdirectories in ~/.luca/assistants/,
-     * cwd/assistants/, and any folders added via \`addDiscoveryFolder()\`.
-     * Each subdirectory containing a CORE.md is an assistant. Earlier locations
-     * take precedence when the same name appears in multiple folders.
+     * Discovers assistants by listing subdirectories in cwd/assistants/,
+     * ~/.luca/assistants/, and any folders added via \`addDiscoveryFolder()\`
+     * (plugins). Each subdirectory containing a CORE.md is an assistant.
+     * When the same name appears in more than one location the project folder
+     * wins, then the home folder, then extra folders; the shadowed folders are
+     * recorded on the winning entry's \`shadows\` array.
      *
      * @returns {Promise<this>} This instance, for chaining
      */
@@ -6907,6 +6913,16 @@ export interface LocalProviderOptions {
     /** Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'. */
     auth?: ModelProviderAuth;
 }
+/** A YAML file that may contribute provider profiles. See \`ModelProviders.configSources\`. */
+export interface ModelProviderConfigSource {
+    /** Absolute path to the YAML file. Missing files are skipped silently. */
+    path: string;
+    /**
+     * Top-level key holding the providers map. When omitted the whole document is
+     * the map, unless it has a \`providers:\` key, which is then used instead.
+     */
+    key?: string;
+}
 /**
  * Ports commonly used by local OpenAI-compatible LLM servers, probed by
  * \`discover()\`. The hint is a human-readable guess at what usually listens there.
@@ -6953,6 +6969,8 @@ export declare const ModelProvidersStateSchema: z.ZodObject<{
     }, z.core.$strip>>>;
     discoveryKey: z.ZodOptional<z.ZodString>;
     discoveredAt: z.ZodOptional<z.ZodNumber>;
+    configuredProviderIds: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    loadedConfigSources: z.ZodDefault<z.ZodArray<z.ZodString>>;
 }, z.core.$loose>;
 export type ModelProvidersState = z.infer<typeof ModelProvidersStateSchema>;
 /** Options for \`discover()\`. */
@@ -7161,6 +7179,64 @@ export declare class ClaudeSessionTransport implements ModelTransport {
     private contentToText;
     private promptFromMessages;
 }
+/**
+ * Registry of model provider profiles (OpenAI, Anthropic, Codex, local
+ * OpenAI-compatible servers, …) plus the transports that speak each wire
+ * dialect. Assistants name a provider by id (\`provider: chief\` in CORE.md
+ * frontmatter) and \`resolve()\` turns that into a ready-to-call endpoint.
+ *
+ * Profiles come from three places, in this order (later wins on the same id):
+ *
+ *   1. Built-in presets (\`openai\`, \`anthropic\`, \`lmstudio\`, \`ollama\`, \`local\`, …).
+ *   2. YAML config files, loaded once when the feature is first created:
+ *      \`~/.luca/model-providers.yml\` (per machine, honours \`LUCA_HOME\`) and the
+ *      \`providers:\` section of \`assistants/options.yml\` (per project).
+ *   3. Code — \`registerLocal()\` / \`registerProfile()\` from \`luca.cli.ts\`.
+ *
+ * A config file is a map of provider id → entry. An entry is either a
+ * shorthand string or a full profile object, and \`hosts:\` names base URLs you
+ * reuse. Hosts declared in the machine file are visible to the project file.
+ *
+ * \`\`\`yaml
+ * # ~/.luca/model-providers.yml
+ * hosts:
+ *   chief: http://chief:1234/v1
+ *   spark: http://spark-f941:8888/v1
+ * qwen36: chief                        # model defaults to the provider id
+ * gemma4: chief/writer                 # host/model
+ * deepseek-v4: spark/deepseek-v4-flash
+ * secure-box:                          # object form for anything unusual
+ *   host: chief
+ *   model: mixtral
+ *   apiKeyEnv: BOX_API_KEY
+ * kokoro:
+ *   kind: tts                          # llm (default) | stt | tts — picks the apiMode
+ *   baseURL: http://chief:8002
+ *   defaultModel: kokoro
+ * \`\`\`
+ *
+ * \`\`\`yaml
+ * # assistants/options.yml — same shape, nested under providers:
+ * providers:
+ *   chief: http://chief:1234/v1        # bare URL, model defaults to the id
+ *   secure-box:
+ *     enabled: false                   # skip an entry without deleting it
+ * \`\`\`
+ *
+ * Entries merge over an already-registered profile with the same id, so a
+ * project can patch one field of a machine-level or built-in profile without
+ * redeclaring the rest.
+ *
+ * @example
+ * // Which config files were found, and what they registered:
+ * const mp = container.feature('modelProviders')
+ * mp.loadedConfigSources   // ['/Users/me/.luca/model-providers.yml']
+ * mp.configuredProviderIds // ['qwen36', 'gemma4', 'deepseek-v4', 'secure-box', 'kokoro']
+ *
+ * @example
+ * // Re-read the files after editing them in a long-running process:
+ * container.feature('modelProviders').loadConfigFiles()
+ */
 export declare class ModelProviders extends Feature<ModelProvidersState> {
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -7180,6 +7256,8 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
         }, z.core.$strip>>>;
         discoveryKey: z.ZodOptional<z.ZodString>;
         discoveredAt: z.ZodOptional<z.ZodNumber>;
+        configuredProviderIds: z.ZodDefault<z.ZodArray<z.ZodString>>;
+        loadedConfigSources: z.ZodDefault<z.ZodArray<z.ZodString>>;
     }, z.core.$loose>;
     static description: string;
     static shortcut: "features.modelProviders";
@@ -7187,6 +7265,7 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
     static category: "ai-assistants";
     static optionsSchema: z.ZodObject<{
         [x: string]: any;
+        useConfigFiles: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     private discoveryPending;
     private probeIds;
@@ -7203,6 +7282,61 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
     private transports;
     private get profileMap();
     constructor(options: any, context: any);
+    /**
+     * Files consulted by \`loadConfigFiles()\`, in load order — a later file wins
+     * on the same provider id, so project config overrides machine config.
+     *
+     *   1. \`<LUCA_HOME>/model-providers.yml\` (default \`~/.luca/model-providers.yml\`)
+     *   2. \`<cwd>/assistants/options.yml\`, \`providers:\` section only
+     */
+    get configSources(): ModelProviderConfigSource[];
+    /** Profile ids registered from YAML config files, in registration order. Empty when no file declared any. */
+    get configuredProviderIds(): string[];
+    /** Config files that existed and parsed on the last \`loadConfigFiles()\`. */
+    get loadedConfigSources(): string[];
+    /**
+     * Read every config source and register the providers it declares. Runs once
+     * in the constructor; call it again to pick up edits in a long-running
+     * process. Missing files are skipped; a file that fails to parse is reported
+     * with \`console.warn\` and skipped so a typo can't break startup.
+     *
+     * \`hosts:\` maps from all sources are pooled before any entry is registered,
+     * so \`~/.luca/model-providers.yml\` can name the machines and
+     * \`assistants/options.yml\` can just say \`mybox: chief/model\`.
+     *
+     * @param sources Override the files to read. Defaults to \`configSources\`.
+     * @returns The provider ids registered, in order.
+     *
+     * @example
+     * const ids = container.feature('modelProviders').loadConfigFiles()
+     */
+    loadConfigFiles(sources?: ModelProviderConfigSource[]): string[];
+    /**
+     * Register the entries of one \`providers:\` map (the YAML shape documented on
+     * the class) without touching the filesystem. Useful for tests and for
+     * plugins that keep provider config somewhere else.
+     *
+     * @param section Map of provider id → shorthand string or profile object.
+     * @param options.hosts Named base URLs; merged over the section's own \`hosts:\`.
+     * @param options.source Label used in warnings, typically the file path.
+     * @returns The provider ids registered, in order. Disabled entries are omitted.
+     *
+     * @example
+     * mp.registerFromConfig({ hosts: { chief: 'http://chief:1234/v1' }, qwen36: 'chief', writer: 'chief/gemma4' })
+     */
+    registerFromConfig(section: Record<string, any>, options?: {
+        hosts?: Record<string, string>;
+        source?: string;
+    }): string[];
+    /** Parse one config file and return its providers map, or undefined when absent, empty, or unparseable. */
+    private readConfigSection;
+    /**
+     * Turn one config entry into a profile patch. Shorthand strings:
+     * \`host\`, \`host/model\`, or \`https://…/v1\`. Objects may use \`host\`
+     * (looked up in \`hosts\`) and \`model\` as friendlier aliases for
+     * \`baseURL\` / \`defaultModel\`. Returns null for \`enabled: false\`.
+     */
+    private normalizeConfigEntry;
     registerProfile(profile: ModelProviderProfile): this;
     /**
      * Register a self-hosted, OpenAI-compatible endpoint with sensible defaults —
@@ -15427,7 +15561,7 @@ export type { SpreadsheetMeta, SheetInfo, GoogleSheetsState, GoogleSheetsOptions
 export type { GrepMatch, GrepOptions, Grep } from "./features/grep";
 export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
-export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
+export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailAttachmentFile, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
 export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";
@@ -22104,6 +22238,7 @@ export interface ResolvedMailConfig {
     mailbox: string;
     pollIntervalMs: number;
     maxMessageBytes: number;
+    attachmentDir: string;
     markAsRead: boolean;
     outboundEnabled: boolean;
     trustedSenders: string[];
@@ -22162,6 +22297,16 @@ export interface StandardMailMessage {
         size?: number;
     }>;
     validation?: MailValidation;
+}
+/** One attachment written to disk by {@link InternetMail.downloadAttachments}. */
+export interface MailAttachmentFile {
+    /** Sanitized name the file was written under — never the raw sender value. */
+    filename: string;
+    contentType: string;
+    /** Bytes written, i.e. the decoded length. */
+    size: number;
+    /** Absolute path of the written file. */
+    path: string;
 }
 export interface MailValidation {
     auth: {
@@ -22222,6 +22367,18 @@ export declare function parseMailAddress(raw: string): {
     domain: string;
 };
 /**
+ * Turn a sender-supplied attachment name into something safe to write.
+ *
+ * Attachment filenames are attacker-controlled: they arrive in a MIME header
+ * and nothing validates them. This strips every directory component (both
+ * separators, so a Windows-style \`..\\\\dir\\\\x\` cannot slip past a POSIX-only
+ * split), reduces the remainder to a conservative character set, and removes
+ * leading dots so nothing lands as a dotfile or as \`..\`. Parts with no name at
+ * all — common for inline images and \`multipart/*\` bodies — get a positional
+ * fallback named from the content type.
+ */
+export declare function safeAttachmentFilename(filename: unknown, index: number, contentType?: unknown): string;
+/**
  * Port of the Gmail wing's Authentication-Results scoring: same verdict
  * extraction, same flags, same deductions. Provider headers may leave verdicts
  * sparse (iCloud often does) — the score reflects what the edge populated.
@@ -22254,6 +22411,7 @@ export declare const InternetMailOptionsSchema: z.ZodObject<{
     mailbox: z.ZodOptional<z.ZodString>;
     pollIntervalMs: z.ZodOptional<z.ZodNumber>;
     maxMessageBytes: z.ZodOptional<z.ZodNumber>;
+    attachmentDir: z.ZodOptional<z.ZodString>;
     markAsRead: z.ZodOptional<z.ZodBoolean>;
     outboundEnabled: z.ZodOptional<z.ZodBoolean>;
     trustedSenders: z.ZodOptional<z.ZodArray<z.ZodString>>;
@@ -22322,6 +22480,9 @@ export declare const InternetMailEventsSchema: z.ZodObject<{
  *   replaying, and a \`UIDVALIDITY\` change re-baselines instead of duplicating
  * - \`checkInbox()\` / \`readMessage()\` / \`searchMessages()\` — pull-based reads
  *   that never advance the poll cursor or alter unread state
+ * - \`downloadAttachments()\` — the opt-in way to get attachment bytes onto
+ *   disk. Messages carry attachment *metadata* only; bodies never arrive
+ *   unasked-for
  * - \`sendMessage()\` / \`replyToMessage()\` / \`replyAllToMessage()\` — outbound
  *   mail gated by \`outboundEnabled\` and the recipient allowlist
  *
@@ -22366,6 +22527,7 @@ export declare class InternetMail extends Feature<InternetMailState, InternetMai
         mailbox: z.ZodOptional<z.ZodString>;
         pollIntervalMs: z.ZodOptional<z.ZodNumber>;
         maxMessageBytes: z.ZodOptional<z.ZodNumber>;
+        attachmentDir: z.ZodOptional<z.ZodString>;
         markAsRead: z.ZodOptional<z.ZodBoolean>;
         outboundEnabled: z.ZodOptional<z.ZodBoolean>;
         trustedSenders: z.ZodOptional<z.ZodArray<z.ZodString>>;
@@ -22456,6 +22618,12 @@ export declare class InternetMail extends Feature<InternetMailState, InternetMai
      */
     poll(): Promise<MailPollResult>;
     private _pollOnce;
+    /**
+     * Fetch full source for one UID and hand back the mailparser result — the
+     * only place attachment \`content\` buffers exist. Rejects oversized source so
+     * reads and downloads agree on what \`maxMessageBytes\` covers.
+     */
+    private _fetchParsed;
     /** Fetch full source for one UID and normalize it. Rejects oversized source. */
     private _fetchAndNormalize;
     private _normalizeParsed;
@@ -22468,6 +22636,40 @@ export declare class InternetMail extends Feature<InternetMailState, InternetMai
     }): Promise<MailSummary[]>;
     /** Read one full message by opaque id. Never alters unread state. */
     readMessage(id: string): Promise<StandardMailMessage>;
+    /**
+     * Write one message's attachments to disk and return what was written.
+     *
+     * This is the deliberate, opt-in way to get attachment *bytes*. \`poll()\` and
+     * {@link readMessage} stay metadata-only on purpose: an attachment body is
+     * untrusted input that has no business landing in a prompt by default. Call
+     * this when you actually want the file.
+     *
+     * Like every other pull-based read it uses \`BODY.PEEK\`, so it neither
+     * advances the poll cursor nor touches unread state — a human working the
+     * same mailbox sees no change.
+     *
+     * Files land in \`<dir>/<uid>/\`, never \`<dir>/\` directly, so two messages that
+     * both carry \`invoice.pdf\` cannot overwrite each other. Sender-supplied
+     * filenames are sanitized by {@link safeAttachmentFilename} and the resolved
+     * target is re-checked against the folder, so a hostile name cannot escape it.
+     *
+     * A message whose raw source is over \`maxMessageBytes\` is refused here just
+     * as it is by {@link readMessage}. The default is 5 MiB, which a mailbox of
+     * scanned PDFs will exceed — raise \`maxMessageBytes\` for those accounts.
+     *
+     * @param id Opaque message id from \`checkInbox()\`, \`searchMessages()\`, or a \`message\` event
+     * @param options.out Folder to write under, instead of the configured \`attachmentDir\`
+     *
+     * @example
+     * \`\`\`typescript
+     * const [newest] = await mail.checkInbox({ limit: 1 })
+     * const files = await mail.downloadAttachments(newest.id)
+     * // => [{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 112640, path: '/…/42/invoice.pdf' }]
+     * \`\`\`
+     */
+    downloadAttachments(id: string, options?: {
+        out?: string;
+    }): Promise<MailAttachmentFile[]>;
     /**
      * Interrogate the full archive with IMAP SEARCH. Independent of the poll
      * cursor — never advances \`lastUid\`, never alters unread state. A \`from\`/\`to\`
@@ -35525,7 +35727,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.13.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.14.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
