@@ -20078,6 +20078,116 @@ setBuildTimeData('features.yamlTree', {
   ]
 });
 
+setBuildTimeData('features.zeroshotClassifier', {
+  "id": "features.zeroshotClassifier",
+  "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. The classifier runs its own llama-server (default port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves. Weights download on first ensureReady().",
+  "shortcut": "features.zeroshotClassifier",
+  "className": "ZeroshotClassifier",
+  "methods": {
+    "ensureReady": {
+      "description": "Download the classifier model's weights if missing (delegates to the llamaServer feature's downloader) and ensure the server is healthy.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await container.feature('zeroshotClassifier').ensureReady()"
+        }
+      ]
+    },
+    "run": {
+      "description": "Classify an input against the configured options.",
+      "parameters": {
+        "input": {
+          "type": "string",
+          "description": "The text to classify"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<Record<string, number>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const probabilities = await classifier.run('this app crashes on launch')\n// { refund_request: 0.04, bug_report: 0.95, other: 0.01 }"
+        }
+      ]
+    },
+    "classify": {
+      "description": "Classify an input and return the winning label alongside the full distribution.",
+      "parameters": {
+        "input": {
+          "type": "string",
+          "description": "The text to classify"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<ClassificationResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { label, probability } = await classifier.classify('where is my refund??')"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "availableOptions": {
+      "description": "The configured options, normalized to { label, description? }.",
+      "returns": "Array<{ label: string; description?: string }>"
+    },
+    "modelPath": {
+      "description": "Absolute path of the classifier model's GGUF weights.",
+      "returns": "string"
+    },
+    "baseURL": {
+      "description": "The OpenAI-compatible base URL of the classifier server.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "classified": {
+      "name": "classified",
+      "description": "Event emitted by ZeroshotClassifier",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const classifier = container.feature('zeroshotClassifier', {\n systemPrompt: 'Classify the customer message.',\n availableOptions: [\n   { label: 'refund_request', description: 'wants money back' },\n   { label: 'bug_report', description: 'something is broken' },\n   'other',\n ],\n})\nconst probabilities = await classifier.run('my order arrived broken, please send my money back')\n// { refund_request: 0.93, bug_report: 0.06, other: 0.01 }"
+    }
+  ],
+  "types": {
+    "ClassificationResult": {
+      "description": "A classification outcome: the winning label plus the full distribution.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The option label with the highest probability."
+        },
+        "probability": {
+          "type": "number",
+          "description": "That label's probability."
+        },
+        "probabilities": {
+          "type": "Record<string, number>",
+          "description": "Probability per option label; values sum to 1."
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('servers.express', {
   "id": "servers.express",
   "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoint modules (files exporting `path` plus `get`/`post`/`put`/`patch`/`delete` handlers) are mounted as routes — this is what `luca serve` does with your project's `endpoints/` folder via `useEndpoints(dir)`. Supports static file serving, CORS, and single-page app history fallback out of the box.",
@@ -41442,6 +41552,115 @@ export const introspectionData: Record<string, any>[] = [
         "code": "// On-demand: enable it explicitly first.\nconst yamlTree = container.feature('yamlTree', { enable: true });\nconsole.log(yamlTree.state.enabled);          // true\nconsole.log(yamlTree.tree);                    // {} — empty until loaded\n\n// Scan a directory of YAML files. Paths become camelCased property paths:\n//   config/database/production.yml -> tree.appConfig.database.production\n//   config/app-settings.yaml       -> tree.appConfig.appSettings\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
       }
     ]
+  },
+  {
+    "id": "features.zeroshotClassifier",
+    "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. The classifier runs its own llama-server (default port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves. Weights download on first ensureReady().",
+    "shortcut": "features.zeroshotClassifier",
+    "className": "ZeroshotClassifier",
+    "methods": {
+      "ensureReady": {
+        "description": "Download the classifier model's weights if missing (delegates to the llamaServer feature's downloader) and ensure the server is healthy.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await container.feature('zeroshotClassifier').ensureReady()"
+          }
+        ]
+      },
+      "run": {
+        "description": "Classify an input against the configured options.",
+        "parameters": {
+          "input": {
+            "type": "string",
+            "description": "The text to classify"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<Record<string, number>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const probabilities = await classifier.run('this app crashes on launch')\n// { refund_request: 0.04, bug_report: 0.95, other: 0.01 }"
+          }
+        ]
+      },
+      "classify": {
+        "description": "Classify an input and return the winning label alongside the full distribution.",
+        "parameters": {
+          "input": {
+            "type": "string",
+            "description": "The text to classify"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<ClassificationResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { label, probability } = await classifier.classify('where is my refund??')"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "availableOptions": {
+        "description": "The configured options, normalized to { label, description? }.",
+        "returns": "Array<{ label: string; description?: string }>"
+      },
+      "modelPath": {
+        "description": "Absolute path of the classifier model's GGUF weights.",
+        "returns": "string"
+      },
+      "baseURL": {
+        "description": "The OpenAI-compatible base URL of the classifier server.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "classified": {
+        "name": "classified",
+        "description": "Event emitted by ZeroshotClassifier",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const classifier = container.feature('zeroshotClassifier', {\n systemPrompt: 'Classify the customer message.',\n availableOptions: [\n   { label: 'refund_request', description: 'wants money back' },\n   { label: 'bug_report', description: 'something is broken' },\n   'other',\n ],\n})\nconst probabilities = await classifier.run('my order arrived broken, please send my money back')\n// { refund_request: 0.93, bug_report: 0.06, other: 0.01 }"
+      }
+    ],
+    "types": {
+      "ClassificationResult": {
+        "description": "A classification outcome: the winning label plus the full distribution.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The option label with the highest probability."
+          },
+          "probability": {
+            "type": "number",
+            "description": "That label's probability."
+          },
+          "probabilities": {
+            "type": "Record<string, number>",
+            "description": "Probability per option label; values sum to 1."
+          }
+        }
+      }
+    }
   },
   {
     "id": "servers.express",

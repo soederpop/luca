@@ -72,6 +72,13 @@ export const CHAT_MODEL_SOURCES: Record<string, { url: string; filename: string;
 		filename: 'hf_unsloth_gemma-4-E4B-it-Q4_K_M.gguf',
 		approxSize: '~4.8GB',
 	},
+	// Non-thinking instruct variant on purpose: the zeroshotClassifier's one-token
+	// grammar constraint fights the <think> blocks the hybrid Qwen3 models emit.
+	'Qwen3-4B-Instruct-2507-Q4_K_M': {
+		url: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+		filename: 'hf_unsloth_Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+		approxSize: '~2.5GB',
+	},
 }
 
 /** GitHub release asset name per platform-arch, for the pinned tag. */

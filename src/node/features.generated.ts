@@ -65,6 +65,7 @@ import "./features/vault";
 import "./features/vm";
 import "./features/yaml-tree";
 import "./features/yaml";
+import "./features/zeroshot-classifier";
 
 import type { CipherSocialFeature } from "./features/cipher-social";
 import type { ContainerLink } from "./features/container-link";
@@ -121,6 +122,7 @@ import type { Vault } from "./features/vault";
 import type { VM } from "./features/vm";
 import type { YamlTree } from "./features/yaml-tree";
 import type { YAML } from "./features/yaml";
+import type { ZeroshotClassifier } from "./features/zeroshot-classifier";
 
 export type { BlobMeta, CipherOptions, CipherState, CipherSocialFeature } from "./features/cipher-social";
 export type { MessageType, LinkMessage, RegisterData, RegisteredData, EvalData, EvalResultData, EventData, ConnectedContainer, ContainerLinkState, ContainerLinkOptions, ContainerLink } from "./features/container-link";
@@ -177,6 +179,7 @@ export type { VaultState, VaultOptions, Vault } from "./features/vault";
 export type { VMState, VMOptions, VMRunOptions, VM } from "./features/vm";
 export type { YamlTreeState, YamlTree } from "./features/yaml-tree";
 export type { YAML } from "./features/yaml";
+export type { ZeroshotClassifierOptions, ZeroshotClassifierState, ClassifierOption, ClassificationResult, ZeroshotClassifier } from "./features/zeroshot-classifier";
 
 export interface GeneratedNodeFeatures extends AvailableFeatures {
   cipherSocial: typeof CipherSocialFeature;
@@ -234,4 +237,5 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
   vm: typeof VM;
   yaml: typeof YAML;
   yamlTree: typeof YamlTree;
+  zeroshotClassifier: typeof ZeroshotClassifier;
 }
