@@ -10,7 +10,6 @@ export async function main(container: any) {
 
 	async function handleMissingCommand({ words, phrase } : { words: string[], phrase: string }) {
 		const { ui } = container
-
-		ui.print.red('oh shit ' + phrase)
+		container.command('help').dispatch()
 	}
 }
