@@ -2,10 +2,32 @@ import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } f
 import { Client, type ClientOptions, type ClientState } from '../client.js'
 import type { HelperStability, HelperCategory } from '../introspection/index.js'
 import type { ContainerContext } from '../container.js'
-import { ClientEventsSchema } from '../schemas/base.js'
+import { ClientEventsSchema, ClientOptionsSchema } from '../schemas/base.js'
 import { z } from 'zod'
 
 export const RestClientEventsSchema = ClientEventsSchema.extend({}).describe('REST client events')
+
+export const RestClientCacheSchema = z.object({
+  ttl: z.number().optional().describe('Time-to-live in seconds for cached responses (default 300)'),
+  methods: z.array(z.string()).optional().describe("HTTP methods to cache (default ['GET'])"),
+  path: z.string().optional().describe('Custom directory for the disk cache (defaults to the shared diskCache location, so all processes in the project share entries)'),
+}).describe('Response cache configuration')
+
+export const RestClientOptionsSchema = ClientOptionsSchema.extend({
+  cache: z.union([z.boolean(), RestClientCacheSchema]).optional().describe(
+    'Shared TTL response cache backed by the diskCache feature. `true` enables defaults (GET only, 300s TTL); an object configures ttl/methods/path. Only successful responses are cached — errors always pass through, and non-cacheable methods always hit the network. Bypass or override per request via the `cache` field in the request options.'
+  ),
+}).describe('REST client options')
+
+export type RestClientCacheConfig = z.infer<typeof RestClientCacheSchema>
+
+/**
+ * Per-request axios config plus cache control: `cache: false` bypasses the
+ * response cache for this request, `cache: { ttl }` overrides its TTL.
+ */
+export type RestRequestOptions = AxiosRequestConfig & {
+  cache?: boolean | { ttl?: number }
+}
 
 declare module '../client' {
   interface AvailableClients {
@@ -45,6 +67,17 @@ declare module '../client' {
  * last argument of each method. The underlying axios instance is available as
  * `api.axios` for anything beyond that (interceptors, etc.).
  *
+ * **Response caching:** pass `cache: true` (or `cache: { ttl, methods, path }`)
+ * to serve repeated requests from a shared TTL cache backed by the `diskCache`
+ * feature — because it lives on disk, every process in the project shares the
+ * same entries, so scripts and daemons hitting the same API don't hammer the
+ * backend. Cache keys hash the method, baseURL, url, params, body, and headers
+ * (auth included, so different credentials never share entries). Only GET is
+ * cached by default (override with `methods`), only successful responses are
+ * stored, and cache failures fall through to the network. Per request:
+ * `{ cache: false }` bypasses, `{ cache: { ttl: 60 } }` overrides the TTL.
+ * Requests made through the raw `api.axios` instance are never cached.
+ *
  * @example
  * ```typescript
  * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
@@ -60,6 +93,20 @@ declare module '../client' {
  *   console.log('server is UP:', result)             // parsed response body
  * }
  * ```
+ *
+ * @example
+ * ```typescript
+ * // Shared TTL response cache: repeated GETs are served from disk for 5 minutes,
+ * // across every process in the project
+ * const api = container.client('rest', {
+ *   baseURL: 'https://api.example.com',
+ *   json: true,
+ *   cache: { ttl: 300 },
+ * })
+ * await api.get('/rates')                       // network
+ * await api.get('/rates')                       // cache hit (any process)
+ * await api.get('/rates', {}, { cache: false }) // force a fresh fetch
+ * ```
  */
 export class RestClient<
   T extends ClientState = ClientState,
@@ -73,6 +120,8 @@ export class RestClient<
   // annotated (not `as const`) so subclasses can declare their own category
   static override category: HelperCategory = 'networking'
   static override eventsSchema = RestClientEventsSchema
+  // annotated (not inferred) so subclasses can declare their own optionsSchema
+  static override optionsSchema: z.ZodObject<any> = RestClientOptionsSchema
   static { Client.register(this, 'rest') }
 
   constructor(options: K, context: ContainerContext) {
@@ -104,6 +153,139 @@ export class RestClient<
   }
 
   /**
+   * Normalized response-cache configuration, or undefined when caching is
+   * disabled. `cache: true` in the client options means defaults (GET only,
+   * 300 second TTL).
+   */
+  get cacheConfig(): RestClientCacheConfig | undefined {
+    const raw = (this.options as any).cache
+    if (!raw) return undefined
+    return raw === true ? {} : raw
+  }
+
+  /** HTTP methods served from the response cache (uppercased; default GET only). */
+  get cachedMethods(): string[] {
+    return (this.cacheConfig?.methods ?? ['GET']).map((m) => m.toUpperCase())
+  }
+
+  /**
+   * The diskCache instance backing the response cache, or undefined when
+   * caching is disabled or the container has no diskCache feature (e.g. a
+   * browser container — caching degrades to a no-op there, requests still work).
+   */
+  get responseCache(): any {
+    if (!this.cacheConfig) return undefined
+    if (this._responseCache !== undefined) return this._responseCache || undefined
+
+    let cache: any = null
+    try {
+      const available: string[] = (this.container as any)?.features?.available ?? []
+      if (available.includes('diskCache')) {
+        const { path } = this.cacheConfig
+        cache = (this.container as any).feature('diskCache', path ? { path } : undefined)
+      }
+    } catch {
+      cache = null
+    }
+
+    // null marks "checked, unavailable" so we don't re-probe on every request
+    Object.defineProperty(this, '_responseCache', { value: cache, enumerable: false })
+    return cache || undefined
+  }
+
+  private _responseCache: any
+
+  /**
+   * Deterministic cache key for a request. Hashes everything that can change
+   * the response: method, baseURL, url, params, body, and the merged headers
+   * (defaults + per-request, so different auth tokens never share an entry —
+   * and the hash keeps the token itself out of the cache directory).
+   * @param config - The axios request config about to be sent
+   * @returns A `rest:`-prefixed hash key
+   */
+  cacheKeyFor(config: AxiosRequestConfig): string {
+    const hash = this.container.utils.hashObject({
+      baseURL: this.baseURL,
+      method: String(config.method || 'GET').toUpperCase(),
+      url: config.url ?? '',
+      params: config.params ?? null,
+      data: config.data ?? null,
+      headers: { ...this.axios.defaults.headers.common, ...(config.headers as object) },
+    })
+    return `rest:${hash}`
+  }
+
+  /**
+   * Resolve whether this request participates in the cache, and look up a hit.
+   * Returns undefined when caching doesn't apply (disabled, bypassed, or a
+   * non-cacheable method). Cache-layer failures are swallowed — they read as
+   * misses, never as request failures.
+   */
+  private async cacheLookup(
+    config: AxiosRequestConfig,
+    perRequest: RestRequestOptions['cache']
+  ): Promise<{ key: string; ttl: number; hit: boolean; value?: any } | undefined> {
+    const cache = this.responseCache
+    if (!cache || perRequest === false) return undefined
+
+    const method = String(config.method || 'GET').toUpperCase()
+    if (!this.cachedMethods.includes(method)) return undefined
+
+    const perRequestTtl = typeof perRequest === 'object' ? perRequest.ttl : undefined
+    const ttl = perRequestTtl ?? this.cacheConfig?.ttl ?? 300
+    const key = this.cacheKeyFor(config)
+
+    try {
+      if (await cache.has(key)) {
+        return { key, ttl, hit: true, value: await cache.getJson(key) }
+      }
+    } catch {
+      // expired between has() and getJson(), or a corrupt entry — treat as a miss
+    }
+
+    return { key, ttl, hit: false }
+  }
+
+  /** Store a successful response body. Failures are swallowed — caching is best-effort. */
+  private async cacheStore(key: string, ttl: number, data: any): Promise<void> {
+    if (data === undefined) return
+    try {
+      await this.responseCache?.setJson(key, data, { ttl })
+    } catch {
+      // a full disk or permission problem shouldn't fail the request
+    }
+  }
+
+  /**
+   * Shared request path for the non-throwing verb methods. Applies the
+   * response cache (when configured and the method is cacheable), sends the
+   * request, and returns the parsed body — or, on failure, the error as JSON
+   * (same returned-not-thrown semantics as the verb methods).
+   * @param config - Full axios request config, plus the per-request `cache` control
+   * @returns Parsed response body, or the error serialized as a plain object
+   */
+  async request(config: RestRequestOptions): Promise<any> {
+    await this.beforeRequest()
+    const { cache: perRequest, ...axiosConfig } = config
+
+    const cached = await this.cacheLookup(axiosConfig, perRequest)
+    if (cached?.hit) return cached.value
+
+    return this.axios(axiosConfig)
+      .then(async (r) => {
+        if (cached) await this.cacheStore(cached.key, cached.ttl, r.data)
+        return r.data
+      })
+      .catch((e: any) => {
+        if (e.isAxiosError) {
+          return this.handleError(e)
+        } else {
+          throw e
+        }
+      })
+  }
+
+  /**
    * Send a PATCH request. Returns the parsed response body directly (not an
    * axios Response wrapper). On HTTP errors, returns the error as JSON instead
    * of throwing — check the result's shape, don't try/catch.
@@ -119,22 +301,8 @@ export class RestClient<
    * if (patched?.name === 'AxiosError') console.error(patched.status, patched.message)
    * ```
    */
-  async patch(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
-    await this.beforeRequest();
-    return this.axios({
-      ...options,
-      method: "PATCH",
-      url,
-      data,
-    })
-      .then((r) => r.data)
-      .catch((e: any) => {
-        if (e.isAxiosError) {
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+  async patch(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
+    return this.request({ ...options, method: "PATCH", url, data })
   }
 
   /**
@@ -153,22 +321,8 @@ export class RestClient<
    * console.log(updated)   // the parsed response body
    * ```
    */
-  async put(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
-    await this.beforeRequest();
-    return this.axios({
-      ...options,
-      method: "PUT",
-      url,
-      data,
-    })
-      .then((r) => r.data)
-      .catch((e: any) => {
-        if (e.isAxiosError) {
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+  async put(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
+    return this.request({ ...options, method: "PUT", url, data })
   }
 
   /**
@@ -193,22 +347,8 @@ export class RestClient<
    * }
    * ```
    */
-  async post(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
-    await this.beforeRequest();
-    return this.axios({
-      ...options,
-      method: "POST",
-      url,
-      data,
-    })
-      .then((r) => r.data)
-      .catch((e: any) => {
-        if (e.isAxiosError) {
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+  async post(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
+    return this.request({ ...options, method: "POST", url, data })
   }
 
   /**
@@ -230,22 +370,8 @@ export class RestClient<
    * if (result?.name === 'AxiosError') console.error('delete failed:', result.status)
    * ```
    */
-  async delete(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
-    await this.beforeRequest();
-    return this.axios({
-      ...options,
-      method: "DELETE",
-      url,
-      params,
-    })
-      .then((r) => r.data)
-      .catch((e: any) => {
-        if (e.isAxiosError) {
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+  async delete(url: string, params: any = {}, options: RestRequestOptions = {}): Promise<any> {
+    return this.request({ ...options, method: "DELETE", url, params })
   }
 
   /**
@@ -272,22 +398,8 @@ export class RestClient<
    * if (me?.name === 'AxiosError') console.error(me.status, me.message)
    * ```
    */
-  async get(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
-    await this.beforeRequest()
-    return this.axios({
-      ...options,
-      method: "GET",
-      url,
-      params,
-    })
-      .then((r) => r.data)
-      .catch((e: any) => {
-        if (e.isAxiosError) {
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+  async get(url: string, params: any = {}, options: RestRequestOptions = {}): Promise<any> {
+    return this.request({ ...options, method: "GET", url, params })
   }
 
   /**
@@ -338,10 +450,16 @@ export class RestClient<
    * }
    * ```
    */
-  async requestOrThrow(config: AxiosRequestConfig): Promise<any> {
+  async requestOrThrow(config: RestRequestOptions): Promise<any> {
     await this.beforeRequest()
+    const { cache: perRequest, ...axiosConfig } = config
+
+    const cached = await this.cacheLookup(axiosConfig, perRequest)
+    if (cached?.hit) return cached.value
+
     try {
-      const response = await this.axios(config)
+      const response = await this.axios(axiosConfig)
+      if (cached) await this.cacheStore(cached.key, cached.ttl, response.data)
       return response.data
     } catch (e: any) {
       if (!e?.isAxiosError) throw e
@@ -395,7 +513,7 @@ export class RestClient<
    * }
    * ```
    */
-  async getOrThrow(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+  async getOrThrow(url: string, params: any = {}, options: RestRequestOptions = {}): Promise<any> {
     return this.requestOrThrow({ ...options, method: 'GET', url, params })
   }
 
@@ -419,7 +537,7 @@ export class RestClient<
    * }
    * ```
    */
-  async postOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+  async postOrThrow(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
     return this.requestOrThrow({ ...options, method: 'POST', url, data })
   }
 
@@ -438,7 +556,7 @@ export class RestClient<
    * const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
    * ```
    */
-  async putOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+  async putOrThrow(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
     return this.requestOrThrow({ ...options, method: 'PUT', url, data })
   }
 
@@ -457,7 +575,7 @@ export class RestClient<
    * const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
    * ```
    */
-  async patchOrThrow(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+  async patchOrThrow(url: string, data: any = {}, options: RestRequestOptions = {}): Promise<any> {
     return this.requestOrThrow({ ...options, method: 'PATCH', url, data })
   }
 
@@ -477,7 +595,7 @@ export class RestClient<
    * await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
    * ```
    */
-  async deleteOrThrow(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
+  async deleteOrThrow(url: string, params: any = {}, options: RestRequestOptions = {}): Promise<any> {
     return this.requestOrThrow({ ...options, method: 'DELETE', url, params })
   }
 }
