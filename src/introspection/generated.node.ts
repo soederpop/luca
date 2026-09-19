@@ -6717,6 +6717,104 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "glob": {
+      "description": "Synchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link walk} (gitignore-ish): a slash-free pattern like `'node_modules'` or `'*.test.ts'` matches at any depth, while a pattern containing `/` matches the cwd-relative path.",
+      "parameters": {
+        "pattern": {
+          "type": "string | string[]",
+          "description": "Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])"
+        },
+        "options": {
+          "type": "GlobOptions",
+          "description": "Options to configure the scan",
+          "properties": {
+            "cwd": {
+              "type": "string",
+              "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it."
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts')."
+            },
+            "absolute": {
+              "type": "boolean",
+              "description": "When true, returned paths are absolute. Default false (paths relative to cwd)."
+            },
+            "dot": {
+              "type": "boolean",
+              "description": "Match dotfiles. Default false."
+            },
+            "onlyFiles": {
+              "type": "boolean",
+              "description": "Only return files, not directories. Default true."
+            },
+            "followSymlinks": {
+              "type": "boolean",
+              "description": "Follow symlinked directories while scanning. Default false."
+            }
+          }
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.ensureFile('glob-demo/a.ts', '')\nfs.ensureFile('glob-demo/nested/b.ts', '')\nfs.ensureFile('glob-demo/nested/b.test.ts', '')\nconst files = fs.glob('glob-demo/**\\/*.ts', { exclude: ['*.test.ts'] })\n// => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']"
+        }
+      ]
+    },
+    "globAsync": {
+      "description": "Asynchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link glob} and {@link walk}.",
+      "parameters": {
+        "pattern": {
+          "type": "string | string[]",
+          "description": "Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])"
+        },
+        "options": {
+          "type": "GlobOptions",
+          "description": "Options to configure the scan (same as glob)",
+          "properties": {
+            "cwd": {
+              "type": "string",
+              "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it."
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts')."
+            },
+            "absolute": {
+              "type": "boolean",
+              "description": "When true, returned paths are absolute. Default false (paths relative to cwd)."
+            },
+            "dot": {
+              "type": "boolean",
+              "description": "Match dotfiles. Default false."
+            },
+            "onlyFiles": {
+              "type": "boolean",
+              "description": "Only return files, not directories. Default true."
+            },
+            "followSymlinks": {
+              "type": "boolean",
+              "description": "Follow symlinked directories while scanning. Default false."
+            }
+          }
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')\nconst files = await fs.globAsync('glob-async-demo/**\\/*.ts')\n// => ['glob-async-demo/nested/c.ts']"
+        }
+      ]
+    },
     "findUp": {
       "description": "Synchronously finds a file by walking up the directory tree from the current working directory.",
       "parameters": {
@@ -6820,6 +6918,41 @@ setBuildTimeData('features.fs', {
         "relative": {
           "type": "boolean",
           "description": "When true, returned paths are relative to `baseDir` instead of absolute.",
+          "optional": true
+        }
+      }
+    },
+    "GlobOptions": {
+      "description": "",
+      "properties": {
+        "cwd": {
+          "type": "string",
+          "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it.",
+          "optional": true
+        },
+        "exclude": {
+          "type": "string | string[]",
+          "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts').",
+          "optional": true
+        },
+        "absolute": {
+          "type": "boolean",
+          "description": "When true, returned paths are absolute. Default false (paths relative to cwd).",
+          "optional": true
+        },
+        "dot": {
+          "type": "boolean",
+          "description": "Match dotfiles. Default false.",
+          "optional": true
+        },
+        "onlyFiles": {
+          "type": "boolean",
+          "description": "Only return files, not directories. Default true.",
+          "optional": true
+        },
+        "followSymlinks": {
+          "type": "boolean",
+          "description": "Follow symlinked directories while scanning. Default false.",
           "optional": true
         }
       }
@@ -28239,6 +28372,104 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "glob": {
+        "description": "Synchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link walk} (gitignore-ish): a slash-free pattern like `'node_modules'` or `'*.test.ts'` matches at any depth, while a pattern containing `/` matches the cwd-relative path.",
+        "parameters": {
+          "pattern": {
+            "type": "string | string[]",
+            "description": "Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])"
+          },
+          "options": {
+            "type": "GlobOptions",
+            "description": "Options to configure the scan",
+            "properties": {
+              "cwd": {
+                "type": "string",
+                "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it."
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts')."
+              },
+              "absolute": {
+                "type": "boolean",
+                "description": "When true, returned paths are absolute. Default false (paths relative to cwd)."
+              },
+              "dot": {
+                "type": "boolean",
+                "description": "Match dotfiles. Default false."
+              },
+              "onlyFiles": {
+                "type": "boolean",
+                "description": "Only return files, not directories. Default true."
+              },
+              "followSymlinks": {
+                "type": "boolean",
+                "description": "Follow symlinked directories while scanning. Default false."
+              }
+            }
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.ensureFile('glob-demo/a.ts', '')\nfs.ensureFile('glob-demo/nested/b.ts', '')\nfs.ensureFile('glob-demo/nested/b.test.ts', '')\nconst files = fs.glob('glob-demo/**\\/*.ts', { exclude: ['*.test.ts'] })\n// => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']"
+          }
+        ]
+      },
+      "globAsync": {
+        "description": "Asynchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link glob} and {@link walk}.",
+        "parameters": {
+          "pattern": {
+            "type": "string | string[]",
+            "description": "Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])"
+          },
+          "options": {
+            "type": "GlobOptions",
+            "description": "Options to configure the scan (same as glob)",
+            "properties": {
+              "cwd": {
+                "type": "string",
+                "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it."
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts')."
+              },
+              "absolute": {
+                "type": "boolean",
+                "description": "When true, returned paths are absolute. Default false (paths relative to cwd)."
+              },
+              "dot": {
+                "type": "boolean",
+                "description": "Match dotfiles. Default false."
+              },
+              "onlyFiles": {
+                "type": "boolean",
+                "description": "Only return files, not directories. Default true."
+              },
+              "followSymlinks": {
+                "type": "boolean",
+                "description": "Follow symlinked directories while scanning. Default false."
+              }
+            }
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')\nconst files = await fs.globAsync('glob-async-demo/**\\/*.ts')\n// => ['glob-async-demo/nested/c.ts']"
+          }
+        ]
+      },
       "findUp": {
         "description": "Synchronously finds a file by walking up the directory tree from the current working directory.",
         "parameters": {
@@ -28342,6 +28573,41 @@ export const introspectionData: Record<string, any>[] = [
           "relative": {
             "type": "boolean",
             "description": "When true, returned paths are relative to `baseDir` instead of absolute.",
+            "optional": true
+          }
+        }
+      },
+      "GlobOptions": {
+        "description": "",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Directory to scan from. Defaults to the container's cwd; relative values resolve against it.",
+            "optional": true
+          },
+          "exclude": {
+            "type": "string | string[]",
+            "description": "Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts').",
+            "optional": true
+          },
+          "absolute": {
+            "type": "boolean",
+            "description": "When true, returned paths are absolute. Default false (paths relative to cwd).",
+            "optional": true
+          },
+          "dot": {
+            "type": "boolean",
+            "description": "Match dotfiles. Default false.",
+            "optional": true
+          },
+          "onlyFiles": {
+            "type": "boolean",
+            "description": "Only return files, not directories. Default true.",
+            "optional": true
+          },
+          "followSymlinks": {
+            "type": "boolean",
+            "description": "Follow symlinked directories while scanning. Default false.",
             "optional": true
           }
         }

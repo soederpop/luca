@@ -31,6 +31,21 @@ type WalkOptions = {
   relative?: boolean;
 };
 
+type GlobOptions = {
+  /** Directory to scan from. Defaults to the container's cwd; relative values resolve against it. */
+  cwd?: string;
+  /** Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts'). */
+  exclude?: string | string[];
+  /** When true, returned paths are absolute. Default false (paths relative to cwd). */
+  absolute?: boolean;
+  /** Match dotfiles. Default false. */
+  dot?: boolean;
+  /** Only return files, not directories. Default true. */
+  onlyFiles?: boolean;
+  /** Follow symlinked directories while scanning. Default false. */
+  followSymlinks?: boolean;
+};
+
 /**
  * Checks whether a path matches any of the given glob-like patterns.
  * Delegates to micromatch for correct glob semantics (**, *, {}, etc.).
@@ -50,6 +65,21 @@ function matchesWalkPattern(relativePath: string, entryName: string, patterns: s
   if (matchesPattern(relativePath, patterns)) return true
   const basenamePatterns = patterns.filter(p => !p.includes('/'))
   return basenamePatterns.length > 0 && matchesPattern(entryName, basenamePatterns)
+}
+
+/**
+ * Exclude matching for glob results, mirroring walk's gitignore-ish semantics:
+ * a slash-free pattern matches any path segment at any depth ('node_modules'
+ * drops node_modules/pkg/index.ts, '*.test.ts' drops nested test files), while
+ * a pattern containing '/' matches against the whole cwd-relative path.
+ */
+function matchesGlobExclude(relativePath: string, patterns: string[]): boolean {
+  if (!patterns.length) return false
+  if (matchesPattern(relativePath, patterns)) return true
+  const basenamePatterns = patterns.filter(p => !p.includes('/'))
+  if (!basenamePatterns.length) return false
+  const expanded = basenamePatterns.flatMap(p => [`**/${p}`, `**/${p}/**`])
+  return matchesPattern(relativePath, expanded)
 }
 
 /** Sync: check if a symlink target is a directory */
@@ -1446,6 +1476,92 @@ export class FS extends Feature {
     };
 
     return walk(resolvedBase);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Glob
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Synchronously finds files matching one or more glob patterns, powered by
+   * Bun's native glob engine. Returns paths relative to `cwd` (the container's
+   * cwd by default), sorted; pass `absolute: true` for absolute paths.
+   *
+   * Exclude semantics match {@link walk} (gitignore-ish): a slash-free pattern
+   * like `'node_modules'` or `'*.test.ts'` matches at any depth, while a
+   * pattern containing `/` matches the cwd-relative path.
+   *
+   * @param {string | string[]} pattern - Glob pattern(s) to match (e.g. 'src/**\/*.ts', ['*.md', 'docs/**\/*.md'])
+   * @param {GlobOptions} [options={}] - Options to configure the scan
+   * @param {string} [options.cwd] - Directory to scan from; defaults to the container's cwd
+   * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match any path segment
+   * @param {boolean} [options.absolute=false] - When true, returned paths are absolute
+   * @param {boolean} [options.dot=false] - Match dotfiles
+   * @param {boolean} [options.onlyFiles=true] - Only return files, not directories
+   * @param {boolean} [options.followSymlinks=false] - Follow symlinked directories while scanning
+   * @returns {string[]} Sorted array of matching paths
+   *
+   * @example
+   * ```typescript
+   * fs.ensureFile('glob-demo/a.ts', '')
+   * fs.ensureFile('glob-demo/nested/b.ts', '')
+   * fs.ensureFile('glob-demo/nested/b.test.ts', '')
+   * const files = fs.glob('glob-demo/**\/*.ts', { exclude: ['*.test.ts'] })
+   * // => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']
+   * ```
+   */
+  glob(pattern: string | string[], options: GlobOptions = {}): string[] {
+    const { cwd, exclude = [], absolute = false, dot = false, onlyFiles = true, followSymlinks = false } = options
+    const resolvedCwd = this.container.paths.resolve(cwd ?? '.')
+    const patterns = Array.isArray(pattern) ? pattern : [pattern]
+    const excludePatterns = Array.isArray(exclude) ? exclude : [exclude]
+
+    const seen = new Set<string>()
+    for (const p of patterns) {
+      for (const match of new Bun.Glob(p).scanSync({ cwd: resolvedCwd, dot, onlyFiles, followSymlinks })) {
+        if (excludePatterns.length && matchesGlobExclude(match, excludePatterns)) continue
+        seen.add(match)
+      }
+    }
+
+    const results = [...seen].sort()
+    return absolute ? results.map(m => resolve(resolvedCwd, m)) : results
+  }
+
+  /**
+   * Asynchronously finds files matching one or more glob patterns, powered by
+   * Bun's native glob engine. Returns paths relative to `cwd` (the container's
+   * cwd by default), sorted; pass `absolute: true` for absolute paths.
+   *
+   * Exclude semantics match {@link glob} and {@link walk}.
+   *
+   * @param {string | string[]} pattern - Glob pattern(s) to match (e.g. 'src/**\/*.ts', ['*.md', 'docs/**\/*.md'])
+   * @param {GlobOptions} [options={}] - Options to configure the scan (same as glob)
+   * @returns {Promise<string[]>} Promise resolving to a sorted array of matching paths
+   *
+   * @example
+   * ```typescript
+   * await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')
+   * const files = await fs.globAsync('glob-async-demo/**\/*.ts')
+   * // => ['glob-async-demo/nested/c.ts']
+   * ```
+   */
+  async globAsync(pattern: string | string[], options: GlobOptions = {}): Promise<string[]> {
+    const { cwd, exclude = [], absolute = false, dot = false, onlyFiles = true, followSymlinks = false } = options
+    const resolvedCwd = this.container.paths.resolve(cwd ?? '.')
+    const patterns = Array.isArray(pattern) ? pattern : [pattern]
+    const excludePatterns = Array.isArray(exclude) ? exclude : [exclude]
+
+    const seen = new Set<string>()
+    for (const p of patterns) {
+      for await (const match of new Bun.Glob(p).scan({ cwd: resolvedCwd, dot, onlyFiles, followSymlinks })) {
+        if (excludePatterns.length && matchesGlobExclude(match, excludePatterns)) continue
+        seen.add(match)
+      }
+    }
+
+    const results = [...seen].sort()
+    return absolute ? results.map(m => resolve(resolvedCwd, m)) : results
   }
 
   // ---------------------------------------------------------------------------
