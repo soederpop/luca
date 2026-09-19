@@ -1055,7 +1055,7 @@ setBuildTimeData('clients.openai', {
 
 setBuildTimeData('clients.rest', {
   "id": "clients.rest",
-  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
+  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.). **Response caching:** pass `cache: true` (or `cache: { ttl, methods, path }`) to serve repeated requests from a shared TTL cache backed by the `diskCache` feature — because it lives on disk, every process in the project shares the same entries, so scripts and daemons hitting the same API don't hammer the backend. Cache keys hash the method, baseURL, url, params, body, and headers (auth included, so different credentials never share entries). Only GET is cached by default (override with `methods`), only successful responses are stored, and cache failures fall through to the network. Per request: `{ cache: false }` bypasses, `{ cache: { ttl: 60 } }` overrides the TTL. Requests made through the raw `api.axios` instance are never cached.",
   "shortcut": "clients.rest",
   "className": "RestClient",
   "methods": {
@@ -1064,6 +1064,32 @@ setBuildTimeData('clients.rest', {
       "parameters": {},
       "required": [],
       "returns": "Promise<void>"
+    },
+    "cacheKeyFor": {
+      "description": "Deterministic cache key for a request. Hashes everything that can change the response: method, baseURL, url, params, body, and the merged headers (defaults + per-request, so different auth tokens never share an entry — and the hash keeps the token itself out of the cache directory).",
+      "parameters": {
+        "config": {
+          "type": "AxiosRequestConfig",
+          "description": "The axios request config about to be sent"
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "string"
+    },
+    "request": {
+      "description": "Shared request path for the non-throwing verb methods. Applies the response cache (when configured and the method is cacheable), sends the request, and returns the parsed body — or, on failure, the error as JSON (same returned-not-thrown semantics as the verb methods).",
+      "parameters": {
+        "config": {
+          "type": "RestRequestOptions",
+          "description": "Full axios request config, plus the per-request `cache` control"
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "Promise<any>"
     },
     "patch": {
       "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
@@ -1077,7 +1103,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (the partial update)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1104,7 +1130,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (the full replacement representation)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1131,7 +1157,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (JSON-encoded when the `json` option is set)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1158,7 +1184,7 @@ setBuildTimeData('clients.rest', {
           "description": "Query parameters (serialized into the query string)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1185,7 +1211,7 @@ setBuildTimeData('clients.rest', {
           "description": "Query parameters (serialized into the query string)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1223,7 +1249,7 @@ setBuildTimeData('clients.rest', {
       "description": "Shared implementation for the OrThrow request variants. Sends the request and returns the parsed body on success. On any failure — HTTP error status or connection-level failure — emits 'failure' and **throws** a real Error carrying `status` (numeric HTTP status, when there was a response), `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with a body summary in the message.",
       "parameters": {
         "config": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Full axios request config (method, url, data/params, headers, ...)"
         }
       },
@@ -1250,7 +1276,7 @@ setBuildTimeData('clients.rest', {
           "description": "Query parameters (serialized into the query string)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1277,7 +1303,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (JSON-encoded when the `json` option is set)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1304,7 +1330,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (the full replacement representation)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1331,7 +1357,7 @@ setBuildTimeData('clients.rest', {
           "description": "Request body (the partial update)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1358,7 +1384,7 @@ setBuildTimeData('clients.rest', {
           "description": "Query parameters (serialized into the query string)"
         },
         "options": {
-          "type": "AxiosRequestConfig",
+          "type": "RestRequestOptions",
           "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
@@ -1382,6 +1408,18 @@ setBuildTimeData('clients.rest', {
     "baseURL": {
       "description": "",
       "returns": "any"
+    },
+    "cacheConfig": {
+      "description": "Normalized response-cache configuration, or undefined when caching is disabled. `cache: true` in the client options means defaults (GET only, 300 second TTL).",
+      "returns": "RestClientCacheConfig | undefined"
+    },
+    "cachedMethods": {
+      "description": "HTTP methods served from the response cache (uppercased; default GET only).",
+      "returns": "string[]"
+    },
+    "responseCache": {
+      "description": "The diskCache instance backing the response cache, or undefined when caching is disabled or the container has no diskCache feature (e.g. a browser container — caching degrades to a no-op there, requests still work).",
+      "returns": "any"
     }
   },
   "events": {
@@ -1400,6 +1438,10 @@ setBuildTimeData('clients.rest', {
     {
       "language": "ts",
       "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')                 // parsed body, no .data unwrapping\nawait api.post('/users', { name: 'Alice' })\n\n// Health check: distinguish an up server from a down one by inspecting the result\nconst local = container.client('rest', { baseURL: 'http://localhost:4000' })\nconst result = await local.get('/health')\nif (result?.code || result?.name === 'AxiosError') {\n console.log('server is DOWN:', result.message)   // error, returned not thrown\n} else {\n console.log('server is UP:', result)             // parsed response body\n}"
+    },
+    {
+      "language": "ts",
+      "code": "// Shared TTL response cache: repeated GETs are served from disk for 5 minutes,\n// across every process in the project\nconst api = container.client('rest', {\n baseURL: 'https://api.example.com',\n json: true,\n cache: { ttl: 300 },\n})\nawait api.get('/rates')                       // network\nawait api.get('/rates')                       // cache hit (any process)\nawait api.get('/rates', {}, { cache: false }) // force a fresh fetch"
     }
   ]
 });
@@ -10896,6 +10938,293 @@ setBuildTimeData('features.llamaServer', {
       "code": "const llama = container.feature('llamaServer')\nif (!llama.binaryInstalled) await llama.downloadBinary()\nif (!llama.chatModelInstalled) await llama.downloadChatModel()\nconst baseURL = await llama.ensureChatServer() // http://127.0.0.1:8143/v1"
     }
   ]
+});
+
+setBuildTimeData('features.needle', {
+  "id": "features.needle",
+  "description": "Downloads and supervises local `needle` servers — Cactus Compute's tiny (35MB weights, <1MB engine, ~75MB resident) foundation model for tool calling, structured extraction, and routing. Apache-2.0, fully offline. Unlike a chat model, needle maps (query, tool list) → one JSON function call with a calibrated confidence. A server is bound to its tool set at startup, so this feature runs one detached server per tool set, on a port derived from the tool set's hash, shared by every luca process. Servers hold ~75MB and load in seconds; there is no idle watchdog — call `stopAll()` or `agent.stop()` when done. The engine binary and weights auto-download from Hugging Face on first use (~36MB total). **Gotcha:** needle always dispatches *some* call, even for off-topic queries (\"tell me a joke\" happily picks get_weather at 0.98 confidence). Include an explicit no-op/fallback tool in the set, or gate on `result.confidence`, when queries may fall outside the tool set.",
+  "shortcut": "features.needle",
+  "className": "Needle",
+  "methods": {
+    "downloadBinary": {
+      "description": "Download the platform engine binary from Hugging Face (~1MB). Skips when already installed. Emits downloadProgress events.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "downloadWeights": {
+      "description": "Download the needle3.cact weights (~35MB) into the shared model cache. Skips when already present. Emits downloadProgress events.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "install": {
+      "description": "Ensure both the engine binary and weights are installed, downloading whatever is missing (~36MB total, one time).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ binaryPath: string; weightsPath: string }>"
+    },
+    "agent": {
+      "description": "Get an agent for a tool set: ensures a detached needle server bound to these tools is healthy (spawning and auto-installing if needed) and returns a handle to it. Servers are shared across luca processes — a second call with the same tools reuses the running server.",
+      "parameters": {
+        "tools": {
+          "type": "NeedleTool[]",
+          "description": "The functions needle may call. `parameters` accepts a zod",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": ""
+            },
+            "description": {
+              "type": "string",
+              "description": ""
+            },
+            "parameters": {
+              "type": "object",
+              "description": ""
+            }
+          }
+        },
+        "opts": {
+          "type": "{ system?: string }",
+          "description": "Parameter opts",
+          "properties": {
+            "system": {
+              "type": "any",
+              "description": "Session facts like date, locale, or device"
+            }
+          }
+        }
+      },
+      "required": [
+        "tools"
+      ],
+      "returns": "Promise<NeedleAgent>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const agent = await container.feature('needle').agent([\n { name: 'set_timer', description: 'Set a countdown timer.',\n   parameters: z.object({ minutes: z.number().describe('Timer length in minutes') }) },\n])\nconst { function_calls, confidence } = await agent.complete('set a timer for 12 minutes')"
+        }
+      ]
+    },
+    "extract": {
+      "description": "Extract typed data from unstructured text: sugar over a single-tool agent whose parameters are your schema. Returns the extracted arguments (validated when the schema is zod) plus needle's confidence.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The unstructured input (an email, an invoice, a form blob)"
+        },
+        "schema": {
+          "type": "object",
+          "description": "A zod object schema or JSON Schema describing the fields to pull out"
+        },
+        "opts": {
+          "type": "{ system?: string }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "text",
+        "schema"
+      ],
+      "returns": "Promise<{ data: T; confidence: number; result: NeedleResult }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { data, confidence } = await container.feature('needle').extract(\n 'Invoice #4821 from Acme Corp, total $1,204.50 due March 3',\n z.object({\n   invoiceNumber: z.string().describe('The invoice number'),\n   vendor: z.string().describe('Who issued the invoice'),\n   total: z.number().describe('Total amount due'),\n }),\n)"
+        }
+      ]
+    },
+    "stopServer": {
+      "description": "Stop the needle server on a port via its pid file.",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "Parameter port"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "returns": "boolean"
+    },
+    "stopAll": {
+      "description": "Stop every needle server this machine has pid files for.",
+      "parameters": {},
+      "required": [],
+      "returns": "number"
+    },
+    "status": {
+      "description": "Install/runtime status snapshot — what's downloaded and which servers are answering right now.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{\n\t\tbinaryInstalled: boolean\n\t\tbinaryPath: string\n\t\tweightsInstalled: boolean\n\t\tweightsPath: string\n\t\tservers: Array<{ port: number; toolsHash: string; healthy: boolean }>\n\t}>"
+    }
+  },
+  "getters": {
+    "installDir": {
+      "description": "Directory the engine binary installs into.",
+      "returns": "string"
+    },
+    "binaryPath": {
+      "description": "Absolute path to the needle engine binary (whether or not installed yet).",
+      "returns": "string"
+    },
+    "binaryInstalled": {
+      "description": "Whether the engine binary is installed.",
+      "returns": "boolean"
+    },
+    "weightsPath": {
+      "description": "Absolute path where the needle3.cact weights live (whether or not downloaded yet).",
+      "returns": "string"
+    },
+    "weightsInstalled": {
+      "description": "Whether the model weights are downloaded.",
+      "returns": "boolean"
+    },
+    "ready": {
+      "description": "Whether needle is fully installed (engine binary + weights).",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "serverStopped": {
+      "name": "serverStopped",
+      "description": "Event emitted by Needle",
+      "arguments": {}
+    },
+    "serverStarted": {
+      "name": "serverStarted",
+      "description": "Event emitted by Needle",
+      "arguments": {}
+    },
+    "downloadProgress": {
+      "name": "downloadProgress",
+      "description": "Event emitted by Needle",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const needle = container.feature('needle')\nconst agent = await needle.agent([\n { name: 'get_weather', description: 'Get the current weather for a city.',\n   parameters: z.object({ city: z.string().describe('The city name') }) },\n])\nconst result = await agent.complete(\"what's it like in Lagos right now?\")\n// result.function_calls => [{ name: 'get_weather', arguments: { city: 'Lagos' } }]"
+    }
+  ],
+  "types": {
+    "NeedleTool": {
+      "description": "A tool offered to needle: standard tool-calling shape. `parameters` is a JSON Schema object, or a zod object schema (converted via z.toJSONSchema).",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": ""
+        },
+        "description": {
+          "type": "string",
+          "description": ""
+        },
+        "parameters": {
+          "type": "object",
+          "description": ""
+        }
+      }
+    },
+    "NeedleAgent": {
+      "description": "A handle to a running needle server bound to one tool set.",
+      "properties": {
+        "port": {
+          "type": "number",
+          "description": "Port the server is listening on."
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "Base URL of the server."
+        },
+        "toolsHash": {
+          "type": "string",
+          "description": "Hash identifying the tool set this server was started with."
+        }
+      }
+    },
+    "NeedleResult": {
+      "description": "The JSON object needle's server returns for every /complete turn.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": ""
+        },
+        "success": {
+          "type": "boolean",
+          "description": ""
+        },
+        "error": {
+          "type": "string | null",
+          "description": ""
+        },
+        "error_code": {
+          "type": "string | null",
+          "description": ""
+        },
+        "reason": {
+          "type": "string | null",
+          "description": ""
+        },
+        "function_calls": {
+          "type": "NeedleFunctionCall[]",
+          "description": ""
+        },
+        "suppressed_calls": {
+          "type": "NeedleFunctionCall[]",
+          "description": ""
+        },
+        "reasoning": {
+          "type": "string",
+          "description": ""
+        },
+        "confidence": {
+          "type": "number",
+          "description": "Calibrated confidence 0..1. Gate on this — needle always picks *some* tool, even for off-topic queries."
+        },
+        "prefill_tps": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "decode_tps": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "peak_ram_mb": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "validation": {
+          "type": "{ ungrounded: string[]; negation: boolean }",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "NeedleFunctionCall": {
+      "description": "One function call needle decided to dispatch.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": ""
+        },
+        "arguments": {
+          "type": "Record<string, unknown>",
+          "description": ""
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.networking', {
@@ -22151,7 +22480,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "clients.rest",
-    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
+    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.). **Response caching:** pass `cache: true` (or `cache: { ttl, methods, path }`) to serve repeated requests from a shared TTL cache backed by the `diskCache` feature — because it lives on disk, every process in the project shares the same entries, so scripts and daemons hitting the same API don't hammer the backend. Cache keys hash the method, baseURL, url, params, body, and headers (auth included, so different credentials never share entries). Only GET is cached by default (override with `methods`), only successful responses are stored, and cache failures fall through to the network. Per request: `{ cache: false }` bypasses, `{ cache: { ttl: 60 } }` overrides the TTL. Requests made through the raw `api.axios` instance are never cached.",
     "shortcut": "clients.rest",
     "className": "RestClient",
     "methods": {
@@ -22160,6 +22489,32 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "Promise<void>"
+      },
+      "cacheKeyFor": {
+        "description": "Deterministic cache key for a request. Hashes everything that can change the response: method, baseURL, url, params, body, and the merged headers (defaults + per-request, so different auth tokens never share an entry — and the hash keeps the token itself out of the cache directory).",
+        "parameters": {
+          "config": {
+            "type": "AxiosRequestConfig",
+            "description": "The axios request config about to be sent"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "string"
+      },
+      "request": {
+        "description": "Shared request path for the non-throwing verb methods. Applies the response cache (when configured and the method is cacheable), sends the request, and returns the parsed body — or, on failure, the error as JSON (same returned-not-thrown semantics as the verb methods).",
+        "parameters": {
+          "config": {
+            "type": "RestRequestOptions",
+            "description": "Full axios request config, plus the per-request `cache` control"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "Promise<any>"
       },
       "patch": {
         "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
@@ -22173,7 +22528,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (the partial update)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22200,7 +22555,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (the full replacement representation)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22227,7 +22582,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (JSON-encoded when the `json` option is set)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22254,7 +22609,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Query parameters (serialized into the query string)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22281,7 +22636,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Query parameters (serialized into the query string)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22319,7 +22674,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Shared implementation for the OrThrow request variants. Sends the request and returns the parsed body on success. On any failure — HTTP error status or connection-level failure — emits 'failure' and **throws** a real Error carrying `status` (numeric HTTP status, when there was a response), `code` (e.g. 'ECONNREFUSED'), and `data` (the parsed response body), with a body summary in the message.",
         "parameters": {
           "config": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Full axios request config (method, url, data/params, headers, ...)"
           }
         },
@@ -22346,7 +22701,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Query parameters (serialized into the query string)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22373,7 +22728,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (JSON-encoded when the `json` option is set)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22400,7 +22755,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (the full replacement representation)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22427,7 +22782,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Request body (the partial update)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22454,7 +22809,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Query parameters (serialized into the query string)"
           },
           "options": {
-            "type": "AxiosRequestConfig",
+            "type": "RestRequestOptions",
             "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
@@ -22478,6 +22833,18 @@ export const introspectionData: Record<string, any>[] = [
       "baseURL": {
         "description": "",
         "returns": "any"
+      },
+      "cacheConfig": {
+        "description": "Normalized response-cache configuration, or undefined when caching is disabled. `cache: true` in the client options means defaults (GET only, 300 second TTL).",
+        "returns": "RestClientCacheConfig | undefined"
+      },
+      "cachedMethods": {
+        "description": "HTTP methods served from the response cache (uppercased; default GET only).",
+        "returns": "string[]"
+      },
+      "responseCache": {
+        "description": "The diskCache instance backing the response cache, or undefined when caching is disabled or the container has no diskCache feature (e.g. a browser container — caching degrades to a no-op there, requests still work).",
+        "returns": "any"
       }
     },
     "events": {
@@ -22496,6 +22863,10 @@ export const introspectionData: Record<string, any>[] = [
       {
         "language": "ts",
         "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')                 // parsed body, no .data unwrapping\nawait api.post('/users', { name: 'Alice' })\n\n// Health check: distinguish an up server from a down one by inspecting the result\nconst local = container.client('rest', { baseURL: 'http://localhost:4000' })\nconst result = await local.get('/health')\nif (result?.code || result?.name === 'AxiosError') {\n console.log('server is DOWN:', result.message)   // error, returned not thrown\n} else {\n console.log('server is UP:', result)             // parsed response body\n}"
+      },
+      {
+        "language": "ts",
+        "code": "// Shared TTL response cache: repeated GETs are served from disk for 5 minutes,\n// across every process in the project\nconst api = container.client('rest', {\n baseURL: 'https://api.example.com',\n json: true,\n cache: { ttl: 300 },\n})\nawait api.get('/rates')                       // network\nawait api.get('/rates')                       // cache hit (any process)\nawait api.get('/rates', {}, { cache: false }) // force a fresh fetch"
       }
     ]
   },
@@ -31965,6 +32336,292 @@ export const introspectionData: Record<string, any>[] = [
         "code": "const llama = container.feature('llamaServer')\nif (!llama.binaryInstalled) await llama.downloadBinary()\nif (!llama.chatModelInstalled) await llama.downloadChatModel()\nconst baseURL = await llama.ensureChatServer() // http://127.0.0.1:8143/v1"
       }
     ]
+  },
+  {
+    "id": "features.needle",
+    "description": "Downloads and supervises local `needle` servers — Cactus Compute's tiny (35MB weights, <1MB engine, ~75MB resident) foundation model for tool calling, structured extraction, and routing. Apache-2.0, fully offline. Unlike a chat model, needle maps (query, tool list) → one JSON function call with a calibrated confidence. A server is bound to its tool set at startup, so this feature runs one detached server per tool set, on a port derived from the tool set's hash, shared by every luca process. Servers hold ~75MB and load in seconds; there is no idle watchdog — call `stopAll()` or `agent.stop()` when done. The engine binary and weights auto-download from Hugging Face on first use (~36MB total). **Gotcha:** needle always dispatches *some* call, even for off-topic queries (\"tell me a joke\" happily picks get_weather at 0.98 confidence). Include an explicit no-op/fallback tool in the set, or gate on `result.confidence`, when queries may fall outside the tool set.",
+    "shortcut": "features.needle",
+    "className": "Needle",
+    "methods": {
+      "downloadBinary": {
+        "description": "Download the platform engine binary from Hugging Face (~1MB). Skips when already installed. Emits downloadProgress events.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "downloadWeights": {
+        "description": "Download the needle3.cact weights (~35MB) into the shared model cache. Skips when already present. Emits downloadProgress events.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "install": {
+        "description": "Ensure both the engine binary and weights are installed, downloading whatever is missing (~36MB total, one time).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ binaryPath: string; weightsPath: string }>"
+      },
+      "agent": {
+        "description": "Get an agent for a tool set: ensures a detached needle server bound to these tools is healthy (spawning and auto-installing if needed) and returns a handle to it. Servers are shared across luca processes — a second call with the same tools reuses the running server.",
+        "parameters": {
+          "tools": {
+            "type": "NeedleTool[]",
+            "description": "The functions needle may call. `parameters` accepts a zod",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": ""
+              },
+              "description": {
+                "type": "string",
+                "description": ""
+              },
+              "parameters": {
+                "type": "object",
+                "description": ""
+              }
+            }
+          },
+          "opts": {
+            "type": "{ system?: string }",
+            "description": "Parameter opts",
+            "properties": {
+              "system": {
+                "type": "any",
+                "description": "Session facts like date, locale, or device"
+              }
+            }
+          }
+        },
+        "required": [
+          "tools"
+        ],
+        "returns": "Promise<NeedleAgent>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const agent = await container.feature('needle').agent([\n { name: 'set_timer', description: 'Set a countdown timer.',\n   parameters: z.object({ minutes: z.number().describe('Timer length in minutes') }) },\n])\nconst { function_calls, confidence } = await agent.complete('set a timer for 12 minutes')"
+          }
+        ]
+      },
+      "extract": {
+        "description": "Extract typed data from unstructured text: sugar over a single-tool agent whose parameters are your schema. Returns the extracted arguments (validated when the schema is zod) plus needle's confidence.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The unstructured input (an email, an invoice, a form blob)"
+          },
+          "schema": {
+            "type": "object",
+            "description": "A zod object schema or JSON Schema describing the fields to pull out"
+          },
+          "opts": {
+            "type": "{ system?: string }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "text",
+          "schema"
+        ],
+        "returns": "Promise<{ data: T; confidence: number; result: NeedleResult }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { data, confidence } = await container.feature('needle').extract(\n 'Invoice #4821 from Acme Corp, total $1,204.50 due March 3',\n z.object({\n   invoiceNumber: z.string().describe('The invoice number'),\n   vendor: z.string().describe('Who issued the invoice'),\n   total: z.number().describe('Total amount due'),\n }),\n)"
+          }
+        ]
+      },
+      "stopServer": {
+        "description": "Stop the needle server on a port via its pid file.",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "Parameter port"
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "returns": "boolean"
+      },
+      "stopAll": {
+        "description": "Stop every needle server this machine has pid files for.",
+        "parameters": {},
+        "required": [],
+        "returns": "number"
+      },
+      "status": {
+        "description": "Install/runtime status snapshot — what's downloaded and which servers are answering right now.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{\n\t\tbinaryInstalled: boolean\n\t\tbinaryPath: string\n\t\tweightsInstalled: boolean\n\t\tweightsPath: string\n\t\tservers: Array<{ port: number; toolsHash: string; healthy: boolean }>\n\t}>"
+      }
+    },
+    "getters": {
+      "installDir": {
+        "description": "Directory the engine binary installs into.",
+        "returns": "string"
+      },
+      "binaryPath": {
+        "description": "Absolute path to the needle engine binary (whether or not installed yet).",
+        "returns": "string"
+      },
+      "binaryInstalled": {
+        "description": "Whether the engine binary is installed.",
+        "returns": "boolean"
+      },
+      "weightsPath": {
+        "description": "Absolute path where the needle3.cact weights live (whether or not downloaded yet).",
+        "returns": "string"
+      },
+      "weightsInstalled": {
+        "description": "Whether the model weights are downloaded.",
+        "returns": "boolean"
+      },
+      "ready": {
+        "description": "Whether needle is fully installed (engine binary + weights).",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "serverStopped": {
+        "name": "serverStopped",
+        "description": "Event emitted by Needle",
+        "arguments": {}
+      },
+      "serverStarted": {
+        "name": "serverStarted",
+        "description": "Event emitted by Needle",
+        "arguments": {}
+      },
+      "downloadProgress": {
+        "name": "downloadProgress",
+        "description": "Event emitted by Needle",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const needle = container.feature('needle')\nconst agent = await needle.agent([\n { name: 'get_weather', description: 'Get the current weather for a city.',\n   parameters: z.object({ city: z.string().describe('The city name') }) },\n])\nconst result = await agent.complete(\"what's it like in Lagos right now?\")\n// result.function_calls => [{ name: 'get_weather', arguments: { city: 'Lagos' } }]"
+      }
+    ],
+    "types": {
+      "NeedleTool": {
+        "description": "A tool offered to needle: standard tool-calling shape. `parameters` is a JSON Schema object, or a zod object schema (converted via z.toJSONSchema).",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": ""
+          },
+          "parameters": {
+            "type": "object",
+            "description": ""
+          }
+        }
+      },
+      "NeedleAgent": {
+        "description": "A handle to a running needle server bound to one tool set.",
+        "properties": {
+          "port": {
+            "type": "number",
+            "description": "Port the server is listening on."
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "Base URL of the server."
+          },
+          "toolsHash": {
+            "type": "string",
+            "description": "Hash identifying the tool set this server was started with."
+          }
+        }
+      },
+      "NeedleResult": {
+        "description": "The JSON object needle's server returns for every /complete turn.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": ""
+          },
+          "success": {
+            "type": "boolean",
+            "description": ""
+          },
+          "error": {
+            "type": "string | null",
+            "description": ""
+          },
+          "error_code": {
+            "type": "string | null",
+            "description": ""
+          },
+          "reason": {
+            "type": "string | null",
+            "description": ""
+          },
+          "function_calls": {
+            "type": "NeedleFunctionCall[]",
+            "description": ""
+          },
+          "suppressed_calls": {
+            "type": "NeedleFunctionCall[]",
+            "description": ""
+          },
+          "reasoning": {
+            "type": "string",
+            "description": ""
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Calibrated confidence 0..1. Gate on this — needle always picks *some* tool, even for off-topic queries."
+          },
+          "prefill_tps": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "decode_tps": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "peak_ram_mb": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "validation": {
+            "type": "{ ungrounded: string[]; negation: boolean }",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "NeedleFunctionCall": {
+        "description": "One function call needle decided to dispatch.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "arguments": {
+            "type": "Record<string, unknown>",
+            "description": ""
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.networking",
