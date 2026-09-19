@@ -20213,7 +20213,7 @@ setBuildTimeData('features.yamlTree', {
 
 setBuildTimeData('features.zeroshotClassifier', {
   "id": "features.zeroshotClassifier",
-  "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. The classifier runs its own llama-server (default port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves. Weights download on first ensureReady().",
+  "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. By default the classifier runs its own llama-server (port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves; weights download on first ensureReady(). Set baseURL/apiKey/ model to classify against any OpenAI-compatible endpoint instead (OpenAI, vLLM, LM Studio, ollama — anything that returns top_logprobs; the Anthropic API does not), or provider to resolve one from modelProviders profiles on an AGI container. Remote endpoints skip the GBNF grammar (a llama.cpp extension) and rely on the prompt — the probabilities are read from the letter entries of top_logprobs either way.",
   "shortcut": "features.zeroshotClassifier",
   "className": "ZeroshotClassifier",
   "methods": {
@@ -20273,9 +20273,21 @@ setBuildTimeData('features.zeroshotClassifier', {
       "description": "The configured options, normalized to { label, description? }.",
       "returns": "Array<{ label: string; description?: string }>"
     },
-    "modelPath": {
-      "description": "Absolute path of the classifier model's GGUF weights.",
+    "model": {
+      "description": "The configured model: the explicit option, else the pinned local default.",
       "returns": "string"
+    },
+    "modelPath": {
+      "description": "Absolute path of the classifier model's GGUF weights (local mode only).",
+      "returns": "string"
+    },
+    "remoteBaseURL": {
+      "description": "The remote base URL in effect, or undefined when running the local server.",
+      "returns": "string | undefined"
+    },
+    "isRemote": {
+      "description": "Whether classifications go to a remote endpoint instead of the self-managed local server.",
+      "returns": "boolean"
     },
     "baseURL": {
       "description": "The OpenAI-compatible base URL of the classifier server.",
@@ -41821,7 +41833,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.zeroshotClassifier",
-    "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. The classifier runs its own llama-server (default port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves. Weights download on first ensureReady().",
+    "description": "Zero-shot text classifier backed by a local llama-server. Configure it with a system prompt and a set of options; run() returns a probability for every option in a single forward pass. How it works: the options are presented as a lettered list, a GBNF grammar forces the model to answer with exactly one letter token, and the logprobs of that single position are read as the probability distribution over all options — no sampling noise, no output parsing, one token generated. By default the classifier runs its own llama-server (port 8145, Qwen3-4B Instruct) so it never fights the default chat server over which model a port serves; weights download on first ensureReady(). Set baseURL/apiKey/ model to classify against any OpenAI-compatible endpoint instead (OpenAI, vLLM, LM Studio, ollama — anything that returns top_logprobs; the Anthropic API does not), or provider to resolve one from modelProviders profiles on an AGI container. Remote endpoints skip the GBNF grammar (a llama.cpp extension) and rely on the prompt — the probabilities are read from the letter entries of top_logprobs either way.",
     "shortcut": "features.zeroshotClassifier",
     "className": "ZeroshotClassifier",
     "methods": {
@@ -41881,9 +41893,21 @@ export const introspectionData: Record<string, any>[] = [
         "description": "The configured options, normalized to { label, description? }.",
         "returns": "Array<{ label: string; description?: string }>"
       },
-      "modelPath": {
-        "description": "Absolute path of the classifier model's GGUF weights.",
+      "model": {
+        "description": "The configured model: the explicit option, else the pinned local default.",
         "returns": "string"
+      },
+      "modelPath": {
+        "description": "Absolute path of the classifier model's GGUF weights (local mode only).",
+        "returns": "string"
+      },
+      "remoteBaseURL": {
+        "description": "The remote base URL in effect, or undefined when running the local server.",
+        "returns": "string | undefined"
+      },
+      "isRemote": {
+        "description": "Whether classifications go to a remote endpoint instead of the self-managed local server.",
+        "returns": "boolean"
       },
       "baseURL": {
         "description": "The OpenAI-compatible base URL of the classifier server.",

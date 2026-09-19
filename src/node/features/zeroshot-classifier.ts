@@ -24,7 +24,10 @@ export const ZeroshotClassifierOptionsSchema = FeatureOptionsSchema.extend({
 		'You are a precise classifier. Read the input and choose the single best matching option. Answer with only the letter of that option.'
 	).describe('System prompt that frames the classification task'),
 	availableOptions: z.array(ClassifierOptionSchema).default([]).describe('The options to classify into (max 20). Strings or { label, description } objects'),
-	model: z.string().default('Qwen3-4B-Instruct-2507-Q4_K_M').describe('Local chat model to classify with (must exist in CHAT_MODEL_SOURCES or be an absolute GGUF path)'),
+	model: z.string().optional().describe('Model to classify with. Local mode: a CHAT_MODEL_SOURCES name or absolute GGUF path (default Qwen3-4B-Instruct-2507-Q4_K_M). Remote mode (baseURL set): the model name the endpoint expects — required'),
+	baseURL: z.string().optional().describe('OpenAI-compatible /v1 base URL to classify against instead of a self-managed local llama-server (falls back to the LUCA_CLASSIFIER_BASE_URL env var). The endpoint must support top_logprobs — the Anthropic API does not'),
+	apiKey: z.string().optional().describe('API key for the remote baseURL (falls back to the LUCA_CLASSIFIER_API_KEY env var)'),
+	provider: z.string().optional().describe('A modelProviders profile id to resolve baseURL/apiKey/model from (AGI containers only). Ignored when baseURL is set'),
 	port: z.number().default(8145).describe('Port the classifier llama-server listens on (separate from the default chat server so models never collide)'),
 	contextSize: z.number().default(8192).describe('Context size (-c) passed to the classifier server'),
 	readyTimeoutMs: z.number().default(180_000).describe('Max time to wait for a spawned server to answer /health'),
@@ -44,6 +47,18 @@ export const ZeroshotClassifierEventsSchema = FeatureEventsSchema.extend({
 }).describe('Zero-shot classifier events')
 
 export type ZeroshotClassifierOptions = z.infer<typeof ZeroshotClassifierOptionsSchema>
+
+/** Default local classifier model — non-thinking Qwen3 instruct, ~2.5GB. */
+export const DEFAULT_CLASSIFIER_MODEL = 'Qwen3-4B-Instruct-2507-Q4_K_M'
+
+/** Where a classification request will be sent, and what that endpoint allows. */
+interface ResolvedEndpoint {
+	baseURL: string
+	model: string
+	apiKey?: string
+	/** GBNF grammar is a llama.cpp extension — only sent to the self-managed local server. */
+	grammar: boolean
+}
 export type ZeroshotClassifierState = z.infer<typeof ZeroshotClassifierStateSchema>
 export type ClassifierOption = z.infer<typeof ClassifierOptionSchema>
 
@@ -138,9 +153,15 @@ export function probabilitiesFromLogprobs(
  * of that single position are read as the probability distribution over all
  * options — no sampling noise, no output parsing, one token generated.
  *
- * The classifier runs its own llama-server (default port 8145, Qwen3-4B
+ * By default the classifier runs its own llama-server (port 8145, Qwen3-4B
  * Instruct) so it never fights the default chat server over which model a
- * port serves. Weights download on first ensureReady().
+ * port serves; weights download on first ensureReady(). Set baseURL/apiKey/
+ * model to classify against any OpenAI-compatible endpoint instead (OpenAI,
+ * vLLM, LM Studio, ollama — anything that returns top_logprobs; the Anthropic
+ * API does not), or provider to resolve one from modelProviders profiles on
+ * an AGI container. Remote endpoints skip the GBNF grammar (a llama.cpp
+ * extension) and rely on the prompt — the probabilities are read from the
+ * letter entries of top_logprobs either way.
  *
  * @example
  * ```typescript
@@ -171,9 +192,24 @@ export class ZeroshotClassifier extends Feature<ZeroshotClassifierState, Zerosho
 		return normalizeOptions(this.options.availableOptions)
 	}
 
-	/** Absolute path of the classifier model's GGUF weights. */
+	/** The configured model: the explicit option, else the pinned local default. */
+	get model(): string {
+		return this.options.model ?? DEFAULT_CLASSIFIER_MODEL
+	}
+
+	/** Absolute path of the classifier model's GGUF weights (local mode only). */
 	get modelPath(): string {
-		return this.options.model.startsWith('/') ? this.options.model : chatModelPath(this.options.model)
+		return this.model.startsWith('/') ? this.model : chatModelPath(this.model)
+	}
+
+	/** The remote base URL in effect, or undefined when running the local server. */
+	get remoteBaseURL(): string | undefined {
+		return this.options.baseURL ?? process.env.LUCA_CLASSIFIER_BASE_URL ?? undefined
+	}
+
+	/** Whether classifications go to a remote endpoint instead of the self-managed local server. */
+	get isRemote(): boolean {
+		return !!(this.remoteBaseURL || this.options.provider)
 	}
 
 	/** The OpenAI-compatible base URL of the classifier server. */
@@ -193,9 +229,10 @@ export class ZeroshotClassifier extends Feature<ZeroshotClassifierState, Zerosho
 	 * ```
 	 */
 	async ensureReady(): Promise<string> {
+		if (this.isRemote) return (await this.resolveEndpoint()).baseURL
 		const llama = this.container.feature('llamaServer')
 		if (!llama.binaryInstalled) await llama.downloadBinary()
-		if (CHAT_MODEL_SOURCES[this.options.model]) await llama.downloadChatModel(this.options.model)
+		if (CHAT_MODEL_SOURCES[this.model]) await llama.downloadChatModel(this.model)
 		return this.ensureServer()
 	}
 
@@ -233,16 +270,23 @@ export class ZeroshotClassifier extends Feature<ZeroshotClassifierState, Zerosho
 			throw new Error(`zeroshotClassifier supports at most ${OPTION_LETTERS.length} options (top_logprobs caps at 20).`)
 		}
 
-		const baseURL = await this.ensureServer()
-		const response = await fetch(`${baseURL}/chat/completions`, {
+		const endpoint = await this.resolveEndpoint()
+		const response = await fetch(`${endpoint.baseURL}/chat/completions`, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: {
+				'content-type': 'application/json',
+				...(endpoint.apiKey ? { authorization: `Bearer ${endpoint.apiKey}` } : {}),
+			},
 			body: JSON.stringify({
-				model: this.options.model,
+				model: endpoint.model,
 				messages: buildMessages(this.options.systemPrompt, options, input),
 				max_tokens: 1,
 				temperature: 0,
-				grammar: optionGrammar(options.length),
+				// Grammar hard-constrains output to one letter, but only llama.cpp
+				// knows the parameter (OpenAI rejects unknown fields). Remote mode
+				// relies on the prompt instead — safe, because the result is read
+				// from the letter entries of top_logprobs either way.
+				...(endpoint.grammar ? { grammar: optionGrammar(options.length) } : {}),
 				logprobs: true,
 				top_logprobs: 20,
 			}),
@@ -275,6 +319,48 @@ export class ZeroshotClassifier extends Feature<ZeroshotClassifierState, Zerosho
 	}
 
 	// ── Internals ─────────────────────────────────────────────────────
+
+	/**
+	 * Where this classification goes. Precedence: explicit baseURL (or the
+	 * LUCA_CLASSIFIER_BASE_URL env var) → a modelProviders profile → the
+	 * self-managed local llama-server. Only the self-managed server gets the
+	 * GBNF grammar; everything else is plain OpenAI chat-completions.
+	 */
+	private async resolveEndpoint(): Promise<ResolvedEndpoint> {
+		const remoteBaseURL = this.remoteBaseURL
+		if (remoteBaseURL) {
+			if (!this.options.model) {
+				throw new Error('zeroshotClassifier with a baseURL needs an explicit model option — there is no sensible default for a remote endpoint.')
+			}
+			return {
+				baseURL: remoteBaseURL.replace(/\/$/, ''),
+				model: this.options.model,
+				apiKey: this.options.apiKey ?? process.env.LUCA_CLASSIFIER_API_KEY,
+				grammar: false,
+			}
+		}
+
+		if (this.options.provider) {
+			// modelProviders is an AGI feature — a plain node container doesn't have it.
+			if (!this.container.features.available.includes('modelProviders')) {
+				throw new Error('The provider option needs a container with the modelProviders feature (an AGI container). Use baseURL/apiKey instead.')
+			}
+			const resolved = await (this.container.feature('modelProviders' as any) as any).resolve({
+				provider: this.options.provider,
+				model: this.options.model,
+			})
+			if (resolved.apiMode !== 'openai-chat-completions') {
+				throw new Error(
+					`Provider "${this.options.provider}" speaks ${resolved.apiMode}, but zeroshotClassifier needs an ` +
+					'openai-chat-completions endpoint with logprob support (the Anthropic API exposes no logprobs at all).'
+				)
+			}
+			if (!resolved.baseURL) throw new Error(`Provider "${this.options.provider}" resolved without a baseURL.`)
+			return { baseURL: resolved.baseURL.replace(/\/$/, ''), model: resolved.model, apiKey: resolved.apiKey, grammar: false }
+		}
+
+		return { baseURL: await this.ensureServer(), model: this.model, grammar: true }
+	}
 
 	private async ensureServer(): Promise<string> {
 		const baseURL = await ensureServerProcess({
