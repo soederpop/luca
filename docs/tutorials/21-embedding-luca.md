@@ -12,7 +12,7 @@ The canonical way to use Luca is the standalone binary — see [Getting Started]
 Use the **binary** when:
 
 - You're starting a new project or tool
-- You want zero npm dependencies and no supply chain exposure
+- You want zero npm dependencies — one audited binary instead of a transitive package tree
 - You want to ship your project as its own standalone binary with `luca bundle`
 
 Embed Luca as a **package** when:

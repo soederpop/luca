@@ -1,7 +1,9 @@
+# Python bridge for the luca runtime — this and main.py / uv.lock are
+# intentional in a TypeScript repo, not leftovers.
 [project]
 name = "luca2"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python bridge for the luca runtime"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []

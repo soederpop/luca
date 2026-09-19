@@ -5,7 +5,7 @@ tags: [setup, quickstart, project, init, install, bundle]
 
 # Getting Started with Luca
 
-Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No `npm install`, no `node_modules`, no supply chain exposure.
+Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No `npm install`, no `node_modules`, no postinstall scripts — one audited surface, one hash to verify, one thing to patch.
 
 This tutorial takes you from nothing to a shipped binary of your own.
 
