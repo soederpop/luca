@@ -38,8 +38,12 @@ export const DockerStateSchema = FeatureStateSchema.extend({
   containers: z.array(DockerContainerSchema).describe('List of known Docker containers'),
   /** List of known Docker images */
   images: z.array(DockerImageSchema).describe('List of known Docker images'),
-  /** Whether Docker CLI is available on this system */
-  isDockerAvailable: z.boolean().describe('Whether Docker CLI is available on this system'),
+  /** Whether Docker is installed and its daemon is reachable */
+  isDockerAvailable: z.boolean().describe('Whether Docker is installed and its daemon is reachable'),
+  /** Whether the Docker CLI is installed */
+  isDockerInstalled: z.boolean().describe('Whether the Docker CLI is installed on this system'),
+  /** Whether the Docker daemon is reachable */
+  isDaemonRunning: z.boolean().describe('Whether the Docker daemon is reachable'),
   /** Last error message from a Docker operation */
   lastError: z.string().optional().describe('Last error message from a Docker operation'),
 })
@@ -52,6 +56,12 @@ export const DockerOptionsSchema = FeatureOptionsSchema.extend({
   timeout: z.number().optional().describe('Command timeout in milliseconds'),
   /** Auto refresh containers/images on operations */
   autoRefresh: z.boolean().optional().describe('Auto refresh containers/images after operations'),
+  /** Start Docker Desktop or the Linux Docker service when the daemon is unavailable */
+  autoStartDaemon: z.boolean().optional().describe('Automatically start the Docker daemon when enabling the feature'),
+  /** Maximum time to wait for a started Docker daemon */
+  daemonStartTimeout: z.number().optional().describe('Maximum time in milliseconds to wait for the Docker daemon to start'),
+  /** Interval between Docker daemon readiness checks */
+  daemonPollInterval: z.number().optional().describe('Interval in milliseconds between Docker daemon readiness checks'),
 })
 export type DockerOptions = z.infer<typeof DockerOptionsSchema>
 
@@ -246,7 +256,9 @@ export class Docker extends Feature<DockerState, DockerOptions> {
       ...super.initialState,
       containers: [],
       images: [],
-      isDockerAvailable: false
+      isDockerAvailable: false,
+      isDockerInstalled: false,
+      isDaemonRunning: false,
     }
   }
 
@@ -268,9 +280,9 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Check if Docker is available and working.
+   * Check if the Docker CLI is installed and its daemon is reachable.
    *
-   * @returns Promise resolving to true if Docker CLI is accessible, false otherwise
+   * @returns Promise resolving to true if the Docker daemon is accessible, false otherwise
    * @example
    * ```typescript
    * const available = await docker.checkDockerAvailability()
@@ -279,22 +291,100 @@ export class Docker extends Feature<DockerState, DockerOptions> {
    */
   async checkDockerAvailability(): Promise<boolean> {
     try {
-      const result = await this.proc.spawnAndCapture(this.dockerPath, ['--version'])
-      
-      if (result.exitCode === 0) {
-        this.setState({ isDockerAvailable: true, lastError: undefined })
-        return true
-      } else {
-        this.setState({ isDockerAvailable: false, lastError: 'Docker command failed' })
+      const version = await this.proc.spawnAndCapture(this.dockerPath, ['--version'])
+
+      if (version.exitCode !== 0 || version.error) {
+        const message = version.stderr.trim() || version.error?.message || 'Docker CLI is not installed'
+        this.setState({ isDockerAvailable: false, isDockerInstalled: false, isDaemonRunning: false, lastError: message })
         return false
       }
+
+      const info = await this.proc.spawnAndCapture(this.dockerPath, ['info', '--format', '{{.ServerVersion}}'])
+      const running = info.exitCode === 0 && !info.error
+      this.setState({
+        isDockerAvailable: running,
+        isDockerInstalled: true,
+        isDaemonRunning: running,
+        lastError: running ? undefined : info.stderr.trim() || info.error?.message || 'Docker daemon is not running',
+      })
+      return running
     } catch (error) {
       this.setState({ 
-        isDockerAvailable: false, 
+        isDockerAvailable: false,
+        isDockerInstalled: false,
+        isDaemonRunning: false,
         lastError: error instanceof Error ? error.message : 'Unknown error'
       })
       return false
     }
+  }
+
+  /**
+   * Ask the operating system to start Docker.
+   *
+   * On macOS this launches Docker Desktop. On Linux it first tries the rootless
+   * user service, then the system Docker service. This method never invokes sudo.
+   * Use `ensureDaemonRunning()` when the caller also needs to wait for readiness.
+   */
+  async startDaemon(): Promise<void> {
+    const os = this.container.feature('os')
+
+    if (os.isMac) {
+      const result = await this.proc.spawnAndCapture('open', ['-a', 'Docker'])
+      if (result.exitCode === 0 && !result.error) return
+      const message = result.stderr.trim() || result.error?.message || 'Failed to launch Docker Desktop'
+      this.setState({ lastError: message })
+      throw new Error(message)
+    }
+
+    if (os.isLinux) {
+      const attempts: Array<[string, string[]]> = [
+        ['systemctl', ['--user', 'start', 'docker']],
+        ['systemctl', ['start', 'docker']],
+      ]
+      const errors: string[] = []
+      for (const [command, args] of attempts) {
+        const result = await this.proc.spawnAndCapture(command, args)
+        if (result.exitCode === 0 && !result.error) return
+        const detail = result.stderr.trim() || result.error?.message
+        if (detail) errors.push(detail)
+      }
+      const message = errors.at(-1) || 'Failed to start the Docker service'
+      this.setState({ lastError: message })
+      throw new Error(`${message}. Start it with appropriate privileges and try again.`)
+    }
+
+    const message = `Starting Docker is not supported on ${os.platform}`
+    this.setState({ lastError: message })
+    throw new Error(message)
+  }
+
+  /**
+   * Ensure the Docker daemon is reachable, starting it when necessary and
+   * polling until it is ready.
+   *
+   * @param options - Readiness timing options
+   * @param options.timeout - Maximum wait in milliseconds
+   * @param options.pollInterval - Delay between readiness checks in milliseconds
+   */
+  async ensureDaemonRunning(options: { timeout?: number; pollInterval?: number } = {}): Promise<void> {
+    if (await this.checkDockerAvailability()) return
+    if (!this.state.current.isDockerInstalled) throw new Error(this.state.current.lastError || 'Docker CLI is not installed')
+
+    await this.startDaemon()
+    const timeout = options.timeout ?? this.options.daemonStartTimeout ?? 60_000
+    const pollInterval = options.pollInterval ?? this.options.daemonPollInterval ?? 1_000
+    const deadline = Date.now() + timeout
+
+    while (Date.now() <= deadline) {
+      if (await this.checkDockerAvailability()) return
+      if (Date.now() >= deadline) break
+      await this.container.utils.sleep(Math.min(pollInterval, Math.max(0, deadline - Date.now())))
+    }
+
+    const message = `Docker daemon did not become ready within ${timeout}ms`
+    this.setState({ lastError: message })
+    throw new Error(message)
   }
 
   /**
@@ -1078,7 +1168,10 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     await super.enable(options)
     
     // Check Docker availability on enable
-    await this.checkDockerAvailability()
+    const available = await this.checkDockerAvailability()
+    if (!available && this.state.current.isDockerInstalled && this.options.autoStartDaemon) {
+      await this.ensureDaemonRunning()
+    }
     
     // Initial refresh of containers and images if Docker is available
     if (this.state.current.isDockerAvailable && this.options.autoRefresh) {

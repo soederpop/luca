@@ -20,11 +20,62 @@ describe('Docker CLI contracts', () => {
     const d = docker(); d.state.set('lastError', 'old')
     expect(await d.checkDockerAvailability()).toBe(true)
     expect(d.state.get('lastError')).toBeUndefined()
+    expect(d.state.get('isDockerInstalled')).toBe(true)
+    expect(d.state.get('isDaemonRunning')).toBe(true)
     spawn.mockResolvedValueOnce(result('', 1))
     expect(await d.checkDockerAvailability()).toBe(false)
+    expect(d.state.get('isDockerInstalled')).toBe(false)
     spawn.mockRejectedValueOnce(new Error('missing binary'))
     expect(await d.checkDockerAvailability()).toBe(false)
     expect(d.state.get('lastError')).toBe('missing binary')
+  })
+  it('distinguishes an installed CLI from an unavailable daemon', async () => {
+    spawn.mockResolvedValueOnce(result('Docker version 28')).mockResolvedValueOnce(result('', 1, 'Cannot connect to the Docker daemon'))
+    const d = docker()
+    expect(await d.checkDockerAvailability()).toBe(false)
+    expect(d.state.get('isDockerInstalled')).toBe(true)
+    expect(d.state.get('isDaemonRunning')).toBe(false)
+    expect(d.state.get('lastError')).toContain('Cannot connect')
+    expect(calls()).toEqual([['--version'], ['info', '--format', '{{.ServerVersion}}']])
+  })
+  it('launches Docker Desktop on macOS', async () => {
+    const os = c.feature('os')
+    Object.defineProperty(os, 'isMac', { configurable: true, value: true })
+    Object.defineProperty(os, 'isLinux', { configurable: true, value: false })
+    await docker().startDaemon()
+    expect(spawn.mock.calls.map(call => [call[0], call[1]])).toEqual([['open', ['-a', 'Docker']]])
+  })
+  it('starts the rootless or system Docker service on Linux without invoking sudo', async () => {
+    const os = c.feature('os')
+    Object.defineProperty(os, 'isMac', { configurable: true, value: false })
+    Object.defineProperty(os, 'isLinux', { configurable: true, value: true })
+    spawn.mockResolvedValueOnce(result('', 1, 'no user service')).mockResolvedValueOnce(result())
+    await docker().startDaemon()
+    expect(spawn.mock.calls.map(call => [call[0], call[1]])).toEqual([
+      ['systemctl', ['--user', 'start', 'docker']],
+      ['systemctl', ['start', 'docker']],
+    ])
+  })
+  it('starts a stopped daemon and waits until it is reachable', async () => {
+    const os = c.feature('os')
+    Object.defineProperty(os, 'isMac', { configurable: true, value: true })
+    Object.defineProperty(os, 'isLinux', { configurable: true, value: false })
+    spawn
+      .mockResolvedValueOnce(result('Docker version 28'))
+      .mockResolvedValueOnce(result('', 1, 'daemon stopped'))
+      .mockResolvedValueOnce(result())
+      .mockResolvedValueOnce(result('Docker version 28'))
+      .mockResolvedValueOnce(result('28.0.0'))
+    const d = docker()
+    await d.ensureDaemonRunning({ timeout: 10, pollInterval: 1 })
+    expect(d.state.get('isDaemonRunning')).toBe(true)
+    expect(spawn.mock.calls.map(call => [call[0], call[1]])).toEqual([
+      ['/fake/docker', ['--version']],
+      ['/fake/docker', ['info', '--format', '{{.ServerVersion}}']],
+      ['open', ['-a', 'Docker']],
+      ['/fake/docker', ['--version']],
+      ['/fake/docker', ['info', '--format', '{{.ServerVersion}}']],
+    ])
   })
   it('refuses operations when Docker is unavailable', async () => {
     const d = docker(); d.state.set('isDockerAvailable', false)

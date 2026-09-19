@@ -9629,7 +9629,7 @@ setBuildTimeData('features.docker', {
       "returns": "void"
     },
     "checkDockerAvailability": {
-      "description": "Check if Docker is available and working.",
+      "description": "Check if the Docker CLI is installed and its daemon is reachable.",
       "parameters": {},
       "required": [],
       "returns": "Promise<boolean>",
@@ -9639,6 +9639,33 @@ setBuildTimeData('features.docker', {
           "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
         }
       ]
+    },
+    "startDaemon": {
+      "description": "Ask the operating system to start Docker. On macOS this launches Docker Desktop. On Linux it first tries the rootless user service, then the system Docker service. This method never invokes sudo. Use `ensureDaemonRunning()` when the caller also needs to wait for readiness.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "ensureDaemonRunning": {
+      "description": "Ensure the Docker daemon is reachable, starting it when necessary and polling until it is ready.",
+      "parameters": {
+        "options": {
+          "type": "{ timeout?: number; pollInterval?: number }",
+          "description": "Readiness timing options",
+          "properties": {
+            "timeout": {
+              "type": "any",
+              "description": "Maximum wait in milliseconds"
+            },
+            "pollInterval": {
+              "type": "any",
+              "description": "Delay between readiness checks in milliseconds"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
     },
     "listContainers": {
       "description": "List all containers (running and stopped).",
@@ -40428,7 +40455,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "checkDockerAvailability": {
-        "description": "Check if Docker is available and working.",
+        "description": "Check if the Docker CLI is installed and its daemon is reachable.",
         "parameters": {},
         "required": [],
         "returns": "Promise<boolean>",
@@ -40438,6 +40465,33 @@ export const introspectionData: Record<string, any>[] = [
             "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
           }
         ]
+      },
+      "startDaemon": {
+        "description": "Ask the operating system to start Docker. On macOS this launches Docker Desktop. On Linux it first tries the rootless user service, then the system Docker service. This method never invokes sudo. Use `ensureDaemonRunning()` when the caller also needs to wait for readiness.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "ensureDaemonRunning": {
+        "description": "Ensure the Docker daemon is reachable, starting it when necessary and polling until it is ready.",
+        "parameters": {
+          "options": {
+            "type": "{ timeout?: number; pollInterval?: number }",
+            "description": "Readiness timing options",
+            "properties": {
+              "timeout": {
+                "type": "any",
+                "description": "Maximum wait in milliseconds"
+              },
+              "pollInterval": {
+                "type": "any",
+                "description": "Delay between readiness checks in milliseconds"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
       },
       "listContainers": {
         "description": "List all containers (running and stopped).",

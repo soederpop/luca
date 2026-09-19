@@ -14,6 +14,12 @@ container.feature('docker', {
   timeout,
   // Auto refresh containers/images after operations
   autoRefresh,
+  // Automatically start the Docker daemon when enabling the feature
+  autoStartDaemon,
+  // Maximum time in milliseconds to wait for the Docker daemon to start
+  daemonStartTimeout,
+  // Interval in milliseconds between Docker daemon readiness checks
+  daemonPollInterval,
 })
 ```
 
@@ -24,6 +30,9 @@ container.feature('docker', {
 | `dockerPath` | `string` | Path to docker executable |
 | `timeout` | `number` | Command timeout in milliseconds |
 | `autoRefresh` | `boolean` | Auto refresh containers/images after operations |
+| `autoStartDaemon` | `boolean` | Automatically start the Docker daemon when enabling the feature |
+| `daemonStartTimeout` | `number` | Maximum time in milliseconds to wait for the Docker daemon to start |
+| `daemonPollInterval` | `number` | Interval in milliseconds between Docker daemon readiness checks |
 
 ## Methods
 
@@ -43,7 +52,7 @@ When an assistant consumes these tools, inject usage guidance about container li
 
 ### checkDockerAvailability
 
-Check if Docker is available and working.
+Check if the Docker CLI is installed and its daemon is reachable.
 
 **Returns:** `Promise<boolean>`
 
@@ -51,6 +60,35 @@ Check if Docker is available and working.
 const available = await docker.checkDockerAvailability()
 if (!available) console.log('Docker is not installed or not running')
 ```
+
+
+
+### startDaemon
+
+Ask the operating system to start Docker. On macOS this launches Docker Desktop. On Linux it first tries the rootless user service, then the system Docker service. This method never invokes sudo. Use `ensureDaemonRunning()` when the caller also needs to wait for readiness.
+
+**Returns:** `Promise<void>`
+
+
+
+### ensureDaemonRunning
+
+Ensure the Docker daemon is reachable, starting it when necessary and polling until it is ready.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ timeout?: number; pollInterval?: number }` |  | Readiness timing options |
+
+`{ timeout?: number; pollInterval?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `timeout` | `any` | Maximum wait in milliseconds |
+| `pollInterval` | `any` | Delay between readiness checks in milliseconds |
+
+**Returns:** `Promise<void>`
 
 
 
@@ -598,7 +636,9 @@ Initialize the Docker feature by checking availability and optionally refreshing
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 | `containers` | `array` | List of known Docker containers |
 | `images` | `array` | List of known Docker images |
-| `isDockerAvailable` | `boolean` | Whether Docker CLI is available on this system |
+| `isDockerAvailable` | `boolean` | Whether Docker is installed and its daemon is reachable |
+| `isDockerInstalled` | `boolean` | Whether the Docker CLI is installed on this system |
+| `isDaemonRunning` | `boolean` | Whether the Docker daemon is reachable |
 | `lastError` | `string` | Last error message from a Docker operation |
 
 ## Examples
