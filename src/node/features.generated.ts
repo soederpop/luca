@@ -141,7 +141,7 @@ export type { DriveFile, DriveFileList, DriveBrowseResult, ListFilesOptions, Dri
 export type { MailMessage, MailAttachment, MailThread, MailLabel, SearchMailOptions, MailMessageList, GoogleMailState, GoogleMailOptions, GoogleMail } from "./features/google-mail";
 export type { SpreadsheetMeta, SheetInfo, GoogleSheetsState, GoogleSheetsOptions, GoogleSheets } from "./features/google-sheets";
 export type { GrepMatch, GrepOptions, Grep } from "./features/grep";
-export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
+export type { HelpersLoadError, HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
 export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, ResolvedMailConfig, MailVerification, MailSummary, StandardMailMessage, MailAttachmentFile, MailValidation, MailPollResult, MailSearchQuery, MailSendInput, MailReplyInput, MailSendResult, InternetMailState, InternetMailOptions, InternetMail } from "./features/internet-mail";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";

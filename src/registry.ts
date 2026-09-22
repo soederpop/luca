@@ -8,6 +8,21 @@ import type { HelperIntrospection } from './introspection/index.js';
 
 export type { HelperIntrospection }
 
+/**
+ * A single import failure recorded during `discover()`. Registries never
+ * throw on a broken file, they warn and keep scanning, so callers that need
+ * to know what failed (the helpers gateway, the CLI) collect these instead
+ * of parsing console output.
+ */
+export interface RegistryLoadError {
+  /** The registered name the file would have taken, derived from its filename */
+  name: string
+  /** Absolute path to the file that failed to import */
+  path: string
+  /** The caught error's message */
+  message: string
+}
+
 abstract class Registry<T extends Helper> {
   scope: string = "unspecified"
 

@@ -1,6 +1,6 @@
 import { Helper } from './helper.js'
 import type { Container, ContainerContext } from './container.js'
-import { Registry } from './registry.js'
+import { Registry, type RegistryLoadError } from './registry.js'
 import { SelectorStateSchema, SelectorOptionsSchema, SelectorEventsSchema, type SelectorRunResult } from './schemas/base.js'
 import { z } from 'zod'
 import { join } from 'path'
@@ -272,10 +272,14 @@ export class SelectorsRegistry extends Registry<Selector<any>> {
 	 * Detection order:
 	 *   1. Default export is a class extending Selector -> register directly
 	 *   2. Module exports a `run` function -> graft as SimpleSelector
+	 *
+	 * @returns Load errors for files that failed to import, mirroring
+	 *   `commands.discover()`.
 	 */
-	async discover(options: { directory: string }) {
+	async discover(options: { directory: string }): Promise<RegistryLoadError[]> {
 		const { Glob } = globalThis.Bun || (await import('bun'))
 		const glob = new Glob('*.ts')
+		const loadErrors: RegistryLoadError[] = []
 
 		for await (const file of glob.scan({ cwd: options.directory })) {
 			if (file === 'index.ts') continue
@@ -288,7 +292,9 @@ export class SelectorsRegistry extends Registry<Selector<any>> {
 			try {
 				mod = await import(join(options.directory, file))
 			} catch (err: any) {
-				console.warn(`selectors.discover: failed to load ${file}: ${err?.message ?? err}`)
+				const message = err?.message ?? String(err)
+				console.warn(`selectors.discover: failed to load ${file}: ${message}`)
+				loadErrors.push({ name, path: join(options.directory, file), message })
 				continue
 			}
 
@@ -310,6 +316,8 @@ export class SelectorsRegistry extends Registry<Selector<any>> {
 				this.register(name, Grafted as any)
 			}
 		}
+
+		return loadErrors
 	}
 }
 

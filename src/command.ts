@@ -1,6 +1,6 @@
 import { Helper } from './helper.js'
 import type { Container, ContainerContext } from './container.js'
-import { Registry } from './registry.js'
+import { Registry, type RegistryLoadError } from './registry.js'
 import { CommandStateSchema, CommandOptionsSchema, CommandEventsSchema, type DispatchSource, type CommandRunResult } from './schemas/base.js'
 import { z } from 'zod'
 import { join } from 'path'
@@ -619,10 +619,16 @@ export class CommandsRegistry extends Registry<Command<any>> {
 	 *   1. Default export is a class extending Command → register directly
 	 *   2. Module exports a `run` function → graft as SimpleCommand
 	 *   3. Module exports a `handler` function → legacy graft
+	 *
+	 * @returns Load errors for files that failed to import. Registration
+	 *   itself never throws for these — they're warned about and skipped —
+	 *   so callers that need to know what failed (the helpers gateway, the
+	 *   CLI) inspect the returned array instead of parsing console output.
 	 */
-	async discover(options: { directory: string }) {
+	async discover(options: { directory: string }): Promise<RegistryLoadError[]> {
 		const { Glob } = globalThis.Bun || (await import('bun'))
 		const glob = new Glob('*.ts')
+		const loadErrors: RegistryLoadError[] = []
 
 		for await (const file of glob.scan({ cwd: options.directory })) {
 			if (file === 'index.ts') continue
@@ -637,7 +643,9 @@ export class CommandsRegistry extends Registry<Command<any>> {
 			try {
 				mod = await import(join(options.directory, file))
 			} catch (err: any) {
-				console.warn(`commands.discover: failed to load ${file}: ${err?.message ?? err}`)
+				const message = err?.message ?? String(err)
+				console.warn(`commands.discover: failed to load ${file}: ${message}`)
+				loadErrors.push({ name, path: join(options.directory, file), message })
 				continue
 			}
 
@@ -690,6 +698,8 @@ export class CommandsRegistry extends Registry<Command<any>> {
 				this.register(name, Grafted as any)
 			}
 		}
+
+		return loadErrors
 	}
 }
 

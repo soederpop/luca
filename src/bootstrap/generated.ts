@@ -186,7 +186,12 @@ export async function main(container: any) {
   // auto-discovered by the CLI before dispatch — no discoverAll() needed here.
   // (Opt out with LUCA_COMMAND_DISCOVERY=commands-only.)
 
-  // Handle unknown commands gracefully instead of silently failing
+  // Handle unknown commands gracefully instead of silently failing.
+  // This falls back to help without claiming the phrase (no \`return true\`,
+  // no \`missingCommandHandled\` state flag), so runCli exits 1 for any
+  // unknown command — an unrecognized command is a failure, even though
+  // it printed something useful. Return \`true\` here instead if your
+  // project wants an unknown command to exit 0.
   container.onMissingCommand(async ({ phrase }: { phrase: string }) => {
     container.command('help').dispatch()
   })
@@ -4625,6 +4630,169 @@ Create a fresh bundle for each assistant. A feature instance itself can be reuse
 
 With multiple attached parents, \`assistants\` and \`tasks\` aggregate their records for application code. Use \`getAssistants(parent)\` and \`listTasks(parent)\` for scoped access; pass the parent as the last argument to operational methods, such as \`delegate(options, parent)\` or \`synthesize(options, parent)\`. Omitting it is an error when more than one parent is attached. Model-facing tools always remain scoped to the parent that received them, and cannot read or operate on another parent's children.
 `,
+  "needle-offline-tool-routing.md": `---
+title: 'Needle: offline extraction, routing, and speculative prefetch'
+tags:
+  - needle
+  - tool-calling
+  - extraction
+  - sqlite
+  - routing
+  - composition
+lastTested: '2026-09-19'
+lastTestPassed: true
+---
+
+# Needle: offline extraction, routing, and speculative prefetch
+
+The \`needle\` feature runs [Cactus Needle 3](https://cactuscompute.com/needle) locally — a 35MB
+foundation model that maps \`(query, tool list)\` → one JSON function call at ~1000 tok/s on
+~75MB of RAM, fully offline. It is **not a chat model**: it never writes prose, it picks tools
+and fills arguments. That makes it perfect for three composition patterns this doc walks
+through with one scenario, a support inbox:
+
+1. **Extraction pipeline** — unstructured emails → typed rows → \`sqlite\`
+2. **Confidence-gated routing** — dispatch simple intents without an LLM (and the gotcha that makes a \`no_action\` tool mandatory)
+3. **Speculative prefetch** — pre-run the read-only tool needle predicts, so a real LLM answers in one round trip instead of two
+
+Run \`luca describe needle\` for the full API. First use auto-downloads the engine binary and
+weights from Hugging Face (~36MB, one time).
+
+## Setup — install and pick a port range
+
+One needle server is bound to one tool set at startup, so the feature spawns a detached server
+per tool set, on a port hashed from the tools. Give examples and tests their own \`basePort\`
+range so they never collide with (or reuse) an app's servers.
+
+\`\`\`ts
+needle = container.feature('needle', { basePort: 8560, portRange: 8 })
+await needle.install() // no-op when already downloaded
+console.log('needle ready:', needle.ready, '— weights at', needle.weightsPath)
+\`\`\`
+
+## Extract — unstructured emails into a queryable table
+
+\`needle.extract(text, schema)\` is sugar over a single-tool agent whose parameters are your
+schema: grammar-constrained decoding fills the fields, and you get a calibrated confidence per
+document. Below the schema is plain JSON Schema; a zod object schema works too and is validated
+on the way out. Same store-choice heuristic as always: the moment you want to *query* the
+results, they belong in \`sqlite\`.
+
+\`\`\`ts
+messages = [
+  { from: 'ana@example.com',  body: 'Your sync app deleted three days of my notes after the 2.4 update. I need those back NOW — this is my thesis work.' },
+  { from: 'ben@example.com',  body: 'Hi! Small thing: the dark theme makes the settings icons almost invisible. Not urgent at all, just figured you should know.' },
+  { from: 'cleo@example.com', body: 'Order #7741 arrived with a cracked screen. Requesting a replacement or a refund of the $349 I paid.' },
+]
+
+ticketSchema = {
+  type: 'object',
+  properties: {
+    product: { type: 'string', description: 'Which product or feature the message is about' },
+    problem: { type: 'string', description: 'One-sentence summary of the problem' },
+    urgent:  { type: 'boolean', description: 'Whether the sender needs an immediate response' },
+  },
+  required: ['product', 'problem', 'urgent'],
+}
+
+dbPath = container.paths.resolve(os.tmpdir, \`needle-tickets-\${Date.now()}.sqlite\`)
+db = container.feature('sqlite', { path: dbPath })
+db.db.exec(\`CREATE TABLE tickets (id INTEGER PRIMARY KEY, sender TEXT, product TEXT, problem TEXT, urgent INTEGER, confidence REAL)\`)
+
+for (const msg of messages) {
+  const { data, confidence } = await needle.extract(msg.body, ticketSchema)
+  await db.sql\`INSERT INTO tickets (sender, product, problem, urgent, confidence)
+    VALUES (\${msg.from}, \${data.product}, \${data.problem}, \${data.urgent ? 1 : 0}, \${confidence})\`
+}
+
+urgentRows = await db.sql\`SELECT sender, problem FROM tickets WHERE urgent = 1\`
+console.log(\`extracted \${messages.length} tickets; urgent:\`, urgentRows.map(r => r.sender))
+if (urgentRows.length === 0 || urgentRows.length === messages.length) {
+  throw new Error('expected extraction to separate urgent from non-urgent tickets')
+}
+\`\`\`
+
+## Route — dispatch simple intents without an LLM
+
+\`needle.agent(tools)\` spawns (or reuses — the port is derived from the tool-set hash, shared
+across every luca process) a server bound to these tools. **The gotcha that shapes the tool
+set:** needle *always* dispatches some call, even for off-topic input — "tell me a joke" will
+cheerfully pick \`get_weather\` at high confidence. Any tool set facing open-ended input needs an
+explicit \`no_action\` escape hatch; the confidence score alone will not save you.
+
+\`\`\`ts
+router = await needle.agent([
+  { name: 'search_tickets', description: 'Search existing support tickets.',
+    parameters: { type: 'object', properties: { query: { type: 'string', description: 'What to search tickets for' } }, required: ['query'] } },
+  { name: 'create_ticket', description: 'Open a new support ticket.',
+    parameters: { type: 'object', properties: { problem: { type: 'string', description: 'The problem to file' } }, required: ['problem'] } },
+  { name: 'no_action', description: 'Use when the request matches no other tool.',
+    parameters: { type: 'object', properties: {} } },
+])
+
+// \`fresh: true\` resets the server's conversation state — needle is multi-turn
+// by default, and this server is shared, so one-shot routing should always reset.
+routed = await router.complete('open a ticket: exports fail with a 500 since this morning', { fresh: true })
+console.log('routed →', routed.function_calls[0], \`(confidence \${routed.confidence.toFixed(2)})\`)
+if (routed.function_calls[0]?.name !== 'create_ticket') throw new Error('expected create_ticket')
+\`\`\`
+
+## Prefetch — speculate on read-only tools, answer in one LLM round trip
+
+The full pattern: needle predicts the tool call in ~30ms, you pre-run it **only if the tool is
+read-only** and confidence clears a bar, and inject the result into the LLM prompt — the model
+answers in one round trip instead of prompt → tool call → tool result → answer. A wrong guess
+costs nothing (the LLM ignores irrelevant context); a pre-run *write* would be a side effect
+the user never asked for, which is why the allowlist below is the load-bearing line.
+
+\`\`\`ts
+READ_ONLY = new Set(['search_tickets'])
+handlers = {
+  // Toy search: any meaningful query word appearing in the ticket text counts as a hit
+  search_tickets: async ({ query }) => {
+    const words = query.toLowerCase().split(/\\W+/).filter(w => w.length >= 4)
+    const rows = await db.sql\`SELECT sender, product, problem FROM tickets\`
+    return rows.filter(r => words.some(w => \`\${r.product} \${r.problem}\`.toLowerCase().includes(w)))
+  },
+}
+
+// Needle condenses the user's words into the argument ('cracked screen' here) —
+// match on words, not the full string, when a needle-filled arg feeds a search.
+userQuery = 'did anyone report a cracked screen?'
+guess = await router.complete(userQuery, { fresh: true })
+call = guess.function_calls[0]
+
+prompt = userQuery
+if (call && READ_ONLY.has(call.name) && guess.confidence > 0.85) {
+  const data = await handlers[call.name](call.arguments)
+  prompt += \`\\n\\nLikely-relevant data (pre-fetched \${call.name}): \${JSON.stringify(data)}\`
+}
+
+// In a real app this prompt now goes to a full model in one shot:
+//   await container.feature('assistant', { name: 'support' }).run(prompt)
+console.log('assembled prompt:\\n' + prompt)
+if (!prompt.includes('pre-fetched search_tickets')) throw new Error('expected a confident read-only prefetch')
+if (!prompt.includes('cleo@example.com')) throw new Error("expected cleo's cracked-screen ticket in the prefetched data")
+\`\`\`
+
+## Cleanup — stop what this doc started
+
+Servers are tiny but deliberately have no idle watchdog — stop the ones you spawned. This
+instance tracks the ports it confirmed healthy in \`state\`; note \`stopAll()\` would instead stop
+*every* needle server on the machine, which is too blunt here.
+
+\`\`\`ts
+for (const port of needle.state.get('runningPorts') ?? []) needle.stopServer(port)
+await fs.rm(dbPath, { force: true })
+console.log('stopped needle servers and removed', dbPath)
+\`\`\`
+
+## Where each pattern fits
+
+- **Extraction pipeline**: intake daemons (\`fileManager.watch\` a drop folder, extract, insert), webhook endpoints that normalize free-text payloads, log triage.
+- **Confidence-gated routing**: voice assistants and command palettes where the common intents shouldn't cost an LLM call; the low-confidence tail falls through to \`assistant.run()\`.
+- **Speculative prefetch**: any assistant whose tools are mostly reads — halves perceived latency on the queries that were going to call a tool anyway.
+`,
   "server-rest-roundtrip.md": `---
 title: Server + REST Client Roundtrip
 tags:
@@ -4983,6 +5151,212 @@ console.log('index closed, corpus removed')
 ## Summary
 
 \`contentDb\` turns a folder of markdown into queryable documents; \`semanticSearch\` turns those documents into a search index. Grep and BM25 keyword search work immediately and offline — compose them by piping \`cdb.document(id)\` into \`ss.insertDocument()\`. Semantic (vector/hybrid) search is a deliberate upgrade with real prerequisites: an OpenAI key, or a one-time \`installLocalEmbeddings()\` that installs a native addon and downloads model weights. When no embedding index exists, contentDb's assistant-facing \`semanticSearch\` tool falls back to grep and tells you so.
+`,
+  "zero-shot-classifier.md": `---
+title: 'Zero-Shot Triage: Classifying a Support Inbox with Local Probabilities'
+tags:
+  - zeroshotClassifier
+  - llamaServer
+  - classification
+  - local-inference
+  - composition
+lastTested: '2026-09-19'
+lastTestPassed: true
+---
+
+# Zero-Shot Triage: Classifying a Support Inbox with Local Probabilities
+
+A real inbox pipeline, entirely on local inference: raw customer emails come in, a
+**zeroshotClassifier** routes each one to a department, a second classifier scores
+urgency, and a probability threshold catches the ambiguous ones for human review
+instead of silently guessing. No API keys, no cloud calls — the classifier runs a
+local llama-server (Qwen3-4B by default) and returns a **probability for every
+option** from a single forward pass, so "how sure was it" is part of every answer.
+
+For the full API: \`luca describe zeroshotClassifier\`.
+
+## Make sure the model is ready
+
+The classifier serves its own model on its own port (default 8145), separate from
+the default chat server. \`ensureReady()\` downloads the llama-server binary and the
+model weights when missing (~2.5GB, one time), then health-checks the server. The
+first classification after an idle period pays a few seconds of model load; after
+that, calls are tens of milliseconds.
+
+\`\`\`ts
+// bare assignment: survives into later blocks
+router = container.feature('zeroshotClassifier', {
+  systemPrompt: \`You route inbound email for a small software company.
+Judge only what the sender needs, not their tone. If an email mixes topics,
+pick the department that must act first. A sales pitch aimed AT us is 'noise',
+however it is disguised.\`,
+  availableOptions: [
+    { label: 'support', description: 'existing customer needs help or reports something broken' },
+    { label: 'billing', description: 'invoices, refunds, card or subscription problems' },
+    { label: 'sales', description: 'prospective customer asking about pricing, plans, or demos' },
+    { label: 'noise', description: 'vendor pitches, link-exchange spam, automated notifications' },
+  ],
+})
+
+await router.ensureReady()
+console.log('classifier server ready at', router.baseURL)
+\`\`\`
+
+Two things worth copying in that configuration: the **system prompt carries the
+judging perspective and the tie-break rules** ("must act first", "pitches at us are
+noise"), while the **option descriptions carry the definitions**. Don't re-list the
+options inside the system prompt — the feature already renders them as a lettered
+list, and a drifting second copy just confuses the model.
+
+## Classify raw inputs — and read the distribution
+
+Inputs go in raw and untrimmed. Pre-summarizing tends to strip exactly the details
+that separate the labels.
+
+\`\`\`ts
+inbox = [
+  {
+    id: 'msg-1',
+    body: \`Subject: quick q
+We're on the Teams plan and my colleague can't log in since yesterday,
+it says "workspace suspended". Our card may have expired last month.
+Can you fix this today? We have a filing deadline.\`,
+  },
+  {
+    id: 'msg-2',
+    body: \`Subject: Boost your domain authority
+Hi there! I came across your site and loved it. We help SaaS companies
+like yours rank #1 on Google. Do you have 15 minutes this week?\`,
+  },
+  {
+    id: 'msg-3',
+    body: \`Subject: pricing for 40 seats
+Hello — evaluating options for our design team (40 people). Does the
+Business tier support SSO, and is there a discount for annual billing?\`,
+  },
+]
+
+results = []
+for (const message of inbox) {
+  const result = await router.classify(message.body)
+  results.push({ ...message, ...result })
+  console.log(message.id, '→', result.label, \`(\${(result.probability * 100).toFixed(1)}%)\`)
+}
+\`\`\`
+
+\`classify()\` returns \`{ label, probability, probabilities }\`; \`run()\` returns just
+the \`probabilities\` record when that's all you need. The distribution is the point:
+msg-1 is genuinely ambiguous (a login lockout *caused by* a billing failure), and
+instead of false certainty you get the mass split across \`support\` and \`billing\`.
+
+\`\`\`ts
+const msg1 = results[0]
+const supportPlusBilling = msg1.probabilities.support + msg1.probabilities.billing
+if (supportPlusBilling < 0.9) throw new Error(\`expected msg-1 mass on support+billing, got \${JSON.stringify(msg1.probabilities)}\`)
+if (results[1].label !== 'noise') throw new Error(\`expected msg-2 to be noise, got \${results[1].label}\`)
+if (results[2].label !== 'sales') throw new Error(\`expected msg-3 to be sales, got \${results[2].label}\`)
+console.log('msg-1 split:', JSON.stringify(msg1.probabilities))
+\`\`\`
+
+## Threshold on probability, not just the winner
+
+The winning label alone throws away the most useful signal. A routing pipeline
+should auto-route only when the model is actually sure, and queue the rest for a
+human. That's a one-line policy once you have real probabilities:
+
+\`\`\`ts
+CONFIDENCE_FLOOR = 0.8
+
+routed = []
+needsReview = []
+for (const r of results) {
+  if (r.probability >= CONFIDENCE_FLOOR) routed.push(r)
+  else needsReview.push(r)
+}
+console.log(\`auto-routed \${routed.length}, queued \${needsReview.length} for review\`)
+\`\`\`
+
+The same pattern inverts for moderation-style checks: a \`hostile\` option can *lose*
+the argmax at 30% probability and still deserve a look — threshold on
+\`probabilities.hostile\`, not on \`label\`.
+
+## Compose a second dimension: urgency
+
+Classifiers are cheap to instantiate — same server, same loaded model, different
+prompt. A second one scores urgency, and because both share the model on port 8145,
+the second dimension costs one more forward pass per message, not a second model in
+memory.
+
+\`\`\`ts
+urgency = container.feature('zeroshotClassifier', {
+  systemPrompt: \`You rate how urgently a customer email needs a first response.
+Judge stated impact and deadlines, not politeness or capitalization. Sales
+pitches aimed at us are never urgent.\`,
+  availableOptions: [
+    { label: 'today', description: 'the sender is blocked or names a hard deadline' },
+    { label: 'this_week', description: 'real request, no stated time pressure' },
+    { label: 'whenever', description: 'informational, promotional, or no response needed' },
+  ],
+})
+
+for (const r of results) {
+  const u = await urgency.classify(r.body)
+  r.urgency = u.label
+  console.log(r.id, '→', r.label, '/', u.label)
+}
+
+if (results[0].urgency !== 'today') throw new Error(\`expected msg-1 urgent today, got \${results[0].urgency}\`)
+if (results[1].urgency === 'today') throw new Error('a vendor pitch should never be urgent')
+console.log('two-dimension triage complete')
+\`\`\`
+
+Note what the second system prompt does: it re-anchors the *same input* to a
+different question. Zero-shot means the labels are just prompt text — adding a
+dimension is a config change, not a training run.
+
+## Listen for classifications
+
+Every successful \`classify()\`/\`run()\` emits a \`classified\` event with the input,
+the winning label, and the full distribution — the natural hook for logging,
+metrics, or feeding a review queue without threading callbacks through your
+pipeline.
+
+\`\`\`ts
+seen = []
+urgency.on('classified', ({ label, probabilities }) => {
+  seen.push({ label, top: Math.max(...Object.values(probabilities)) })
+})
+
+await urgency.run('URGENT!!! production is down for all our users, please call us')
+if (seen.length !== 1 || seen[0].label !== 'today') throw new Error(\`expected an urgent classified event, got \${JSON.stringify(seen)}\`)
+console.log('classified event observed:', JSON.stringify(seen[0]))
+\`\`\`
+
+## How it works under the hood (and its limits)
+
+The options are rendered as a lettered list (\`A. support\`, \`B. billing\`, …) and a
+GBNF grammar restricts generation to exactly one letter token. The probabilities
+come from that single position's \`top_logprobs\` — the model's real pre-constraint
+distribution over next tokens — exponentiated and renormalized over your labels.
+One generated token per classification: no sampling noise, no output parsing.
+
+Speed, measured on an M-series MacBook with the default Qwen3-4B: **~35ms per
+classification (~27/sec)** when inputs share a cached prefix, **~120ms (~8/sec)**
+for fully unique ~150-token inputs (prompt processing dominates; the generated
+token is always exactly one), and ~49/sec with 16 concurrent cached requests.
+The system prompt and options are a stable prefix the server caches across calls,
+so only the input tokens cost anything after the first request.
+
+Two limits follow directly: **at most 20 options** (\`top_logprobs\` caps at 20), and
+the probabilities are the model's *belief* — small models are often overconfident,
+so trust the rank order and relative mass, and use absolute values as a threshold
+signal rather than a calibrated frequency. The classifier's server idles out after
+15 minutes without requests (configurable via \`idleTimeoutMs\`), so a cold call pays
+model-load time once.
+
+\`\`\`ts
+console.log('done — classifier server on', router.baseURL, 'will idle out on its own')
+\`\`\`
 `,
   "custom-feature-authoring.md": `---
 title: Authoring a Custom Feature
@@ -6343,7 +6717,7 @@ tags: [setup, quickstart, project, init, install, bundle]
 
 # Getting Started with Luca
 
-Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No \`npm install\`, no \`node_modules\`, no supply chain exposure.
+Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No \`npm install\`, no \`node_modules\`, no postinstall scripts — one audited surface, one hash to verify, one thing to patch.
 
 This tutorial takes you from nothing to a shipped binary of your own.
 
@@ -11032,7 +11406,7 @@ The canonical way to use Luca is the standalone binary — see [Getting Started]
 Use the **binary** when:
 
 - You're starting a new project or tool
-- You want zero npm dependencies and no supply chain exposure
+- You want zero npm dependencies — one audited binary instead of a transitive package tree
 - You want to ship your project as its own standalone binary with \`luca bundle\`
 
 Embed Luca as a **package** when:
@@ -11726,6 +12100,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`mcpBridge\` | feature | ai-assistants | stable | Bridges MCP servers (local stdio or remote Streamable HTTP) to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
 | \`memory\` | feature | ai-assistants | stable | Semantic memory storage and retrieval for AI agents. |
 | \`modelProviders\` | feature | ai-assistants | core | Resolve model provider profiles and route requests to provider transports. |
+| \`needle\` | feature | ai-assistants | experimental | Downloads and supervises local \`needle\` servers — Cactus Compute's tiny (35MB weights, <1MB engine, ~75MB resident) foundation model for tool calling, structured extraction, and routing. |
 | \`networking\` | feature | networking | stable | The Networking feature provides utilities for network-related operations. |
 | \`nlp\` | feature | content-nlp | stable | The NLP feature provides natural language processing utilities for parsing utterances into structured data. |
 | \`openaiCodex\` | feature | agent-wrappers | stable | OpenAI Codex CLI wrapper feature. |
@@ -11761,6 +12136,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`voiceMode\` | feature | ai-assistants | experimental | VoiceMode helper |
 | \`yaml\` | feature | ui-output | core | The YAML feature provides utilities for parsing and stringifying YAML data. |
 | \`yamlTree\` | feature | content-nlp | stable | YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. |
+| \`zeroshotClassifier\` | feature | ai-assistants | experimental | Zero-shot text classifier backed by a local llama-server. |
 | \`elevenlabs\` | client | media-browser | experimental | ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. |
 | \`graph\` | client | networking | stable | GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. |
 | \`openai\` | client | ai-assistants | core | OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. |

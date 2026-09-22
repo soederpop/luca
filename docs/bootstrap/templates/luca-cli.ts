@@ -24,7 +24,12 @@ export async function main(container: any) {
   // auto-discovered by the CLI before dispatch — no discoverAll() needed here.
   // (Opt out with LUCA_COMMAND_DISCOVERY=commands-only.)
 
-  // Handle unknown commands gracefully instead of silently failing
+  // Handle unknown commands gracefully instead of silently failing.
+  // This falls back to help without claiming the phrase (no `return true`,
+  // no `missingCommandHandled` state flag), so runCli exits 1 for any
+  // unknown command — an unrecognized command is a failure, even though
+  // it printed something useful. Return `true` here instead if your
+  // project wants an unknown command to exit 0.
   container.onMissingCommand(async ({ phrase }: { phrase: string }) => {
     container.command('help').dispatch()
   })

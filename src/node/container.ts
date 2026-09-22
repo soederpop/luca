@@ -373,12 +373,22 @@ export class NodeContainer<
     };
   }
   
-  /** 
+  /**
    * In your project's luca.cli.ts you can call this method and pass it a function
   *  and when you call an invalid command, the function will be called with the command name and args
   *  this allows you to define your own DX behavior for handling unknown commands in your project
-    *  
-    * This is a special luca cli hook.  The function will be called with { words: string[], phrase: string, argv: any } 
+    *
+    * This is a special luca cli hook.  The function will be called with { words: string[], phrase: string, argv: any }
+    *
+    * Claim the phrase — take responsibility for its exit code yourself — by
+    * returning `true` (or `{ handled: true }`), or by calling
+    * `container.state.set('missingCommandHandled', true)` before an async
+    * handoff returns. Otherwise `runCli` sets `process.exitCode = 1` once
+    * your handler returns, unless you already set a non-zero code yourself.
+    * A handler that only prints help without claiming the phrase (the most
+    * common pattern) exits 1 for every unknown command, which is intended:
+    * an unrecognized command is a failure, not a successful run that happened
+    * to print help.
   */
   private onMissingCommand(handler: any) {
     // @ts-ignore
