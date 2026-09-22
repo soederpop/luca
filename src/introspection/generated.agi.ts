@@ -15069,6 +15069,16 @@ setBuildTimeData('features.helpers', {
           "code": "container.helpers.available\n// { features: ['fs', 'git', ...], clients: ['rest', 'websocket'], ... }"
         }
       ]
+    },
+    "loadErrors": {
+      "description": "Every helper file that has failed to import so far, across every registry type and directory `discover()` has scanned. Empty when nothing has gone wrong. This is what turns a swallowed `console.warn` into something the CLI (and any other caller that cares about the exit code) can act on: a broken command isn't silently absent, it's a name in this list.",
+      "returns": "HelpersLoadError[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await container.helpers.discoverAll()\ncontainer.helpers.loadErrors\n// [{ type: 'commands', name: 'broken', path: '/project/commands/broken.ts', message: \"Cannot find module '../lib/does-not-exist'\" }]"
+        }
+      ]
     }
   },
   "events": {},
@@ -46463,6 +46473,16 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "container.helpers.available\n// { features: ['fs', 'git', ...], clients: ['rest', 'websocket'], ... }"
+          }
+        ]
+      },
+      "loadErrors": {
+        "description": "Every helper file that has failed to import so far, across every registry type and directory `discover()` has scanned. Empty when nothing has gone wrong. This is what turns a swallowed `console.warn` into something the CLI (and any other caller that cares about the exit code) can act on: a broken command isn't silently absent, it's a name in this list.",
+        "returns": "HelpersLoadError[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await container.helpers.discoverAll()\ncontainer.helpers.loadErrors\n// [{ type: 'commands', name: 'broken', path: '/project/commands/broken.ts', message: \"Cannot find module '../lib/does-not-exist'\" }]"
           }
         ]
       }

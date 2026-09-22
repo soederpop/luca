@@ -43,6 +43,26 @@ export function resolveScriptCandidate(ref: string, container: any): string | nu
   return null
 }
 
+/** A recorded helper-discovery failure for a single command, as read off `container.helpers.loadErrors`. */
+export interface CommandLoadError {
+  name: string
+  path: string
+  message: string
+}
+
+/**
+ * Looks up whether `name` matches a command that failed to import during
+ * discovery, rather than one that was simply never registered. The two
+ * cases print and exit differently: a broken command shows its own error
+ * and never reaches the missing-command handler, an unknown one goes
+ * through the normal "not found" path.
+ */
+export function findCommandLoadError(container: any, name: string): CommandLoadError | undefined {
+  const helpers = container.feature('helpers') as any
+  const loadErrors = (helpers?.loadErrors ?? []) as Array<{ type: string; name: string; path: string; message: string }>
+  return loadErrors.find((entry) => entry.type === 'commands' && entry.name === name)
+}
+
 export async function loadCliModule(container: any, modulePath: string) {
   if (!container.fs.exists(modulePath)) return
   const helpers = container.feature('helpers') as any
@@ -205,6 +225,19 @@ export async function runCli(container: any, options: RunCliOptions = {}) {
   }
 
   if (commandName) {
+    // A command that discovery found but couldn't import (bad import, syntax
+    // error) is not the same as one that doesn't exist — it prints its own
+    // error and exits 1 without ever reaching the missing-command handler,
+    // because a broken command is not an unknown phrase.
+    const loadError = findCommandLoadError(container, commandName)
+    if (loadError) {
+      console.error(`luca: command '${commandName}' failed to load`)
+      console.error(`  ${loadError.path}`)
+      console.error(`  ${loadError.message}`)
+      process.exitCode = 1
+      return
+    }
+
     const phrase = container.argv._.join(' ')
     const missingCommandHandler = container.state.get('missingCommandHandler') as any
     if (typeof missingCommandHandler === 'function') {

@@ -18,16 +18,32 @@ import * as introspectionModule from '../../introspection/index.js'
 import * as markdownEvalModule from '../../commands/lib/markdown-eval.js'
 import { endpoints } from '../../endpoint.js'
 import { Selector, selectors } from '../../selector.js'
-import type { Registry } from '../../registry.js'
+import type { Registry, RegistryLoadError } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
 import type { VM } from './vm.js'
 import { resolve, parse, isAbsolute } from 'path'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
 
+/**
+ * A single helper file that failed to import during discovery. Recorded
+ * instead of only warned about, so callers that read the exit code (a build
+ * agent, a CI job, the CLI itself) can tell "nothing here" apart from
+ * "something here is broken" without scraping console output.
+ */
+export const HelpersLoadErrorSchema = z.object({
+  type: z.string().describe('Registry type the file was being discovered for (features, commands, etc.)'),
+  name: z.string().describe('The registered name the file would have taken, derived from its filename'),
+  path: z.string().describe('Absolute path to the file that failed to import'),
+  message: z.string().describe('The caught error message'),
+})
+
+export type HelpersLoadError = z.infer<typeof HelpersLoadErrorSchema>
+
 export const HelpersStateSchema = FeatureStateSchema.extend({
   discovered: z.record(z.string(), z.boolean()).default({}).describe('Which registry types have been discovered'),
   registered: z.array(z.string()).default([]).describe('Names of project-level helpers that were discovered (type.name)'),
+  loadErrors: z.array(HelpersLoadErrorSchema).default([]).describe('Helper files that failed to import during discovery, across every registry type and directory scanned so far'),
 })
 
 export type HelpersState = z.infer<typeof HelpersStateSchema>
@@ -48,6 +64,9 @@ export const HelpersEventsSchema = FeatureEventsSchema.extend({
     z.string().describe('Helper name'),
     z.any().describe('The helper class or module'),
   ]).describe('Emitted when a single helper is registered'),
+  loadError: z.tuple([
+    HelpersLoadErrorSchema.describe('The recorded load error'),
+  ]).describe('Emitted each time a helper file fails to import during discovery'),
 })
 
 type RegistryType = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints' | 'selectors'
@@ -377,6 +396,41 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       result[type] = registry.available
     }
     return result
+  }
+
+  /**
+   * Every helper file that has failed to import so far, across every
+   * registry type and directory `discover()` has scanned. Empty when
+   * nothing has gone wrong.
+   *
+   * This is what turns a swallowed `console.warn` into something the CLI
+   * (and any other caller that cares about the exit code) can act on: a
+   * broken command isn't silently absent, it's a name in this list.
+   *
+   * @example
+   * ```typescript
+   * await container.helpers.discoverAll()
+   * container.helpers.loadErrors
+   * // [{ type: 'commands', name: 'broken', path: '/project/commands/broken.ts', message: "Cannot find module '../lib/does-not-exist'" }]
+   * ```
+   */
+  get loadErrors(): HelpersLoadError[] {
+    return this.state.get('loadErrors') || []
+  }
+
+  /**
+   * Records a single helper load failure in state and emits `loadError`.
+   * Called from every discovery path (class-based and config-based, both
+   * the native-import and VM loaders) at the point each one already warns
+   * with `console.warn` — this adds a queryable record alongside the warning,
+   * it doesn't replace it.
+   *
+   * @param entry - The failure to record
+   */
+  private recordLoadError(entry: HelpersLoadError): void {
+    const existing = this.state.get('loadErrors') || []
+    this.state.set('loadErrors', [...existing, entry])
+    this.emit('loadError' as any, entry)
   }
 
   /**
@@ -822,6 +876,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
           throw err
         }
         console.warn(`Helpers gateway: failed to load ${type} from ${absPath}: ${err.message}`)
+        this.recordLoadError({ type, name: this.fileNameToRegistryName(fileName), path: absPath, message: err.message })
       }
     }
 
@@ -838,7 +893,8 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     if (type === 'commands') {
       if (this.useNativeImport) {
-        await commands.discover({ directory: dir })
+        const loadErrors = await commands.discover({ directory: dir })
+        for (const err of loadErrors) this.recordLoadError({ type, ...err })
       } else {
         await this.discoverCommandsViaVM(dir)
       }
@@ -846,7 +902,8 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       await this.discoverEndpoints(dir)
     } else if (type === 'selectors') {
       if (this.useNativeImport) {
-        await selectors.discover({ directory: dir })
+        const loadErrors = await selectors.discover({ directory: dir })
+        for (const err of loadErrors) this.recordLoadError({ type, ...err })
       } else {
         await this.discoverSelectorsViaVM(dir)
       }
@@ -927,6 +984,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load command from ${absPath}: ${err.message}`)
+        this.recordLoadError({ type: 'commands', name, path: absPath, message: err.message })
       }
     }
   }
@@ -974,6 +1032,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load selector from ${absPath}: ${err.message}`)
+        this.recordLoadError({ type: 'selectors', name, path: absPath, message: err.message })
       }
     }
   }
@@ -1001,6 +1060,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load endpoint from ${file}: ${err.message}`)
+        this.recordLoadError({ type: 'endpoints', name: parse(file).name, path: file, message: err.message })
       }
     }
   }

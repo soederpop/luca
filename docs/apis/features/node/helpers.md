@@ -151,6 +151,21 @@ Emitted when a single helper is registered
 
 
 
+### loadError
+
+Emitted each time a helper file fails to import during discovery
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `type` | `string` | Registry type the file was being discovered for (features, commands, etc.) |
+| `name` | `string` | The registered name the file would have taken, derived from its filename |
+| `path` | `string` | Absolute path to the file that failed to import |
+| `message` | `string` | The caught error message |
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -158,6 +173,7 @@ Emitted when a single helper is registered
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 | `discovered` | `object` | Which registry types have been discovered |
 | `registered` | `array` | Names of project-level helpers that were discovered (type.name) |
+| `loadErrors` | `array` | Helper files that failed to import during discovery, across every registry type and directory scanned so far |
 
 ## Examples
 
