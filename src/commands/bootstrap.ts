@@ -18,6 +18,7 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	output: z.string().default('.').describe('Output folder path (defaults to cwd)'),
 	'update-skill': z.boolean().default(false).describe('Only update .claude/skills/luca-framework in the current project'),
+	'use-plugins': z.string().optional().describe('Comma-separated plugins to auto-load; writes LUCA_PLUGINS=<value> to .env'),
 	setup: z.boolean().optional().describe('Run `luca setup` afterward to install local semantic search (native addon + embedding model). Use --no-setup to skip the prompt; omitted = ask in an interactive terminal.'),
 })
 
@@ -61,6 +62,9 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 		await writeFile(fs, ui, envPath, DEFAULT_ENV, '.env')
 	} else {
 		ui.print.dim('  .env already exists, skipping')
+	}
+	if (options['use-plugins']) {
+		await setEnvPlugins(fs, ui, envPath, String(options['use-plugins']))
 	}
 
 	// ── 1b. .gitignore (create, or append missing entries) ─────────
@@ -389,6 +393,17 @@ export const DEFAULT_ENV = [
 	'',
 ].join('\n')
 
+/** Set LUCA_PLUGINS in .env, replacing an existing uncommented line or appending one. */
+export async function setEnvPlugins(fs: any, ui: any, path: string, plugins: string) {
+	const line = `LUCA_PLUGINS=${plugins}`
+	const existing = fs.exists(path) ? (fs.readFile(path) as string) : ''
+	const pattern = /^LUCA_PLUGINS=.*$/m
+	const content = pattern.test(existing)
+		? existing.replace(pattern, line)
+		: existing.replace(/\n*$/, existing ? '\n' : '') + line + '\n'
+	await writeFile(fs, ui, path, content, `.env (${line})`)
+}
+
 export const GITIGNORE_ENTRIES = ['.env', 'tmp', '*.log', 'node_modules', '.luca']
 
 /** Create .gitignore with the standard entries, or append only the ones missing from an existing file. */
@@ -456,6 +471,7 @@ commands.registerHandler('bootstrap', {
 	positionals: ['output'],
 	examples: [
 		'luca bootstrap my-project',
+		{ command: 'luca bootstrap my-project --use-plugins agentic-loop', description: 'Also set LUCA_PLUGINS=agentic-loop in .env' },
 		{ command: 'luca bootstrap --update-skill', description: 'Refresh .claude/skills/luca-framework in the current project' },
 	],
 	handler: bootstrap,
