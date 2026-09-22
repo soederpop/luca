@@ -1,6 +1,6 @@
 # Luca marketing concept
 
-Unpublished local prototype. From the repository root:
+Published at https://luca-js.soederpop.com via the `gh-pages` branch (copy this folder into it). `robots.txt`, `sitemap.xml`, and `llms.txt` invite search and AI crawlers. To preview locally, from the repository root:
 
 ```sh
 bun run design/marketing/preview.ts
@@ -43,7 +43,7 @@ Validation includes HTML structure and anchors, Bun syntax checks, simulated for
 
 The packaging section makes the distribution story explicit: “One binary. That builds your binaries.” Its example uses verified `luca bundle` flags for macOS and Linux and the generated executable naming convention. Bun is needed on the build machine; recipients run the standalone executable with their configured providers and services.
 
-Nothing is deployed or published.
+The site is live at https://luca-js.soederpop.com and open to crawlers.
 
 Mobile performance: SVG geometry is created once. Scrolling updates existing tray/lid transforms and joint guides, preserving all 717 scene nodes. Mobile disables SVG blur filters while retaining gradients, extruded faces, and solid contact shadows. Resize measurements are coalesced into animation frames. DOM simulation checks 322 forward/reverse positions for each desktop/mobile and reduced-motion combination, including stable node identities, no scroll-time child replacements, stacking geometry, navigation, and resize reuse. This verifies update behavior; physical-device frame rate has not been measured.
 
