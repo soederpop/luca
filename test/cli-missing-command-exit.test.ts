@@ -88,3 +88,17 @@ describe('luca CLI — commands unaffected by a broken sibling', () => {
     expect(result.status).toBe(0)
   }, 60000)
 })
+
+// The behavior change every project's userland onMissingCommand handler
+// inherits for free: src/cli/cli.ts's default handler falls back to help
+// without claiming the phrase, so an unknown command now exits 1 instead
+// of exiting 0 having printed the same help listing bare `luca` prints.
+describe('luca CLI — unknown command exit code', () => {
+  it('an unrecognized command name prints help but exits 1', () => {
+    const root = makeFixture({ native: false })
+    const result = runCli(root, 'definitely-not-a-command')
+
+    expect(result.status).toBe(1)
+    expect(result.stdout + result.stderr).toContain('definitely-not-a-command')
+  }, 60000)
+})

@@ -240,14 +240,51 @@ export async function runCli(container: any, options: RunCliOptions = {}) {
 
     const phrase = container.argv._.join(' ')
     const missingCommandHandler = container.state.get('missingCommandHandler') as any
+
     if (typeof missingCommandHandler === 'function') {
-      await missingCommandHandler({ words: container.argv._, phrase }).catch((err: any) => {
+      let result: any
+      try {
+        // await, not .catch() — a handler that throws synchronously (before
+        // returning a promise) used to escape uncaught, since .catch() only
+        // guards a promise that was already returned.
+        result = await missingCommandHandler({ words: container.argv._, phrase, argv: container.argv })
+      } catch (err: any) {
         console.error(`Missing command handler error: ${err.message}`, err)
-      })
+        process.exitCode = 1
+        return
+      }
+
+      // A handler claims the phrase — takes responsibility for the exit
+      // code itself — by returning `true` or `{ handled: true }`, or by
+      // setting `missingCommandHandled` on state for an async handoff.
+      // Every existing handler (root luca.cli.ts, agentic-loop's, the
+      // bootstrap template) falls back to printing help without claiming
+      // the phrase, so this makes them exit 1 for an unknown command with
+      // no change on their part — that's the intended, documented behavior
+      // change, not a bug.
+      const claimed = result === true
+        || (result && typeof result === 'object' && result.handled === true)
+        || container.state.get('missingCommandHandled') === true
+
+      // Never overwrite a code the handler already set on its way out —
+      // `process.exitCode = 1` here is the "nobody claimed this" default,
+      // not an override. Never call process.exit() either: that would cut
+      // off in-flight cleanup the handler or its callers still expect to run.
+      if (!claimed && !process.exitCode) {
+        process.exitCode = 1
+      }
       return
     }
+
+    // No handler registered at all — a named command that wasn't found is
+    // still a failure, distinct from bare `luca` below.
+    container.argv._.splice(0, 0, 'help')
+    await container.command('help' as any).dispatch()
+    process.exitCode = 1
+    return
   }
 
+  // Bare `luca` with no command: show help, exit 0.
   container.argv._.splice(0, 0, 'help')
   await container.command('help' as any).dispatch()
 }
