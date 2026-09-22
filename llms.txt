@@ -1,0 +1,25 @@
+# Luca
+
+> Luca (Lightweight Universal Conversational Architecture) is a single-binary TypeScript runtime with an agent harness built in. You build the application, the features it uses, and the assistants that operate it inside one `container`, then ship everything as one cross-platform binary with `luca bundle`.
+
+Runtime is Bun. The `container` is a per-process singleton, event bus, state machine, and dependency injector. It holds registries of features, clients, servers, commands, endpoints, and assistants, and factory functions to create instances of them: `container.feature('fs')`, `container.server('express')`, `container.client('rest')`.
+
+Key ideas:
+
+- One binary. Install with `curl -fsSL https://luca-js.soederpop.com/install.sh | bash`. No `npm install` for consumers of your app.
+- Assistants live inside the app. An assistant is a folder with `CORE.md` (system prompt), `tools.ts` (zod schemas plus handlers), and `hooks.ts`. Run one with `luca chat <name>`.
+- The CLI is self-describing. `luca describe <name>` prints full docs for any feature, client, or server. `luca eval "expr"` runs code with the container in scope.
+- Project layout: `commands/` (CLI commands), `endpoints/` (file-based HTTP routes), `features/`, `clients/`, `servers/`, `assistants/`, `docs/` (a contentbase of Markdown documents with frontmatter).
+- `luca bundle <name>` compiles the whole project, including assistants, into `dist/<name>-<platform>` for darwin-arm64 and linux-x64.
+
+## Docs
+
+- [Getting started](https://github.com/soederpop/luca/blob/main/docs/tutorials/01-getting-started.md): install, bootstrap a project, run the first command.
+- [API docs](https://github.com/soederpop/luca/tree/main/docs/apis): public methods and options for every helper.
+- [Composition examples](https://github.com/soederpop/luca/tree/main/docs/examples): runnable docs that combine several helpers into full-stack slices, daemons, and pipelines.
+- [Tutorials](https://github.com/soederpop/luca/tree/main/docs/tutorials): longer guides and best practices.
+- [Source and README](https://github.com/soederpop/luca): the GitHub repository.
+
+## Optional
+
+- [Marketing site](https://luca-js.soederpop.com/): the narrative walkthrough that builds one signup app in six chapters (application, features, assistants, access, repair, binary).
