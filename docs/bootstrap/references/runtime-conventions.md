@@ -105,4 +105,4 @@ The container provides more than you might expect. Before importing anything ext
 
 ## Secrets across invocations
 
-`vault.secret()` creates a random key when no secret was configured. For decryption in another process, supply the same securely stored key through the vault options. Do not write encryption keys into committed state documents. Inspect `luca describe vault --options` before configuring it.
+`container.feature('vault')` keeps one key per project, so a payload encrypted in one `luca` run decrypts in the next. The first `encrypt()` writes a vault ID to `.luca/vault.json` (commit it, it is not secret) and the key to `~/.luca/vaults/<vaultId>.key`. In CI, set the key in the env var named by `vault.envVar` (`LUCA_VAULT_KEY_<VAULT_ID>`); there is no global key variable, so one project never uses another's key. Back the key up with `vault.exportKey()`: without it the data cannot be recovered. Never commit the key. Pass `{ secret }` only for a key you manage yourself.
