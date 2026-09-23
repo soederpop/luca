@@ -404,7 +404,13 @@ export async function setEnvPlugins(fs: any, ui: any, path: string, plugins: str
 	await writeFile(fs, ui, path, content, `.env (${line})`)
 }
 
-export const GITIGNORE_ENTRIES = ['.env', 'tmp', '*.log', 'node_modules', '.luca']
+// .luca/ holds local runtime files (store, generated types, plugin output), so it is
+// ignored by allowlist: only files meant to be shared, like the vault ID, are committed.
+export const GITIGNORE_ENTRIES = ['.env', 'tmp', '*.log', 'node_modules', '.luca/*', '!.luca/vault.json']
+
+// Older bootstraps ignored the whole folder, which also hides .luca/vault.json.
+// A negation cannot re-include a file inside an ignored directory, so replace the line.
+const LEGACY_LUCA_IGNORES = new Set(['.luca', '.luca/', '/.luca', '/.luca/'])
 
 /** Create .gitignore with the standard entries, or append only the ones missing from an existing file. */
 export async function ensureGitignore(fs: any, ui: any, path: string) {
@@ -413,13 +419,17 @@ export async function ensureGitignore(fs: any, ui: any, path: string) {
 		return
 	}
 	const existing = fs.readFile(path) as string
-	const lines = new Set(existing.split('\n').map((l: string) => l.trim()))
+	const migrated = existing
+		.split('\n')
+		.map((l: string) => (LEGACY_LUCA_IGNORES.has(l.trim()) ? '.luca/*\n!.luca/vault.json' : l))
+		.join('\n')
+	const lines = new Set(migrated.split('\n').map((l: string) => l.trim()))
 	const missing = GITIGNORE_ENTRIES.filter(e => !lines.has(e))
-	if (missing.length === 0) {
+	if (missing.length === 0 && migrated === existing) {
 		ui.print.dim('  .gitignore already covers luca entries, skipping')
 		return
 	}
-	const content = existing.replace(/\n*$/, '\n') + missing.join('\n') + '\n'
+	const content = missing.length ? migrated.replace(/\n*$/, '\n') + missing.join('\n') + '\n' : migrated
 	await writeFile(fs, ui, path, content, '.gitignore (merged)')
 }
 

@@ -63,5 +63,6 @@ docs/sessions
 datasets/
 
 
-# luca setup output (types written by `luca setup` for editor support)
-.luca/
+# luca local runtime files (store, `luca setup` types); the vault ID is shared
+.luca/*
+!.luca/vault.json
