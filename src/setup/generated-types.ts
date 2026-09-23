@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.14.1"
+export const typesBundleVersion = "3.15.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -122,7 +122,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProviderConfigSuggestion, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -6951,6 +6951,24 @@ export interface DiscoveredModelServer {
     /** Provider profile id serving this baseURL — an existing profile that matched, or the one created by \`register: true\`. */
     profileId?: string;
 }
+/**
+ * A \`model-providers.yml\`-shaped document distilled from discovery results:
+ * a \`hosts:\` map of named base URLs plus one shorthand \`id: host/model\` entry
+ * per server. Feed it to \`luca setup --providers\` or write it yourself.
+ */
+export interface ModelProviderConfigSuggestion {
+    /** Named base URLs, ready for the \`hosts:\` key of a config file. */
+    hosts: Record<string, string>;
+    /**
+     * Provider entries keyed by id. Normally a \`host/model\` shorthand string;
+     * an object form is used when the model id itself contains a slash (a
+     * llama-server gguf path, say), which the shorthand cannot express.
+     */
+    providers: Record<string, string | {
+        host: string;
+        model: string;
+    }>;
+}
 export declare const ModelProvidersStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
     discoveredServers: z.ZodDefault<z.ZodArray<z.ZodObject<{
@@ -7464,6 +7482,36 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
     private matchDiscoveredProfiles;
     /** localhost/loopback aliases and trailing slashes all describe the same server. */
     private normalizeBaseURL;
+    /** A config-file host name for a discovered server: \`local\` for loopback, else its tailscale hostname or host. */
+    private hostKeyFor;
+    /**
+     * Shape discovery results as a config-file document — a \`hosts:\` map plus
+     * \`id: host/model\` shorthand entries — which is exactly the format
+     * \`loadConfigFiles()\` reads. The building block behind
+     * \`luca setup --providers\`.
+     *
+     * Host names are \`local\` for loopback servers and the tailscale hostname (or
+     * bare host) otherwise. Provider ids are \`<host>-<port>\`, matching what
+     * \`discover({ register: true })\` registers. Use the options to merge into an
+     * existing file without clobbering what's already declared there:
+     *
+     *   - \`hosts\` — host names already present. A server whose baseURL is already
+     *     named reuses that name; a name taken by a *different* URL gets the port
+     *     appended so nothing is overwritten.
+     *   - \`existingProviderIds\` — ids already present. A collision gets a \`-2\`,
+     *     \`-3\`, … suffix instead of replacing the user's entry.
+     *   - \`models\` — per-baseURL default model override, keyed by \`server.baseURL\`.
+     *
+     * @example
+     * const found = await container.feature('modelProviders').discover()
+     * const config = container.feature('modelProviders').suggestConfig(found)
+     * // { hosts: { local: 'http://127.0.0.1:1234/v1' }, providers: { 'local-1234': 'local/qwen3' } }
+     */
+    suggestConfig(servers: DiscoveredModelServer[], options?: {
+        hosts?: Record<string, string>;
+        existingProviderIds?: string[];
+        models?: Record<string, string>;
+    }): ModelProviderConfigSuggestion;
     /**
      * Online tailscale peers as probe targets, or [] when tailscale isn't
      * installed, isn't running, or its output can't be parsed. Never throws.
@@ -10856,6 +10904,32 @@ export declare const RestClientEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
     failure: z.ZodTuple<[z.ZodAny], null>;
 }, z.core.$strip>;
+export declare const RestClientCacheSchema: z.ZodObject<{
+    ttl: z.ZodOptional<z.ZodNumber>;
+    methods: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    path: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const RestClientOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    baseURL: z.ZodOptional<z.ZodString>;
+    json: z.ZodOptional<z.ZodBoolean>;
+    cache: z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodObject<{
+        ttl: z.ZodOptional<z.ZodNumber>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        path: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>]>>;
+}, z.core.$strip>;
+export type RestClientCacheConfig = z.infer<typeof RestClientCacheSchema>;
+/**
+ * Per-request axios config plus cache control: \`cache: false\` bypasses the
+ * response cache for this request, \`cache: { ttl }\` overrides its TTL.
+ */
+export type RestRequestOptions = AxiosRequestConfig & {
+    cache?: boolean | {
+        ttl?: number;
+    };
+};
 declare module '../client' {
     interface AvailableClients {
         rest: typeof RestClient;
@@ -10893,6 +10967,17 @@ declare module '../client' {
  * last argument of each method. The underlying axios instance is available as
  * \`api.axios\` for anything beyond that (interceptors, etc.).
  *
+ * **Response caching:** pass \`cache: true\` (or \`cache: { ttl, methods, path }\`)
+ * to serve repeated requests from a shared TTL cache backed by the \`diskCache\`
+ * feature — because it lives on disk, every process in the project shares the
+ * same entries, so scripts and daemons hitting the same API don't hammer the
+ * backend. Cache keys hash the method, baseURL, url, params, body, and headers
+ * (auth included, so different credentials never share entries). Only GET is
+ * cached by default (override with \`methods\`), only successful responses are
+ * stored, and cache failures fall through to the network. Per request:
+ * \`{ cache: false }\` bypasses, \`{ cache: { ttl: 60 } }\` overrides the TTL.
+ * Requests made through the raw \`api.axios\` instance are never cached.
+ *
  * @example
  * \`\`\`typescript
  * const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
@@ -10908,6 +10993,20 @@ declare module '../client' {
  *   console.log('server is UP:', result)             // parsed response body
  * }
  * \`\`\`
+ *
+ * @example
+ * \`\`\`typescript
+ * // Shared TTL response cache: repeated GETs are served from disk for 5 minutes,
+ * // across every process in the project
+ * const api = container.client('rest', {
+ *   baseURL: 'https://api.example.com',
+ *   json: true,
+ *   cache: { ttl: 300 },
+ * })
+ * await api.get('/rates')                       // network
+ * await api.get('/rates')                       // cache hit (any process)
+ * await api.get('/rates', {}, { cache: false }) // force a fresh fetch
+ * \`\`\`
  */
 export declare class RestClient<T extends ClientState = ClientState, K extends ClientOptions = ClientOptions> extends Client<T, K> {
     axios: AxiosInstance;
@@ -10918,11 +11017,54 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
         stateChange: z.ZodTuple<[z.ZodAny], null>;
         failure: z.ZodTuple<[z.ZodAny], null>;
     }, z.core.$strip>;
+    static optionsSchema: z.ZodObject<any>;
     constructor(options: K, context: ContainerContext);
     beforeRequest(): Promise<void>;
     /** Whether JSON content-type headers should be set automatically. */
     get useJSON(): boolean;
     get baseURL(): string;
+    /**
+     * Normalized response-cache configuration, or undefined when caching is
+     * disabled. \`cache: true\` in the client options means defaults (GET only,
+     * 300 second TTL).
+     */
+    get cacheConfig(): RestClientCacheConfig | undefined;
+    /** HTTP methods served from the response cache (uppercased; default GET only). */
+    get cachedMethods(): string[];
+    /**
+     * The diskCache instance backing the response cache, or undefined when
+     * caching is disabled or the container has no diskCache feature (e.g. a
+     * browser container — caching degrades to a no-op there, requests still work).
+     */
+    get responseCache(): any;
+    private _responseCache;
+    /**
+     * Deterministic cache key for a request. Hashes everything that can change
+     * the response: method, baseURL, url, params, body, and the merged headers
+     * (defaults + per-request, so different auth tokens never share an entry —
+     * and the hash keeps the token itself out of the cache directory).
+     * @param config - The axios request config about to be sent
+     * @returns A \`rest:\`-prefixed hash key
+     */
+    cacheKeyFor(config: AxiosRequestConfig): string;
+    /**
+     * Resolve whether this request participates in the cache, and look up a hit.
+     * Returns undefined when caching doesn't apply (disabled, bypassed, or a
+     * non-cacheable method). Cache-layer failures are swallowed — they read as
+     * misses, never as request failures.
+     */
+    private cacheLookup;
+    /** Store a successful response body. Failures are swallowed — caching is best-effort. */
+    private cacheStore;
+    /**
+     * Shared request path for the non-throwing verb methods. Applies the
+     * response cache (when configured and the method is cacheable), sends the
+     * request, and returns the parsed body — or, on failure, the error as JSON
+     * (same returned-not-thrown semantics as the verb methods).
+     * @param config - Full axios request config, plus the per-request \`cache\` control
+     * @returns Parsed response body, or the error serialized as a plain object
+     */
+    request(config: RestRequestOptions): Promise<any>;
     /**
      * Send a PATCH request. Returns the parsed response body directly (not an
      * axios Response wrapper). On HTTP errors, returns the error as JSON instead
@@ -10939,7 +11081,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * if (patched?.name === 'AxiosError') console.error(patched.status, patched.message)
      * \`\`\`
      */
-    patch(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    patch(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a PUT request. Returns the parsed response body directly (not an
      * axios Response wrapper). On HTTP errors, returns the error as JSON instead
@@ -10956,7 +11098,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * console.log(updated)   // the parsed response body
      * \`\`\`
      */
-    put(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    put(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a POST request. Returns the parsed response body directly (not an
      * axios Response wrapper). On HTTP errors, returns the error as JSON instead
@@ -10979,7 +11121,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * }
      * \`\`\`
      */
-    post(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    post(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a DELETE request. Returns the parsed response body directly (not an
      * axios Response wrapper). On HTTP errors, returns the error as JSON instead
@@ -10999,7 +11141,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * if (result?.name === 'AxiosError') console.error('delete failed:', result.status)
      * \`\`\`
      */
-    delete(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
+    delete(url: string, params?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a GET request. Returns the parsed response body directly (not an
      * axios Response wrapper). On HTTP errors, returns the error as JSON instead
@@ -11024,7 +11166,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * if (me?.name === 'AxiosError') console.error(me.status, me.message)
      * \`\`\`
      */
-    get(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
+    get(url: string, params?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Handle an axios error by emitting 'failure' and returning the error as a
      * plain JSON object. Unlike axios' bare \`error.toJSON()\` (which drops the
@@ -11065,7 +11207,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * }
      * \`\`\`
      */
-    requestOrThrow(config: AxiosRequestConfig): Promise<any>;
+    requestOrThrow(config: RestRequestOptions): Promise<any>;
     /**
      * Send a GET request that **throws on failure** instead of returning the
      * error. Use this when a failed request has no meaningful "inspect the
@@ -11087,7 +11229,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * }
      * \`\`\`
      */
-    getOrThrow(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
+    getOrThrow(url: string, params?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a POST request that **throws on failure** instead of returning the
      * error. The thrown Error carries \`status\`, \`code\`, and \`data\` (parsed
@@ -11108,7 +11250,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * }
      * \`\`\`
      */
-    postOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    postOrThrow(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a PUT request that **throws on failure** instead of returning the
      * error. The thrown Error carries \`status\`, \`code\`, and \`data\`.
@@ -11124,7 +11266,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * const updated = await api.putOrThrow('/users/42', { name: 'Alice', role: 'admin' })
      * \`\`\`
      */
-    putOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    putOrThrow(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a PATCH request that **throws on failure** instead of returning the
      * error. The thrown Error carries \`status\`, \`code\`, and \`data\`.
@@ -11140,7 +11282,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * const patched = await api.patchOrThrow('/users/42', { role: 'viewer' })
      * \`\`\`
      */
-    patchOrThrow(url: string, data?: any, options?: AxiosRequestConfig): Promise<any>;
+    patchOrThrow(url: string, data?: any, options?: RestRequestOptions): Promise<any>;
     /**
      * Send a DELETE request that **throws on failure** instead of returning the
      * error. Like \`delete()\`, the second argument is query params, not a body.
@@ -11157,7 +11299,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
      * await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=true
      * \`\`\`
      */
-    deleteOrThrow(url: string, params?: any, options?: AxiosRequestConfig): Promise<any>;
+    deleteOrThrow(url: string, params?: any, options?: RestRequestOptions): Promise<any>;
 }
 export default RestClient;
 //# sourceMappingURL=rest.d.ts.map`,
@@ -12245,9 +12387,12 @@ export declare const argsSchema: z.ZodObject<{
     }>>;
     output: z.ZodDefault<z.ZodString>;
     'update-skill': z.ZodDefault<z.ZodBoolean>;
+    'use-plugins': z.ZodOptional<z.ZodString>;
     setup: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export declare const DEFAULT_ENV: string;
+/** Set LUCA_PLUGINS in .env, replacing an existing uncommented line or appending one. */
+export declare function setEnvPlugins(fs: any, ui: any, path: string, plugins: string): Promise<void>;
 export declare const GITIGNORE_ENTRIES: string[];
 /** Create .gitignore with the standard entries, or append only the ones missing from an existing file. */
 export declare function ensureGitignore(fs: any, ui: any, path: string): Promise<void>;
@@ -13130,6 +13275,8 @@ export default function serve(options: z.infer<typeof argsSchema>, context: Cont
 //# sourceMappingURL=serve.d.ts.map`,
   "commands/setup.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container.js';
+import type { NodeContainer } from '../node/container.js';
+import type { ModelProviderConfigSuggestion } from '../agi/features/model-providers';
 declare module '../command.js' {
     interface AvailableCommands {
         setup: ReturnType<typeof commands.registerHandler>;
@@ -13150,7 +13297,21 @@ export declare const argsSchema: z.ZodObject<{
     'chat-model': z.ZodDefault<z.ZodBoolean>;
     'skip-models': z.ZodDefault<z.ZodBoolean>;
     types: z.ZodDefault<z.ZodBoolean>;
+    providers: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
+/** The two config files a discovered provider list can be written to. */
+export interface ProvidersDestination {
+    kind: 'machine' | 'project';
+    path: string;
+}
+export declare function providersDestinations(container: NodeContainer): ProvidersDestination[];
+/**
+ * Fold a suggestion into an existing config document, preserving every other
+ * key already in the file. Provider ids come from \`suggestConfig()\`, which
+ * avoids collisions with ids already present, so nothing the user wrote is
+ * replaced — only host names and new provider entries are added.
+ */
+export declare function mergeProviderConfig(doc: any, suggestion: ModelProviderConfigSuggestion, target: ProvidersDestination): Record<string, any>;
 export declare function setup(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 //# sourceMappingURL=setup.d.ts.map`,
   "commands/social.d.ts": `import { z } from 'zod';
@@ -15457,6 +15618,7 @@ import "./features/internet-mail";
 import "./features/ipc-socket";
 import "./features/json-tree";
 import "./features/llama-server";
+import "./features/needle";
 import "./features/networking";
 import "./features/nlp";
 import "./features/opener";
@@ -15488,6 +15650,7 @@ import "./features/vault";
 import "./features/vm";
 import "./features/yaml-tree";
 import "./features/yaml";
+import "./features/zeroshot-classifier";
 import type { CipherSocialFeature } from "./features/cipher-social";
 import type { ContainerLink } from "./features/container-link";
 import type { ContentDb } from "./features/content-db";
@@ -15511,6 +15674,7 @@ import type { InternetMail } from "./features/internet-mail";
 import type { IpcSocket } from "./features/ipc-socket";
 import type { JsonTree } from "./features/json-tree";
 import type { LlamaServer } from "./features/llama-server";
+import type { Needle } from "./features/needle";
 import type { Networking } from "./features/networking";
 import type { NLP } from "./features/nlp";
 import type { Opener } from "./features/opener";
@@ -15542,6 +15706,7 @@ import type { Vault } from "./features/vault";
 import type { VM } from "./features/vm";
 import type { YamlTree } from "./features/yaml-tree";
 import type { YAML } from "./features/yaml";
+import type { ZeroshotClassifier } from "./features/zeroshot-classifier";
 export type { BlobMeta, CipherOptions, CipherState, CipherSocialFeature } from "./features/cipher-social";
 export type { MessageType, LinkMessage, RegisterData, RegisteredData, EvalData, EvalResultData, EventData, ConnectedContainer, ContainerLinkState, ContainerLinkOptions, ContainerLink } from "./features/container-link";
 export type { ContentDbState, ContentDbOptions, ContentDb } from "./features/content-db";
@@ -15565,6 +15730,7 @@ export type { MailTransportConfig, MailUsernameStyle, MailProviderPreset, Resolv
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
 export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";
+export type { NeedleOptions, NeedleState, NeedleTool, NeedleFunctionCall, NeedleResult, NeedleAgent, Needle } from "./features/needle";
 export type { LocalNetwork, ArpEntry, DiscoverHost, PortScanResult, LocalNetworkScanHost, NetworkSnapshot, NetworkingState, NetworkingOptions, Networking } from "./features/networking";
 export type { ParsedCommand, Analysis, NLP } from "./features/nlp";
 export type { Opener } from "./features/opener";
@@ -15596,6 +15762,7 @@ export type { VaultState, VaultOptions, Vault } from "./features/vault";
 export type { VMState, VMOptions, VMRunOptions, VM } from "./features/vm";
 export type { YamlTreeState, YamlTree } from "./features/yaml-tree";
 export type { YAML } from "./features/yaml";
+export type { ZeroshotClassifierOptions, ZeroshotClassifierState, ClassifierOption, ClassificationResult, ZeroshotClassifier } from "./features/zeroshot-classifier";
 export interface GeneratedNodeFeatures extends AvailableFeatures {
     cipherSocial: typeof CipherSocialFeature;
     containerLink: typeof ContainerLink;
@@ -15620,6 +15787,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     ipcSocket: typeof IpcSocket;
     jsonTree: typeof JsonTree;
     llamaServer: typeof LlamaServer;
+    needle: typeof Needle;
     networking: typeof Networking;
     nlp: typeof NLP;
     opener: typeof Opener;
@@ -15651,6 +15819,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     vm: typeof VM;
     yaml: typeof YAML;
     yamlTree: typeof YamlTree;
+    zeroshotClassifier: typeof ZeroshotClassifier;
 }
 //# sourceMappingURL=features.generated.d.ts.map`,
   "node/features/cipher-social.d.ts": `import { z } from 'zod';
@@ -17641,6 +17810,8 @@ export declare const DockerStateSchema: z.ZodObject<{
         created: z.ZodString;
     }, z.core.$strip>>;
     isDockerAvailable: z.ZodBoolean;
+    isDockerInstalled: z.ZodBoolean;
+    isDaemonRunning: z.ZodBoolean;
     lastError: z.ZodOptional<z.ZodString>;
 }, z.core.$loose>;
 export type DockerState = z.infer<typeof DockerStateSchema>;
@@ -17652,6 +17823,9 @@ export declare const DockerOptionsSchema: z.ZodObject<{
     dockerPath: z.ZodOptional<z.ZodString>;
     timeout: z.ZodOptional<z.ZodNumber>;
     autoRefresh: z.ZodOptional<z.ZodBoolean>;
+    autoStartDaemon: z.ZodOptional<z.ZodBoolean>;
+    daemonStartTimeout: z.ZodOptional<z.ZodNumber>;
+    daemonPollInterval: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 export type DockerOptions = z.infer<typeof DockerOptionsSchema>;
 /** Shell-like interface for executing commands against a Docker container */
@@ -17712,6 +17886,8 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
             created: z.ZodString;
         }, z.core.$strip>>;
         isDockerAvailable: z.ZodBoolean;
+        isDockerInstalled: z.ZodBoolean;
+        isDaemonRunning: z.ZodBoolean;
         lastError: z.ZodOptional<z.ZodString>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
@@ -17722,6 +17898,9 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
         dockerPath: z.ZodOptional<z.ZodString>;
         timeout: z.ZodOptional<z.ZodNumber>;
         autoRefresh: z.ZodOptional<z.ZodBoolean>;
+        autoStartDaemon: z.ZodOptional<z.ZodBoolean>;
+        daemonStartTimeout: z.ZodOptional<z.ZodNumber>;
+        daemonPollInterval: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>;
     static tools: Record<string, {
         schema: z.ZodType;
@@ -17742,9 +17921,9 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
     /** Resolve the docker binary path, caching the result. Options take precedence. */
     get dockerPath(): string;
     /**
-     * Check if Docker is available and working.
+     * Check if the Docker CLI is installed and its daemon is reachable.
      *
-     * @returns Promise resolving to true if Docker CLI is accessible, false otherwise
+     * @returns Promise resolving to true if the Docker daemon is accessible, false otherwise
      * @example
      * \`\`\`typescript
      * const available = await docker.checkDockerAvailability()
@@ -17752,6 +17931,26 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
      * \`\`\`
      */
     checkDockerAvailability(): Promise<boolean>;
+    /**
+     * Ask the operating system to start Docker.
+     *
+     * On macOS this launches Docker Desktop. On Linux it first tries the rootless
+     * user service, then the system Docker service. This method never invokes sudo.
+     * Use \`ensureDaemonRunning()\` when the caller also needs to wait for readiness.
+     */
+    startDaemon(): Promise<void>;
+    /**
+     * Ensure the Docker daemon is reachable, starting it when necessary and
+     * polling until it is ready.
+     *
+     * @param options - Readiness timing options
+     * @param options.timeout - Maximum wait in milliseconds
+     * @param options.pollInterval - Delay between readiness checks in milliseconds
+     */
+    ensureDaemonRunning(options?: {
+        timeout?: number;
+        pollInterval?: number;
+    }): Promise<void>;
     /**
      * Execute a Docker command and return the result.
      *
@@ -18497,6 +18696,20 @@ type WalkOptions = {
     include?: string | string[];
     /** When true, returned paths are relative to \`baseDir\` instead of absolute. */
     relative?: boolean;
+};
+type GlobOptions = {
+    /** Directory to scan from. Defaults to the container's cwd; relative values resolve against it. */
+    cwd?: string;
+    /** Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts'). */
+    exclude?: string | string[];
+    /** When true, returned paths are absolute. Default false (paths relative to cwd). */
+    absolute?: boolean;
+    /** Match dotfiles. Default false. */
+    dot?: boolean;
+    /** Only return files, not directories. Default true. */
+    onlyFiles?: boolean;
+    /** Follow symlinked directories while scanning. Default false. */
+    followSymlinks?: boolean;
 };
 /**
  * The FS feature provides methods for interacting with the file system, relative to the
@@ -19437,6 +19650,54 @@ export declare class FS extends Feature {
         directories: string[];
         files: string[];
     }>;
+    /**
+     * Synchronously finds files matching one or more glob patterns, powered by
+     * Bun's native glob engine. Returns paths relative to \`cwd\` (the container's
+     * cwd by default), sorted; pass \`absolute: true\` for absolute paths.
+     *
+     * Exclude semantics match {@link walk} (gitignore-ish): a slash-free pattern
+     * like \`'node_modules'\` or \`'*.test.ts'\` matches at any depth, while a
+     * pattern containing \`/\` matches the cwd-relative path.
+     *
+     * @param {string | string[]} pattern - Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])
+     * @param {GlobOptions} [options={}] - Options to configure the scan
+     * @param {string} [options.cwd] - Directory to scan from; defaults to the container's cwd
+     * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude; slash-free patterns match any path segment
+     * @param {boolean} [options.absolute=false] - When true, returned paths are absolute
+     * @param {boolean} [options.dot=false] - Match dotfiles
+     * @param {boolean} [options.onlyFiles=true] - Only return files, not directories
+     * @param {boolean} [options.followSymlinks=false] - Follow symlinked directories while scanning
+     * @returns {string[]} Sorted array of matching paths
+     *
+     * @example
+     * \`\`\`typescript
+     * fs.ensureFile('glob-demo/a.ts', '')
+     * fs.ensureFile('glob-demo/nested/b.ts', '')
+     * fs.ensureFile('glob-demo/nested/b.test.ts', '')
+     * const files = fs.glob('glob-demo/**\\/*.ts', { exclude: ['*.test.ts'] })
+     * // => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']
+     * \`\`\`
+     */
+    glob(pattern: string | string[], options?: GlobOptions): string[];
+    /**
+     * Asynchronously finds files matching one or more glob patterns, powered by
+     * Bun's native glob engine. Returns paths relative to \`cwd\` (the container's
+     * cwd by default), sorted; pass \`absolute: true\` for absolute paths.
+     *
+     * Exclude semantics match {@link glob} and {@link walk}.
+     *
+     * @param {string | string[]} pattern - Glob pattern(s) to match (e.g. 'src/**\\/*.ts', ['*.md', 'docs/**\\/*.md'])
+     * @param {GlobOptions} [options={}] - Options to configure the scan (same as glob)
+     * @returns {Promise<string[]>} Promise resolving to a sorted array of matching paths
+     *
+     * @example
+     * \`\`\`typescript
+     * await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')
+     * const files = await fs.globAsync('glob-async-demo/**\\/*.ts')
+     * // => ['glob-async-demo/nested/c.ts']
+     * \`\`\`
+     */
+    globAsync(pattern: string | string[], options?: GlobOptions): Promise<string[]>;
     /**
      * Synchronously finds a file by walking up the directory tree from the current working directory.
      *
@@ -23649,6 +23910,313 @@ export declare class LlamaServer extends Feature<LlamaServerState, LlamaServerOp
 }
 export default LlamaServer;
 //# sourceMappingURL=llama-server.d.ts.map`,
+  "node/features/needle.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        needle: typeof Needle;
+    }
+}
+export declare const NeedleOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    revision: z.ZodDefault<z.ZodString>;
+    basePort: z.ZodDefault<z.ZodNumber>;
+    portRange: z.ZodDefault<z.ZodNumber>;
+    depth: z.ZodOptional<z.ZodNumber>;
+    threads: z.ZodOptional<z.ZodNumber>;
+    maxTokens: z.ZodDefault<z.ZodNumber>;
+    readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const NeedleStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    runningPorts: z.ZodDefault<z.ZodArray<z.ZodNumber>>;
+}, z.core.$loose>;
+export declare const NeedleEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    serverStarted: z.ZodTuple<[z.ZodObject<{
+        port: z.ZodNumber;
+        toolsHash: z.ZodString;
+    }, z.core.$strip>], null>;
+    serverStopped: z.ZodTuple<[z.ZodObject<{
+        port: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    downloadProgress: z.ZodTuple<[z.ZodObject<{
+        received: z.ZodNumber;
+        total: z.ZodNumber;
+        target: z.ZodString;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type NeedleOptions = z.infer<typeof NeedleOptionsSchema>;
+export type NeedleState = z.infer<typeof NeedleStateSchema>;
+/** The Hugging Face repo that ships the needle engine binaries and weights. */
+export declare const NEEDLE_HF_REPO = "Cactus-Compute/needle3";
+/** The weights file at the root of the Hugging Face repo (~35MB). */
+export declare const NEEDLE_WEIGHTS_FILE = "needle3.cact";
+/**
+ * The Hugging Face platform folder for this process's platform/arch, or null
+ * when no prebuilt engine exists for it.
+ */
+export declare function needlePlatformFolder(): string | null;
+/** The engine binary's filename inside a platform folder. */
+export declare function needleBinaryName(): string;
+/** Weights live in the shared model cache next to the GGUF models. */
+export declare function needleWeightsPath(): string;
+/**
+ * A tool offered to needle: standard tool-calling shape. \`parameters\` is a
+ * JSON Schema object, or a zod object schema (converted via z.toJSONSchema).
+ */
+export interface NeedleTool {
+    name: string;
+    description: string;
+    parameters: object;
+}
+/** One function call needle decided to dispatch. */
+export interface NeedleFunctionCall {
+    name: string;
+    arguments: Record<string, unknown>;
+}
+/** The JSON object needle's server returns for every /complete turn. */
+export interface NeedleResult {
+    type: string;
+    success: boolean;
+    error: string | null;
+    error_code: string | null;
+    reason: string | null;
+    function_calls: NeedleFunctionCall[];
+    suppressed_calls: NeedleFunctionCall[];
+    reasoning: string;
+    /** Calibrated confidence 0..1. Gate on this — needle always picks *some* tool, even for off-topic queries. */
+    confidence: number;
+    prefill_tps?: number;
+    decode_tps?: number;
+    peak_ram_mb?: number;
+    validation?: {
+        ungrounded: string[];
+        negation: boolean;
+    };
+}
+/** A handle to a running needle server bound to one tool set. */
+export interface NeedleAgent {
+    /** Port the server is listening on. */
+    port: number;
+    /** Base URL of the server. */
+    baseURL: string;
+    /** Hash identifying the tool set this server was started with. */
+    toolsHash: string;
+    /**
+     * Run one turn. The server is stateful across calls (multi-turn context);
+     * pass \`fresh: true\` to reset the conversation first for a stateless query.
+     */
+    complete(input: string, opts?: {
+        fresh?: boolean;
+    }): Promise<NeedleResult>;
+    /** Clear the server's conversation state. */
+    reset(): Promise<void>;
+    /** Stop the server process. */
+    stop(): boolean;
+}
+/** Normalize tools: convert zod object schemas in \`parameters\` to JSON Schema. */
+export declare function normalizeTools(tools: NeedleTool[]): NeedleTool[];
+/** Deterministic hash of a tool set + system prompt (picks the server port). */
+export declare function hashToolSet(tools: NeedleTool[], system?: string): string;
+/**
+ * One HTTP round trip to check a needle server is up. The server answers 404
+ * on unknown routes, so any HTTP response at all means it is alive.
+ */
+export declare function probeNeedle(port: number, timeoutMs?: number): Promise<boolean>;
+/**
+ * Downloads and supervises local \`needle\` servers — Cactus Compute's tiny
+ * (35MB weights, <1MB engine, ~75MB resident) foundation model for tool
+ * calling, structured extraction, and routing. Apache-2.0, fully offline.
+ *
+ * Unlike a chat model, needle maps (query, tool list) → one JSON function
+ * call with a calibrated confidence. A server is bound to its tool set at
+ * startup, so this feature runs one detached server per tool set, on a port
+ * derived from the tool set's hash, shared by every luca process. Servers
+ * hold ~75MB and load in seconds; there is no idle watchdog — call
+ * \`stopAll()\` or \`agent.stop()\` when done.
+ *
+ * The engine binary and weights auto-download from Hugging Face on first
+ * use (~36MB total).
+ *
+ * **Gotcha:** needle always dispatches *some* call, even for off-topic
+ * queries ("tell me a joke" happily picks get_weather at 0.98 confidence).
+ * Include an explicit no-op/fallback tool in the set, or gate on
+ * \`result.confidence\`, when queries may fall outside the tool set.
+ *
+ * @example
+ * \`\`\`typescript
+ * const needle = container.feature('needle')
+ * const agent = await needle.agent([
+ *   { name: 'get_weather', description: 'Get the current weather for a city.',
+ *     parameters: z.object({ city: z.string().describe('The city name') }) },
+ * ])
+ * const result = await agent.complete("what's it like in Lagos right now?")
+ * // result.function_calls => [{ name: 'get_weather', arguments: { city: 'Lagos' } }]
+ * \`\`\`
+ */
+export declare class Needle extends Feature<NeedleState, NeedleOptions> {
+    static description: string;
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        runningPorts: z.ZodDefault<z.ZodArray<z.ZodNumber>>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        revision: z.ZodDefault<z.ZodString>;
+        basePort: z.ZodDefault<z.ZodNumber>;
+        portRange: z.ZodDefault<z.ZodNumber>;
+        depth: z.ZodOptional<z.ZodNumber>;
+        threads: z.ZodOptional<z.ZodNumber>;
+        maxTokens: z.ZodDefault<z.ZodNumber>;
+        readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        serverStarted: z.ZodTuple<[z.ZodObject<{
+            port: z.ZodNumber;
+            toolsHash: z.ZodString;
+        }, z.core.$strip>], null>;
+        serverStopped: z.ZodTuple<[z.ZodObject<{
+            port: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        downloadProgress: z.ZodTuple<[z.ZodObject<{
+            received: z.ZodNumber;
+            total: z.ZodNumber;
+            target: z.ZodString;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.needle";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    /** Directory the engine binary installs into. */
+    get installDir(): string;
+    /** Absolute path to the needle engine binary (whether or not installed yet). */
+    get binaryPath(): string;
+    /** Whether the engine binary is installed. */
+    get binaryInstalled(): boolean;
+    /** Absolute path where the needle3.cact weights live (whether or not downloaded yet). */
+    get weightsPath(): string;
+    /** Whether the model weights are downloaded. */
+    get weightsInstalled(): boolean;
+    /** Whether needle is fully installed (engine binary + weights). */
+    get ready(): boolean;
+    /**
+     * Download the platform engine binary from Hugging Face (~1MB). Skips when
+     * already installed. Emits downloadProgress events.
+     *
+     * @returns The absolute path to the installed binary
+     */
+    downloadBinary(): Promise<string>;
+    /**
+     * Download the needle3.cact weights (~35MB) into the shared model cache.
+     * Skips when already present. Emits downloadProgress events.
+     *
+     * @returns The absolute path to the weights file
+     */
+    downloadWeights(): Promise<string>;
+    /**
+     * Ensure both the engine binary and weights are installed, downloading
+     * whatever is missing (~36MB total, one time).
+     */
+    install(): Promise<{
+        binaryPath: string;
+        weightsPath: string;
+    }>;
+    /**
+     * Get an agent for a tool set: ensures a detached needle server bound to
+     * these tools is healthy (spawning and auto-installing if needed) and
+     * returns a handle to it. Servers are shared across luca processes — a
+     * second call with the same tools reuses the running server.
+     *
+     * @param tools - The functions needle may call. \`parameters\` accepts a zod
+     *   object schema or a plain JSON Schema object.
+     * @param opts.system - Session facts like date, locale, or device
+     *
+     * @example
+     * \`\`\`typescript
+     * const agent = await container.feature('needle').agent([
+     *   { name: 'set_timer', description: 'Set a countdown timer.',
+     *     parameters: z.object({ minutes: z.number().describe('Timer length in minutes') }) },
+     * ])
+     * const { function_calls, confidence } = await agent.complete('set a timer for 12 minutes')
+     * \`\`\`
+     */
+    agent(tools: NeedleTool[], opts?: {
+        system?: string;
+    }): Promise<NeedleAgent>;
+    /**
+     * Extract typed data from unstructured text: sugar over a single-tool
+     * agent whose parameters are your schema. Returns the extracted arguments
+     * (validated when the schema is zod) plus needle's confidence.
+     *
+     * @param text - The unstructured input (an email, an invoice, a form blob)
+     * @param schema - A zod object schema or JSON Schema describing the fields to pull out
+     *
+     * @example
+     * \`\`\`typescript
+     * const { data, confidence } = await container.feature('needle').extract(
+     *   'Invoice #4821 from Acme Corp, total $1,204.50 due March 3',
+     *   z.object({
+     *     invoiceNumber: z.string().describe('The invoice number'),
+     *     vendor: z.string().describe('Who issued the invoice'),
+     *     total: z.number().describe('Total amount due'),
+     *   }),
+     * )
+     * \`\`\`
+     */
+    extract<T = Record<string, unknown>>(text: string, schema: object, opts?: {
+        system?: string;
+    }): Promise<{
+        data: T;
+        confidence: number;
+        result: NeedleResult;
+    }>;
+    /** Stop the needle server on a port via its pid file. */
+    stopServer(port: number): boolean;
+    /** Stop every needle server this machine has pid files for. */
+    stopAll(): number;
+    /**
+     * Install/runtime status snapshot — what's downloaded and which servers
+     * are answering right now.
+     */
+    status(): Promise<{
+        binaryInstalled: boolean;
+        binaryPath: string;
+        weightsInstalled: boolean;
+        weightsPath: string;
+        servers: Array<{
+            port: number;
+            toolsHash: string;
+            healthy: boolean;
+        }>;
+    }>;
+    private pidFilePath;
+    private sidecarPath;
+    private readSidecar;
+    private resetServer;
+    /**
+     * Ensure a server bound to this tool set is healthy, spawning one if
+     * needed. The port is derived from the tool-set hash; when a *different*
+     * tool set already holds that port, linear-probe upward within the range.
+     */
+    private ensureServer;
+    private spawnServer;
+    /** Where tool sets, tool-index caches, and system files for spawned servers live. */
+    private get runDir();
+    /** Stream a URL to disk with progress events and an atomic rename. */
+    private downloadFile;
+}
+export default Needle;
+//# sourceMappingURL=needle.d.ts.map`,
   "node/features/networking.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 export declare const LocalNetworkSchema: z.ZodObject<{
@@ -34033,6 +34601,237 @@ export declare class YAML extends Feature {
 }
 export default YAML;
 //# sourceMappingURL=yaml.d.ts.map`,
+  "node/features/zeroshot-classifier.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        zeroshotClassifier: typeof ZeroshotClassifier;
+    }
+}
+declare const ClassifierOptionSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+    label: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>]>;
+export declare const ZeroshotClassifierOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    systemPrompt: z.ZodDefault<z.ZodString>;
+    availableOptions: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        label: z.ZodString;
+        description: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>]>>>;
+    model: z.ZodOptional<z.ZodString>;
+    baseURL: z.ZodOptional<z.ZodString>;
+    apiKey: z.ZodOptional<z.ZodString>;
+    provider: z.ZodOptional<z.ZodString>;
+    port: z.ZodDefault<z.ZodNumber>;
+    contextSize: z.ZodDefault<z.ZodNumber>;
+    readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+    idleTimeoutMs: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const ZeroshotClassifierStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    serverRunning: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export declare const ZeroshotClassifierEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    classified: z.ZodTuple<[z.ZodObject<{
+        input: z.ZodString;
+        probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+        label: z.ZodString;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type ZeroshotClassifierOptions = z.infer<typeof ZeroshotClassifierOptionsSchema>;
+/** Default local classifier model — non-thinking Qwen3 instruct, ~2.5GB. */
+export declare const DEFAULT_CLASSIFIER_MODEL = "Qwen3-4B-Instruct-2507-Q4_K_M";
+export type ZeroshotClassifierState = z.infer<typeof ZeroshotClassifierStateSchema>;
+export type ClassifierOption = z.infer<typeof ClassifierOptionSchema>;
+/** A classification outcome: the winning label plus the full distribution. */
+export interface ClassificationResult {
+    /** The option label with the highest probability. */
+    label: string;
+    /** That label's probability. */
+    probability: number;
+    /** Probability per option label; values sum to 1. */
+    probabilities: Record<string, number>;
+}
+/**
+ * Options are presented to the model as a lettered list (A, B, C…) and the
+ * model answers with one letter. A single letter is a single token in every
+ * tokenizer we serve, which is what makes the one-pass logprob trick work:
+ * the top_logprobs of that one generated position hold the model's real
+ * probability for every candidate letter at once. top_logprobs caps at 20,
+ * hence the 20-option limit.
+ */
+export declare const OPTION_LETTERS: string[];
+/** Normalize a mixed string/object option list into { label, description? }. */
+export declare function normalizeOptions(options: ClassifierOption[]): Array<{
+    label: string;
+    description?: string;
+}>;
+/** GBNF grammar that constrains generation to exactly one option letter. */
+export declare function optionGrammar(count: number): string;
+/**
+ * Build the chat messages. The options live in the system message so every
+ * run() against the same classifier shares a stable prompt prefix — the
+ * server's prompt cache then only has to process the input tokens.
+ */
+export declare function buildMessages(systemPrompt: string, options: Array<{
+    label: string;
+    description?: string;
+}>, input: string): {
+    role: string;
+    content: string;
+}[];
+/**
+ * Turn the top_logprobs of the generated letter position into a probability
+ * per label. Tokenizers sometimes emit the letter with leading whitespace, so
+ * tokens are matched trimmed. Matched probabilities are renormalized to sum
+ * to 1; options the model put outside the top-K get 0.
+ */
+export declare function probabilitiesFromLogprobs(topLogprobs: Array<{
+    token: string;
+    logprob: number;
+}>, options: Array<{
+    label: string;
+}>, sampledToken?: string): Record<string, number>;
+/**
+ * Zero-shot text classifier backed by a local llama-server. Configure it with
+ * a system prompt and a set of options; run() returns a probability for every
+ * option in a single forward pass.
+ *
+ * How it works: the options are presented as a lettered list, a GBNF grammar
+ * forces the model to answer with exactly one letter token, and the logprobs
+ * of that single position are read as the probability distribution over all
+ * options — no sampling noise, no output parsing, one token generated.
+ *
+ * By default the classifier runs its own llama-server (port 8145, Qwen3-4B
+ * Instruct) so it never fights the default chat server over which model a
+ * port serves; weights download on first ensureReady(). Set baseURL/apiKey/
+ * model to classify against any OpenAI-compatible endpoint instead (OpenAI,
+ * vLLM, LM Studio, ollama — anything that returns top_logprobs; the Anthropic
+ * API does not), or provider to resolve one from modelProviders profiles on
+ * an AGI container. Remote endpoints skip the GBNF grammar (a llama.cpp
+ * extension) and rely on the prompt — the probabilities are read from the
+ * letter entries of top_logprobs either way.
+ *
+ * @example
+ * \`\`\`typescript
+ * const classifier = container.feature('zeroshotClassifier', {
+ *   systemPrompt: 'Classify the customer message.',
+ *   availableOptions: [
+ *     { label: 'refund_request', description: 'wants money back' },
+ *     { label: 'bug_report', description: 'something is broken' },
+ *     'other',
+ *   ],
+ * })
+ * const probabilities = await classifier.run('my order arrived broken, please send my money back')
+ * // { refund_request: 0.93, bug_report: 0.06, other: 0.01 }
+ * \`\`\`
+ */
+export declare class ZeroshotClassifier extends Feature<ZeroshotClassifierState, ZeroshotClassifierOptions> {
+    static description: string;
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        serverRunning: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        systemPrompt: z.ZodDefault<z.ZodString>;
+        availableOptions: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            label: z.ZodString;
+            description: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>]>>>;
+        model: z.ZodOptional<z.ZodString>;
+        baseURL: z.ZodOptional<z.ZodString>;
+        apiKey: z.ZodOptional<z.ZodString>;
+        provider: z.ZodOptional<z.ZodString>;
+        port: z.ZodDefault<z.ZodNumber>;
+        contextSize: z.ZodDefault<z.ZodNumber>;
+        readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+        idleTimeoutMs: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        classified: z.ZodTuple<[z.ZodObject<{
+            input: z.ZodString;
+            probabilities: z.ZodRecord<z.ZodString, z.ZodNumber>;
+            label: z.ZodString;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.zeroshotClassifier";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    /** The configured options, normalized to { label, description? }. */
+    get availableOptions(): Array<{
+        label: string;
+        description?: string;
+    }>;
+    /** The configured model: the explicit option, else the pinned local default. */
+    get model(): string;
+    /** Absolute path of the classifier model's GGUF weights (local mode only). */
+    get modelPath(): string;
+    /** The remote base URL in effect, or undefined when running the local server. */
+    get remoteBaseURL(): string | undefined;
+    /** Whether classifications go to a remote endpoint instead of the self-managed local server. */
+    get isRemote(): boolean;
+    /** The OpenAI-compatible base URL of the classifier server. */
+    get baseURL(): string;
+    /**
+     * Download the classifier model's weights if missing (delegates to the
+     * llamaServer feature's downloader) and ensure the server is healthy.
+     *
+     * @returns The OpenAI-compatible base URL of the classifier server
+     *
+     * @example
+     * \`\`\`typescript
+     * await container.feature('zeroshotClassifier').ensureReady()
+     * \`\`\`
+     */
+    ensureReady(): Promise<string>;
+    /**
+     * Classify an input against the configured options.
+     *
+     * @param input - The text to classify
+     * @returns Probability per option label, summing to 1
+     *
+     * @example
+     * \`\`\`typescript
+     * const probabilities = await classifier.run('this app crashes on launch')
+     * // { refund_request: 0.04, bug_report: 0.95, other: 0.01 }
+     * \`\`\`
+     */
+    run(input: string): Promise<Record<string, number>>;
+    /**
+     * Classify an input and return the winning label alongside the full
+     * distribution.
+     *
+     * @param input - The text to classify
+     *
+     * @example
+     * \`\`\`typescript
+     * const { label, probability } = await classifier.classify('where is my refund??')
+     * \`\`\`
+     */
+    classify(input: string): Promise<ClassificationResult>;
+    /**
+     * Where this classification goes. Precedence: explicit baseURL (or the
+     * LUCA_CLASSIFIER_BASE_URL env var) → a modelProviders profile → the
+     * self-managed local llama-server. Only the self-managed server gets the
+     * GBNF grammar; everything else is plain OpenAI chat-completions.
+     */
+    private resolveEndpoint;
+    private ensureServer;
+}
+export default ZeroshotClassifier;
+//# sourceMappingURL=zeroshot-classifier.d.ts.map`,
   "python/generated.d.ts": `export declare const bridgeScript = "#!/usr/bin/env python3\\n\\"\\"\\"Luca Python Bridge - persistent interactive Python session.\\n\\nCommunicates via JSON lines over stdin/stdout. Each request is a single\\nJSON object per line on stdin; each response is a single JSON object per\\nline on stdout. User print() output is captured per-execution via\\nio.StringIO so it never corrupts the protocol.\\n\\nPython 3.8+ compatible (stdlib only).\\n\\"\\"\\"\\nimport sys\\nimport json\\nimport io\\nimport traceback\\nimport os\\n\\n# Persistent namespace shared across all exec/eval calls\\n_namespace = {\\"__builtins__\\": __builtins__}\\n\\n\\ndef setup_sys_path(project_dir):\\n    \\"\\"\\"Insert project_dir and common sub-paths into sys.path.\\"\\"\\"\\n    paths_to_add = [project_dir]\\n\\n    # src/ layout (PEP 621 / setuptools)\\n    src_dir = os.path.join(project_dir, \\"src\\")\\n    if os.path.isdir(src_dir):\\n        paths_to_add.append(src_dir)\\n\\n    # lib/ layout (less common but exists)\\n    lib_dir = os.path.join(project_dir, \\"lib\\")\\n    if os.path.isdir(lib_dir):\\n        paths_to_add.append(lib_dir)\\n\\n    for p in reversed(paths_to_add):\\n        if p not in sys.path:\\n            sys.path.insert(0, p)\\n\\n\\ndef _safe_serialize(value):\\n    \\"\\"\\"Attempt JSON serialization; fall back to repr().\\"\\"\\"\\n    try:\\n        json.dumps(value, default=str)\\n        return value\\n    except (TypeError, ValueError, OverflowError):\\n        return repr(value)\\n\\n\\ndef handle_exec(req):\\n    \\"\\"\\"Execute code in the persistent namespace.\\"\\"\\"\\n    code = req.get(\\"code\\", \\"\\")\\n    variables = req.get(\\"variables\\", {})\\n    _namespace.update(variables)\\n\\n    old_stdout = sys.stdout\\n    captured = io.StringIO()\\n    sys.stdout = captured\\n    try:\\n        exec(code, _namespace)\\n        sys.stdout = old_stdout\\n        return {\\"ok\\": True, \\"stdout\\": captured.getvalue(), \\"result\\": None}\\n    except Exception as e:\\n        sys.stdout = old_stdout\\n        return {\\n            \\"ok\\": False,\\n            \\"error\\": str(e),\\n            \\"traceback\\": traceback.format_exc(),\\n            \\"stdout\\": captured.getvalue(),\\n        }\\n\\n\\ndef handle_eval(req):\\n    \\"\\"\\"Evaluate an expression and return its value.\\"\\"\\"\\n    expression = req.get(\\"expression\\", \\"\\")\\n\\n    old_stdout = sys.stdout\\n    captured = io.StringIO()\\n    sys.stdout = captured\\n    try:\\n        result = eval(expression, _namespace)\\n        sys.stdout = old_stdout\\n        return {\\n            \\"ok\\": True,\\n            \\"result\\": _safe_serialize(result),\\n            \\"stdout\\": captured.getvalue(),\\n        }\\n    except Exception as e:\\n        sys.stdout = old_stdout\\n        return {\\n            \\"ok\\": False,\\n            \\"error\\": str(e),\\n            \\"traceback\\": traceback.format_exc(),\\n            \\"stdout\\": captured.getvalue(),\\n        }\\n\\n\\ndef handle_import(req):\\n    \\"\\"\\"Import a module into the namespace.\\"\\"\\"\\n    module_name = req.get(\\"module\\", \\"\\")\\n    alias = req.get(\\"alias\\", module_name.split(\\".\\")[-1])\\n    try:\\n        mod = __import__(\\n            module_name,\\n            fromlist=[module_name.split(\\".\\")[-1]] if \\".\\" in module_name else [],\\n        )\\n        _namespace[alias] = mod\\n        return {\\"ok\\": True, \\"result\\": \\"Imported {} as {}\\".format(module_name, alias)}\\n    except Exception as e:\\n        return {\\n            \\"ok\\": False,\\n            \\"error\\": str(e),\\n            \\"traceback\\": traceback.format_exc(),\\n        }\\n\\n\\ndef handle_call(req):\\n    \\"\\"\\"Call a function by dotted path in the namespace.\\"\\"\\"\\n    func_path = req.get(\\"function\\", \\"\\")\\n    args = req.get(\\"args\\", [])\\n    kwargs = req.get(\\"kwargs\\", {})\\n\\n    old_stdout = sys.stdout\\n    captured = io.StringIO()\\n    sys.stdout = captured\\n    try:\\n        parts = func_path.split(\\".\\")\\n        obj = _namespace[parts[0]]\\n        for part in parts[1:]:\\n            obj = getattr(obj, part)\\n        result = obj(*args, **kwargs)\\n        sys.stdout = old_stdout\\n        return {\\n            \\"ok\\": True,\\n            \\"result\\": _safe_serialize(result),\\n            \\"stdout\\": captured.getvalue(),\\n        }\\n    except Exception as e:\\n        sys.stdout = old_stdout\\n        return {\\n            \\"ok\\": False,\\n            \\"error\\": str(e),\\n            \\"traceback\\": traceback.format_exc(),\\n            \\"stdout\\": captured.getvalue(),\\n        }\\n\\n\\ndef handle_get_locals(req):\\n    \\"\\"\\"Return all non-dunder keys from the namespace.\\"\\"\\"\\n    safe = {}\\n    for k, v in _namespace.items():\\n        if k.startswith(\\"__\\"):\\n            continue\\n        safe[k] = _safe_serialize(v)\\n    return {\\"ok\\": True, \\"result\\": safe}\\n\\n\\ndef handle_reset(req):\\n    \\"\\"\\"Clear the namespace.\\"\\"\\"\\n    _namespace.clear()\\n    _namespace[\\"__builtins__\\"] = __builtins__\\n    return {\\"ok\\": True, \\"result\\": \\"Session reset\\"}\\n\\n\\nHANDLERS = {\\n    \\"exec\\": handle_exec,\\n    \\"eval\\": handle_eval,\\n    \\"import\\": handle_import,\\n    \\"call\\": handle_call,\\n    \\"get_locals\\": handle_get_locals,\\n    \\"reset\\": handle_reset,\\n}\\n\\n\\ndef main():\\n    # First line from stdin is the init handshake with project_dir\\n    init_line = sys.stdin.readline().strip()\\n    if init_line:\\n        try:\\n            init = json.loads(init_line)\\n            if \\"project_dir\\" in init:\\n                setup_sys_path(init[\\"project_dir\\"])\\n        except json.JSONDecodeError:\\n            pass\\n\\n    # Signal ready\\n    sys.stdout.write(json.dumps({\\"ok\\": True, \\"type\\": \\"ready\\"}) + \\"\\\\n\\")\\n    sys.stdout.flush()\\n\\n    # Main loop: read JSON commands, execute, respond\\n    for line in sys.stdin:\\n        line = line.strip()\\n        if not line:\\n            continue\\n\\n        try:\\n            req = json.loads(line)\\n        except json.JSONDecodeError as e:\\n            resp = {\\"ok\\": False, \\"error\\": \\"Invalid JSON: {}\\".format(e)}\\n            sys.stdout.write(json.dumps(resp) + \\"\\\\n\\")\\n            sys.stdout.flush()\\n            continue\\n\\n        req_id = req.get(\\"id\\")\\n        req_type = req.get(\\"type\\", \\"exec\\")\\n        handler = HANDLERS.get(req_type)\\n\\n        if not handler:\\n            resp = {\\"ok\\": False, \\"error\\": \\"Unknown request type: {}\\".format(req_type)}\\n        else:\\n            resp = handler(req)\\n\\n        if req_id:\\n            resp[\\"id\\"] = req_id\\n\\n        sys.stdout.write(json.dumps(resp, default=str) + \\"\\\\n\\")\\n        sys.stdout.flush()\\n\\n\\nif __name__ == \\"__main__\\":\\n    main()\\n";
 //# sourceMappingURL=generated.d.ts.map`,
   "react/index.d.ts": `import type { ReactNode } from 'react';
@@ -35727,7 +36526,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.14.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.14.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
