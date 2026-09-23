@@ -7,8 +7,20 @@ Browser-side TypeScript/ESM compilation feature using esbuild-wasm. Loads esbuil
 ## Usage
 
 ```ts
-container.feature('esbuild')
+container.feature('esbuild', {
+  // Partial<EsbuildTransformOptions>
+  transformOptions,
+  // Path to a tsconfig.json file for TypeScript compilation
+  tsconfig,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `transformOptions` | `any` | Partial<EsbuildTransformOptions> |
+| `tsconfig` | `string` | Path to a tsconfig.json file for TypeScript compilation |
 
 ## Methods
 
@@ -98,6 +110,12 @@ container.feature('esbuild')
 | Property | Type | Description |
 |----------|------|-------------|
 | `assetLoader` | `any` | Returns the assetLoader feature for loading external libraries from unpkg. |
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples
 

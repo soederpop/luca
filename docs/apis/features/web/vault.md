@@ -7,8 +7,23 @@ AES-256-GCM encryption for the browser, with a key the page can use but never re
 ## Usage
 
 ```ts
-container.feature('vault')
+container.feature('vault', {
+  // ID for this app's vault. Required unless you pass `secret`; there is no shared default key
+  vaultId,
+  // Explicit base64-encoded 32-byte key. Skips the device key and passphrase entirely
+  secret,
+  // IndexedDB database that holds device keys (default: luca-vault)
+  dbName,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `vaultId` | `string` | ID for this app's vault. Required unless you pass `secret`; there is no shared default key |
+| `secret` | `string` | Explicit base64-encoded 32-byte key. Skips the device key and passphrase entirely |
+| `dbName` | `string` | IndexedDB database that holds device keys (default: luca-vault) |
 
 ## Methods
 
@@ -124,7 +139,7 @@ Decrypts a payload made by `encryptJson()` and parses it.
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-| `vaultId` | `string` | ID of the project vault this key belongs to (undefined for an explicit `secret`) |
+| `vaultId` | `string` | ID of the vault this key belongs to |
 | `fingerprint` | `string` | Short hash of the loaded key. Every payload records it, so the wrong key is caught before decrypting |
 | `keySource` | `string` | Where the loaded key came from |
 

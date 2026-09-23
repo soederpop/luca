@@ -54,23 +54,34 @@ async function generateApiDocs(options: z.infer<typeof argsSchema>, context: Con
   const nodeFeatureSet = new Set(nodeIds.features)
   const agiOnlyFeatures = agiIds.features.filter(f => !nodeFeatureSet.has(f))
 
-  // Load web build-time data so __INTROSPECTION__ has web entries
-  await importSource('../src/introspection/generated.web.js')
-
   // Use AGIContainer for rendering — it has all node+agi registries loaded
   const agiContainer = new AGIContainer()
 
-  const groups: { dir: string; registryName: string; ids: string[] }[] = [
+  // Node and web helpers can share an id (vault, vm, helpers, containerLink), and
+  // __INTROSPECTION__ keys by id. So render everything node-side first, then swap
+  // in the web entries: drop the shared keys, register the web classes (runtime
+  // state/options), and only then load web build-time data (methods, getters).
+  const nodeGroups: { dir: string; registryName: string; ids: string[] }[] = [
     { dir: `${baseDir}/features/node`, registryName: 'features', ids: nodeIds.features },
     { dir: `${baseDir}/features/agi`, registryName: 'features', ids: agiOnlyFeatures },
-    { dir: `${baseDir}/features/web`, registryName: 'features', ids: webIds.features },
     { dir: `${baseDir}/servers`, registryName: 'servers', ids: agiIds.servers },
     // Clients are registered at runtime, not in generated files — use live registry
     { dir: `${baseDir}/clients`, registryName: 'clients', ids: agiContainer.clients.available },
   ]
+  const webGroups = [{ dir: `${baseDir}/features/web`, registryName: 'features', ids: webIds.features }]
 
   let totalFiles = 0
+  totalFiles += await renderGroups(nodeGroups)
 
+  for (const id of webIds.features) __INTROSPECTION__.delete(`features.${id}`)
+  await importSource('../src/web/container.js')
+  await importSource('../src/introspection/generated.web.js')
+  totalFiles += await renderGroups(webGroups)
+
+  console.log(`\n✨ Generated ${totalFiles} API docs in ${baseDir}/`)
+
+  async function renderGroups(groups: { dir: string; registryName: string; ids: string[] }[]) {
+  let count = 0
   for (const group of groups) {
     fs.ensureFolder(group.dir)
     console.log(`\n📁 ${group.dir}`)
@@ -100,14 +111,14 @@ async function generateApiDocs(options: z.infer<typeof argsSchema>, context: Con
         const fileName = toKebab(id) + '.md'
         await fs.writeFileAsync(`${group.dir}/${fileName}`, markdown)
         console.log(`   📄 ${fileName}`)
-        totalFiles++
+        count++
       } catch (err: any) {
         console.log(`   ⚠️  ${id}: ${err.message}`)
       }
     }
   }
-
-  console.log(`\n✨ Generated ${totalFiles} API docs in ${baseDir}/`)
+  return count
+  }
 }
 
 /** Convert camelCase shortcut to kebab-case filename */

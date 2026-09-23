@@ -8,12 +8,18 @@ ContainerLink (Web-side) — WebSocket client that connects to a node host. Conn
 
 ```ts
 container.feature('containerLink', {
-  // Port for the WebSocket server
-  port,
-  // Interval in ms between heartbeat pings
-  heartbeatInterval,
-  // Max missed pongs before disconnecting a client
-  maxMissedHeartbeats,
+  // WebSocket URL of the host container (e.g. ws://localhost:8089)
+  hostUrl,
+  // Metadata to send during registration
+  meta,
+  // Capability tags to advertise to the host
+  capabilities,
+  // Whether to automatically reconnect on disconnection
+  reconnect,
+  // Base interval in ms between reconnection attempts
+  reconnectInterval,
+  // Maximum number of reconnection attempts
+  maxReconnectAttempts,
 })
 ```
 
@@ -21,9 +27,12 @@ container.feature('containerLink', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `port` | `number` | Port for the WebSocket server |
-| `heartbeatInterval` | `number` | Interval in ms between heartbeat pings |
-| `maxMissedHeartbeats` | `number` | Max missed pongs before disconnecting a client |
+| `hostUrl` | `string` | WebSocket URL of the host container (e.g. ws://localhost:8089) |
+| `meta` | `object` | Metadata to send during registration |
+| `capabilities` | `array` | Capability tags to advertise to the host |
+| `reconnect` | `boolean` | Whether to automatically reconnect on disconnection |
+| `reconnectInterval` | `number` | Base interval in ms between reconnection attempts |
+| `maxReconnectAttempts` | `number` | Maximum number of reconnection attempts |
 
 ## Methods
 
@@ -82,84 +91,50 @@ Send a structured event to the host container.
 
 ### connected
 
-Event emitted by ContainerLink
+Emitted when successfully registered with the host
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Host container UUID |
 
 
 
 ### disconnected
 
-Event emitted by ContainerLink
+Emitted when disconnected from the host
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Reason |
 
 
 
 ### evalRequest
 
-Event emitted by ContainerLink
+Emitted before executing an eval request from the host
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Code to evaluate |
+| `arg1` | `string` | Request ID |
 
 
 
 ### reconnecting
 
-Event emitted by ContainerLink
-
-
-
-### disconnection
-
-Emitted when a web container disconnects
+Emitted when attempting to reconnect
 
 **Event Arguments:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `arg0` | `string` | Container UUID |
-| `arg1` | `string` | Reason |
-
-
-
-### error
-
-Event emitted by ContainerLink
-
-
-
-### connection
-
-Emitted when a web container connects and registers
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Container UUID |
-| `arg1` | `any` | Connection metadata |
-
-
-
-### evalResult
-
-Emitted when an eval result is received
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Request ID |
-| `arg1` | `any` | Result or error |
-
-
-
-### event
-
-Emitted when a web container sends a structured event
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Container UUID |
-| `arg1` | `string` | Event name |
-| `arg2` | `any` | Event data |
+| `arg0` | `number` | Attempt number |
 
 
 
@@ -168,9 +143,10 @@ Emitted when a web container sends a structured event
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-| `connectionCount` | `number` | Number of currently connected web containers |
-| `port` | `number` | Port the WebSocket server is listening on |
-| `listening` | `boolean` | Whether the WebSocket server is listening |
+| `connected` | `boolean` | Whether connected to the host |
+| `token` | `string` | Auth token received from host during registration |
+| `hostId` | `string` | UUID of the connected host container |
+| `reconnectAttempts` | `number` | Number of reconnection attempts made |
 
 ## Examples
 

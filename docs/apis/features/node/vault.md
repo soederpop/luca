@@ -1,8 +1,8 @@
-# WebVault (features.vault)
+# Vault (features.vault)
 
 > Stability: `stable`
 
-AES-256-GCM encryption for the browser, with a key the page can use but never read. Keys are WebCrypto `CryptoKey` objects created as non-extractable: page code can encrypt and decrypt with them, but cannot export the raw bytes. Script injected into the page can still decrypt while it runs there, but cannot steal the key. Every vault needs a `vaultId`. The browser already keeps each origin's storage apart; the ID keeps two apps on the same origin apart. There is no default key. Two ways to get a key: - **Device key** (default): created on first `encrypt()` and kept in IndexedDB under the vault ID. It stays on this browser. Good for local data at rest. - **Passphrase**: `unlock(passphrase)` derives the key with PBKDF2, so the same passphrase gives the same key on any device. It is never stored; `lock()` drops it. Payloads use the same single-line format as the node vault (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), so a payload from either side decrypts on the other with the same key. **Never send server secrets (API keys, database passwords) to the browser**, even encrypted. The page must decrypt them to use them, and then the user can read them.
+AES-256-GCM encryption with a per-project key that persists between runs. Each project gets its own vault. On first `encrypt()`, the vault writes a random vault ID to `.luca/vault.json` (commit it, it is not secret) and a key to `~/.luca/vaults/<vaultId>.key` (mode 600, never in the repo). Later runs, and teammates who have the key file, load the same key. A project only ever loads the key named by its own vault ID, so it cannot pick up another project's key. Key lookup, in order: the `secret` option, then the env var `LUCA_VAULT_KEY_<VAULT_ID>` (for CI; there is deliberately no global key var), then the key file. `vault.envVar` gives the exact env var name. Payloads are single-line text (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), safe in `.env` files, JSON, and shell args, and identical to the web vault's format. The fingerprint means a wrong key gives a clear error instead of a generic auth failure. Tampered payloads always throw. Payloads from older versions (the multi-line format) still decrypt. **Losing the key file means losing the data.** Back it up with `vault.exportKey()`.
 
 ## Usage
 
@@ -18,46 +18,24 @@ Creates a new random 32-byte key and returns it as base64. Has no side effects: 
 
 **Returns:** `string`
 
-
-
-### unlock
-
-Derives this vault's key from a passphrase (PBKDF2-SHA256, 600,000 iterations, salted by vault ID). The same passphrase and vault ID give the same key on any device. The key is kept in memory only; it replaces any device key for this instance until `lock()`.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `passphrase` | `string` | ✓ | The passphrase to derive the key from |
-
-**Returns:** `Promise<string>`
-
 ```ts
-const vault = container.feature('vault', { vaultId: 'notes-sync' })
-await vault.unlock('correct horse battery staple')
+const key = vault.generateKey()
+const other = container.feature('vault', { secret: key })
 ```
 
 
 
-### lock
+### exportKey
 
-Drops the key from memory. A passphrase key needs `unlock()` again; a device key reloads from IndexedDB on next use.
+Returns the loaded key as base64, for backups or for setting `vault.envVar` in CI. Throws if the project has no key yet, rather than creating one.
 
-**Returns:** `void`
-
-
-
-### forget
-
-Deletes this vault's device key from IndexedDB, for example on sign-out. **Anything encrypted with it can no longer be decrypted.**
-
-**Returns:** `Promise<void>`
+**Returns:** `string`
 
 
 
 ### encrypt
 
-Encrypts a string. Creates the device key on first use, unless a `secret` was passed or `unlock()` was called.
+Encrypts a string. Creates the project vault and key on first use. A fresh random IV is used every call, so the same input gives a different payload each time. Both still decrypt to the same value.
 
 **Parameters:**
 
@@ -65,13 +43,20 @@ Encrypts a string. Creates the device key on first use, unless a `secret` was pa
 |------|------|----------|-------------|
 | `plaintext` | `string` | ✓ | The string to encrypt |
 
-**Returns:** `Promise<string>`
+**Returns:** `string`
+
+```ts
+const a = vault.encrypt('same-input')
+const b = vault.encrypt('same-input')
+console.log(a === b)                                // false
+console.log(vault.decrypt(a) === vault.decrypt(b))  // true
+```
 
 
 
 ### decrypt
 
-Decrypts a payload made by `encrypt()`, by this vault or the node vault with the same key. Never creates a key.
+Decrypts a payload made by `encrypt()`, by this vault or the web vault with the same key. Never creates a key.
 
 **Parameters:**
 
@@ -79,7 +64,12 @@ Decrypts a payload made by `encrypt()`, by this vault or the node vault with the
 |------|------|----------|-------------|
 | `payload` | `string` | ✓ | A payload from `encrypt()` |
 
-**Returns:** `Promise<string>`
+**Returns:** `string`
+
+```ts
+const encrypted = vault.encrypt('my-database-password')
+vault.decrypt(encrypted)   // 'my-database-password'
+```
 
 
 
@@ -93,7 +83,12 @@ Encrypts any JSON-serializable value.
 |------|------|----------|-------------|
 | `value` | `any` | ✓ | The value to encrypt |
 
-**Returns:** `Promise<string>`
+**Returns:** `string`
+
+```ts
+const payload = vault.encryptJson({ user: 'app', password: 'hunter2' })
+vault.decryptJson(payload).password   // 'hunter2'
+```
 
 
 
@@ -107,7 +102,26 @@ Decrypts a payload made by `encryptJson()` and parses it.
 |------|------|----------|-------------|
 | `payload` | `string` | ✓ | A payload from `encryptJson()` |
 
-**Returns:** `Promise<T>`
+**Returns:** `T`
+
+
+
+### rotate
+
+Replaces the key and re-encrypts the payloads you pass with it. Every payload is decrypted with the old key first, so a bad payload throws before anything changes. For a file-backed key, the old key is kept as `<vaultId>.<oldFingerprint>.key.bak` next to the new one, and the project file records the new fingerprint. Payloads you do not pass stay encrypted with the old key. For an env-backed key, update the env var with `exportKey()` afterwards.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `payloads` | `T` |  | Payloads to re-encrypt, as an array or a name-to-payload map |
+
+**Returns:** `T`
+
+```ts
+const secrets = container.fs.readJson('secrets.enc.json')
+container.fs.writeJson('secrets.enc.json', vault.rotate(secrets))
+```
 
 
 
@@ -115,9 +129,11 @@ Decrypts a payload made by `encryptJson()` and parses it.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `vaultId` | `string | undefined` | This vault's ID, from the `vaultId` option. |
-| `fingerprint` | `string | undefined` | Short hash of the loaded key, recorded in every payload. |
-| `isUnlocked` | `boolean` | True when a key is loaded in memory. |
+| `projectFilePath` | `string` | The project file that records this project's vault ID and key fingerprint. |
+| `vaultId` | `string | undefined` | The vault ID for this project, or undefined if the project has no vault yet (one is created on the first `encrypt()`), or an explicit `secret` is in use. |
+| `keyPath` | `string | undefined` | Where this project's key file lives: `<keysDir>/<vaultId>.key`. |
+| `envVar` | `string | undefined` | The env var that supplies this vault's key in CI, e.g. `LUCA_VAULT_KEY_VLT_1A2B3C`. It is named by vault ID so a key exported in your shell for one project is never used by another. |
+| `fingerprint` | `string | undefined` | Short hash of the loaded key, recorded in every payload and in the project file. |
 
 ## State (Zod v4 schema)
 
@@ -133,23 +149,66 @@ Decrypts a payload made by `encryptJson()` and parses it.
 **features.vault**
 
 ```ts
-const vault = container.feature('vault', { vaultId: 'notes-app' })
-const encrypted = await vault.encrypt('draft text')   // creates the device key on first use
-await vault.decrypt(encrypted)                         // 'draft text'
+const vault = container.feature('vault')
 
-// Same key on every device: derive it from a passphrase
-const synced = container.feature('vault', { vaultId: 'notes-sync' })
-await synced.unlock('correct horse battery staple')
-const payload = await synced.encryptJson({ title: 'hello' })
-synced.lock()
+// First use creates .luca/vault.json and ~/.luca/vaults/<vaultId>.key
+const token = vault.encrypt('sk_live_123')
+vault.decrypt(token)                         // 'sk_live_123', in this run or any later one
+
+const config = vault.encryptJson({ user: 'app', password: 'hunter2' })
+vault.decryptJson(config).password           // 'hunter2'
+
+console.log(vault.envVar)                    // 'LUCA_VAULT_KEY_VLT_...' - set this in CI
+const backup = vault.exportKey()             // base64 key, store it somewhere safe
+
+// An explicit key skips the project vault (useful for ephemeral or derived keys)
+const scratch = container.feature('vault', { secret: vault.generateKey() })
 ```
 
 
 
-**unlock**
+**generateKey**
 
 ```ts
-const vault = container.feature('vault', { vaultId: 'notes-sync' })
-await vault.unlock('correct horse battery staple')
+const key = vault.generateKey()
+const other = container.feature('vault', { secret: key })
+```
+
+
+
+**encrypt**
+
+```ts
+const a = vault.encrypt('same-input')
+const b = vault.encrypt('same-input')
+console.log(a === b)                                // false
+console.log(vault.decrypt(a) === vault.decrypt(b))  // true
+```
+
+
+
+**decrypt**
+
+```ts
+const encrypted = vault.encrypt('my-database-password')
+vault.decrypt(encrypted)   // 'my-database-password'
+```
+
+
+
+**encryptJson**
+
+```ts
+const payload = vault.encryptJson({ user: 'app', password: 'hunter2' })
+vault.decryptJson(payload).password   // 'hunter2'
+```
+
+
+
+**rotate**
+
+```ts
+const secrets = container.fs.readJson('secrets.enc.json')
+container.fs.writeJson('secrets.enc.json', vault.rotate(secrets))
 ```
 

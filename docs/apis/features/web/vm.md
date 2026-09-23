@@ -8,7 +8,7 @@ Sandboxed JavaScript execution environment for the browser. Automatically inject
 
 ```ts
 container.feature('vm', {
-  // Default context object to inject into the VM execution environment
+  // VM context object
   context,
 })
 ```
@@ -17,7 +17,7 @@ container.feature('vm', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `context` | `any` | Default context object to inject into the VM execution environment |
+| `context` | `any` | VM context object |
 
 ## Methods
 

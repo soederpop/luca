@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.
+ContainerLink (Node-side) — WebSocket host for remote web containers. Creates a WebSocket server that web containers connect to. The host can evaluate code in connected web containers and receive structured events back. Trust is strictly one-way: the node side can eval in web containers, but web containers can NEVER eval in the node container.
 
 ## Usage
 
@@ -27,44 +27,114 @@ container.feature('containerLink', {
 
 ## Methods
 
-### connect
+### start
 
-Connect to the host WebSocket server and perform registration.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `hostUrl` | `string` |  | Override the configured host URL |
+Start the WebSocket server and begin accepting connections.
 
 **Returns:** `Promise<this>`
 
 
 
-### disconnect
+### attachNoServer
 
-Disconnect from the host.
+Create the WebSocket server without opening a port, so it can share an existing HTTP server's listener. The caller owns upgrade routing: route HTTP `upgrade` events to the returned server via `wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))`.
+
+**Returns:** `WebSocketServer`
+
+
+
+### stop
+
+Stop the WebSocket server and disconnect all clients.
+
+**Returns:** `Promise<this>`
+
+
+
+### eval
+
+Evaluate code in a specific connected web container.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
+| `containerId` | `string` | ✓ | UUID of the target web container |
+| `code` | `string` | ✓ | JavaScript code to evaluate |
+| `context` | `Record<string, any>` |  | Optional context variables to inject |
+| `timeout` | `any` |  | Timeout in ms (default 10000) |
+
+**Returns:** `Promise<T>`
+
+
+
+### broadcast
+
+Evaluate code in all connected web containers.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `code` | `string` | ✓ | JavaScript code to evaluate |
+| `context` | `Record<string, any>` |  | Optional context variables to inject |
+| `timeout` | `any` |  | Timeout in ms (default 10000) |
+
+**Returns:** `Promise<Map<string, T | Error>>`
+
+
+
+### getConnections
+
+Get metadata of all connected containers.
+
+**Returns:** `Array<Omit<ConnectedContainer, 'ws' | 'token'>>`
+
+
+
+### disconnect
+
+Disconnect a specific web container.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `containerId` | `string` | ✓ | UUID of the container to disconnect |
 | `reason` | `string` |  | Optional reason string |
 
 **Returns:** `void`
 
 
 
-### emitToHost
+### generateToken
 
-Send a structured event to the host container.
+Generate a cryptographically random token for connection auth.
+
+**Returns:** `string`
+
+
+
+### sendTo
+
+Send a message to a specific connected container by UUID.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `eventName` | `string` | ✓ | Name of the event |
-| `data` | `any` |  | Optional event data |
+| `containerId` | `string` | ✓ | UUID of the target container |
+| `msg` | `LinkMessage` | ✓ | The message to send |
+
+`LinkMessage` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `MessageType` |  |
+| `id` | `string` |  |
+| `timestamp` | `number` |  |
+| `token` | `string` |  |
+| `data` | `T` |  |
 
 **Returns:** `void`
 
@@ -74,35 +144,10 @@ Send a structured event to the host container.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `isConnected` | `boolean` | Whether currently connected to the host. |
-| `token` | `string | undefined` | The auth token received from the host. |
-| `hostId` | `string | undefined` | The host container's UUID. |
+| `isListening` | `boolean` | Whether the WebSocket server is currently listening. |
+| `connectionCount` | `number` | Number of currently connected web containers. |
 
 ## Events (Zod v4 schema)
-
-### connected
-
-Event emitted by ContainerLink
-
-
-
-### disconnected
-
-Event emitted by ContainerLink
-
-
-
-### evalRequest
-
-Event emitted by ContainerLink
-
-
-
-### reconnecting
-
-Event emitted by ContainerLink
-
-
 
 ### disconnection
 
@@ -177,18 +222,29 @@ Emitted when a web container sends a structured event
 **features.containerLink**
 
 ```ts
-const link = container.feature('containerLink', {
- enable: true,
- hostUrl: 'ws://localhost:8089',
+const link = container.feature('containerLink', { enable: true, port: 8089 })
+await link.start()
+
+// Or share an existing HTTP server's port instead of opening one:
+// const wss = link.attachNoServer()
+// httpServer.on('upgrade', (req, socket, head) => {
+//   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+// })
+
+// When a web container connects:
+link.on('connection', (uuid, meta) => {
+ console.log('Connected:', uuid)
 })
-await link.connect()
 
-// Send events to the host
-link.emitToHost('click', { x: 100, y: 200 })
+// Eval code in a specific web container
+const result = await link.eval(uuid, 'document.title')
 
-// Listen for eval requests before they execute
-link.on('evalRequest', (code, requestId) => {
- console.log('Host is evaluating:', code)
+// Broadcast eval to all connected containers
+const results = await link.broadcast('navigator.userAgent')
+
+// Listen for events from web containers
+link.on('event', (uuid, eventName, data) => {
+ console.log(`Event from ${uuid}: ${eventName}`, data)
 })
 ```
 

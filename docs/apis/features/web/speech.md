@@ -7,8 +7,17 @@ Text-to-speech synthesis using the Web Speech API (SpeechSynthesis). Wraps the b
 ## Usage
 
 ```ts
-container.feature('speech')
+container.feature('speech', {
+  // The voice to use for the speech
+  voice,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `voice` | `string` | The voice to use for the speech |
 
 ## Methods
 
@@ -55,6 +64,14 @@ container.feature('speech')
 |----------|------|-------------|
 | `voices` | `any` | Returns the array of available speech synthesis voices. |
 | `defaultVoice` | `any` | Returns the Voice object matching the currently selected default voice name. |
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `defaultVoice` | `string` | Name of the currently selected default voice |
+| `voices` | `array` | Available speech synthesis voices |
 
 ## Examples
 

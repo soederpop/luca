@@ -31,6 +31,27 @@ container.feature('network')
 | `isOffline` | `any` | Whether the browser is currently offline. |
 | `isOnline` | `any` | Whether the browser is currently online. |
 
+## Events (Zod v4 schema)
+
+### online
+
+Fires when the browser regains network connectivity
+
+
+
+### offline
+
+Fires when the browser loses network connectivity
+
+
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `offline` | `boolean` | Whether the browser is currently offline |
+
 ## Examples
 
 **features.network**

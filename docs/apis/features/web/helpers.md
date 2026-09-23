@@ -8,8 +8,8 @@ The Helpers feature discovers and loads project-level helpers from a JSON manife
 
 ```ts
 container.feature('helpers', {
-  // Root directory to scan for helper folders. Defaults to container.cwd
-  rootDir,
+  // URL to fetch the helpers manifest from. Defaults to /.well-known/luca.manifest.json
+  manifestURL,
 })
 ```
 
@@ -17,7 +17,7 @@ container.feature('helpers', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `rootDir` | `string` | Root directory to scan for helper folders. Defaults to container.cwd |
+| `manifestURL` | `string` | URL to fetch the helpers manifest from. Defaults to /.well-known/luca.manifest.json |
 
 ## Methods
 
@@ -147,7 +147,30 @@ Emitted when a single helper is registered
 |------|------|-------------|
 | `arg0` | `string` | Registry type |
 | `arg1` | `string` | Helper name |
-| `arg2` | `any` | The helper class or module |
+
+
+
+### manifestLoaded
+
+Emitted when the manifest is successfully fetched
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The parsed manifest object |
+
+
+
+### manifestError
+
+Emitted when the manifest fetch fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error that occurred |
 
 
 
@@ -158,6 +181,7 @@ Emitted when a single helper is registered
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 | `discovered` | `object` | Which registry types have been discovered |
 | `registered` | `array` | Names of project-level helpers that were discovered (type.name) |
+| `manifestLoaded` | `boolean` | Whether the manifest has been fetched |
 
 ## Examples
 

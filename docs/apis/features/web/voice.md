@@ -7,8 +7,23 @@ Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps t
 ## Usage
 
 ```ts
-container.feature('voice')
+container.feature('voice', {
+  // BCP 47 language code for recognition (e.g. en-US)
+  language,
+  // Whether to continuously listen for speech
+  continuous,
+  // Whether to automatically start listening on creation
+  autoListen,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `language` | `string` | BCP 47 language code for recognition (e.g. en-US) |
+| `continuous` | `boolean` | Whether to continuously listen for speech |
+| `autoListen` | `boolean` | Whether to automatically start listening on creation |
 
 ## Methods
 
@@ -53,21 +68,60 @@ container.feature('voice')
 
 ### start
 
-Event emitted by VoiceRecognition
+Fires when speech recognition starts listening
 
 
 
 ### stop
 
-Event emitted by VoiceRecognition
+Fires when speech recognition is manually stopped
 
 
 
 ### abort
 
-Event emitted by VoiceRecognition
+Fires when speech recognition is aborted
 
 
+
+### result
+
+Fires when speech recognition produces a result
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `finalTranscript` | `string` | Accumulated final transcript text |
+| `interimTranscript` | `string` | Current interim transcript text |
+
+
+
+### error
+
+Fires when speech recognition encounters an error
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Error message from the recognizer |
+
+
+
+### end
+
+Fires when speech recognition ends
+
+
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `listening` | `boolean` | Whether the recognizer is currently listening |
+| `transcript` | `string` | Accumulated final transcript text |
 
 ## Examples
 
