@@ -28945,46 +28945,53 @@ setBuildTimeData('features.ui', {
 
 setBuildTimeData('features.vault', {
   "id": "features.vault",
-  "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations. **Keys are NOT persisted.** Unless you pass a `secret` option, the vault mints a brand-new random key the first time one is needed, and that key lives only in process memory. Every `luca` invocation (every process) gets a fresh key, so data encrypted in one run CANNOT be decrypted in a later run unless you save the key yourself and pass it back via `container.feature('vault', { secret })`.",
+  "description": "AES-256-GCM encryption with a per-project key that persists between runs. Each project gets its own vault. On first `encrypt()`, the vault writes a random vault ID to `.luca/vault.json` (commit it, it is not secret) and a key to `~/.luca/vaults/<vaultId>.key` (mode 600, never in the repo). Later runs, and teammates who have the key file, load the same key. A project only ever loads the key named by its own vault ID, so it cannot pick up another project's key. Key lookup, in order: the `secret` option, then the env var `LUCA_VAULT_KEY_<VAULT_ID>` (for CI; there is deliberately no global key var), then the key file. `vault.envVar` gives the exact env var name. Payloads are single-line text (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), safe in `.env` files, JSON, and shell args, and identical to the web vault's format. The fingerprint means a wrong key gives a clear error instead of a generic auth failure. Tampered payloads always throw. Payloads from older versions (the multi-line format) still decrypt. **Losing the key file means losing the data.** Back it up with `vault.exportKey()`.",
   "shortcut": "features.vault",
   "className": "Vault",
   "methods": {
-    "secret": {
-      "description": "Gets or generates a secret key for encryption operations. If no key exists yet, this mints a NEW cryptographically random 32-byte key — it is not derived from anything and is never written to disk. Each process therefore gets its own key: data encrypted with it is undecryptable in any other `luca` invocation unless you persist the key (see `secretText`) and pass it back via `container.feature('vault', { secret })`.",
-      "parameters": {
-        "{ refresh = false, set = true }": {
-          "type": "any",
-          "description": "Parameter { refresh = false, set = true }"
-        }
-      },
+    "generateKey": {
+      "description": "Creates a new random 32-byte key and returns it as base64. Has no side effects: it does not change this vault's key. Pass the result as `secret` to use it.",
+      "parameters": {},
       "required": [],
-      "returns": "Buffer"
-    },
-    "decrypt": {
-      "description": "Decrypts an encrypted payload that was created by the encrypt method. Because AES-256-GCM is authenticated encryption, decryption verifies the auth tag — a tampered or truncated payload, or the wrong key, throws rather than silently returning garbage.",
-      "parameters": {
-        "payload": {
-          "type": "string",
-          "description": "The encrypted payload to decrypt (base64 encoded with delimiters)"
-        }
-      },
-      "required": [
-        "payload"
-      ],
       "returns": "string",
       "examples": [
         {
           "language": "ts",
-          "code": "const vault = container.feature('vault')\nconst encrypted = vault.encrypt('my-database-password-12345')\n\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted)                                    // 'my-database-password-12345'\nconsole.log(decrypted === 'my-database-password-12345')   // true — exact round-trip"
+          "code": "const key = vault.generateKey()\nconst other = container.feature('vault', { secret: key })"
         }
       ]
     },
+    "exportKey": {
+      "description": "Returns the loaded key as base64, for backups or for setting `vault.envVar` in CI. Throws if the project has no key yet, rather than creating one.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
     "encrypt": {
-      "description": "Encrypts a plaintext string using AES-256-GCM encryption. The output is an opaque text payload — three base64 segments (IV, ciphertext, auth tag) joined by a delimiter — safe to store in config files or databases. A fresh random IV is generated on every call, so encrypting the same input twice produces different ciphertexts (semantic security): an attacker cannot tell whether two payloads contain the same plaintext. Both still decrypt to the same value.",
+      "description": "Encrypts a string. Creates the project vault and key on first use. A fresh random IV is used every call, so the same input gives a different payload each time. Both still decrypt to the same value.",
+      "parameters": {
+        "plaintext": {
+          "type": "string",
+          "description": "The string to encrypt"
+        }
+      },
+      "required": [
+        "plaintext"
+      ],
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))  // true"
+        }
+      ]
+    },
+    "decrypt": {
+      "description": "Decrypts a payload made by `encrypt()`, by this vault or the web vault with the same key. Never creates a key.",
       "parameters": {
         "payload": {
           "type": "string",
-          "description": "The plaintext string to encrypt"
+          "description": "A payload from `encrypt()`"
         }
       },
       "required": [
@@ -28994,14 +29001,79 @@ setBuildTimeData('features.vault', {
       "examples": [
         {
           "language": "ts",
-          "code": "const vault = container.feature('vault')\n\n// Same input, unique ciphertext every time — a fresh IV is used per call\nconst a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                   // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip"
+          "code": "const encrypted = vault.encrypt('my-database-password')\nvault.decrypt(encrypted)   // 'my-database-password'"
+        }
+      ]
+    },
+    "encryptJson": {
+      "description": "Encrypts any JSON-serializable value.",
+      "parameters": {
+        "value": {
+          "type": "any",
+          "description": "The value to encrypt"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const payload = vault.encryptJson({ user: 'app', password: 'hunter2' })\nvault.decryptJson(payload).password   // 'hunter2'"
+        }
+      ]
+    },
+    "decryptJson": {
+      "description": "Decrypts a payload made by `encryptJson()` and parses it.",
+      "parameters": {
+        "payload": {
+          "type": "string",
+          "description": "A payload from `encryptJson()`"
+        }
+      },
+      "required": [
+        "payload"
+      ],
+      "returns": "T"
+    },
+    "rotate": {
+      "description": "Replaces the key and re-encrypts the payloads you pass with it. Every payload is decrypted with the old key first, so a bad payload throws before anything changes. For a file-backed key, the old key is kept as `<vaultId>.<oldFingerprint>.key.bak` next to the new one, and the project file records the new fingerprint. Payloads you do not pass stay encrypted with the old key. For an env-backed key, update the env var with `exportKey()` afterwards.",
+      "parameters": {
+        "payloads": {
+          "type": "T",
+          "description": "Payloads to re-encrypt, as an array or a name-to-payload map"
+        }
+      },
+      "required": [],
+      "returns": "T",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const secrets = container.fs.readJson('secrets.enc.json')\ncontainer.fs.writeJson('secrets.enc.json', vault.rotate(secrets))"
         }
       ]
     }
   },
   "getters": {
-    "secretText": {
-      "description": "Gets the secret key as a base64-encoded string. Lazily populated: unless a `secret` option was passed at construction, this is `undefined` until something forces key generation — i.e. until `secret()`, `encrypt()`, or `decrypt()` has run. Call `vault.secret()` first if you want to read `secretText` before encrypting anything.",
+    "projectFilePath": {
+      "description": "The project file that records this project's vault ID and key fingerprint.",
+      "returns": "string"
+    },
+    "vaultId": {
+      "description": "The vault ID for this project, or undefined if the project has no vault yet (one is created on the first `encrypt()`), or an explicit `secret` is in use.",
+      "returns": "string | undefined"
+    },
+    "keyPath": {
+      "description": "Where this project's key file lives: `<keysDir>/<vaultId>.key`.",
+      "returns": "string | undefined"
+    },
+    "envVar": {
+      "description": "The env var that supplies this vault's key in CI, e.g. `LUCA_VAULT_KEY_VLT_1A2B3C`. It is named by vault ID so a key exported in your shell for one project is never used by another.",
+      "returns": "string | undefined"
+    },
+    "fingerprint": {
+      "description": "Short hash of the loaded key, recorded in every payload and in the project file.",
       "returns": "string | undefined"
     }
   },
@@ -29014,7 +29086,7 @@ setBuildTimeData('features.vault', {
   "examples": [
     {
       "language": "ts",
-      "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data (same process — the in-memory key is still around)\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'\n\n// ── Cross-invocation decryption: persist the key and pass it back ──\n// Run 1: encrypt and save the base64 key alongside (or apart from) the data\nconst v1 = container.feature('vault')\nconst payload = v1.encrypt('remember me')\nawait container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key\nawait container.fs.writeFileAsync('payload.enc', payload)\n\n// Run 2 (a NEW process): restore the key via the `secret` option\nconst key = container.fs.readFile('secret.key') as string\nconst v2 = container.feature('vault', { secret: key })            // base64 string or Buffer\nv2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'"
+      "code": "const vault = container.feature('vault')\n\n// First use creates .luca/vault.json and ~/.luca/vaults/<vaultId>.key\nconst token = vault.encrypt('sk_live_123')\nvault.decrypt(token)                         // 'sk_live_123', in this run or any later one\n\nconst config = vault.encryptJson({ user: 'app', password: 'hunter2' })\nvault.decryptJson(config).password           // 'hunter2'\n\nconsole.log(vault.envVar)                    // 'LUCA_VAULT_KEY_VLT_...' - set this in CI\nconst backup = vault.exportKey()             // base64 key, store it somewhere safe\n\n// An explicit key skips the project vault (useful for ephemeral or derived keys)\nconst scratch = container.feature('vault', { secret: vault.generateKey() })"
     }
   ]
 });
@@ -60300,46 +60372,53 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.vault",
-    "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations. **Keys are NOT persisted.** Unless you pass a `secret` option, the vault mints a brand-new random key the first time one is needed, and that key lives only in process memory. Every `luca` invocation (every process) gets a fresh key, so data encrypted in one run CANNOT be decrypted in a later run unless you save the key yourself and pass it back via `container.feature('vault', { secret })`.",
+    "description": "AES-256-GCM encryption with a per-project key that persists between runs. Each project gets its own vault. On first `encrypt()`, the vault writes a random vault ID to `.luca/vault.json` (commit it, it is not secret) and a key to `~/.luca/vaults/<vaultId>.key` (mode 600, never in the repo). Later runs, and teammates who have the key file, load the same key. A project only ever loads the key named by its own vault ID, so it cannot pick up another project's key. Key lookup, in order: the `secret` option, then the env var `LUCA_VAULT_KEY_<VAULT_ID>` (for CI; there is deliberately no global key var), then the key file. `vault.envVar` gives the exact env var name. Payloads are single-line text (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), safe in `.env` files, JSON, and shell args, and identical to the web vault's format. The fingerprint means a wrong key gives a clear error instead of a generic auth failure. Tampered payloads always throw. Payloads from older versions (the multi-line format) still decrypt. **Losing the key file means losing the data.** Back it up with `vault.exportKey()`.",
     "shortcut": "features.vault",
     "className": "Vault",
     "methods": {
-      "secret": {
-        "description": "Gets or generates a secret key for encryption operations. If no key exists yet, this mints a NEW cryptographically random 32-byte key — it is not derived from anything and is never written to disk. Each process therefore gets its own key: data encrypted with it is undecryptable in any other `luca` invocation unless you persist the key (see `secretText`) and pass it back via `container.feature('vault', { secret })`.",
-        "parameters": {
-          "{ refresh = false, set = true }": {
-            "type": "any",
-            "description": "Parameter { refresh = false, set = true }"
-          }
-        },
+      "generateKey": {
+        "description": "Creates a new random 32-byte key and returns it as base64. Has no side effects: it does not change this vault's key. Pass the result as `secret` to use it.",
+        "parameters": {},
         "required": [],
-        "returns": "Buffer"
-      },
-      "decrypt": {
-        "description": "Decrypts an encrypted payload that was created by the encrypt method. Because AES-256-GCM is authenticated encryption, decryption verifies the auth tag — a tampered or truncated payload, or the wrong key, throws rather than silently returning garbage.",
-        "parameters": {
-          "payload": {
-            "type": "string",
-            "description": "The encrypted payload to decrypt (base64 encoded with delimiters)"
-          }
-        },
-        "required": [
-          "payload"
-        ],
         "returns": "string",
         "examples": [
           {
             "language": "ts",
-            "code": "const vault = container.feature('vault')\nconst encrypted = vault.encrypt('my-database-password-12345')\n\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted)                                    // 'my-database-password-12345'\nconsole.log(decrypted === 'my-database-password-12345')   // true — exact round-trip"
+            "code": "const key = vault.generateKey()\nconst other = container.feature('vault', { secret: key })"
           }
         ]
       },
+      "exportKey": {
+        "description": "Returns the loaded key as base64, for backups or for setting `vault.envVar` in CI. Throws if the project has no key yet, rather than creating one.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
       "encrypt": {
-        "description": "Encrypts a plaintext string using AES-256-GCM encryption. The output is an opaque text payload — three base64 segments (IV, ciphertext, auth tag) joined by a delimiter — safe to store in config files or databases. A fresh random IV is generated on every call, so encrypting the same input twice produces different ciphertexts (semantic security): an attacker cannot tell whether two payloads contain the same plaintext. Both still decrypt to the same value.",
+        "description": "Encrypts a string. Creates the project vault and key on first use. A fresh random IV is used every call, so the same input gives a different payload each time. Both still decrypt to the same value.",
+        "parameters": {
+          "plaintext": {
+            "type": "string",
+            "description": "The string to encrypt"
+          }
+        },
+        "required": [
+          "plaintext"
+        ],
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))  // true"
+          }
+        ]
+      },
+      "decrypt": {
+        "description": "Decrypts a payload made by `encrypt()`, by this vault or the web vault with the same key. Never creates a key.",
         "parameters": {
           "payload": {
             "type": "string",
-            "description": "The plaintext string to encrypt"
+            "description": "A payload from `encrypt()`"
           }
         },
         "required": [
@@ -60349,14 +60428,79 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "const vault = container.feature('vault')\n\n// Same input, unique ciphertext every time — a fresh IV is used per call\nconst a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                   // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip"
+            "code": "const encrypted = vault.encrypt('my-database-password')\nvault.decrypt(encrypted)   // 'my-database-password'"
+          }
+        ]
+      },
+      "encryptJson": {
+        "description": "Encrypts any JSON-serializable value.",
+        "parameters": {
+          "value": {
+            "type": "any",
+            "description": "The value to encrypt"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const payload = vault.encryptJson({ user: 'app', password: 'hunter2' })\nvault.decryptJson(payload).password   // 'hunter2'"
+          }
+        ]
+      },
+      "decryptJson": {
+        "description": "Decrypts a payload made by `encryptJson()` and parses it.",
+        "parameters": {
+          "payload": {
+            "type": "string",
+            "description": "A payload from `encryptJson()`"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "returns": "T"
+      },
+      "rotate": {
+        "description": "Replaces the key and re-encrypts the payloads you pass with it. Every payload is decrypted with the old key first, so a bad payload throws before anything changes. For a file-backed key, the old key is kept as `<vaultId>.<oldFingerprint>.key.bak` next to the new one, and the project file records the new fingerprint. Payloads you do not pass stay encrypted with the old key. For an env-backed key, update the env var with `exportKey()` afterwards.",
+        "parameters": {
+          "payloads": {
+            "type": "T",
+            "description": "Payloads to re-encrypt, as an array or a name-to-payload map"
+          }
+        },
+        "required": [],
+        "returns": "T",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const secrets = container.fs.readJson('secrets.enc.json')\ncontainer.fs.writeJson('secrets.enc.json', vault.rotate(secrets))"
           }
         ]
       }
     },
     "getters": {
-      "secretText": {
-        "description": "Gets the secret key as a base64-encoded string. Lazily populated: unless a `secret` option was passed at construction, this is `undefined` until something forces key generation — i.e. until `secret()`, `encrypt()`, or `decrypt()` has run. Call `vault.secret()` first if you want to read `secretText` before encrypting anything.",
+      "projectFilePath": {
+        "description": "The project file that records this project's vault ID and key fingerprint.",
+        "returns": "string"
+      },
+      "vaultId": {
+        "description": "The vault ID for this project, or undefined if the project has no vault yet (one is created on the first `encrypt()`), or an explicit `secret` is in use.",
+        "returns": "string | undefined"
+      },
+      "keyPath": {
+        "description": "Where this project's key file lives: `<keysDir>/<vaultId>.key`.",
+        "returns": "string | undefined"
+      },
+      "envVar": {
+        "description": "The env var that supplies this vault's key in CI, e.g. `LUCA_VAULT_KEY_VLT_1A2B3C`. It is named by vault ID so a key exported in your shell for one project is never used by another.",
+        "returns": "string | undefined"
+      },
+      "fingerprint": {
+        "description": "Short hash of the loaded key, recorded in every payload and in the project file.",
         "returns": "string | undefined"
       }
     },
@@ -60369,7 +60513,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data (same process — the in-memory key is still around)\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'\n\n// ── Cross-invocation decryption: persist the key and pass it back ──\n// Run 1: encrypt and save the base64 key alongside (or apart from) the data\nconst v1 = container.feature('vault')\nconst payload = v1.encrypt('remember me')\nawait container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key\nawait container.fs.writeFileAsync('payload.enc', payload)\n\n// Run 2 (a NEW process): restore the key via the `secret` option\nconst key = container.fs.readFile('secret.key') as string\nconst v2 = container.feature('vault', { secret: key })            // base64 string or Buffer\nv2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'"
+        "code": "const vault = container.feature('vault')\n\n// First use creates .luca/vault.json and ~/.luca/vaults/<vaultId>.key\nconst token = vault.encrypt('sk_live_123')\nvault.decrypt(token)                         // 'sk_live_123', in this run or any later one\n\nconst config = vault.encryptJson({ user: 'app', password: 'hunter2' })\nvault.decryptJson(config).password           // 'hunter2'\n\nconsole.log(vault.envVar)                    // 'LUCA_VAULT_KEY_VLT_...' - set this in CI\nconst backup = vault.exportKey()             // base64 key, store it somewhere safe\n\n// An explicit key skips the project vault (useful for ephemeral or derived keys)\nconst scratch = container.feature('vault', { secret: vault.generateKey() })"
       }
     ]
   },

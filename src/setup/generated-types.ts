@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.15.0"
+export const typesBundleVersion = "3.16.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -12545,10 +12545,10 @@ export declare const argsSchema: z.ZodObject<{
     'only-envvars': z.ZodDefault<z.ZodBoolean>;
     'only-examples': z.ZodDefault<z.ZodBoolean>;
     platform: z.ZodDefault<z.ZodEnum<{
-        server: "server";
-        all: "all";
-        node: "node";
         browser: "browser";
+        server: "server";
+        node: "node";
+        all: "all";
         web: "web";
     }>>;
     query: z.ZodOptional<z.ZodString>;
@@ -12803,8 +12803,8 @@ export declare const showWidgetSchema: z.ZodObject<{
 }, z.core.$strip>;
 export declare const askUserSchema: z.ZodObject<{
     kind: z.ZodEnum<{
-        confirm: "confirm";
         text: "text";
+        confirm: "confirm";
         select: "select";
     }>;
     question: z.ZodString;
@@ -12860,8 +12860,8 @@ export declare function createInkSurface(deps: InkSurfaceDeps): {
         }, z.core.$strip>;
         askUser: z.ZodObject<{
             kind: z.ZodEnum<{
-                confirm: "confirm";
                 text: "text";
+                confirm: "confirm";
                 select: "select";
             }>;
             question: z.ZodString;
@@ -13037,8 +13037,8 @@ export declare const argsSchema: z.ZodObject<{
     model: z.ZodOptional<z.ZodString>;
     'include-frontmatter': z.ZodDefault<z.ZodBoolean>;
     'eval-mode': z.ZodOptional<z.ZodEnum<{
-        none: "none";
         all: "all";
+        none: "none";
         optIn: "optIn";
         "opt-in": "opt-in";
     }>>;
@@ -13105,8 +13105,8 @@ export declare const argsSchema: z.ZodObject<{
     console: z.ZodDefault<z.ZodBoolean>;
     onlySections: z.ZodOptional<z.ZodString>;
     'eval-mode': z.ZodOptional<z.ZodEnum<{
-        none: "none";
         all: "all";
+        none: "none";
         optIn: "optIn";
         "opt-in": "opt-in";
     }>>;
@@ -13443,6 +13443,15 @@ declare const SECTION_FLAGS: Record<string, IntrospectionSection | 'description'
  * Browser feature data can be injected externally via setBrowserData().
  */
 export declare class ContainerDescriber {
+    /**
+     * Loads the describe search stack. Set by the node container, because the stack
+     * uses bun:sqlite and node-only features that must never enter the browser bundle.
+     */
+    static searchLoader?: () => Promise<{
+        queryDescribeIndex: (container: any, query: string, opts: {
+            limit?: number;
+        }) => Promise<any>;
+    }>;
     container: any;
     private _browserData;
     private _initialized;
@@ -25842,8 +25851,8 @@ export declare const PrettierFormatOptionsSchema: z.ZodObject<{
     semi: z.ZodOptional<z.ZodBoolean>;
     singleQuote: z.ZodOptional<z.ZodBoolean>;
     trailingComma: z.ZodOptional<z.ZodEnum<{
-        none: "none";
         all: "all";
+        none: "none";
         es5: "es5";
     }>>;
 }, z.core.$strip>;
@@ -25909,8 +25918,8 @@ export declare class Prettier extends Feature {
         semi: z.ZodOptional<z.ZodBoolean>;
         singleQuote: z.ZodOptional<z.ZodBoolean>;
         trailingComma: z.ZodOptional<z.ZodEnum<{
-            none: "none";
             all: "all";
+            none: "none";
             es5: "es5";
         }>>;
     }, z.core.$strip>;
@@ -33573,7 +33582,14 @@ import { Feature } from '../feature.js';
 import { type ContainerContext } from '../../container.js';
 export declare const VaultStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
-    secret: z.ZodOptional<z.ZodCustom<Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>>>;
+    vaultId: z.ZodOptional<z.ZodString>;
+    fingerprint: z.ZodOptional<z.ZodString>;
+    keySource: z.ZodOptional<z.ZodEnum<{
+        file: "file";
+        env: "env";
+        option: "option";
+        created: "created";
+    }>>;
 }, z.core.$loose>;
 export type VaultState = z.infer<typeof VaultStateSchema>;
 export declare const VaultOptionsSchema: z.ZodObject<{
@@ -33582,44 +33598,49 @@ export declare const VaultOptionsSchema: z.ZodObject<{
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     secret: z.ZodOptional<z.ZodUnion<readonly [z.ZodCustom<Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>>, z.ZodString]>>;
+    vaultId: z.ZodOptional<z.ZodString>;
+    keysDir: z.ZodOptional<z.ZodString>;
+    projectFile: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type VaultOptions = z.infer<typeof VaultOptionsSchema>;
+type VaultPayloads = string[] | Record<string, string>;
 /**
- * The Vault feature provides encryption and decryption capabilities using AES-256-GCM.
+ * AES-256-GCM encryption with a per-project key that persists between runs.
  *
- * This feature allows you to securely encrypt and decrypt sensitive data using
- * industry-standard encryption. It manages secret keys and provides a simple
- * interface for cryptographic operations.
+ * Each project gets its own vault. On first \`encrypt()\`, the vault writes a random
+ * vault ID to \`.luca/vault.json\` (commit it, it is not secret) and a key to
+ * \`~/.luca/vaults/<vaultId>.key\` (mode 600, never in the repo). Later runs, and
+ * teammates who have the key file, load the same key. A project only ever loads the
+ * key named by its own vault ID, so it cannot pick up another project's key.
  *
- * **Keys are NOT persisted.** Unless you pass a \`secret\` option, the vault mints a
- * brand-new random key the first time one is needed, and that key lives only in
- * process memory. Every \`luca\` invocation (every process) gets a fresh key, so data
- * encrypted in one run CANNOT be decrypted in a later run unless you save the key
- * yourself and pass it back via \`container.feature('vault', { secret })\`.
+ * Key lookup, in order: the \`secret\` option, then the env var
+ * \`LUCA_VAULT_KEY_<VAULT_ID>\` (for CI; there is deliberately no global key var),
+ * then the key file. \`vault.envVar\` gives the exact env var name.
+ *
+ * Payloads are single-line text (\`v1:<fingerprint>:<iv>:<ciphertext>:<tag>\`, base64url),
+ * safe in \`.env\` files, JSON, and shell args, and identical to the web vault's format.
+ * The fingerprint means a wrong key gives a clear error instead of a generic auth
+ * failure. Tampered payloads always throw. Payloads from older versions (the
+ * multi-line format) still decrypt.
+ *
+ * **Losing the key file means losing the data.** Back it up with \`vault.exportKey()\`.
  *
  * @example
  * \`\`\`typescript
  * const vault = container.feature('vault')
  *
- * // Encrypt sensitive data
- * const encrypted = vault.encrypt('sensitive information')
- * console.log(encrypted) // Base64 encoded encrypted data
+ * // First use creates .luca/vault.json and ~/.luca/vaults/<vaultId>.key
+ * const token = vault.encrypt('sk_live_123')
+ * vault.decrypt(token)                         // 'sk_live_123', in this run or any later one
  *
- * // Decrypt the data (same process — the in-memory key is still around)
- * const decrypted = vault.decrypt(encrypted)
- * console.log(decrypted) // 'sensitive information'
+ * const config = vault.encryptJson({ user: 'app', password: 'hunter2' })
+ * vault.decryptJson(config).password           // 'hunter2'
  *
- * // ── Cross-invocation decryption: persist the key and pass it back ──
- * // Run 1: encrypt and save the base64 key alongside (or apart from) the data
- * const v1 = container.feature('vault')
- * const payload = v1.encrypt('remember me')
- * await container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key
- * await container.fs.writeFileAsync('payload.enc', payload)
+ * console.log(vault.envVar)                    // 'LUCA_VAULT_KEY_VLT_...' - set this in CI
+ * const backup = vault.exportKey()             // base64 key, store it somewhere safe
  *
- * // Run 2 (a NEW process): restore the key via the \`secret\` option
- * const key = container.fs.readFile('secret.key') as string
- * const v2 = container.feature('vault', { secret: key })            // base64 string or Buffer
- * v2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'
+ * // An explicit key skips the project vault (useful for ephemeral or derived keys)
+ * const scratch = container.feature('vault', { secret: vault.generateKey() })
  * \`\`\`
  *
  * @extends Feature
@@ -33630,7 +33651,14 @@ export declare class Vault extends Feature<VaultState, VaultOptions> {
     static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
-        secret: z.ZodOptional<z.ZodCustom<Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>>>;
+        vaultId: z.ZodOptional<z.ZodString>;
+        fingerprint: z.ZodOptional<z.ZodString>;
+        keySource: z.ZodOptional<z.ZodEnum<{
+            file: "file";
+            env: "env";
+            option: "option";
+            created: "created";
+        }>>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -33638,87 +33666,142 @@ export declare class Vault extends Feature<VaultState, VaultOptions> {
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         secret: z.ZodOptional<z.ZodUnion<readonly [z.ZodCustom<Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>>, z.ZodString]>>;
+        vaultId: z.ZodOptional<z.ZodString>;
+        keysDir: z.ZodOptional<z.ZodString>;
+        projectFile: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
+    private _key?;
+    private ownsProjectFile;
     constructor(options: VaultOptions, context: ContainerContext);
     /**
-     * Gets the secret key as a base64-encoded string.
+     * The project file that records this project's vault ID and key fingerprint.
      *
-     * Lazily populated: unless a \`secret\` option was passed at construction, this is
-     * \`undefined\` until something forces key generation — i.e. until \`secret()\`,
-     * \`encrypt()\`, or \`decrypt()\` has run. Call \`vault.secret()\` first if you want to
-     * read \`secretText\` before encrypting anything.
-     *
-     * @returns {string | undefined} The secret key encoded as base64, or undefined if no secret has been set or generated yet
+     * @returns {string} Absolute path, \`.luca/vault.json\` in the project by default
      */
-    get secretText(): string;
+    get projectFilePath(): string;
     /**
-     * Gets or generates a secret key for encryption operations.
+     * The vault ID for this project, or undefined if the project has no vault yet
+     * (one is created on the first \`encrypt()\`), or an explicit \`secret\` is in use.
      *
-     * If no key exists yet, this mints a NEW cryptographically random 32-byte key —
-     * it is not derived from anything and is never written to disk. Each process
-     * therefore gets its own key: data encrypted with it is undecryptable in any
-     * other \`luca\` invocation unless you persist the key (see \`secretText\`) and pass
-     * it back via \`container.feature('vault', { secret })\`.
-     *
-     * @param {object} [options={}] - Options for secret key handling
-     * @param {boolean} [options.refresh=false] - Whether to generate a new secret key
-     * @param {boolean} [options.set=true] - Whether to store the generated key in state
-     * @returns {Buffer} The secret key as a Buffer
+     * @returns {string | undefined} The vault ID
      */
-    secret({ refresh, set }?: {
-        refresh?: boolean | undefined;
-        set?: boolean | undefined;
-    }): Buffer;
+    get vaultId(): string | undefined;
     /**
-     * Decrypts an encrypted payload that was created by the encrypt method.
+     * Where this project's key file lives: \`<keysDir>/<vaultId>.key\`.
      *
-     * Because AES-256-GCM is authenticated encryption, decryption verifies the
-     * auth tag — a tampered or truncated payload, or the wrong key, throws rather
-     * than silently returning garbage.
+     * @returns {string | undefined} Absolute path, or undefined when there is no vault ID
+     */
+    get keyPath(): string | undefined;
+    /**
+     * The env var that supplies this vault's key in CI, e.g. \`LUCA_VAULT_KEY_VLT_1A2B3C\`.
+     * It is named by vault ID so a key exported in your shell for one project is never
+     * used by another.
      *
-     * @param {string} payload - The encrypted payload to decrypt (base64 encoded with delimiters)
-     * @returns {string} The decrypted plaintext
-     * @throws {Error} Throws an error if decryption fails or the payload is malformed
+     * @returns {string | undefined} The env var name, or undefined when there is no vault ID
+     */
+    get envVar(): string | undefined;
+    /**
+     * Short hash of the loaded key, recorded in every payload and in the project file.
+     *
+     * @returns {string | undefined} 16 hex characters, or undefined until a key is loaded
+     */
+    get fingerprint(): string | undefined;
+    /**
+     * Creates a new random 32-byte key and returns it as base64. Has no side effects:
+     * it does not change this vault's key. Pass the result as \`secret\` to use it.
+     *
+     * @returns {string} A base64-encoded 256-bit key
      *
      * @example
      * \`\`\`typescript
-     * const vault = container.feature('vault')
-     * const encrypted = vault.encrypt('my-database-password-12345')
+     * const key = vault.generateKey()
+     * const other = container.feature('vault', { secret: key })
+     * \`\`\`
+     */
+    generateKey(): string;
+    /**
+     * Returns the loaded key as base64, for backups or for setting \`vault.envVar\` in CI.
+     * Throws if the project has no key yet, rather than creating one.
      *
-     * const decrypted = vault.decrypt(encrypted)
-     * console.log(decrypted)                                    // 'my-database-password-12345'
-     * console.log(decrypted === 'my-database-password-12345')   // true — exact round-trip
+     * @returns {string} The base64-encoded key
+     */
+    exportKey(): string;
+    /**
+     * Encrypts a string. Creates the project vault and key on first use.
+     *
+     * A fresh random IV is used every call, so the same input gives a different payload
+     * each time. Both still decrypt to the same value.
+     *
+     * @param {string} plaintext - The string to encrypt
+     * @returns {string} A single-line payload: \`v1:<fingerprint>:<iv>:<ciphertext>:<tag>\`
+     *
+     * @example
+     * \`\`\`typescript
+     * const a = vault.encrypt('same-input')
+     * const b = vault.encrypt('same-input')
+     * console.log(a === b)                                // false
+     * console.log(vault.decrypt(a) === vault.decrypt(b))  // true
+     * \`\`\`
+     */
+    encrypt(plaintext: string): string;
+    /**
+     * Decrypts a payload made by \`encrypt()\`, by this vault or the web vault with the
+     * same key. Never creates a key.
+     *
+     * @param {string} payload - A payload from \`encrypt()\`
+     * @returns {string} The plaintext
+     * @throws {Error} If the payload was made with a different key, was tampered with, or is malformed
+     *
+     * @example
+     * \`\`\`typescript
+     * const encrypted = vault.encrypt('my-database-password')
+     * vault.decrypt(encrypted)   // 'my-database-password'
      * \`\`\`
      */
     decrypt(payload: string): string;
     /**
-     * Encrypts a plaintext string using AES-256-GCM encryption.
+     * Encrypts any JSON-serializable value.
      *
-     * The output is an opaque text payload — three base64 segments (IV, ciphertext,
-     * auth tag) joined by a delimiter — safe to store in config files or databases.
-     *
-     * A fresh random IV is generated on every call, so encrypting the same input
-     * twice produces different ciphertexts (semantic security): an attacker cannot
-     * tell whether two payloads contain the same plaintext. Both still decrypt to
-     * the same value.
-     *
-     * @param {string} payload - The plaintext string to encrypt
-     * @returns {string} The encrypted payload as a base64 encoded string with delimiters
+     * @param {any} value - The value to encrypt
+     * @returns {string} A payload, as from \`encrypt()\`
      *
      * @example
      * \`\`\`typescript
-     * const vault = container.feature('vault')
-     *
-     * // Same input, unique ciphertext every time — a fresh IV is used per call
-     * const a = vault.encrypt('same-input')
-     * const b = vault.encrypt('same-input')
-     * console.log(a === b)                                   // false
-     * console.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip
+     * const payload = vault.encryptJson({ user: 'app', password: 'hunter2' })
+     * vault.decryptJson(payload).password   // 'hunter2'
      * \`\`\`
      */
-    encrypt(payload: string): string;
-    private _encrypt;
-    private _decrypt;
+    encryptJson(value: any): string;
+    /**
+     * Decrypts a payload made by \`encryptJson()\` and parses it.
+     *
+     * @param {string} payload - A payload from \`encryptJson()\`
+     * @returns {any} The original value
+     */
+    decryptJson<T = any>(payload: string): T;
+    /**
+     * Replaces the key and re-encrypts the payloads you pass with it.
+     *
+     * Every payload is decrypted with the old key first, so a bad payload throws before
+     * anything changes. For a file-backed key, the old key is kept as
+     * \`<vaultId>.<oldFingerprint>.key.bak\` next to the new one, and the project file
+     * records the new fingerprint. Payloads you do not pass stay encrypted with the old
+     * key. For an env-backed key, update the env var with \`exportKey()\` afterwards.
+     *
+     * @param {string[] | Record<string, string>} payloads - Payloads to re-encrypt, as an array or a name-to-payload map
+     * @returns {string[] | Record<string, string>} The re-encrypted payloads, in the same shape
+     *
+     * @example
+     * \`\`\`typescript
+     * const secrets = container.fs.readJson('secrets.enc.json')
+     * container.fs.writeJson('secrets.enc.json', vault.rotate(secrets))
+     * \`\`\`
+     */
+    rotate<T extends VaultPayloads>(payloads?: T): T;
+    private readProjectConfig;
+    private writeProjectConfig;
+    private loadKey;
+    private useKey;
 }
 export default Vault;
 //# sourceMappingURL=vault.d.ts.map`,
@@ -36526,7 +36609,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.14.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.15.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -37404,65 +37487,179 @@ export default Speech;
 import { Feature } from '../feature.js';
 export declare const WebVaultStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
-    secret: z.ZodOptional<z.ZodString>;
+    vaultId: z.ZodOptional<z.ZodString>;
+    fingerprint: z.ZodOptional<z.ZodString>;
+    keySource: z.ZodOptional<z.ZodEnum<{
+        passphrase: "passphrase";
+        option: "option";
+        created: "created";
+        device: "device";
+    }>>;
 }, z.core.$loose>;
 export declare const WebVaultOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
+    vaultId: z.ZodOptional<z.ZodString>;
     secret: z.ZodOptional<z.ZodString>;
+    dbName: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 export type WebVaultState = z.infer<typeof WebVaultStateSchema>;
 export type WebVaultOptions = z.infer<typeof WebVaultOptionsSchema>;
 /**
- * AES-256-GCM encryption and decryption for the browser using the Web Crypto API.
+ * AES-256-GCM encryption for the browser, with a key the page can use but never read.
  *
- * Generates or accepts a secret key and provides \`encrypt()\` / \`decrypt()\` methods
- * that work entirely client-side. Keys are stored as base64-encoded state so they
- * can persist across sessions when needed.
+ * Keys are WebCrypto \`CryptoKey\` objects created as non-extractable: page code can
+ * encrypt and decrypt with them, but cannot export the raw bytes. Script injected
+ * into the page can still decrypt while it runs there, but cannot steal the key.
+ *
+ * Every vault needs a \`vaultId\`. The browser already keeps each origin's storage
+ * apart; the ID keeps two apps on the same origin apart. There is no default key.
+ *
+ * Two ways to get a key:
+ * - **Device key** (default): created on first \`encrypt()\` and kept in IndexedDB
+ *   under the vault ID. It stays on this browser. Good for local data at rest.
+ * - **Passphrase**: \`unlock(passphrase)\` derives the key with PBKDF2, so the same
+ *   passphrase gives the same key on any device. It is never stored; \`lock()\` drops it.
+ *
+ * Payloads use the same single-line format as the node vault
+ * (\`v1:<fingerprint>:<iv>:<ciphertext>:<tag>\`, base64url), so a payload from either
+ * side decrypts on the other with the same key.
+ *
+ * **Never send server secrets (API keys, database passwords) to the browser**, even
+ * encrypted. The page must decrypt them to use them, and then the user can read them.
  *
  * @extends Feature
  *
  * @example
  * \`\`\`typescript
- * const vault = container.feature('vault')
- * const encrypted = await vault.encrypt('secret data')
- * const decrypted = await vault.decrypt(encrypted)
- * console.log(decrypted) // 'secret data'
+ * const vault = container.feature('vault', { vaultId: 'notes-app' })
+ * const encrypted = await vault.encrypt('draft text')   // creates the device key on first use
+ * await vault.decrypt(encrypted)                         // 'draft text'
+ *
+ * // Same key on every device: derive it from a passphrase
+ * const synced = container.feature('vault', { vaultId: 'notes-sync' })
+ * await synced.unlock('correct horse battery staple')
+ * const payload = await synced.encryptJson({ title: 'hello' })
+ * synced.lock()
  * \`\`\`
  */
 export declare class WebVault extends Feature<WebVaultState, WebVaultOptions> {
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
-        secret: z.ZodOptional<z.ZodString>;
+        vaultId: z.ZodOptional<z.ZodString>;
+        fingerprint: z.ZodOptional<z.ZodString>;
+        keySource: z.ZodOptional<z.ZodEnum<{
+            passphrase: "passphrase";
+            option: "option";
+            created: "created";
+            device: "device";
+        }>>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
         _cacheKey: z.ZodOptional<z.ZodString>;
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
+        vaultId: z.ZodOptional<z.ZodString>;
         secret: z.ZodOptional<z.ZodString>;
+        dbName: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
     static shortcut: "features.vault";
     static stability: "stable";
     static category: "system";
-    secret({ refresh, set }?: {
-        refresh?: boolean | undefined;
-        set?: boolean | undefined;
-    }): Promise<ArrayBuffer>;
+    private _key?;
+    /**
+     * This vault's ID, from the \`vaultId\` option.
+     *
+     * @returns {string | undefined} The vault ID
+     */
+    get vaultId(): string | undefined;
+    /**
+     * Short hash of the loaded key, recorded in every payload.
+     *
+     * @returns {string | undefined} 16 hex characters, or undefined until a key is loaded
+     */
+    get fingerprint(): string | undefined;
+    /**
+     * True when a key is loaded in memory.
+     *
+     * @returns {boolean} Whether the vault can encrypt and decrypt without loading a key
+     */
+    get isUnlocked(): boolean;
+    /**
+     * Creates a new random 32-byte key and returns it as base64. Has no side effects:
+     * it does not change this vault's key. Pass the result as \`secret\` to use it.
+     *
+     * @returns {string} A base64-encoded 256-bit key
+     */
+    generateKey(): string;
+    /**
+     * Derives this vault's key from a passphrase (PBKDF2-SHA256, 600,000 iterations,
+     * salted by vault ID). The same passphrase and vault ID give the same key on any
+     * device. The key is kept in memory only; it replaces any device key for this
+     * instance until \`lock()\`.
+     *
+     * @param {string} passphrase - The passphrase to derive the key from
+     * @returns {Promise<string>} The key's fingerprint, to check it matches the one you expect
+     *
+     * @example
+     * \`\`\`typescript
+     * const vault = container.feature('vault', { vaultId: 'notes-sync' })
+     * await vault.unlock('correct horse battery staple')
+     * \`\`\`
+     */
+    unlock(passphrase: string): Promise<string>;
+    /**
+     * Drops the key from memory. A passphrase key needs \`unlock()\` again; a device key
+     * reloads from IndexedDB on next use.
+     */
+    lock(): void;
+    /**
+     * Deletes this vault's device key from IndexedDB, for example on sign-out.
+     * **Anything encrypted with it can no longer be decrypted.**
+     *
+     * @returns {Promise<void>}
+     */
+    forget(): Promise<void>;
+    /**
+     * Encrypts a string. Creates the device key on first use, unless a \`secret\` was
+     * passed or \`unlock()\` was called.
+     *
+     * @param {string} plaintext - The string to encrypt
+     * @returns {Promise<string>} A single-line payload: \`v1:<fingerprint>:<iv>:<ciphertext>:<tag>\`
+     */
+    encrypt(plaintext: string): Promise<string>;
+    /**
+     * Decrypts a payload made by \`encrypt()\`, by this vault or the node vault with the
+     * same key. Never creates a key.
+     *
+     * @param {string} payload - A payload from \`encrypt()\`
+     * @returns {Promise<string>} The plaintext
+     * @throws {Error} If the payload was made with a different key, was tampered with, or is malformed
+     */
     decrypt(payload: string): Promise<string>;
-    encrypt(payload: string): Promise<string>;
-    utils: {
-        arrayToString: typeof arrayBufferToBase64;
-        stringToArray: typeof base64ToArrayBuffer;
-        uintToString: typeof uint8ArrayToBase64;
-    };
+    /**
+     * Encrypts any JSON-serializable value.
+     *
+     * @param {any} value - The value to encrypt
+     * @returns {Promise<string>} A payload, as from \`encrypt()\`
+     */
+    encryptJson(value: any): Promise<string>;
+    /**
+     * Decrypts a payload made by \`encryptJson()\` and parses it.
+     *
+     * @param {string} payload - A payload from \`encryptJson()\`
+     * @returns {Promise<any>} The original value
+     */
+    decryptJson<T = any>(payload: string): Promise<T>;
+    private requireVaultId;
+    private loadKey;
+    private useKey;
+    private openDb;
 }
 export default WebVault;
-declare function arrayBufferToBase64(buffer: ArrayBuffer): string;
-declare function uint8ArrayToBase64(u: Uint8Array): string;
-declare function base64ToArrayBuffer(base64: string): ArrayBuffer;
 //# sourceMappingURL=vault.d.ts.map`,
   "web/features/vm.d.ts": `import { z } from 'zod';
 import { Feature } from "../feature.js";

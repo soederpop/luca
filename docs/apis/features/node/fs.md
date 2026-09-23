@@ -1367,6 +1367,72 @@ const files = await fs.walkAsync('inbox', { relative: true })
 
 
 
+### glob
+
+Synchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link walk} (gitignore-ish): a slash-free pattern like `'node_modules'` or `'*.test.ts'` matches at any depth, while a pattern containing `/` matches the cwd-relative path.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pattern` | `string | string[]` | ✓ | Glob pattern(s) to match (e.g. 'src/**\/*.ts', ['*.md', 'docs/**\/*.md']) |
+| `options` | `GlobOptions` |  | Options to configure the scan |
+
+`GlobOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `cwd` | `string` | Directory to scan from. Defaults to the container's cwd; relative values resolve against it. |
+| `exclude` | `string | string[]` | Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts'). |
+| `absolute` | `boolean` | When true, returned paths are absolute. Default false (paths relative to cwd). |
+| `dot` | `boolean` | Match dotfiles. Default false. |
+| `onlyFiles` | `boolean` | Only return files, not directories. Default true. |
+| `followSymlinks` | `boolean` | Follow symlinked directories while scanning. Default false. |
+
+**Returns:** `string[]`
+
+```ts
+fs.ensureFile('glob-demo/a.ts', '')
+fs.ensureFile('glob-demo/nested/b.ts', '')
+fs.ensureFile('glob-demo/nested/b.test.ts', '')
+const files = fs.glob('glob-demo/**\/*.ts', { exclude: ['*.test.ts'] })
+// => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']
+```
+
+
+
+### globAsync
+
+Asynchronously finds files matching one or more glob patterns, powered by Bun's native glob engine. Returns paths relative to `cwd` (the container's cwd by default), sorted; pass `absolute: true` for absolute paths. Exclude semantics match {@link glob} and {@link walk}.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pattern` | `string | string[]` | ✓ | Glob pattern(s) to match (e.g. 'src/**\/*.ts', ['*.md', 'docs/**\/*.md']) |
+| `options` | `GlobOptions` |  | Options to configure the scan (same as glob) |
+
+`GlobOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `cwd` | `string` | Directory to scan from. Defaults to the container's cwd; relative values resolve against it. |
+| `exclude` | `string | string[]` | Glob patterns to exclude; slash-free patterns match any path segment (e.g. 'node_modules', '*.test.ts'). |
+| `absolute` | `boolean` | When true, returned paths are absolute. Default false (paths relative to cwd). |
+| `dot` | `boolean` | Match dotfiles. Default false. |
+| `onlyFiles` | `boolean` | Only return files, not directories. Default true. |
+| `followSymlinks` | `boolean` | Follow symlinked directories while scanning. Default false. |
+
+**Returns:** `Promise<string[]>`
+
+```ts
+await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')
+const files = await fs.globAsync('glob-async-demo/**\/*.ts')
+// => ['glob-async-demo/nested/c.ts']
+```
+
+
+
 ### findUp
 
 Synchronously finds a file by walking up the directory tree from the current working directory.
@@ -1863,6 +1929,28 @@ const result = await fs.walkAsync('src', { exclude: ['node_modules'] })
 await fs.ensureFileAsync('inbox/contact-1.json', '{}')
 const files = await fs.walkAsync('inbox', { relative: true })
 // files.files => ['contact-1.json']
+```
+
+
+
+**glob**
+
+```ts
+fs.ensureFile('glob-demo/a.ts', '')
+fs.ensureFile('glob-demo/nested/b.ts', '')
+fs.ensureFile('glob-demo/nested/b.test.ts', '')
+const files = fs.glob('glob-demo/**\/*.ts', { exclude: ['*.test.ts'] })
+// => ['glob-demo/a.ts', 'glob-demo/nested/b.ts']
+```
+
+
+
+**globAsync**
+
+```ts
+await fs.ensureFileAsync('glob-async-demo/nested/c.ts', '')
+const files = await fs.globAsync('glob-async-demo/**\/*.ts')
+// => ['glob-async-demo/nested/c.ts']
 ```
 
 

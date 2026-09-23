@@ -12126,7 +12126,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`tts\` | feature | media-browser | experimental | TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. |
 | \`typescript\` | feature | dev-tools | stable | The typescript feature exposes the bundled TypeScript compiler for parsing source files and working with their ASTs — no install required, the compiler ships inside the luca binary. |
 | \`ui\` | feature | ui-output | core | UI Feature - Interactive Terminal User Interface Builder Unified interface for building professional CLI experiences using chalk (colors/styles), figlet (ASCII art), and inquirer (interactive prompts). |
-| \`vault\` | feature | system | stable | The Vault feature provides encryption and decryption capabilities using AES-256-GCM. |
+| \`vault\` | feature | system | stable | AES-256-GCM encryption with a per-project key that persists between runs. |
 | \`vm\` | feature | dev-tools | core | The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. |
 | \`voiceMode\` | feature | ai-assistants | experimental | VoiceMode helper |
 | \`yaml\` | feature | ui-output | core | The YAML feature provides utilities for parsing and stringifying YAML data. |

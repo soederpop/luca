@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).
+HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). HTTP error results also carry `data` (the parsed response body) and `headers` from the failed response. When a failure should be an exception instead, use the throwing variants — `getOrThrow` / `postOrThrow` / `putOrThrow` / `patchOrThrow` / `deleteOrThrow` — which reject with a real Error carrying `status`, `code`, and `data`. Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.). **Response caching:** pass `cache: true` (or `cache: { ttl, methods, path }`) to serve repeated requests from a shared TTL cache backed by the `diskCache` feature — because it lives on disk, every process in the project shares the same entries, so scripts and daemons hitting the same API don't hammer the backend. Cache keys hash the method, baseURL, url, params, body, and headers (auth included, so different credentials never share entries). Only GET is cached by default (override with `methods`), only successful responses are stored, and cache failures fall through to the network. Per request: `{ cache: false }` bypasses, `{ cache: { ttl: 60 } }` overrides the TTL. Requests made through the raw `api.axios` instance are never cached.
 
 ## Usage
 
@@ -12,6 +12,8 @@ container.client('rest', {
   baseURL,
   // Whether to automatically parse responses as JSON
   json,
+  // Shared TTL response cache backed by the diskCache feature. `true` enables defaults (GET only, 300s TTL); an object configures ttl/methods/path. Only successful responses are cached — errors always pass through, and non-cacheable methods always hit the network. Bypass or override per request via the `cache` field in the request options.
+  cache,
 })
 ```
 
@@ -21,12 +23,41 @@ container.client('rest', {
 |----------|------|-------------|
 | `baseURL` | `string` | Base URL for the client connection |
 | `json` | `boolean` | Whether to automatically parse responses as JSON |
+| `cache` | `any` | Shared TTL response cache backed by the diskCache feature. `true` enables defaults (GET only, 300s TTL); an object configures ttl/methods/path. Only successful responses are cached — errors always pass through, and non-cacheable methods always hit the network. Bypass or override per request via the `cache` field in the request options. |
 
 ## Methods
 
 ### beforeRequest
 
 **Returns:** `Promise<void>`
+
+
+
+### cacheKeyFor
+
+Deterministic cache key for a request. Hashes everything that can change the response: method, baseURL, url, params, body, and the merged headers (defaults + per-request, so different auth tokens never share an entry — and the hash keeps the token itself out of the cache directory).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `config` | `AxiosRequestConfig` | ✓ | The axios request config about to be sent |
+
+**Returns:** `string`
+
+
+
+### request
+
+Shared request path for the non-throwing verb methods. Applies the response cache (when configured and the method is cacheable), sends the request, and returns the parsed body — or, on failure, the error as JSON (same returned-not-thrown semantics as the verb methods).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `config` | `RestRequestOptions` | ✓ | Full axios request config, plus the per-request `cache` control |
+
+**Returns:** `Promise<any>`
 
 
 
@@ -40,7 +71,7 @@ Send a PATCH request. Returns the parsed response body directly (not an axios Re
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (the partial update) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -62,7 +93,7 @@ Send a PUT request. Returns the parsed response body directly (not an axios Resp
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (the full replacement representation) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -84,7 +115,7 @@ Send a POST request. Returns the parsed response body directly (not an axios Res
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (JSON-encoded when the `json` option is set) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -112,7 +143,7 @@ Send a DELETE request. Returns the parsed response body directly (not an axios R
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `params` | `any` |  | Query parameters (serialized into the query string) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -136,7 +167,7 @@ Send a GET request. Returns the parsed response body directly (not an axios Resp
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `params` | `any` |  | Query parameters (serialized into the query string) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -186,7 +217,7 @@ Shared implementation for the OrThrow request variants. Sends the request and re
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `config` | `AxiosRequestConfig` | ✓ | Full axios request config (method, url, data/params, headers, ...) |
+| `config` | `RestRequestOptions` | ✓ | Full axios request config (method, url, data/params, headers, ...) |
 
 **Returns:** `Promise<any>`
 
@@ -211,7 +242,7 @@ Send a GET request that **throws on failure** instead of returning the error. Us
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `params` | `any` |  | Query parameters (serialized into the query string) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -236,7 +267,7 @@ Send a POST request that **throws on failure** instead of returning the error. T
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (JSON-encoded when the `json` option is set) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -261,7 +292,7 @@ Send a PUT request that **throws on failure** instead of returning the error. Th
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (the full replacement representation) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -282,7 +313,7 @@ Send a PATCH request that **throws on failure** instead of returning the error. 
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `data` | `any` |  | Request body (the partial update) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -303,7 +334,7 @@ Send a DELETE request that **throws on failure** instead of returning the error.
 |------|------|----------|-------------|
 | `url` | `string` | ✓ | Request path relative to baseURL |
 | `params` | `any` |  | Query parameters (serialized into the query string) |
-| `options` | `AxiosRequestConfig` |  | Additional axios request config (headers, timeout, etc.) |
+| `options` | `RestRequestOptions` |  | Additional axios request config (headers, timeout, etc.) |
 
 **Returns:** `Promise<any>`
 
@@ -320,6 +351,9 @@ await api.deleteOrThrow('/users/42', { soft: true })   // DELETE /users/42?soft=
 |----------|------|-------------|
 | `useJSON` | `any` | Whether JSON content-type headers should be set automatically. |
 | `baseURL` | `any` |  |
+| `cacheConfig` | `RestClientCacheConfig | undefined` | Normalized response-cache configuration, or undefined when caching is disabled. `cache: true` in the client options means defaults (GET only, 300 second TTL). |
+| `cachedMethods` | `string[]` | HTTP methods served from the response cache (uppercased; default GET only). |
+| `responseCache` | `any` | The diskCache instance backing the response cache, or undefined when caching is disabled or the container has no diskCache feature (e.g. a browser container — caching degrades to a no-op there, requests still work). |
 
 ## Events (Zod v4 schema)
 
@@ -358,6 +392,19 @@ if (result?.code || result?.name === 'AxiosError') {
 } else {
  console.log('server is UP:', result)             // parsed response body
 }
+```
+
+```ts
+// Shared TTL response cache: repeated GETs are served from disk for 5 minutes,
+// across every process in the project
+const api = container.client('rest', {
+ baseURL: 'https://api.example.com',
+ json: true,
+ cache: { ttl: 300 },
+})
+await api.get('/rates')                       // network
+await api.get('/rates')                       // cache hit (any process)
+await api.get('/rates', {}, { cache: false }) // force a fresh fetch
 ```
 
 
