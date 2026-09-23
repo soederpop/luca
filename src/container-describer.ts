@@ -68,6 +68,12 @@ const SECTION_FLAGS: Record<string, IntrospectionSection | 'description'> = {
  * Browser feature data can be injected externally via setBrowserData().
  */
 export class ContainerDescriber {
+	/**
+	 * Loads the describe search stack. Set by the node container, because the stack
+	 * uses bun:sqlite and node-only features that must never enter the browser bundle.
+	 */
+	static searchLoader?: () => Promise<{ queryDescribeIndex: (container: any, query: string, opts: { limit?: number }) => Promise<any> }>
+
 	container: any
 	private _browserData: BrowserFeatureData | null = null
 	private _initialized = false
@@ -154,9 +160,11 @@ export class ContainerDescriber {
 		results: Array<{ id: string; kind: string; name: string; category?: string; stability?: string; score: number; snippet: string; describe: string }>
 		hint?: string
 	}> {
-		// Lazy import, matching the CLI: the search stack (catalog build, FTS,
-		// optional embeddings) must not load for containers that never search.
-		const { queryDescribeIndex } = await import('./describe-search.js')
+		// Lazy, matching the CLI: the search stack (catalog build, FTS, optional
+		// embeddings) must not load for containers that never search.
+		const loader = ContainerDescriber.searchLoader
+		if (!loader) throw new Error('describer.query() needs the node container: it searches a local sqlite index.')
+		const { queryDescribeIndex } = await loader()
 		const outcome = await queryDescribeIndex(this.container, query, { limit: opts.limit })
 		return {
 			mode: outcome.mode,

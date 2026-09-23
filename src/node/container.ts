@@ -1,6 +1,7 @@
 import url from 'node:url'
 
 import { Container, type ContainerState } from "../container";
+import { ContainerDescriber } from "../container-describer";
 import { State } from "../state";
 import type { FeatureOptions } from "./feature";
 import { features, Feature } from "./feature";
@@ -27,6 +28,10 @@ import { basename, dirname as nodeDirname, parse, relative, resolve, join } from
 // GeneratedNodeFeatures interface come from the generated barrel.
 // Regenerate with `bun run build:feature-barrel` after adding a feature.
 import "./features.generated";
+
+// describe --query runs on bun:sqlite, so only the node container can load it.
+ContainerDescriber.searchLoader = () => import('../describe-search.js')
+
 export * from "./features.generated";
 import type {
   GeneratedNodeFeatures,

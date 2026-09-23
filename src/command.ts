@@ -621,7 +621,9 @@ export class CommandsRegistry extends Registry<Command<any>> {
 	 *   3. Module exports a `handler` function → legacy graft
 	 */
 	async discover(options: { directory: string }) {
-		const { Glob } = globalThis.Bun || (await import('bun'))
+		// Non-literal specifier: a literal import('bun') makes browser bundlers fail on this file.
+		const bunModule = 'bun'
+		const { Glob } = globalThis.Bun || (await import(bunModule))
 		const glob = new Glob('*.ts')
 
 		for await (const file of glob.scan({ cwd: options.directory })) {
