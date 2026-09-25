@@ -218,8 +218,20 @@ export interface ModelTool {
   }
 }
 
+/** Reasoning depth a request asks a thinking model for. Transports map it to their own knob (reasoning_effort, reasoning.effort, --effort, model_reasoning_effort) and clamp values the backend does not accept. */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+
+/** Fit an effort to the three levels the claude-code CLI accepts. */
+export function clampEffortToClaudeCode(effort: ReasoningEffort): 'low' | 'medium' | 'high' {
+  if (effort === 'minimal') return 'low'
+  if (effort === 'xhigh') return 'high'
+  return effort
+}
+
 export interface ModelRequest {
   model?: string
+  /** How hard a thinking model should reason on this request. Omitted = the model's default. */
+  reasoningEffort?: ReasoningEffort
   messages: ModelMessage[]
   /** Additional instructions for this request only; callers need not persist them as a message. */
   instructions?: string
@@ -651,6 +663,7 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
       ...(request.frequencyPenalty != null ? { frequency_penalty: request.frequencyPenalty } : {}),
       ...(request.presencePenalty != null ? { presence_penalty: request.presencePenalty } : {}),
       ...(request.stop ? { stop: request.stop } : {}),
+      ...(request.reasoningEffort ? { reasoning_effort: request.reasoningEffort } : {}),
       ...(request.responseFormat ? { response_format: { type: 'json_schema', json_schema: request.responseFormat } } : {}),
       ...(request.stream && providerOptions.includeUsage !== false ? { stream_options: { include_usage: true } } : {}),
       // Escape hatch for params the schema doesn't model (chat_template_kwargs, …).
@@ -869,6 +882,7 @@ export class OpenAIResponsesTransport implements ModelTransport {
       ...(request.frequencyPenalty != null ? { frequency_penalty: request.frequencyPenalty } : {}),
       ...(request.presencePenalty != null ? { presence_penalty: request.presencePenalty } : {}),
       ...(request.stop ? { stop: request.stop } : {}),
+      ...(request.reasoningEffort ? { reasoning: { effort: request.reasoningEffort } } : {}),
       ...(request.responseFormat ? { text: { format: { type: 'json_schema' as const, ...request.responseFormat } } } : {}),
     }, request.signal ? { signal: request.signal } : undefined)
 
@@ -943,6 +957,7 @@ export class OpenAICodexTransport implements ModelTransport {
       : this.promptFromMessages(request.messages)
     const config = {
       ...(providerOptions.config ?? {}),
+      ...(request.reasoningEffort ? { model_reasoning_effort: request.reasoningEffort } : {}),
       ...(developerInstructions ? { developer_instructions: developerInstructions } : {}),
     }
     const result = await withAbort<any>(codex.run(prompt, {
@@ -1045,6 +1060,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       ...(previousSessionId ? { resumeSessionId: previousSessionId } : {}),
       ...(providerOptions.permissionMode ? { permissionMode: providerOptions.permissionMode } : {}),
       ...(providerOptions.allowedTools ? { allowedTools: providerOptions.allowedTools } : {}),
+      ...(request.reasoningEffort ? { effort: clampEffortToClaudeCode(request.reasoningEffort) } : {}),
       ...(providerOptions.runOptions ?? {}),
     }
 

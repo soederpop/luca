@@ -6,7 +6,7 @@ import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
 import { countMessageTokens, getContextWindow, calculateCost } from '../lib/token-counter.js';
-import { toResponsesUserMessage, messagesToResponsesInput, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, type ModelTool, type ModelToolCall, type ResolvedModelProvider } from './model-providers';
+import { toResponsesUserMessage, messagesToResponsesInput, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, type ModelTool, type ModelToolCall, type ReasoningEffort, type ResolvedModelProvider } from './model-providers';
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -101,6 +101,8 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	stop: z.array(z.string()).optional().describe('Stop sequences — generation halts when any of these strings is produced'),
 	/** Extra keys merged verbatim into the chat-completions request body — for server-specific params the schema doesn't model, e.g. llama-server/vLLM's chat_template_kwargs. Chat API only; ignored by the Responses API and CLI transports. */
 	extraBody: z.record(z.string(), z.any()).optional().describe("Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } } for llama-server/vLLM). Chat API only"),
+	/** How hard a thinking model should reason. Mapped per backend: reasoning_effort (chat), reasoning.effort (Responses), model_reasoning_effort (codex), --effort (claude-code, clamped to low/medium/high). Omit for the model's default. */
+	reasoningEffort: z.enum(['minimal', 'low', 'medium', 'high', 'xhigh']).optional().describe('Reasoning effort for thinking models: minimal, low, medium, high, xhigh. Mapped to each backend\'s own knob; omit for the model default'),
 
 	/** Enable automatic compaction when estimated input tokens approach the context limit */
 	autoCompact: z.boolean().optional().describe('Enable automatic compaction when input tokens approach the context limit'),
@@ -169,6 +171,7 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	stop: z.array(z.string()).nullable().describe('Stop sequences. Null means none'),
 	maxTokens: z.number().nullable().describe('Maximum output tokens per completion. Null means use model default'),
 	extraBody: z.record(z.string(), z.any()).nullable().describe('Extra keys merged verbatim into the chat-completions request body (e.g. chat_template_kwargs). Null means none'),
+	reasoningEffort: z.enum(['minimal', 'low', 'medium', 'high', 'xhigh']).nullable().describe('Reasoning effort requested from thinking models. Null means the model default'),
 })
 
 export class ConversationAbortError extends Error {
@@ -280,6 +283,8 @@ export type ConversationRouting = {
 	apiMode: 'responses' | 'chat'
 	/** Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code. */
 	transport: 'openai' | 'generic'
+	/** The reasoning effort the next turn will request, or null for the model default. */
+	reasoningEffort: ReasoningEffort | null
 }
 
 /** Options for `Conversation#setProvider` / `Assistant#setProvider`. */
@@ -484,6 +489,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			stop: this.options.stop ?? null,
 			maxTokens: this.options.maxTokens ?? null,
 			extraBody: this.options.extraBody ?? null,
+			reasoningEffort: this.options.reasoningEffort ?? null,
 		}
 	}
 
@@ -700,7 +706,24 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			model: this.model,
 			apiMode: this.apiMode,
 			transport: this.usesGenericTransportLoop ? 'generic' : 'openai',
+			reasoningEffort: (this.state.get('reasoningEffort') as ReasoningEffort | null) ?? null,
 		}
+	}
+
+	/**
+	 * Set how hard a thinking model reasons on every subsequent turn. Safe to
+	 * call mid-conversation. Pass null to go back to the model's default.
+	 *
+	 * @example
+	 * conversation.setReasoningEffort('high')
+	 */
+	setReasoningEffort(effort: ReasoningEffort | null): this {
+		const allowed = ['minimal', 'low', 'medium', 'high', 'xhigh']
+		if (effort !== null && !allowed.includes(effort)) {
+			throw new Error(`setReasoningEffort(effort) expects one of ${allowed.join(', ')} or null, got ${String(effort)}`)
+		}
+		this.state.set('reasoningEffort', effort)
+		return this
 	}
 
 	/**
@@ -1811,6 +1834,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					responseFormat: this.structuredOutputConfig,
 					temperature: this.state.get('temperature') ?? undefined,
 					extraBody: this.state.get('extraBody') ?? undefined,
+					reasoningEffort: this.state.get('reasoningEffort') ?? undefined,
 					signal: this._abortController?.signal,
 					providerOptions: provider.providerOptions,
 				}, provider)
@@ -2185,6 +2209,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				presencePenalty: this.state.get('presencePenalty') ?? undefined,
 				stop: this.state.get('stop') ?? undefined,
 				responseFormat: this.structuredOutputConfig,
+				reasoningEffort: this.state.get('reasoningEffort') ?? undefined,
 				signal: this._abortController?.signal,
 				stream: true,
 				providerOptions: {
@@ -2391,6 +2416,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				stop: this.state.get('stop') ?? undefined,
 				responseFormat: this.structuredOutputConfig,
 				extraBody: this.state.get('extraBody') ?? undefined,
+				reasoningEffort: this.state.get('reasoningEffort') ?? undefined,
 				signal: this._abortController?.signal,
 				stream: true,
 			}, provider)
