@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Client } from '../client.js'
+import { Client } from '../client-base.js'
 import type { ContainerContext } from '../container.js'
 import {
   WebSocketClientStateSchema, WebSocketClientOptionsSchema, WebSocketClientEventsSchema,

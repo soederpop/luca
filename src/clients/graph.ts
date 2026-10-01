@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { Client } from '../client.js'
+import { Client } from '../client-base.js'
 import { RestClient } from './rest.js'
-import type { ClientState } from '../client.js'
+import type { ClientState } from '../client-base.js'
 import {
   GraphClientOptionsSchema, GraphClientEventsSchema,
 } from '../schemas/base.js'

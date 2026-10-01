@@ -1,4 +1,4 @@
-import { Client, type ClientOptions, type ClientState } from '../client.js'
+import { Client, type ClientOptions, type ClientState } from '../client-base.js'
 import type { HelperStability, HelperCategory } from '../introspection/index.js'
 import type { ContainerContext } from '../container.js'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '../schemas/base.js'

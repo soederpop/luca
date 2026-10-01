@@ -222,7 +222,8 @@ Save this as an HTML file, open it in a browser, and everything works — no npm
 
 ## Gotchas
 
-- **esm.sh caches aggressively.** Pin a version if you need stability: `https://esm.sh/luca@0.0.29/web`
+- **`/web` is a prebuilt bundle.** The `luca/web` entry ships as a self-contained ESM artifact (`dist/browser.mjs`) with zod compiled in — esm.sh serves it as-is, so you don't need (and shouldn't add) `?bundle`. Versions up to 3.16.x pointed at raw TypeScript source that esm.sh compiled on the fly, which broke intermittently — pin a newer version if you hit `Class extends value undefined` or `z.looseObject is not a function`.
+- **esm.sh caches aggressively.** Pin a version if you need stability: `https://esm.sh/luca@3.17.0/web`
 - **Browser features only.** The web container doesn't include node-specific features like `fs`, `git`, `proc`, or `docker`. If you need server features, run Luca on the server and connect via the REST or WebSocket clients.
 - **`window.luca` is the singleton.** Don't call `createContainer()` — it just warns and returns the same instance. If you need isolation, use `container.subcontainer()`.
 - **CORS applies.** REST client requests from the browser are subject to browser CORS rules. Your API must send the right headers.

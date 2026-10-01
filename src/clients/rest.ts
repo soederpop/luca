@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
-import { Client, type ClientOptions, type ClientState } from '../client.js'
+import { Client, type ClientOptions, type ClientState } from '../client-base.js'
 import type { HelperStability, HelperCategory } from '../introspection/index.js'
 import type { ContainerContext } from '../container.js'
 import { ClientEventsSchema, ClientOptionsSchema } from '../schemas/base.js'

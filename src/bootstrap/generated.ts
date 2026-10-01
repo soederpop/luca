@@ -10004,7 +10004,8 @@ Save this as an HTML file, open it in a browser, and everything works — no npm
 
 ## Gotchas
 
-- **esm.sh caches aggressively.** Pin a version if you need stability: \`https://esm.sh/luca@0.0.29/web\`
+- **\`/web\` is a prebuilt bundle.** The \`luca/web\` entry ships as a self-contained ESM artifact (\`dist/browser.mjs\`) with zod compiled in — esm.sh serves it as-is, so you don't need (and shouldn't add) \`?bundle\`. Versions up to 3.16.x pointed at raw TypeScript source that esm.sh compiled on the fly, which broke intermittently — pin a newer version if you hit \`Class extends value undefined\` or \`z.looseObject is not a function\`.
+- **esm.sh caches aggressively.** Pin a version if you need stability: \`https://esm.sh/luca@3.17.0/web\`
 - **Browser features only.** The web container doesn't include node-specific features like \`fs\`, \`git\`, \`proc\`, or \`docker\`. If you need server features, run Luca on the server and connect via the REST or WebSocket clients.
 - **\`window.luca\` is the singleton.** Don't call \`createContainer()\` — it just warns and returns the same instance. If you need isolation, use \`container.subcontainer()\`.
 - **CORS applies.** REST client requests from the browser are subject to browser CORS rules. Your API must send the right headers.
@@ -12068,6 +12069,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`contentDb\` | feature | data-storage | core | Provides access to a Contentbase Collection for a folder of structured markdown files. |
 | \`conversation\` | feature | ai-assistants | stable | A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management. |
 | \`conversationHistory\` | feature | ai-assistants | stable | Persists conversations to disk using the diskCache feature (cacache). |
+| \`decisions\` | feature | ai-assistants | experimental | Ask a local decision model (Ollama \`nimble\` / \`tev1\` over the Jev-style \`/v1/systemone\` endpoint) several typed questions about one piece of input in a single forward pass. |
 | \`diskCache\` | feature | data-storage | core | File-backed key-value cache built on top of the cacache library (the same store that powers npm). |
 | \`dns\` | feature | networking | stable | The Dns feature provides structured DNS lookups by wrapping the \`dig\` CLI. |
 | \`docker\` | feature | dev-tools | stable | Docker CLI interface feature for managing containers, images, and executing Docker commands. |

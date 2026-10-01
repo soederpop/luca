@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { io, type Socket } from 'socket.io-client'
-import { Client } from '../client.js'
+import { Client } from '../client-base.js'
 import type { ContainerContext } from '../container.js'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '../schemas/base.js'
 
