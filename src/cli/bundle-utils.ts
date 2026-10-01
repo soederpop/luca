@@ -193,9 +193,50 @@ export const bundledAssistants = Object.keys(ASSISTANTS)
 `
 }
 
+/**
+ * Which registry a vendored helper file belongs to, from its path segment
+ * under project/. Endpoints are loaded from disk by the server, so they are
+ * imported for side effects only and never registered here.
+ */
+export function helperRegistryType(file: string): 'features' | 'clients' | 'servers' | 'selectors' | null {
+  const match = file.match(/(?:^|\/)project\/(features|clients|servers|selectors)\//)
+  return (match?.[1] as any) ?? null
+}
+
+/** Mirrors Helpers.fileNameToRegistryName: play-runner.ts → playRunner. */
+export function registryNameFromFile(file: string): string {
+  const base = (file.split('/').pop() || '').replace(/\.ts$/, '')
+  return base
+    .replace(/[-_](.)/g, (_m, c: string) => c.toUpperCase())
+    .replace(/^(.)/, (_m, c: string) => c.toLowerCase())
+}
+
 export function generateConsumerManifest(input: ConsumerManifestInput): string {
+  // Every helper is imported for its side effects (explicit register() calls).
+  // Helpers that rely on discovery instead — a default-exported class or a
+  // graftable module with no register() call — are additionally imported as a
+  // namespace and registered the way helpers.discover() would, otherwise they
+  // silently vanish from the binary.
+  const registrable = input.helperFiles
+    .map((file, index) => ({ file, index, type: helperRegistryType(file) }))
+    .filter((h): h is { file: string; index: number; type: NonNullable<ReturnType<typeof helperRegistryType>> } => h.type !== null)
+
   const helperImports = input.helperFiles
     .map((file) => `import ${quoteImportPath(file)}`)
+    .join('\n')
+
+  const helperNamespaceImports = registrable
+    .map(({ file, index }) => `import * as _helper_${index} from ${quoteImportPath(file)}`)
+    .join('\n')
+
+  const helperRegistrations = registrable
+    .map(({ file, index, type }) => {
+      // Selectors key by raw filename; class registries camelCase it.
+      const name = type === 'selectors'
+        ? (file.split('/').pop() || '').replace(/\.ts$/, '')
+        : registryNameFromFile(file)
+      return `registerBundledHelper(${JSON.stringify(type)}, ${JSON.stringify(name)}, _helper_${index})`
+    })
     .join('\n')
 
   const commandImports = input.commandFiles
@@ -206,11 +247,46 @@ export function generateConsumerManifest(input: ConsumerManifestInput): string {
     .map(({ name }) => `registerBundledCommand(${JSON.stringify(name)}, _cmd_${safeIdent(name)})`)
     .join('\n')
 
-  return `import { Command, commands, graftModule, isNativeHelperClass } from 'luca'
+  return `import {
+  Command, Feature, Client, Server, Selector,
+  commands, features, clients, servers, selectors,
+  graftModule, isNativeHelperClass,
+} from 'luca'
 
 ${helperImports}
 
+${helperNamespaceImports}
+
 ${commandImports}
+
+const HELPER_REGISTRIES: Record<string, { registry: any; base: any }> = {
+  features: { registry: features, base: Feature },
+  clients: { registry: clients, base: Client },
+  servers: { registry: servers, base: Server },
+  selectors: { registry: selectors, base: Selector },
+}
+
+function registerBundledHelper(type: string, name: string, mod: any) {
+  const { registry, base } = HELPER_REGISTRIES[type]
+  const Exported = mod.default || mod
+
+  if (typeof Exported === 'function' && isNativeHelperClass(Exported, base)) {
+    const shortcut = Exported.shortcut as string | undefined
+    const registryName = shortcut && shortcut !== \`\${type}.base\` ? shortcut.replace(\`\${type}.\`, '') : name
+    if (!registry.has(registryName)) registry.register(registryName, Exported)
+    return
+  }
+
+  const moduleExports = mod.default && typeof mod.default === 'object' ? mod.default : mod
+  const graftable = moduleExports.description !== undefined
+    || moduleExports.stateSchema !== undefined
+    || moduleExports.optionsSchema !== undefined
+    || typeof moduleExports.run === 'function'
+    || typeof moduleExports.handler === 'function'
+  if (graftable && !registry.has(name)) {
+    registry.register(name, graftModule(base as any, moduleExports, name, type as any) as any)
+  }
+}
 
 function registerBundledCommand(name: string, mod: any) {
   if (commands.has(name)) return
@@ -247,6 +323,8 @@ function registerBundledCommand(name: string, mod: any) {
     return
   }
 }
+
+${helperRegistrations}
 
 ${registrations}
 `

@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.16.0"
+export const typesBundleVersion = "3.16.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -122,7 +122,7 @@ export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSessio
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProviderConfigSuggestion, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProviderConfigSuggestion, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ReasoningEffort, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, CodexHistorySession, CodexPromptHistoryEntry, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -4692,6 +4692,7 @@ import { Feature } from '../feature.js';
 import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
+import { type ReasoningEffort } from './model-providers';
 declare module 'luca/feature' {
     interface AvailableFeatures {
         conversation: typeof Conversation;
@@ -4767,6 +4768,13 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
     presencePenalty: z.ZodOptional<z.ZodNumber>;
     stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
     extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+    reasoningEffort: z.ZodOptional<z.ZodEnum<{
+        minimal: "minimal";
+        low: "low";
+        high: "high";
+        medium: "medium";
+        xhigh: "xhigh";
+    }>>;
     autoCompact: z.ZodOptional<z.ZodBoolean>;
     compactThreshold: z.ZodOptional<z.ZodNumber>;
     contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -4832,6 +4840,13 @@ export declare const ConversationStateSchema: z.ZodObject<{
     stop: z.ZodNullable<z.ZodArray<z.ZodString>>;
     maxTokens: z.ZodNullable<z.ZodNumber>;
     extraBody: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
+    reasoningEffort: z.ZodNullable<z.ZodEnum<{
+        minimal: "minimal";
+        low: "low";
+        high: "high";
+        medium: "medium";
+        xhigh: "xhigh";
+    }>>;
 }, z.core.$loose>;
 export declare class ConversationAbortError extends Error {
     /** The partial text accumulated before the abort. */
@@ -4951,6 +4966,8 @@ export type ConversationRouting = {
     apiMode: 'responses' | 'chat';
     /** Which turn loop runs: the native OpenAI loops, or the provider-agnostic loop used by codex/claude-code. */
     transport: 'openai' | 'generic';
+    /** The reasoning effort the next turn will request, or null for the model default. */
+    reasoningEffort: ReasoningEffort | null;
 };
 /** Options for \`Conversation#setProvider\` / \`Assistant#setProvider\`. */
 export type SetProviderOptions = {
@@ -5079,6 +5096,13 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         stop: z.ZodNullable<z.ZodArray<z.ZodString>>;
         maxTokens: z.ZodNullable<z.ZodNumber>;
         extraBody: z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodAny>>;
+        reasoningEffort: z.ZodNullable<z.ZodEnum<{
+            minimal: "minimal";
+            low: "low";
+            high: "high";
+            medium: "medium";
+            xhigh: "xhigh";
+        }>>;
     }, z.core.$loose>;
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
@@ -5111,6 +5135,13 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         presencePenalty: z.ZodOptional<z.ZodNumber>;
         stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
         extraBody: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+        reasoningEffort: z.ZodOptional<z.ZodEnum<{
+            minimal: "minimal";
+            low: "low";
+            high: "high";
+            medium: "medium";
+            xhigh: "xhigh";
+        }>>;
         autoCompact: z.ZodOptional<z.ZodBoolean>;
         compactThreshold: z.ZodOptional<z.ZodNumber>;
         contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -5342,6 +5373,14 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * // => { provider: 'claude-code', model: 'sonnet', apiMode: 'chat', transport: 'generic' }
      */
     get routing(): ConversationRouting;
+    /**
+     * Set how hard a thinking model reasons on every subsequent turn. Safe to
+     * call mid-conversation. Pass null to go back to the model's default.
+     *
+     * @example
+     * conversation.setReasoningEffort('high')
+     */
+    setReasoningEffort(effort: ReasoningEffort | null): this;
     /**
      * Switch the model for every subsequent turn. Safe to call mid-conversation —
      * history is kept, and the next \`ask()\` uses the new model.
@@ -7041,8 +7080,14 @@ export interface ModelTool {
         parameters?: Record<string, any>;
     };
 }
+/** Reasoning depth a request asks a thinking model for. Transports map it to their own knob (reasoning_effort, reasoning.effort, --effort, model_reasoning_effort) and clamp values the backend does not accept. */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+/** Fit an effort to the three levels the claude-code CLI accepts. */
+export declare function clampEffortToClaudeCode(effort: ReasoningEffort): 'low' | 'medium' | 'high';
 export interface ModelRequest {
     model?: string;
+    /** How hard a thinking model should reason on this request. Omitted = the model's default. */
+    reasoningEffort?: ReasoningEffort;
     messages: ModelMessage[];
     /** Additional instructions for this request only; callers need not persist them as a message. */
     instructions?: string;
@@ -9307,6 +9352,14 @@ export interface AssistantsModuleInput {
  * assistants discovered from a project's assistants/ directory.
  */
 export declare function generateAssistantsModule(input: AssistantsModuleInput): string;
+/**
+ * Which registry a vendored helper file belongs to, from its path segment
+ * under project/. Endpoints are loaded from disk by the server, so they are
+ * imported for side effects only and never registered here.
+ */
+export declare function helperRegistryType(file: string): 'features' | 'clients' | 'servers' | 'selectors' | null;
+/** Mirrors Helpers.fileNameToRegistryName: play-runner.ts → playRunner. */
+export declare function registryNameFromFile(file: string): string;
 export declare function generateConsumerManifest(input: ConsumerManifestInput): string;
 export interface ConsumerEntryOptions {
     binaryName: string;
@@ -9315,8 +9368,66 @@ export interface ConsumerEntryOptions {
     builtins?: string[];
     /** Path to the generated assistants module, when the project bundles assistants. */
     assistantsPath?: string;
+    /** Path to the generated assets module, when the project embeds assets. */
+    assetsPath?: string;
+    /** Path to the generated plugin module, when the project has a luca.plugin.ts. */
+    pluginPath?: string;
 }
 export declare function generateConsumerEntry(options: ConsumerEntryOptions): string;
+/** One embedded asset: a project-relative path and the files beneath it. */
+export interface BundleAssetEntry {
+    /** Project-relative path of the asset root (a directory or a single file). */
+    path: string;
+    /** Files relative to the asset root; a single-file asset has one entry with path ''. */
+    files: BundleAssistantFile[];
+}
+/**
+ * Reads every embeddable file under a project-relative asset path. Shares the
+ * assistant file filters so node_modules, logs and .DS_Store never ship.
+ */
+export declare function collectAsset(container: any, source: string, relPath: string): BundleAssetEntry | null;
+export interface AssetsModuleInput {
+    binaryName: string;
+    assets: BundleAssetEntry[];
+    /** Content hash of all embedded assets — used to skip re-extraction on startup. */
+    bundleHash: string;
+}
+/**
+ * Generates the module that embeds arbitrary project assets (skills, docs,
+ * workflows, templates — anything the code reads off disk at runtime) into a
+ * consumer binary. On import it materializes them under
+ * ~/.luca/bundles/<binary>/<path>, mirroring the project layout, so code that
+ * resolved files against the project checkout keeps working when pointed at
+ * the bundle root instead. Each asset root is replaced wholesale when the hash
+ * changes; sibling folders owned by other modules (assistants/) are untouched.
+ */
+export declare function generateAssetsModule(input: AssetsModuleInput): string;
+export interface PluginModuleInput {
+    binaryName: string;
+    /** Vendored path of the project's luca.plugin.ts, relative to the build dir. */
+    pluginEntryPath: string;
+    /** Whether the assets module exists (it owns bundleRoot); otherwise derive it. */
+    hasAssets: boolean;
+}
+/**
+ * Generates the module that runs the project's \\\`luca.plugin.ts\\\` entry inside
+ * the binary, the same way \\\`helpers.usePlugin()\\\` would in a consumer project:
+ * helpers are already registered by the manifest, so only \\\`attach()\\\` (or
+ * \\\`main()\\\`) runs, with \\\`pluginDir\\\` pointing at the materialized bundle root.
+ */
+export declare function generatePluginModule(input: PluginModuleInput): string;
+/**
+ * Relative import specifiers found in a TypeScript source: static imports,
+ * re-exports, and dynamic \\\`import('./x')\\\` calls. Bare specifiers are the
+ * package manager's problem and are skipped.
+ */
+export declare function relativeImportSpecifiers(source: string): string[];
+/**
+ * Resolves a relative import the way bun does for a .ts project: exact path,
+ * then with an extension appended, then as a directory index. A \\\`.js\\\`
+ * specifier also tries the \\\`.ts\\\` sibling (TS-style extension rewriting).
+ */
+export declare function resolveRelativeImport(container: any, fromFile: string, spec: string): string | null;
 //# sourceMappingURL=bundle-utils.d.ts.map`,
   "cli/cli.d.ts": `#!/usr/bin/env bun
 import '@/commands/index.js';
@@ -9359,22 +9470,15 @@ export declare function loadEnvPlugins(container: any): Promise<void>;
 export declare function discoverUserHelpers(container: any): Promise<void>;
 export declare function runCli(container: any, options?: RunCliOptions): Promise<void>;
 //# sourceMappingURL=runner.d.ts.map`,
-  "client.d.ts": `import { Helper } from "./helper.js";
+  "client-base.d.ts": `import { Helper } from "./helper.js";
 import type { Container, ContainerContext } from "./container.js";
+import type { ClientsInterface } from "./client.js";
 import { Registry } from "./registry.js";
 import { z } from 'zod';
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from './schemas/base.js';
 export type ClientOptions = z.infer<typeof ClientOptionsSchema>;
 export type ClientState = z.infer<typeof ClientStateSchema>;
 export { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema };
-export type { WebSocketClientState, WebSocketClientOptions } from './clients/websocket.js';
-export type { GraphClientOptions } from './clients/graph.js';
-export interface AvailableClients {
-}
-export interface ClientsInterface {
-    clients: ClientsRegistry;
-    client<T extends keyof AvailableClients>(key: T, options?: ConstructorParameters<AvailableClients[T]>[0]): InstanceType<AvailableClients[T]>;
-}
 /**
  * Base client class for all Luca network clients. Provides connection state
  * tracking, configuration, and the registry/factory infrastructure for
@@ -9408,13 +9512,25 @@ export declare class ClientsRegistry extends Registry<Client<any>> {
 }
 export declare const clients: ClientsRegistry;
 export declare const helperCache: Map<any, any>;
-/** HTTP REST client (axios-based). Re-exported so \`import { RestClient } from 'luca/client'\` works as documented. */
-export declare const RestClient: typeof import("./browser.js").RestClient;
-/** GraphQL client. Re-exported so \`import { GraphClient } from 'luca/client'\` works as documented. */
-export declare const GraphClient: typeof import("./node.js").GraphClient;
-/** WebSocket client. Re-exported so \`import { WebSocketClient } from 'luca/client'\` works as documented. */
-export declare const WebSocketClient: typeof import("./node.js").WebSocketClient;
 export default Client;
+//# sourceMappingURL=client-base.d.ts.map`,
+  "client.d.ts": `export * from './client-base.js';
+export { Client, Client as default } from './client-base.js';
+/** HTTP REST client (axios-based). Re-exported so \`import { RestClient } from 'luca/client'\` works as documented. */
+export { RestClient } from './clients/rest.js';
+/** GraphQL client. Re-exported so \`import { GraphClient } from 'luca/client'\` works as documented. */
+export { GraphClient } from './clients/graph.js';
+/** WebSocket client. Re-exported so \`import { WebSocketClient } from 'luca/client'\` works as documented. */
+export { WebSocketClient } from './clients/websocket.js';
+export type { WebSocketClientState, WebSocketClientOptions } from './clients/websocket.js';
+export type { GraphClientOptions } from './clients/graph.js';
+import type { ClientsRegistry } from './client-base.js';
+export interface AvailableClients {
+}
+export interface ClientsInterface {
+    clients: ClientsRegistry;
+    client<T extends keyof AvailableClients>(key: T, options?: ConstructorParameters<AvailableClients[T]>[0]): InstanceType<AvailableClients[T]>;
+}
 //# sourceMappingURL=client.d.ts.map`,
   "clients/civitai/index.d.ts": `import { type ClientOptions } from "luca/client";
 import { RestClient } from "../rest";
@@ -10406,7 +10522,7 @@ export default ElevenLabsClient;
 //# sourceMappingURL=index.d.ts.map`,
   "clients/graph.d.ts": `import { z } from 'zod';
 import { RestClient } from './rest.js';
-import type { ClientState } from '../client.js';
+import type { ClientState } from '../client-base.js';
 import { GraphClientOptionsSchema } from '../schemas/base.js';
 export type GraphClientOptions = z.infer<typeof GraphClientOptionsSchema>;
 declare module '../client' {
@@ -10472,7 +10588,7 @@ export declare class GraphClient<T extends ClientState = ClientState, K extends 
 }
 export default GraphClient;
 //# sourceMappingURL=graph.d.ts.map`,
-  "clients/hermes-acp.d.ts": `import { Client } from '../client.js';
+  "clients/hermes-acp.d.ts": `import { Client } from '../client-base.js';
 import type { HelperStability, HelperCategory } from '../introspection/index.js';
 import type { ContainerContext } from '../container.js';
 import { z } from 'zod';
@@ -10896,7 +11012,7 @@ export declare class OpenAIClient extends Client<OpenAIClientState, OpenAIClient
 export default OpenAIClient;
 //# sourceMappingURL=index.d.ts.map`,
   "clients/rest.d.ts": `import { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
-import { Client, type ClientOptions, type ClientState } from '../client.js';
+import { Client, type ClientOptions, type ClientState } from '../client-base.js';
 import type { HelperStability, HelperCategory } from '../introspection/index.js';
 import type { ContainerContext } from '../container.js';
 import { z } from 'zod';
@@ -11305,7 +11421,7 @@ export default RestClient;
 //# sourceMappingURL=rest.d.ts.map`,
   "clients/socketio.d.ts": `import { z } from 'zod';
 import { type Socket } from 'socket.io-client';
-import { Client } from '../client.js';
+import { Client } from '../client-base.js';
 export declare const SocketIOClientStateSchema: z.ZodObject<{
     connected: z.ZodDefault<z.ZodBoolean>;
     socketId: z.ZodOptional<z.ZodString>;
@@ -11816,7 +11932,7 @@ export declare class VoiceBoxClient extends RestClient<VoiceBoxClientState, Voic
 export default VoiceBoxClient;
 //# sourceMappingURL=index.d.ts.map`,
   "clients/websocket.d.ts": `import { z } from 'zod';
-import { Client } from '../client.js';
+import { Client } from '../client-base.js';
 import type { ContainerContext } from '../container.js';
 import { WebSocketClientStateSchema, WebSocketClientOptionsSchema } from '../schemas/base.js';
 export type WebSocketClientState = z.infer<typeof WebSocketClientStateSchema>;
@@ -12424,6 +12540,9 @@ export declare const argsSchema: z.ZodObject<{
     outDir: z.ZodDefault<z.ZodString>;
     targets: z.ZodDefault<z.ZodString>;
     builtins: z.ZodDefault<z.ZodString>;
+    include: z.ZodDefault<z.ZodString>;
+    assets: z.ZodDefault<z.ZodString>;
+    skipPlugin: z.ZodDefault<z.ZodBoolean>;
     runtime: z.ZodDefault<z.ZodString>;
     dryRun: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
@@ -15607,6 +15726,7 @@ import type { AvailableFeatures } from "../feature";
 import "./features/cipher-social";
 import "./features/container-link";
 import "./features/content-db";
+import "./features/decisions";
 import "./features/disk-cache";
 import "./features/dns";
 import "./features/docker";
@@ -15663,6 +15783,7 @@ import "./features/zeroshot-classifier";
 import type { CipherSocialFeature } from "./features/cipher-social";
 import type { ContainerLink } from "./features/container-link";
 import type { ContentDb } from "./features/content-db";
+import type { Decisions } from "./features/decisions";
 import type { DiskCache } from "./features/disk-cache";
 import type { Dns } from "./features/dns";
 import type { Docker } from "./features/docker";
@@ -15719,6 +15840,7 @@ import type { ZeroshotClassifier } from "./features/zeroshot-classifier";
 export type { BlobMeta, CipherOptions, CipherState, CipherSocialFeature } from "./features/cipher-social";
 export type { MessageType, LinkMessage, RegisterData, RegisteredData, EvalData, EvalResultData, EventData, ConnectedContainer, ContainerLinkState, ContainerLinkOptions, ContainerLink } from "./features/container-link";
 export type { ContentDbState, ContentDbOptions, ContentDb } from "./features/content-db";
+export type { DecisionsOptions, DecisionsState, DecisionCriteria, ChoiceQuestion, YesNoQuestion, ScoreQuestion, DecisionQuestion, ChoiceAnswer, YesNoAnswer, ScoreAnswer, DecisionAnswer, AnswerFor, AnswersFor, SystemOneRequest, SystemOneResponse, Decisions } from "./features/decisions";
 export type { DiskCacheOptions, DiskCache } from "./features/disk-cache";
 export type { DnsRecordType, DnsRecord, MxRecord, SoaRecord, SrvRecord, CaaRecord, DnsQueryResult, DnsOverview, DnsState, DnsOptions, Dns } from "./features/dns";
 export type { DockerContainer, DockerImage, DockerState, DockerOptions, DockerShell, Docker } from "./features/docker";
@@ -15776,6 +15898,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     cipherSocial: typeof CipherSocialFeature;
     containerLink: typeof ContainerLink;
     contentDb: typeof ContentDb;
+    decisions: typeof Decisions;
     diskCache: typeof DiskCache;
     dns: typeof Dns;
     docker: typeof Docker;
@@ -16933,6 +17056,334 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
 }
 export default ContentDb;
 //# sourceMappingURL=content-db.d.ts.map`,
+  "node/features/decisions.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        decisions: typeof Decisions;
+    }
+}
+export declare const DecisionsOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    baseURL: z.ZodDefault<z.ZodString>;
+    model: z.ZodDefault<z.ZodString>;
+    apiKey: z.ZodOptional<z.ZodString>;
+    provider: z.ZodOptional<z.ZodString>;
+    fallback: z.ZodDefault<z.ZodEnum<{
+        none: "none";
+        classifier: "classifier";
+    }>>;
+    classifier: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    yesNoThreshold: z.ZodDefault<z.ZodNumber>;
+    timeoutMs: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const DecisionsStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    lastBackend: z.ZodOptional<z.ZodEnum<{
+        classifier: "classifier";
+        native: "native";
+    }>>;
+    decisionsMade: z.ZodDefault<z.ZodNumber>;
+}, z.core.$loose>;
+export declare const DecisionsEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    decided: z.ZodTuple<[z.ZodObject<{
+        state: z.ZodString;
+        backend: z.ZodEnum<{
+            classifier: "classifier";
+            native: "native";
+        }>;
+        answers: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+        durationMs: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    fallback: z.ZodTuple<[z.ZodObject<{
+        reason: z.ZodString;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type DecisionsOptions = z.infer<typeof DecisionsOptionsSchema>;
+export type DecisionsState = z.infer<typeof DecisionsStateSchema>;
+/** Criteria for a choice question: label → description. 2–26 entries. */
+export type DecisionCriteria = Record<string, string>;
+export interface ChoiceQuestion {
+    type: 'choice';
+    instructions: string;
+    criteria: DecisionCriteria;
+}
+export interface YesNoQuestion {
+    type: 'yesNo';
+    instructions: string;
+}
+export interface ScoreQuestion {
+    type: 'score';
+    instructions: string;
+    /** Ordered lowest → highest. Each entry is a label, or a label → description pair. */
+    criteria: Array<string | [label: string, description: string]>;
+}
+export type DecisionQuestion = ChoiceQuestion | YesNoQuestion | ScoreQuestion;
+/** Jev wire limit: choice and score criteria take 2–26 entries (one letter each). */
+export declare const MAX_CRITERIA = 26;
+/** Jev wire limit: questions per call. */
+export declare const MAX_QUESTIONS = 64;
+export interface ChoiceAnswer {
+    type: 'choice';
+    /** The winning criteria label. */
+    choice: string;
+    /** Probability per label, summing to 1. */
+    probabilities: Record<string, number>;
+    /** Model-reported confidence in the pick when the backend provides one, else the winner's probability. */
+    confidence: number;
+}
+export interface YesNoAnswer {
+    type: 'yesNo';
+    /** probability >= yesNoThreshold. */
+    value: boolean;
+    /** Probability that the statement holds, 0–1. */
+    probability: number;
+}
+export interface ScoreAnswer {
+    type: 'score';
+    /** Probability-weighted position on the rubric, normalized to 0 (lowest) – 1 (highest). */
+    score: number;
+    /** The single most likely rubric label. */
+    label: string;
+    /** Probability per rubric label, summing to 1. */
+    probabilities: Record<string, number>;
+    /** Model-reported confidence when the backend provides one, else the winning label's probability. */
+    confidence: number;
+}
+export type DecisionAnswer = ChoiceAnswer | YesNoAnswer | ScoreAnswer;
+/** Maps a question to its answer type so decide() results are typed per key. */
+export type AnswerFor<Q extends DecisionQuestion> = Q extends ChoiceQuestion ? ChoiceAnswer : Q extends YesNoQuestion ? YesNoAnswer : Q extends ScoreQuestion ? ScoreAnswer : never;
+export type AnswersFor<Q extends Record<string, DecisionQuestion>> = {
+    [K in keyof Q]: AnswerFor<Q[K]>;
+};
+/**
+ * A pick-one question. Criteria map a label to the description the model
+ * reads; labels come back verbatim in the answer.
+ */
+export declare function choice(instructions: string, criteria: DecisionCriteria): ChoiceQuestion;
+/** A true/false question. Phrase it as a statement or a yes/no question. */
+export declare function yesNo(instructions: string): YesNoQuestion;
+/** An ordered-rubric question. List criteria from lowest to highest. */
+export declare function score(instructions: string, criteria: ScoreQuestion['criteria']): ScoreQuestion;
+/** Normalize score criteria to an ordered label/description list. */
+export declare function scoreLabels(criteria: ScoreQuestion['criteria']): Array<{
+    label: string;
+    description: string;
+}>;
+/** Throw a clear error if a question set breaks a wire limit. */
+export declare function validateQuestions(questions: Record<string, DecisionQuestion>): void;
+/** Request body for POST /v1/systemone. */
+export interface SystemOneRequest {
+    model: string;
+    state: string;
+    questions: Record<string, {
+        type: 'choice' | 'noul' | 'score';
+        instructions: string;
+        /** choice: label → description. score: ordered descriptions, lowest first. */
+        criteria?: Record<string, string> | string[];
+    }>;
+}
+/**
+ * Jev calls yes/no questions \`noul\`. Score criteria go over the wire as a
+ * plain array of descriptions (lowest first); the server answers by index,
+ * so our labels never leave the process — fromSystemOneAnswer maps them back.
+ */
+export declare function toSystemOneRequest(model: string, state: string, questions: Record<string, DecisionQuestion>): SystemOneRequest;
+/** The subset of a systemone response we read. Fields are defensive: the spec is young. */
+export interface SystemOneResponse {
+    model?: string;
+    answers?: Record<string, {
+        type?: string;
+        /** choice: the winning label. */
+        choice?: string;
+        /** noul: probability the statement holds. */
+        noul?: number;
+        probability?: number;
+        /** choice: keyed by label. score: keyed by rubric index ("0", "1", …). */
+        probabilities?: Record<string, number>;
+        confidence?: number;
+        /** score: expected value on the index scale 0..n-1. */
+        score?: number;
+        /** score: index → description, echoing the criteria order. */
+        legend?: Record<string, string>;
+        value?: unknown;
+    }>;
+    usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+    };
+}
+/** Highest-probability key of a distribution. */
+export declare function argmax(probabilities: Record<string, number>): string;
+/**
+ * Expected rubric position, normalized to 0–1. With labels L0..Ln-1 and
+ * probabilities p, score = Σ p_i · i / (n - 1).
+ */
+export declare function weightedScore(labels: string[], probabilities: Record<string, number>): number;
+/**
+ * Normalize one systemone answer into our typed shape. Missing fields are
+ * derived from the distribution where possible so a slightly different
+ * server build still yields a usable answer.
+ */
+export declare function fromSystemOneAnswer(question: DecisionQuestion, raw: NonNullable<SystemOneResponse['answers']>[string] | undefined, yesNoThreshold: number): DecisionAnswer;
+/**
+ * Ask a local decision model (Ollama \`nimble\` / \`tev1\` over the Jev-style
+ * \`/v1/systemone\` endpoint) several typed questions about one piece of input
+ * in a single forward pass. Decision models don't generate text: each
+ * question comes back as a choice with probabilities, a yes/no probability,
+ * or a weighted score on an ordered rubric. Use it for triage, routing,
+ * moderation, and any "look at this and decide" step that would otherwise
+ * be a chat call you have to parse.
+ *
+ * Expect a few hundred milliseconds per call on Apple Silicon for \`nimble\`
+ * (9.5GB, 16GB+ RAM) and much less for \`tev1:0.8b\` (800MB). Ollama 0.35 or
+ * newer is required for the endpoint.
+ *
+ * With \`fallback: 'classifier'\` the same questions are answered by the
+ * zeroshotClassifier feature when the decision endpoint is unreachable —
+ * a one-token logprob trick on a plain instruct model. Lower accuracy, but
+ * the API and answer shapes are identical, so callers don't branch.
+ *
+ * @example
+ * \`\`\`typescript
+ * const d = container.feature('decisions', { model: 'nimble' })
+ * const r = await d.decide('Checkout has returned 500 errors since 9am.', {
+ *   label: d.choice('Which label fits this ticket?', {
+ *     billing: 'Payments and refunds',
+ *     bug: 'Software errors',
+ *     account: 'Login and account access',
+ *   }),
+ *   urgent: d.yesNo('This needs a human response within the hour.'),
+ *   severity: d.score('How severe is the impact?', ['cosmetic', 'degraded', 'outage']),
+ * })
+ * r.label.choice        // 'bug'
+ * r.urgent.value        // true
+ * r.severity.score      // 0.9
+ * r.severity.label      // 'outage'
+ * \`\`\`
+ */
+export declare class Decisions extends Feature<DecisionsState, DecisionsOptions> {
+    static description: string;
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        lastBackend: z.ZodOptional<z.ZodEnum<{
+            classifier: "classifier";
+            native: "native";
+        }>>;
+        decisionsMade: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        baseURL: z.ZodDefault<z.ZodString>;
+        model: z.ZodDefault<z.ZodString>;
+        apiKey: z.ZodOptional<z.ZodString>;
+        provider: z.ZodOptional<z.ZodString>;
+        fallback: z.ZodDefault<z.ZodEnum<{
+            none: "none";
+            classifier: "classifier";
+        }>>;
+        classifier: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        yesNoThreshold: z.ZodDefault<z.ZodNumber>;
+        timeoutMs: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        decided: z.ZodTuple<[z.ZodObject<{
+            state: z.ZodString;
+            backend: z.ZodEnum<{
+                classifier: "classifier";
+                native: "native";
+            }>;
+            answers: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+            durationMs: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        fallback: z.ZodTuple<[z.ZodObject<{
+            reason: z.ZodString;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.decisions";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    /** Build a pick-one question. See the module-level \`choice()\`. */
+    choice: typeof choice;
+    /** Build a true/false question. See the module-level \`yesNo()\`. */
+    yesNo: typeof yesNo;
+    /** Build an ordered-rubric question. See the module-level \`score()\`. */
+    score: typeof score;
+    /** The decision model name sent on every request. */
+    get model(): string;
+    /** Root URL of the decision server (explicit option, else env, else local Ollama). */
+    get baseURL(): string;
+    /** Full URL of the decision endpoint. */
+    get endpoint(): string;
+    /**
+     * Probe the decision server. Resolves true when it answers and the
+     * configured model is pulled, false otherwise. Never throws.
+     *
+     * @example
+     * \`\`\`typescript
+     * if (!(await d.isAvailable())) console.log('run: ollama pull nimble')
+     * \`\`\`
+     */
+    isAvailable(): Promise<boolean>;
+    /**
+     * Ask every question about one state in a single call. Answers are typed
+     * per key from the question builders you passed.
+     *
+     * @param state - The input the questions are about (a ticket, a message, a game frame…)
+     * @param questions - Named questions built with choice()/yesNo()/score(); at most 64
+     *
+     * @example
+     * \`\`\`typescript
+     * const { route } = await d.decide(userMessage, {
+     *   route: d.choice('Which model should handle this?', {
+     *     fast: 'Short factual lookups and chit-chat',
+     *     deep: 'Multi-step reasoning, code, or long documents',
+     *   }),
+     * })
+     * const model = route.choice === 'deep' ? 'claude-opus-5-5' : 'claude-haiku-4-5-20251001'
+     * \`\`\`
+     */
+    decide<Q extends Record<string, DecisionQuestion>>(state: string, questions: Q): Promise<AnswersFor<Q>>;
+    /**
+     * Ask the same questions about many states. Runs calls with bounded
+     * concurrency; results keep input order.
+     *
+     * @param states - Inputs to decide on
+     * @param questions - The shared question set
+     * @param concurrency - Parallel requests in flight (default 4)
+     *
+     * @example
+     * \`\`\`typescript
+     * const results = await d.decideMany(tickets.map(t => t.body), {
+     *   spam: d.yesNo('This message is unsolicited marketing.'),
+     * })
+     * const clean = tickets.filter((_, i) => !results[i]!.spam.value)
+     * \`\`\`
+     */
+    decideMany<Q extends Record<string, DecisionQuestion>>(states: string[], questions: Q, concurrency?: number): Promise<Array<AnswersFor<Q>>>;
+    private decideNative;
+    /**
+     * Emulate each question as a zeroshotClassifier run. Every question type
+     * is a multiple-choice over labels for a plain instruct model: yes/no is
+     * {yes, no}, score is the ordered rubric itself.
+     */
+    private decideWithClassifier;
+    private classify;
+    /** Explicit baseURL/env wins; else a modelProviders profile; else the default local Ollama. */
+    private resolveEndpoint;
+}
+export default Decisions;
+//# sourceMappingURL=decisions.d.ts.map`,
   "node/features/disk-cache.d.ts": `import { z } from 'zod';
 import cacache from "cacache";
 import { Feature, type FeatureState } from "../feature.js";
@@ -36609,7 +37060,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
