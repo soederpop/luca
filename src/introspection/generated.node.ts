@@ -3348,6 +3348,116 @@ setBuildTimeData('features.contentDb', {
   ]
 });
 
+setBuildTimeData('features.decisions', {
+  "id": "features.decisions",
+  "description": "Ask a local decision model (Ollama `nimble` / `tev1` over the Jev-style `/v1/systemone` endpoint) several typed questions about one piece of input in a single forward pass. Decision models don't generate text: each question comes back as a choice with probabilities, a yes/no probability, or a weighted score on an ordered rubric. Use it for triage, routing, moderation, and any \"look at this and decide\" step that would otherwise be a chat call you have to parse. Expect a few hundred milliseconds per call on Apple Silicon for `nimble` (9.5GB, 16GB+ RAM) and much less for `tev1:0.8b` (800MB). Ollama 0.35 or newer is required for the endpoint. With `fallback: 'classifier'` the same questions are answered by the zeroshotClassifier feature when the decision endpoint is unreachable — a one-token logprob trick on a plain instruct model. Lower accuracy, but the API and answer shapes are identical, so callers don't branch.",
+  "shortcut": "features.decisions",
+  "className": "Decisions",
+  "methods": {
+    "isAvailable": {
+      "description": "Probe the decision server. Resolves true when it answers and the configured model is pulled, false otherwise. Never throws.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "if (!(await d.isAvailable())) console.log('run: ollama pull nimble')"
+        }
+      ]
+    },
+    "decide": {
+      "description": "Ask every question about one state in a single call. Answers are typed per key from the question builders you passed.",
+      "parameters": {
+        "state": {
+          "type": "string",
+          "description": "The input the questions are about (a ticket, a message, a game frame…)"
+        },
+        "questions": {
+          "type": "Q",
+          "description": "Named questions built with choice()/yesNo()/score(); at most 64"
+        }
+      },
+      "required": [
+        "state",
+        "questions"
+      ],
+      "returns": "Promise<AnswersFor<Q>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { route } = await d.decide(userMessage, {\n route: d.choice('Which model should handle this?', {\n   fast: 'Short factual lookups and chit-chat',\n   deep: 'Multi-step reasoning, code, or long documents',\n }),\n})\nconst model = route.choice === 'deep' ? 'claude-opus-5-5' : 'claude-haiku-4-5-20251001'"
+        }
+      ]
+    },
+    "decideMany": {
+      "description": "Ask the same questions about many states. Runs calls with bounded concurrency; results keep input order.",
+      "parameters": {
+        "states": {
+          "type": "string[]",
+          "description": "Inputs to decide on"
+        },
+        "questions": {
+          "type": "Q",
+          "description": "The shared question set"
+        },
+        "concurrency": {
+          "type": "any",
+          "description": "Parallel requests in flight (default 4)"
+        }
+      },
+      "required": [
+        "states",
+        "questions"
+      ],
+      "returns": "Promise<Array<AnswersFor<Q>>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const results = await d.decideMany(tickets.map(t => t.body), {\n spam: d.yesNo('This message is unsolicited marketing.'),\n})\nconst clean = tickets.filter((_, i) => !results[i]!.spam.value)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "model": {
+      "description": "The decision model name sent on every request.",
+      "returns": "string"
+    },
+    "baseURL": {
+      "description": "Root URL of the decision server (explicit option, else env, else local Ollama).",
+      "returns": "string"
+    },
+    "endpoint": {
+      "description": "Full URL of the decision endpoint.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "fallback": {
+      "name": "fallback",
+      "description": "Event emitted by Decisions",
+      "arguments": {}
+    },
+    "decided": {
+      "name": "decided",
+      "description": "Event emitted by Decisions",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const d = container.feature('decisions', { model: 'nimble' })\nconst r = await d.decide('Checkout has returned 500 errors since 9am.', {\n label: d.choice('Which label fits this ticket?', {\n   billing: 'Payments and refunds',\n   bug: 'Software errors',\n   account: 'Login and account access',\n }),\n urgent: d.yesNo('This needs a human response within the hour.'),\n severity: d.score('How severe is the impact?', ['cosmetic', 'degraded', 'outage']),\n})\nr.label.choice        // 'bug'\nr.urgent.value        // true\nr.severity.score      // 0.9\nr.severity.label      // 'outage'"
+    }
+  ]
+});
+
 setBuildTimeData('features.diskCache', {
   "id": "features.diskCache",
   "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses. The cache directory (from the `path` option, or a default under the OS cache dir) is created automatically on first use — no setup step is required.",
@@ -25089,6 +25199,115 @@ export const introspectionData: Record<string, any>[] = [
       {
         "language": "ts",
         "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.modelNames) // ['Article', 'Page', ...]"
+      }
+    ]
+  },
+  {
+    "id": "features.decisions",
+    "description": "Ask a local decision model (Ollama `nimble` / `tev1` over the Jev-style `/v1/systemone` endpoint) several typed questions about one piece of input in a single forward pass. Decision models don't generate text: each question comes back as a choice with probabilities, a yes/no probability, or a weighted score on an ordered rubric. Use it for triage, routing, moderation, and any \"look at this and decide\" step that would otherwise be a chat call you have to parse. Expect a few hundred milliseconds per call on Apple Silicon for `nimble` (9.5GB, 16GB+ RAM) and much less for `tev1:0.8b` (800MB). Ollama 0.35 or newer is required for the endpoint. With `fallback: 'classifier'` the same questions are answered by the zeroshotClassifier feature when the decision endpoint is unreachable — a one-token logprob trick on a plain instruct model. Lower accuracy, but the API and answer shapes are identical, so callers don't branch.",
+    "shortcut": "features.decisions",
+    "className": "Decisions",
+    "methods": {
+      "isAvailable": {
+        "description": "Probe the decision server. Resolves true when it answers and the configured model is pulled, false otherwise. Never throws.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "if (!(await d.isAvailable())) console.log('run: ollama pull nimble')"
+          }
+        ]
+      },
+      "decide": {
+        "description": "Ask every question about one state in a single call. Answers are typed per key from the question builders you passed.",
+        "parameters": {
+          "state": {
+            "type": "string",
+            "description": "The input the questions are about (a ticket, a message, a game frame…)"
+          },
+          "questions": {
+            "type": "Q",
+            "description": "Named questions built with choice()/yesNo()/score(); at most 64"
+          }
+        },
+        "required": [
+          "state",
+          "questions"
+        ],
+        "returns": "Promise<AnswersFor<Q>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { route } = await d.decide(userMessage, {\n route: d.choice('Which model should handle this?', {\n   fast: 'Short factual lookups and chit-chat',\n   deep: 'Multi-step reasoning, code, or long documents',\n }),\n})\nconst model = route.choice === 'deep' ? 'claude-opus-5-5' : 'claude-haiku-4-5-20251001'"
+          }
+        ]
+      },
+      "decideMany": {
+        "description": "Ask the same questions about many states. Runs calls with bounded concurrency; results keep input order.",
+        "parameters": {
+          "states": {
+            "type": "string[]",
+            "description": "Inputs to decide on"
+          },
+          "questions": {
+            "type": "Q",
+            "description": "The shared question set"
+          },
+          "concurrency": {
+            "type": "any",
+            "description": "Parallel requests in flight (default 4)"
+          }
+        },
+        "required": [
+          "states",
+          "questions"
+        ],
+        "returns": "Promise<Array<AnswersFor<Q>>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const results = await d.decideMany(tickets.map(t => t.body), {\n spam: d.yesNo('This message is unsolicited marketing.'),\n})\nconst clean = tickets.filter((_, i) => !results[i]!.spam.value)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "model": {
+        "description": "The decision model name sent on every request.",
+        "returns": "string"
+      },
+      "baseURL": {
+        "description": "Root URL of the decision server (explicit option, else env, else local Ollama).",
+        "returns": "string"
+      },
+      "endpoint": {
+        "description": "Full URL of the decision endpoint.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "fallback": {
+        "name": "fallback",
+        "description": "Event emitted by Decisions",
+        "arguments": {}
+      },
+      "decided": {
+        "name": "decided",
+        "description": "Event emitted by Decisions",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const d = container.feature('decisions', { model: 'nimble' })\nconst r = await d.decide('Checkout has returned 500 errors since 9am.', {\n label: d.choice('Which label fits this ticket?', {\n   billing: 'Payments and refunds',\n   bug: 'Software errors',\n   account: 'Login and account access',\n }),\n urgent: d.yesNo('This needs a human response within the hour.'),\n severity: d.score('How severe is the impact?', ['cosmetic', 'degraded', 'outage']),\n})\nr.label.choice        // 'bug'\nr.urgent.value        // true\nr.severity.score      // 0.9\nr.severity.label      // 'outage'"
       }
     ]
   },
