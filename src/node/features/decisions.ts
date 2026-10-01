@@ -99,6 +99,8 @@ export interface ScoreAnswer {
 	label: string
 	/** Probability per rubric label, summing to 1. */
 	probabilities: Record<string, number>
+	/** Model-reported confidence when the backend provides one, else the winning label's probability. */
+	confidence: number
 }
 
 export type DecisionAnswer = ChoiceAnswer | YesNoAnswer | ScoreAnswer
@@ -161,24 +163,25 @@ export function validateQuestions(questions: Record<string, DecisionQuestion>): 
 export interface SystemOneRequest {
 	model: string
 	state: string
-	questions: Record<string, { type: 'choice' | 'noul' | 'score'; instructions: string; criteria?: Record<string, string> }>
+	questions: Record<string, {
+		type: 'choice' | 'noul' | 'score'
+		instructions: string
+		/** choice: label → description. score: ordered descriptions, lowest first. */
+		criteria?: Record<string, string> | string[]
+	}>
 }
 
 /**
- * Jev calls yes/no questions `noul`. Score criteria go over the wire as an
- * ordered object (JSON preserves insertion order for string keys), one entry
- * per rubric step, lowest first.
+ * Jev calls yes/no questions `noul`. Score criteria go over the wire as a
+ * plain array of descriptions (lowest first); the server answers by index,
+ * so our labels never leave the process — fromSystemOneAnswer maps them back.
  */
 export function toSystemOneRequest(model: string, state: string, questions: Record<string, DecisionQuestion>): SystemOneRequest {
 	const wire: SystemOneRequest['questions'] = {}
 	for (const [key, q] of Object.entries(questions)) {
 		if (q.type === 'choice') wire[key] = { type: 'choice', instructions: q.instructions, criteria: q.criteria }
 		else if (q.type === 'yesNo') wire[key] = { type: 'noul', instructions: q.instructions }
-		else {
-			const criteria: Record<string, string> = {}
-			for (const { label, description } of scoreLabels(q.criteria)) criteria[label] = description
-			wire[key] = { type: 'score', instructions: q.instructions, criteria }
-		}
+		else wire[key] = { type: 'score', instructions: q.instructions, criteria: scoreLabels(q.criteria).map((c) => c.description) }
 	}
 	return { model, state, questions: wire }
 }
@@ -188,11 +191,18 @@ export interface SystemOneResponse {
 	model?: string
 	answers?: Record<string, {
 		type?: string
+		/** choice: the winning label. */
 		choice?: string
+		/** noul: probability the statement holds. */
+		noul?: number
 		probability?: number
+		/** choice: keyed by label. score: keyed by rubric index ("0", "1", …). */
 		probabilities?: Record<string, number>
 		confidence?: number
+		/** score: expected value on the index scale 0..n-1. */
 		score?: number
+		/** score: index → description, echoing the criteria order. */
+		legend?: Record<string, string>
 		value?: unknown
 	}>
 	usage?: { input_tokens?: number; output_tokens?: number }
@@ -248,6 +258,7 @@ export function fromSystemOneAnswer(
 	}
 	if (question.type === 'yesNo') {
 		const probability =
+			raw.noul ??
 			raw.probability ??
 			raw.probabilities?.true ??
 			raw.probabilities?.yes ??
@@ -256,19 +267,25 @@ export function fromSystemOneAnswer(
 		return { type: 'yesNo', value: probability >= yesNoThreshold, probability }
 	}
 	const labels = scoreLabels(question.criteria).map((c) => c.label)
-	const probabilities = raw.probabilities ?? {}
+	// The server keys the distribution by rubric index; translate back to our labels.
+	const probabilities: Record<string, number> = {}
+	for (const [key, p] of Object.entries(raw.probabilities ?? {})) {
+		const index = Number(key)
+		const label = Number.isInteger(index) && labels[index] !== undefined ? labels[index]! : key
+		probabilities[label] = p
+	}
 	const hasDistribution = Object.keys(probabilities).length > 0
 	let normalized: number
 	if (typeof raw.score === 'number') {
-		// Servers may report the score on the rubric's index scale (0..n-1) or already normalized.
-		normalized = raw.score > 1 ? raw.score / (labels.length - 1) : raw.score
+		// Score arrives on the index scale (0..n-1), e.g. 1.69 on a 3-step rubric.
+		normalized = raw.score / (labels.length - 1)
 	} else if (hasDistribution) {
 		normalized = weightedScore(labels, probabilities)
 	} else {
 		throw new Error('The decision endpoint returned a score answer with neither a score nor a distribution.')
 	}
 	const label = hasDistribution ? argmax(probabilities) : labels[Math.round(normalized * (labels.length - 1))]!
-	return { type: 'score', score: normalized, label, probabilities }
+	return { type: 'score', score: normalized, label, probabilities, confidence: raw.confidence ?? probabilities[label] ?? 1 }
 }
 
 // ── Feature ─────────────────────────────────────────────────────────
@@ -491,7 +508,8 @@ export class Decisions extends Feature<DecisionsState, DecisionsOptions> {
 					rubric,
 				)
 				const labels = rubric.map((r) => r.label)
-				answers[key] = { type: 'score', score: weightedScore(labels, probabilities), label: argmax(probabilities), probabilities }
+				const label = argmax(probabilities)
+				answers[key] = { type: 'score', score: weightedScore(labels, probabilities), label, probabilities, confidence: probabilities[label]! }
 			}
 		}
 		return answers

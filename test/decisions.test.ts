@@ -41,9 +41,8 @@ describe('decisions helpers', () => {
 		expect(req.questions.sev).toEqual({
 			type: 'score',
 			instructions: 'Severity?',
-			criteria: { cosmetic: 'cosmetic', outage: 'Everything is down' },
+			criteria: ['cosmetic', 'Everything is down'],
 		})
-		expect(Object.keys(req.questions.sev!.criteria!)).toEqual(['cosmetic', 'outage'])
 	})
 
 	it('computes a normalized weighted score', () => {
@@ -64,19 +63,35 @@ describe('decisions helpers', () => {
 
 	it('normalizes yes/no answers against the threshold', () => {
 		const q = yesNo('Urgent?')
+		expect(fromSystemOneAnswer(q, { type: 'noul', noul: 0.91 }, 0.5)).toEqual({ type: 'yesNo', value: true, probability: 0.91 })
 		expect(fromSystemOneAnswer(q, { probability: 0.91 }, 0.5)).toEqual({ type: 'yesNo', value: true, probability: 0.91 })
 		expect(fromSystemOneAnswer(q, { probability: 0.6 }, 0.75)).toEqual({ type: 'yesNo', value: false, probability: 0.6 })
 		expect(fromSystemOneAnswer(q, { probabilities: { true: 0.2, false: 0.8 } }, 0.5)).toEqual({ type: 'yesNo', value: false, probability: 0.2 })
 		expect(() => fromSystemOneAnswer(q, {}, 0.5)).toThrow('without a probability')
 	})
 
-	it('normalizes score answers from a distribution or a raw score', () => {
+	it('maps index-keyed score answers back to rubric labels', () => {
 		const q = score('Severity?', ['cosmetic', 'degraded', 'outage'])
-		const fromDist = fromSystemOneAnswer(q, { probabilities: { cosmetic: 0.1, degraded: 0.2, outage: 0.7 } }, 0.5)
-		expect(fromDist.type).toBe('score')
+		// Real nimble response shape (Ollama 0.35): index-keyed probabilities, score on the 0..n-1 scale.
+		const real = fromSystemOneAnswer(q, {
+			type: 'score',
+			score: 1.6921,
+			legend: { '0': 'cosmetic', '1': 'degraded', '2': 'outage' },
+			probabilities: { '0': 0.01, '1': 0.288, '2': 0.702 },
+			confidence: 0.406,
+		}, 0.5)
+		expect(real).toEqual({
+			type: 'score',
+			score: 1.6921 / 2,
+			label: 'outage',
+			probabilities: { cosmetic: 0.01, degraded: 0.288, outage: 0.702 },
+			confidence: 0.406,
+		})
+		const fromDist = fromSystemOneAnswer(q, { probabilities: { '0': 0.1, '1': 0.2, '2': 0.7 } }, 0.5)
 		if (fromDist.type === 'score') {
 			expect(fromDist.label).toBe('outage')
 			expect(fromDist.score).toBeCloseTo((0.2 * 1 + 0.7 * 2) / 2)
+			expect(fromDist.confidence).toBe(0.7)
 		}
 		const indexScale = fromSystemOneAnswer(q, { score: 2 }, 0.5)
 		if (indexScale.type === 'score') {
@@ -103,8 +118,8 @@ describe('decisions feature', () => {
 				model: 'nimble',
 				answers: {
 					label: { type: 'choice', choice: 'bug', probabilities: { billing: 0.01, bug: 0.98, account: 0.01 }, confidence: 0.89 },
-					urgent: { type: 'noul', probability: 0.93 },
-					severity: { type: 'score', probabilities: { cosmetic: 0.05, degraded: 0.15, outage: 0.8 } },
+					urgent: { type: 'noul', noul: 0.93 },
+					severity: { type: 'score', score: 1.75, legend: { '0': 'cosmetic', '1': 'degraded', '2': 'outage' }, probabilities: { '0': 0.05, '1': 0.15, '2': 0.8 } },
 				},
 				usage: { input_tokens: 174, output_tokens: 3 },
 			}), { headers: { 'content-type': 'application/json' } })
@@ -131,7 +146,8 @@ describe('decisions feature', () => {
 		expect(r.urgent.value).toBe(true)
 		expect(r.urgent.probability).toBe(0.93)
 		expect(r.severity.label).toBe('outage')
-		expect(r.severity.score).toBeCloseTo((0.15 + 1.6) / 2)
+		expect(r.severity.score).toBeCloseTo(1.75 / 2)
+		expect(r.severity.probabilities).toEqual({ cosmetic: 0.05, degraded: 0.15, outage: 0.8 })
 
 		expect(events).toHaveLength(1)
 		expect(events[0].backend).toBe('native')
@@ -150,7 +166,7 @@ describe('decisions feature', () => {
 		globalThis.fetch = (async (_url: any, init: any) => {
 			const body = JSON.parse(init.body)
 			const p = body.state === 'spam!' ? 0.95 : 0.05
-			return new Response(JSON.stringify({ answers: { spam: { probability: p } } }))
+			return new Response(JSON.stringify({ answers: { spam: { type: 'noul', noul: p } } }))
 		}) as any
 		const container = new NodeContainer()
 		const d = container.feature('decisions', { baseURL: 'http://decisions.test:11434' })
