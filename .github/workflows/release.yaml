@@ -1,5 +1,11 @@
 name: Release
 
+# The Developer ID identity and the notarization credentials (APPLE_ID /
+# APPLE_APP_PASSWORD / APPLE_TEAM_ID secrets) must all belong to the SAME Apple
+# team, or codesign succeeds and notarytool rejects the submission.
+env:
+  MAC_SIGN_IDENTITY: "Developer ID Application: Jonathan Soeder (TXYJ5S79U2)"
+
 on:
   push:
     tags:
@@ -127,10 +133,10 @@ jobs:
 
       - name: Sign macOS binaries
         run: |
-          codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
+          codesign --sign "$MAC_SIGN_IDENTITY" \
             --force --options runtime --timestamp dist/release/luca-darwin-x64
           codesign --remove-signature dist/release/luca-darwin-arm64
-          codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
+          codesign --sign "$MAC_SIGN_IDENTITY" \
             --force --options runtime --timestamp dist/release/luca-darwin-arm64
 
       - name: Notarize macOS binaries
