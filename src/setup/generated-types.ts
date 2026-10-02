@@ -15890,7 +15890,7 @@ export type { TTSOptions, TTSState, TTS } from "./features/tts";
 export type { TsSpan, TsJsdocBlock, TsExportInfo, TsClassMemberInfo, TsFunctionBody, TsSyntaxDiagnostic, TsEditResult, TypeScriptAst } from "./features/typescript";
 export type { UI } from "./features/ui";
 export type { VaultState, VaultOptions, Vault } from "./features/vault";
-export type { VMState, VMOptions, VMRunOptions, VM } from "./features/vm";
+export type { VMState, VMOptions, VMRunOptions, VMLoadChain, VMRequireOptions, VM } from "./features/vm";
 export type { YamlTreeState, YamlTree } from "./features/yaml-tree";
 export type { YAML } from "./features/yaml";
 export type { ZeroshotClassifierOptions, ZeroshotClassifierState, ClassifierOption, ClassificationResult, ZeroshotClassifier } from "./features/zeroshot-classifier";
@@ -34282,6 +34282,22 @@ export interface VMRunOptions {
     filePath?: string;
 }
 /**
+ * @internal State shared by one unbundled load chain: the user context every
+ * recursively loaded file receives, plus a cache so a file required from two
+ * places in the graph executes once.
+ */
+export interface VMLoadChain {
+    ctx: any;
+    cache: Map<string, any>;
+    /** Files currently executing on this chain — a require back into one of them is a cycle. */
+    loading: Set<string>;
+}
+/** @internal Options for {@link VMFeature.createRequireFor}. */
+export interface VMRequireOptions {
+    /** When set, relative source imports are routed back through \`loadModule\` on this chain. */
+    chain?: VMLoadChain;
+}
+/**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
  *
  * This feature wraps Node.js's built-in \`vm\` module to provide secure code execution
@@ -34403,7 +34419,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * @param filePath - The file path to scope native require resolution to
      * @returns A require function with \`.resolve\` preserved from the native require
      */
-    createRequireFor(filePath: string): ((id: string) => any) & {
+    createRequireFor(filePath: string, opts?: VMRequireOptions): ((id: string) => any) & {
         resolve: RequireResolve;
     };
     /**
@@ -34718,7 +34734,9 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * console.log(tools.greet('luca')) // 'hi luca'
      * \`\`\`
      */
-    loadModule(filePath: string, ctx?: any): Record<string, any>;
+    loadModule(filePath: string, ctx?: any, opts?: {
+        chain?: VMLoadChain;
+    }): Record<string, any>;
     /**
      * Tolerant counterpart to {@link loadModule}: returns \`null\` when no file
      * exists at \`filePath\` instead of throwing. Use it for optional modules
@@ -34743,8 +34761,29 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * \`\`\`
      */
     tryLoadModule(filePath: string, ctx?: any): Record<string, any> | null;
-    /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
+    /**
+     * @internal Bundle a file with \`bun build\`, keeping virtual modules external, then execute it.
+     *
+     * When bundling fails, the file is loaded unbundled instead: each file is
+     * transpiled on its own, and every relative source import is routed back
+     * through {@link loadModule} on a shared chain (cached, cycle-checked). That
+     * keeps \`import 'luca'\` anywhere in the dependency graph pointed at the virtual
+     * module — the only copy that exists inside the compiled binary — instead of
+     * handing it to Node resolution, which fails there with "Cannot find package".
+     * The bundler's stderr is never swallowed: it is warned when the fallback
+     * succeeds and attached to the error when it does not.
+     */
     private _loadModuleBundled;
+    /** @internal Transpile a single file (no bundling) and execute it with relative imports routed through the chain. */
+    private _loadModuleUnbundled;
+    /**
+     * @internal Resolve a relative import to a source file the VM can load itself,
+     * probing extensions and index files like a bundler would. \`./x.js\` also finds
+     * \`./x.ts\` (the ESM-in-TypeScript convention). Returns \`null\` for anything that
+     * isn't a source file (JSON, directories without an index, missing files) so the
+     * caller can hand it to Node's require, which then reports the real failure.
+     */
+    private _resolveRelativeSource;
     /** @internal Execute CJS code in a VM context and return its exports. */
     private _execModule;
     /**
