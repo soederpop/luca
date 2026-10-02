@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, spyOn } from 'bun:test'
 import { tmpdir } from 'os'
 import { NodeContainer } from '../src/node/container'
 
@@ -353,6 +353,102 @@ describe('vm.loadModule pipeline', () => {
 
 			const mod = vm.loadModule(entry)
 			expect(await mod.connect()).toBe(true)
+		})
+	})
+
+	describe('unbundled fallback (bun build fails)', () => {
+		function writeGraph(c: NodeContainer, files: Record<string, string>): string {
+			const fs = c.feature('fs')
+			const dir = c.paths.resolve(tmpdir(), `vm-loadmodule-fallback-${c.utils.uuid()}`)
+			fs.mkdir(dir)
+			for (const [name, src] of Object.entries(files)) fs.writeFile(c.paths.resolve(dir, name), src)
+			return dir
+		}
+
+		it('routes relative imports back through the VM so they still see virtual modules', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			vm.defineModule('probe', { token: 'T' })
+			// `require('./missing')` is never called, but the bundler must resolve it
+			// statically and fails — that forces the unbundled path for entry.ts.
+			const dir = writeGraph(c, {
+				'entry.ts': `
+					import { token } from 'probe'
+					import { deep } from './helper'
+					export const fromEntry = token
+					export const viaHelper = deep
+					export function lazy() { return require('./missing') }
+				`,
+				'helper.ts': `
+					import { token } from 'probe'
+					export const deep = token + '-helper'
+				`,
+			})
+
+			const warn = spyOn(console, 'warn').mockImplementation(() => {})
+			try {
+				const mod = vm.loadModule(c.paths.resolve(dir, 'entry.ts'))
+				expect(mod.fromEntry).toBe('T')
+				expect(mod.viaHelper).toBe('T-helper')
+				// the bundler's own diagnostic is surfaced, not swallowed
+				expect(warn).toHaveBeenCalledTimes(1)
+				expect(String(warn.mock.calls[0][0])).toContain('Could not resolve: "./missing"')
+			} finally {
+				warn.mockRestore()
+			}
+		})
+
+		it('a shared dependency executes once per load', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			const dir = writeGraph(c, {
+				'entry.ts': `
+					import { id as a } from './a'
+					import { id as b } from './b'
+					export const same = a === b
+					export function lazy() { return require('./missing') }
+				`,
+				'a.ts': `export { id } from './shared'`,
+				'b.ts': `export { id } from './shared'`,
+				'shared.ts': `export const id = Symbol('once')`,
+			})
+			const warn = spyOn(console, 'warn').mockImplementation(() => {})
+			try {
+				expect(vm.loadModule(c.paths.resolve(dir, 'entry.ts')).same).toBe(true)
+			} finally {
+				warn.mockRestore()
+			}
+		})
+
+		it('reports the bundler error and the real missing file when nothing can load', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			// the missing file is two imports deep — the error must name it, not just the entry
+			const dir = writeGraph(c, {
+				'entry.ts': `import { x } from './mid'; export const y = x`,
+				'mid.ts': `import { x } from './gone'; export { x }`,
+			})
+			let err: any
+			try { vm.loadModule(c.paths.resolve(dir, 'entry.ts')) } catch (e) { err = e }
+			expect(err).toBeDefined()
+			expect(err.message).toContain('bun build said')
+			expect(err.message).toContain('Could not resolve: "./gone"')
+			expect(err.message).toContain('Unbundled fallback said')
+			expect(err.message).toContain('./gone')
+		})
+
+		it('names a circular import instead of recursing forever', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			const dir = writeGraph(c, {
+				'entry.ts': `import { b } from './b'; export const a = 1; export const viaB = b; export function lazy() { return require('./missing') }`,
+				'b.ts': `import { a } from './entry'; export const b = a; export function lazy() { return require('./missing') }`,
+			})
+			expect(() => vm.loadModule(c.paths.resolve(dir, 'entry.ts'))).toThrow(/circular import/)
 		})
 	})
 

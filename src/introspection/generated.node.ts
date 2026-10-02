@@ -19875,6 +19875,16 @@ setBuildTimeData('features.vm', {
         "filePath": {
           "type": "string",
           "description": "The file path to scope native require resolution to"
+        },
+        "opts": {
+          "type": "VMRequireOptions",
+          "description": "Parameter opts",
+          "properties": {
+            "chain": {
+              "type": "VMLoadChain",
+              "description": "When set, relative source imports are routed back through `loadModule` on this chain."
+            }
+          }
         }
       },
       "required": [
@@ -20129,6 +20139,10 @@ setBuildTimeData('features.vm', {
         "ctx": {
           "type": "any",
           "description": "Additional context variables to inject into the module's execution environment"
+        },
+        "opts": {
+          "type": "{ chain?: VMLoadChain }",
+          "description": "Parameter opts"
         }
       },
       "required": [
@@ -20222,6 +20236,33 @@ setBuildTimeData('features.vm', {
     }
   ],
   "types": {
+    "VMRequireOptions": {
+      "description": "",
+      "properties": {
+        "chain": {
+          "type": "VMLoadChain",
+          "description": "When set, relative source imports are routed back through `loadModule` on this chain.",
+          "optional": true
+        }
+      }
+    },
+    "VMLoadChain": {
+      "description": "",
+      "properties": {
+        "ctx": {
+          "type": "any",
+          "description": ""
+        },
+        "cache": {
+          "type": "Map<string, any>",
+          "description": ""
+        },
+        "loading": {
+          "type": "Set<string>",
+          "description": "Files currently executing on this chain — a require back into one of them is a cycle."
+        }
+      }
+    },
     "VMRunOptions": {
       "description": "Per-run options accepted by `run`, `runSync`, `perform`, `performSync`, and `runCaptured`.",
       "properties": {
@@ -41679,6 +41720,16 @@ export const introspectionData: Record<string, any>[] = [
           "filePath": {
             "type": "string",
             "description": "The file path to scope native require resolution to"
+          },
+          "opts": {
+            "type": "VMRequireOptions",
+            "description": "Parameter opts",
+            "properties": {
+              "chain": {
+                "type": "VMLoadChain",
+                "description": "When set, relative source imports are routed back through `loadModule` on this chain."
+              }
+            }
           }
         },
         "required": [
@@ -41933,6 +41984,10 @@ export const introspectionData: Record<string, any>[] = [
           "ctx": {
             "type": "any",
             "description": "Additional context variables to inject into the module's execution environment"
+          },
+          "opts": {
+            "type": "{ chain?: VMLoadChain }",
+            "description": "Parameter opts"
           }
         },
         "required": [
@@ -42026,6 +42081,33 @@ export const introspectionData: Record<string, any>[] = [
       }
     ],
     "types": {
+      "VMRequireOptions": {
+        "description": "",
+        "properties": {
+          "chain": {
+            "type": "VMLoadChain",
+            "description": "When set, relative source imports are routed back through `loadModule` on this chain.",
+            "optional": true
+          }
+        }
+      },
+      "VMLoadChain": {
+        "description": "",
+        "properties": {
+          "ctx": {
+            "type": "any",
+            "description": ""
+          },
+          "cache": {
+            "type": "Map<string, any>",
+            "description": ""
+          },
+          "loading": {
+            "type": "Set<string>",
+            "description": "Files currently executing on this chain — a require back into one of them is a cycle."
+          }
+        }
+      },
       "VMRunOptions": {
         "description": "Per-run options accepted by `run`, `runSync`, `perform`, `performSync`, and `runCaptured`.",
         "properties": {

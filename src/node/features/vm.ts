@@ -27,6 +27,27 @@ export interface VMRunOptions {
 }
 
 /**
+ * @internal State shared by one unbundled load chain: the user context every
+ * recursively loaded file receives, plus a cache so a file required from two
+ * places in the graph executes once.
+ */
+export interface VMLoadChain {
+  ctx: any
+  cache: Map<string, any>
+  /** Files currently executing on this chain — a require back into one of them is a cycle. */
+  loading: Set<string>
+}
+
+/** @internal Options for {@link VMFeature.createRequireFor}. */
+export interface VMRequireOptions {
+  /** When set, relative source imports are routed back through `loadModule` on this chain. */
+  chain?: VMLoadChain
+}
+
+/** Source extensions the unbundled fallback will load through the VM itself. */
+const VM_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+
+/**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
  *
  * This feature wraps Node.js's built-in `vm` module to provide secure code execution
@@ -161,10 +182,11 @@ export class VM<
    * @param filePath - The file path to scope native require resolution to
    * @returns A require function with `.resolve` preserved from the native require
    */
-  createRequireFor(filePath: string): ((id: string) => any) & { resolve: RequireResolve } {
+  createRequireFor(filePath: string, opts: VMRequireOptions = {}): ((id: string) => any) & { resolve: RequireResolve } {
     const nodeRequire = createRequire(filePath)
     const modules = this.modules
     const lazyModules = this.lazyModules
+    const chain = opts.chain
 
     const customRequire = (id: string) => {
       if (modules.has(id)) return modules.get(id)
@@ -173,6 +195,24 @@ export class VM<
         const exports = loader()
         modules.set(id, exports)
         return exports
+      }
+      // Unbundled fallback: a relative source file must come back through
+      // loadModule, so its own `import 'luca'` hits the virtual module instead
+      // of Node resolution (which has nothing to find inside the compiled binary).
+      if (chain && (id.startsWith('./') || id.startsWith('../'))) {
+        const resolved = this._resolveRelativeSource(dirname(filePath), id)
+        if (resolved) {
+          if (chain.cache.has(resolved)) return chain.cache.get(resolved)
+          if (chain.loading.has(resolved)) {
+            throw new Error(
+              `vm.loadModule: circular import ${filePath} -> ${resolved} cannot be loaded unbundled ` +
+              `(bundling would have resolved the cycle; fix the bundler error above).`,
+            )
+          }
+          const exports = this.loadModule(resolved, chain.ctx, { chain })
+          chain.cache.set(resolved, exports)
+          return exports
+        }
       }
       return nodeRequire(id)
     }
@@ -736,7 +776,7 @@ export class VM<
    * console.log(tools.greet('luca')) // 'hi luca'
    * ```
    */
-  loadModule(filePath: string, ctx: any = {}): Record<string, any> {
+  loadModule(filePath: string, ctx: any = {}, opts: { chain?: VMLoadChain } = {}): Record<string, any> {
     const { fs } = this.container
 
     if (!fs.exists(filePath)) {
@@ -748,6 +788,11 @@ export class VM<
 
     // If we have virtual modules defined, use bundling to inline all other imports.
     // Virtual module IDs are marked external so they resolve via our custom require.
+    // Once an entry has fallen back to unbundled loading, everything it reaches
+    // loads the same way: one VM module per file, cached on the chain. Bundling a
+    // sub-tree here would inline copies of files the chain already executed.
+    if (opts.chain) return this._loadModuleUnbundled(filePath, ctx, opts.chain)
+
     if (this.modules.size > 0 || this.lazyModules.size > 0) {
       return this._loadModuleBundled(filePath, ctx)
     }
@@ -786,24 +831,62 @@ export class VM<
     return this.loadModule(filePath, ctx)
   }
 
-  /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
+  /**
+   * @internal Bundle a file with `bun build`, keeping virtual modules external, then execute it.
+   *
+   * When bundling fails, the file is loaded unbundled instead: each file is
+   * transpiled on its own, and every relative source import is routed back
+   * through {@link loadModule} on a shared chain (cached, cycle-checked). That
+   * keeps `import 'luca'` anywhere in the dependency graph pointed at the virtual
+   * module — the only copy that exists inside the compiled binary — instead of
+   * handing it to Node resolution, which fails there with "Cannot find package".
+   * The bundler's stderr is never swallowed: it is warned when the fallback
+   * succeeds and attached to the error when it does not.
+   */
   private _loadModuleBundled(filePath: string, ctx: any): Record<string, any> {
     const external = this.virtualModuleIds
 
-    const result = Bun.spawnSync({
-      cmd: ['bun', 'build', filePath, '--target=bun', '--format=cjs', ...external.flatMap(e => ['--external', e])],
-      stdout: 'pipe',
-      stderr: 'pipe',
-    })
-
-    if (result.exitCode !== 0) {
-      // Fall back to simple transpile if bundling fails
-      const raw = this.container.fs.readFile(filePath)
-      const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
-      return this._execModule(code, filePath, ctx)
+    let result: ReturnType<typeof Bun.spawnSync>
+    try {
+      result = Bun.spawnSync({
+        cmd: ['bun', 'build', filePath, '--target=bun', '--format=cjs', ...external.flatMap(e => ['--external', e])],
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+    } catch (err: any) {
+      if (err?.code === 'ENOENT' || /ENOENT/.test(String(err?.message))) {
+        throw new Error(
+          `vm.loadModule: cannot bundle ${filePath}: \`bun\` is not on PATH. ` +
+          `Project files that import 'luca' are bundled with \`bun build\`, so bun must be installed ` +
+          `alongside the luca binary (https://bun.sh).`,
+          { cause: err },
+        )
+      }
+      throw err
     }
 
-    let code = result.stdout.toString()
+    if (result.exitCode !== 0) {
+      const stderr = (result.stderr?.toString() ?? "").trim()
+      const chain: VMLoadChain = { ctx, cache: new Map(), loading: new Set() }
+      try {
+        const exports = this._loadModuleUnbundled(filePath, ctx, chain)
+        console.warn(
+          `vm.loadModule: \`bun build\` failed for ${filePath}; loaded it unbundled instead ` +
+          `(one VM module per file, relative imports resolved through the VM).\n` +
+          `bun build said:\n${stderr}`,
+        )
+        return exports
+      } catch (err: any) {
+        throw new Error(
+          `vm.loadModule: failed to load ${filePath}.\n\n` +
+          `bun build said:\n${stderr}\n\n` +
+          `Unbundled fallback said:\n${err?.message ?? err}`,
+          { cause: err },
+        )
+      }
+    }
+
+    let code = result.stdout?.toString() ?? ""
 
     // Bun's CJS output wraps everything in (function(exports, require, module, __filename, __dirname) { ... })
     // Strip the wrapper so the inner code runs directly in our VM context which already provides these globals.
@@ -817,11 +900,47 @@ export class VM<
     return this._execModule(code, filePath, ctx)
   }
 
+  /** @internal Transpile a single file (no bundling) and execute it with relative imports routed through the chain. */
+  private _loadModuleUnbundled(filePath: string, ctx: any, chain: VMLoadChain): Record<string, any> {
+    const raw = this.container.fs.readFile(filePath)
+    const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
+    chain.loading.add(filePath)
+    try {
+      return this._execModule(code, filePath, ctx, { chain })
+    } finally {
+      chain.loading.delete(filePath)
+    }
+  }
+
+  /**
+   * @internal Resolve a relative import to a source file the VM can load itself,
+   * probing extensions and index files like a bundler would. `./x.js` also finds
+   * `./x.ts` (the ESM-in-TypeScript convention). Returns `null` for anything that
+   * isn't a source file (JSON, directories without an index, missing files) so the
+   * caller can hand it to Node's require, which then reports the real failure.
+   */
+  private _resolveRelativeSource(fromDir: string, id: string): string | null {
+    const { fs, paths } = this.container
+    const base = paths.resolve(fromDir, id)
+    const isSource = (p: string) => VM_SOURCE_EXTENSIONS.some(ext => p.endsWith(ext)) && fs.isFile(p)
+
+    if (isSource(base)) return base
+    const stripped = base.replace(/\.(js|mjs|cjs|jsx)$/, '')
+    for (const ext of VM_SOURCE_EXTENSIONS) {
+      if (fs.isFile(stripped + ext)) return stripped + ext
+    }
+    for (const ext of VM_SOURCE_EXTENSIONS) {
+      const index = paths.resolve(base, 'index' + ext)
+      if (fs.isFile(index)) return index
+    }
+    return null
+  }
+
   /** @internal Execute CJS code in a VM context and return its exports. */
-  private _execModule(code: string, filePath: string, ctx: any): Record<string, any> {
+  private _execModule(code: string, filePath: string, ctx: any, requireOpts: VMRequireOptions = {}): Record<string, any> {
     const sharedExports = {}
     const { context } = this.performSync(code, {
-      require: this.createRequireFor(filePath),
+      require: this.createRequireFor(filePath, requireOpts),
       exports: sharedExports,
       module: { exports: sharedExports },
       __filename: filePath,

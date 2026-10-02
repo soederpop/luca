@@ -179,7 +179,7 @@ export type { TTSOptions, TTSState, TTS } from "./features/tts";
 export type { TsSpan, TsJsdocBlock, TsExportInfo, TsClassMemberInfo, TsFunctionBody, TsSyntaxDiagnostic, TsEditResult, TypeScriptAst } from "./features/typescript";
 export type { UI } from "./features/ui";
 export type { VaultState, VaultOptions, Vault } from "./features/vault";
-export type { VMState, VMOptions, VMRunOptions, VM } from "./features/vm";
+export type { VMState, VMOptions, VMRunOptions, VMLoadChain, VMRequireOptions, VM } from "./features/vm";
 export type { YamlTreeState, YamlTree } from "./features/yaml-tree";
 export type { YAML } from "./features/yaml";
 export type { ZeroshotClassifierOptions, ZeroshotClassifierState, ClassifierOption, ClassificationResult, ZeroshotClassifier } from "./features/zeroshot-classifier";
