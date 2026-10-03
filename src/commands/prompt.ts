@@ -19,7 +19,7 @@ declare module '../command.js' {
 }
 
 export const argsSchema = CommandOptionsSchema.extend({
-	model: z.string().optional().describe('Override the LLM model (assistant mode only)'),
+	model: z.string().optional().describe('Override the LLM model for the agent or assistant (claude/codex/hermes accept their own ids or aliases)'),
 	'include-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it before sending to the agent.'),
 	'eval-mode': z.enum(['all', 'optIn', 'opt-in', 'none']).optional().describe('Which fenced code blocks execute: all, optIn (only ```ts eval fences), or none (blocks ship as literal source). Overrides evalMode frontmatter. Default: none.'),
 	'skip-eval': z.boolean().default(false).describe('Deprecated alias for --eval-mode none'),
@@ -688,10 +688,10 @@ interface InputDef {
 /**
  * Build the agent options a prompt file's frontmatter asks for.
  *
- * `agentOptions` is the general escape hatch, but `skills` and `skillsFolders` are
- * promoted to the top level: naming the skills a prompt needs is a normal thing to
- * express, not an agent-tuning detail. An explicit `agentOptions` entry wins over
- * the promoted one.
+ * `agentOptions` is the general escape hatch, but `skills`, `skillsFolders` and
+ * `model` are promoted to the top level: naming the skills a prompt needs, or the
+ * model it should run on, is a normal thing to express, not an agent-tuning
+ * detail. An explicit `agentOptions` entry wins over the promoted one.
  *
  * @param meta - Parsed YAML frontmatter
  * @returns Options to merge into the agent run
@@ -704,6 +704,10 @@ export function resolveAgentOptions(meta: Record<string, any>): Record<string, a
 		if (Array.isArray(meta?.[key]) && agentOptions[key] === undefined) {
 			agentOptions[key] = meta[key]
 		}
+	}
+
+	if (typeof meta?.model === 'string' && meta.model.trim() && agentOptions.model === undefined) {
+		agentOptions.model = meta.model.trim()
 	}
 
 	return agentOptions
