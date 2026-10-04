@@ -66,7 +66,7 @@ const VM_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
  *
  * Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come
  * free from the realm, and luca injects console, timers, process, Buffer, fetch and
- * friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.
+ * friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.
  *
  * @example
  * ```typescript
@@ -445,6 +445,8 @@ export class VM<
       crypto: globalThis.crypto,
       TextEncoder,
       TextDecoder,
+      atob,
+      btoa,
       ...this.container.context,
       ...ctx
     }
@@ -975,6 +977,8 @@ export class VM<
       crypto: globalThis.crypto,
       TextEncoder,
       TextDecoder,
+      atob,
+      btoa,
       ...ctx,
     }, { filePath })
 

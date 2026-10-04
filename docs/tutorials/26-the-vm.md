@@ -89,7 +89,7 @@ VM contexts start deliberately close to empty. Three tiers:
 - **Injected by luca**: `console`, `setTimeout`/`setInterval` (+clears), `process`,
   `Buffer`, `URL`/`URLSearchParams`, `AbortController`/`AbortSignal`, `FormData`,
   `Blob`/`File`, `Headers`/`Request`/`Response`/`fetch`, `crypto`,
-  `TextEncoder`/`TextDecoder` — plus every **enabled container helper** by name
+  `TextEncoder`/`TextDecoder`, `atob`/`btoa` — plus every **enabled container helper** by name
   (`fs`, `ui`, `proc`, ...) via `container.context`. Module loading additionally gets
   `require`, `exports`, `module`, `__filename`, `__dirname`.
 - **Not there**: everything else. `Bun.spawn`/`Bun.serve` are unavailable in

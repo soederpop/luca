@@ -179,3 +179,24 @@ describe('VM wrapTopLevelAwait', () => {
 		expect(result).toBe(42)
 	})
 })
+
+describe('VM base64 globals', () => {
+	it('provides atob/btoa in createContext sandboxes', async () => {
+		const c = new NodeContainer()
+		const vm = c.feature('vm')
+		const result = await vm.run('atob(btoa("luca"))', vm.createContext({}))
+		expect(result).toBe('luca')
+	})
+
+	it('provides atob/btoa to modules loaded with loadModule', () => {
+		const c = new NodeContainer()
+		const fs = c.feature('fs')
+		const file = c.paths.resolve(c.feature('os').tmpdir, `vm-base64-${c.utils.uuid()}.ts`)
+		fs.writeFile(file, 'export const roundTrip = atob(btoa("luca"))')
+		try {
+			expect(c.feature('vm').loadModule(file).roundTrip).toBe('luca')
+		} finally {
+			fs.rm(file)
+		}
+	})
+})
