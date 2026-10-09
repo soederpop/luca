@@ -66,3 +66,7 @@ datasets/
 # luca local runtime files (store, `luca setup` types); the vault ID is shared
 .luca/*
 !.luca/vault.json
+
+# Local-only Apple signing secret sync (touches the keychain, never committed)
+scripts/sync-apple-signing-secrets.sh
+scripts/lib/export-identity.swift
