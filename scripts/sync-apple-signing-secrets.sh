@@ -7,9 +7,9 @@
 # "MAC verification failed during PKCS12 import" — the APPLE_CERTIFICATE_P12
 # secret and APPLE_CERTIFICATE_PASSWORD did not match (or the p12 was built
 # with OpenSSL 3 defaults, which macOS `security import` rejects). This script
-# exports the identity, repackages it in the legacy PKCS#12 format macOS
-# accepts, proves it imports exactly the way the workflow does, and only then
-# uploads it.
+# exports exactly one identity through the Security framework (Apple's own p12
+# flavour, no other key in the keychain is touched), proves it imports exactly
+# the way the workflow does, and only then uploads it.
 #
 # Run it interactively on the machine that holds the keys. Expect keychain
 # access prompts. Nothing secret is written outside a temp dir that is
@@ -27,7 +27,7 @@ DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
 need() { command -v "$1" >/dev/null || { echo "missing: $1"; exit 1; }; }
-need gh; need openssl; need security; need xcrun
+need gh; need openssl; need security; need xcrun; need swiftc
 
 WORK="$(mktemp -d)"
 SCRATCH_KEYCHAIN="$WORK/verify.keychain-db"
@@ -41,63 +41,21 @@ echo "==> Identity $IDENTITY_SHA"
 security find-identity -v -p codesigning | grep -q "$IDENTITY_SHA" \
   || { echo "Identity not in this keychain. Run: security find-identity -v -p codesigning"; exit 1; }
 
-# `security export` has no per-item filter, so export every identity, then
-# cut out the one we want with openssl. The temp password never leaves $WORK.
-TMP_PW="$(openssl rand -hex 16)"
-echo "==> Exporting identities (keychain will prompt once per private key)"
-security export -t identities -f pkcs12 -P "$TMP_PW" -o "$WORK/all.p12"
-openssl pkcs12 -in "$WORK/all.p12" -passin "pass:$TMP_PW" -nodes -legacy -out "$WORK/all.pem" 2>/dev/null \
-  || openssl pkcs12 -in "$WORK/all.p12" -passin "pass:$TMP_PW" -nodes -out "$WORK/all.pem"
-
-# Find the cert with our SHA-1 and the private key that shares its localKeyID.
-python3 - "$WORK/all.pem" "$IDENTITY_SHA" "$WORK/cert.pem" "$WORK/key.pem" <<'PY'
-import re, subprocess, sys
-pem, want, cert_out, key_out = sys.argv[1:]
-text = open(pem).read()
-# Each bag: whatever openssl printed since the previous block (Bag Attributes,
-# localKeyID, subject=, ...) followed by one PEM block.
-bags = []
-pos = 0
-for m in re.finditer(r'-----BEGIN ([A-Z ]+)-----.*?-----END \1-----\n', text, re.S):
-    bags.append((text[pos:m.start()], m.group(0), m.group(1)))
-    pos = m.end()
-def key_id(attrs):
-    m = re.search(r'localKeyID:\s*([0-9A-Fa-f ]+)', attrs)
-    return m.group(1).replace(' ', '').upper() if m else None
-cert = key = None
-for attrs, block, kind in bags:
-    if kind == 'CERTIFICATE':
-        fp = subprocess.run(['openssl', 'x509', '-noout', '-fingerprint', '-sha1'], input=block, capture_output=True, text=True).stdout
-        fp = fp.split('=')[-1].replace(':', '').strip().upper()
-        if fp == want.upper():
-            cert = (key_id(attrs), block)
-for attrs, block, kind in bags:
-    if kind != 'CERTIFICATE' and cert and key_id(attrs) == cert[0]:
-        key = block
-if not cert: sys.exit('certificate %s not found in export' % want)
-if not key: sys.exit('private key for %s not found in export' % want)
-open(cert_out, 'w').write(cert[1]); open(key_out, 'w').write(key)
-PY
+# Export only that identity. `security export` would touch every private key
+# in the keychain (a prompt for each, Jeremy's included); the Swift helper asks
+# the keychain for this one identity, so the only prompt is for your key.
+P12_PW="$(openssl rand -hex 24)"
+HELPER="$WORK/export-identity"
+swiftc -o "$HELPER" "$(dirname "$0")/lib/export-identity.swift"
+echo "==> Exporting (keychain will prompt once, for the Jonathan Soeder key only)"
+"$HELPER" "$IDENTITY_SHA" "$WORK/devid.p12" "$P12_PW"
 
 # Hard guard: only Jonathan's Developer ID for team TXYJ5S79U2 may be pushed.
-# The keychain also holds Jeremy Adorjan's identities (team BP4M6Y6S6Q);
-# those are discarded with $WORK and must never reach GitHub.
-SUBJECT="$(openssl x509 -in "$WORK/cert.pem" -noout -subject)"
+SUBJECT="$(openssl pkcs12 -in "$WORK/devid.p12" -passin "pass:$P12_PW" -nokeys -clcerts -legacy 2>/dev/null | openssl x509 -noout -subject)"
 case "$SUBJECT" in
   *"Developer ID Application: Jonathan Soeder"*"$TEAM_ID"*) echo "    selected: $SUBJECT" ;;
-  *) echo "Refusing: selected certificate is not Jonathan Soeder / $TEAM_ID:"; echo "    $SUBJECT"; exit 1 ;;
+  *) echo "Refusing: exported certificate is not Jonathan Soeder / $TEAM_ID:"; echo "    $SUBJECT"; exit 1 ;;
 esac
-
-# Include the Apple intermediate so codesign can build the chain on a bare runner.
-security find-certificate -c "Developer ID Certification Authority" -p -a > "$WORK/chain.pem" 2>/dev/null || true
-
-# -legacy: macOS `security import` only understands the RC2/3DES + SHA1 MAC
-# flavour. OpenSSL 3 defaults to AES/SHA256, which is exactly the
-# "MAC verification failed" error CI hit.
-P12_PW="$(openssl rand -hex 24)"
-openssl pkcs12 -export -legacy \
-  -inkey "$WORK/key.pem" -in "$WORK/cert.pem" -certfile "$WORK/chain.pem" \
-  -name "Developer ID Application" -passout "pass:$P12_PW" -out "$WORK/devid.p12"
 
 echo "==> Verifying the p12 imports the way release.yaml does"
 security create-keychain -p "" "$SCRATCH_KEYCHAIN"
