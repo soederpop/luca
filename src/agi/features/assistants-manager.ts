@@ -521,6 +521,13 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			}
 		}
 
+		// Reads call discover() freely (assistant-settings GETs, scheduler
+		// ticks), so only announce a scan that changed something. Subscribers
+		// that relay this onto an event bus would otherwise fire on every read.
+		const signature = JSON.stringify(discovered)
+		const changed = signature !== this._discoverySignature
+		this._discoverySignature = signature
+
 		this.state.setState({
 			entries: discovered,
 			discovered: true,
@@ -531,9 +538,12 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		this._loadWorkspaceHooks()
 		this._reportUnusedOverrides()
 
-		this.emit('discovered')
+		if (changed) this.emit('discovered')
 		return this
 	}
+
+	/** Serialized result of the last discover(), to detect no-op rescans. */
+	private _discoverySignature: string | null = null
 
 	/**
 	 * Parse `assistants/options.yml` (if present) and install its contents as
