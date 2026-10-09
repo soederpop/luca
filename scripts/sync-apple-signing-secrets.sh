@@ -79,6 +79,15 @@ if not key: sys.exit('private key for %s not found in export' % want)
 open(cert_out, 'w').write(cert[1]); open(key_out, 'w').write(key)
 PY
 
+# Hard guard: only Jonathan's Developer ID for team TXYJ5S79U2 may be pushed.
+# The keychain also holds Jeremy Adorjan's identities (team BP4M6Y6S6Q);
+# those are discarded with $WORK and must never reach GitHub.
+SUBJECT="$(openssl x509 -in "$WORK/cert.pem" -noout -subject)"
+case "$SUBJECT" in
+  *"Developer ID Application: Jonathan Soeder"*"$TEAM_ID"*) echo "    selected: $SUBJECT" ;;
+  *) echo "Refusing: selected certificate is not Jonathan Soeder / $TEAM_ID:"; echo "    $SUBJECT"; exit 1 ;;
+esac
+
 # Include the Apple intermediate so codesign can build the chain on a bare runner.
 security find-certificate -c "Developer ID Certification Authority" -p -a > "$WORK/chain.pem" 2>/dev/null || true
 
