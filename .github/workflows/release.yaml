@@ -3,6 +3,9 @@ name: Release
 # The Developer ID identity and the notarization credentials (APPLE_ID /
 # APPLE_APP_PASSWORD / APPLE_TEAM_ID secrets) must all belong to the SAME Apple
 # team, or codesign succeeds and notarytool rejects the submission.
+# Refresh all five secrets from the local keychain with
+# scripts/sync-apple-signing-secrets.sh (it exports the same identity and
+# notary profile the agentic-loop release uses).
 env:
   MAC_SIGN_IDENTITY: "Developer ID Application: Jonathan Soeder (TXYJ5S79U2)"
 
