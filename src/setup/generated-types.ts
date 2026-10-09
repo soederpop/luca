@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.16.2"
+export const typesBundleVersion = "3.16.3"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -2274,6 +2274,8 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
      * @returns {Promise<this>} This instance, for chaining
      */
     discover(): Promise<this>;
+    /** Serialized result of the last discover(), to detect no-op rescans. */
+    private _discoverySignature;
     /**
      * Parse \`assistants/options.yml\` (if present) and install its contents as
      * workspace option overrides. Keyed by assistant short name with a reserved
@@ -13182,10 +13184,10 @@ export declare const argsSchema: z.ZodObject<{
 /**
  * Build the agent options a prompt file's frontmatter asks for.
  *
- * \`agentOptions\` is the general escape hatch, but \`skills\` and \`skillsFolders\` are
- * promoted to the top level: naming the skills a prompt needs is a normal thing to
- * express, not an agent-tuning detail. An explicit \`agentOptions\` entry wins over
- * the promoted one.
+ * \`agentOptions\` is the general escape hatch, but \`skills\`, \`skillsFolders\` and
+ * \`model\` are promoted to the top level: naming the skills a prompt needs, or the
+ * model it should run on, is a normal thing to express, not an agent-tuning
+ * detail. An explicit \`agentOptions\` entry wins over the promoted one.
  *
  * @param meta - Parsed YAML frontmatter
  * @returns Options to merge into the agent run
@@ -34316,7 +34318,7 @@ export interface VMRequireOptions {
  *
  * Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come
  * free from the realm, and luca injects console, timers, process, Buffer, fetch and
- * friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.
+ * friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.
  *
  * @example
  * \`\`\`typescript
@@ -37099,7 +37101,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
