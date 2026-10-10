@@ -9,6 +9,7 @@ import {
   safeAttachmentFilename,
   type ResolvedMailConfig,
   type StandardMailMessage,
+  isLoopbackHost,
 } from '../src/node/features/internet-mail'
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
@@ -853,5 +854,50 @@ describe('internetMail attachment downloads', () => {
     const message = await mail.readMessage('imap:INBOX:1000:42')
     expect(message.attachments).toEqual([{ filename: 'invoice.pdf', contentType: 'application/pdf', size: 4 }])
     expect(Object.keys(message.attachments[0]!)).not.toContain('content')
+  })
+})
+
+describe('internetMail transport TLS options', () => {
+  const build = (imap: Record<string, any>) => new InternetMail(
+    { address: 'jon@proton.me', passwordEnv: 'TEST_MAIL_PASSWORD', imap: { host: '127.0.0.1', port: 1143, secure: false, requireTLS: true, ...imap }, smtp: { host: '127.0.0.1', port: 1025, secure: false, requireTLS: true } } as any,
+    { container } as any,
+  )
+
+  it('leaves tls undefined when nothing is configured', () => {
+    const mail = build({})
+    expect((mail as any).tlsOptions(mail.resolveConfig().imap)).toBeUndefined()
+  })
+
+  it('allows rejectUnauthorized=false for loopback hosts only', () => {
+    expect(isLoopbackHost('localhost')).toBe(true)
+    expect(isLoopbackHost('127.0.0.1')).toBe(true)
+    expect(isLoopbackHost('[::1]')).toBe(true)
+    expect(isLoopbackHost('imap.gmail.com')).toBe(false)
+
+    const local = build({ rejectUnauthorized: false })
+    expect((local as any).tlsOptions(local.resolveConfig().imap)).toEqual({ rejectUnauthorized: false })
+
+    const remote = build({ host: 'imap.example.com', rejectUnauthorized: false })
+    expect(() => (remote as any).tlsOptions(remote.resolveConfig().imap)).toThrow(/loopback/)
+  })
+
+  it('reads caFile into the tls ca field', () => {
+    const fs = container.feature('fs')
+    const caFile = container.paths.resolve(require('os').tmpdir(), `luca-mail-ca-${container.utils.uuid().slice(0, 8)}.pem`)
+    fs.writeFile(caFile, '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n')
+    const mail = build({ caFile })
+    const tls = (mail as any).tlsOptions(mail.resolveConfig().imap)
+    expect(tls.ca).toContain('BEGIN CERTIFICATE')
+    expect(tls.rejectUnauthorized).toBeUndefined()
+  })
+
+  it('threads tls into the real ImapFlow and nodemailer clients', async () => {
+    const mail = build({ rejectUnauthorized: false })
+    process.env.TEST_MAIL_PASSWORD = 'x'
+    const client = await (mail as any).createImapClient(mail.resolveConfig())
+    expect(client.options.tls).toEqual({ rejectUnauthorized: false })
+    const smtp = await (mail as any).createSmtpTransport({ ...mail.resolveConfig(), smtp: { ...mail.resolveConfig().smtp, rejectUnauthorized: false } })
+    expect(smtp.options.tls).toEqual({ rejectUnauthorized: false })
+    smtp.close()
   })
 })

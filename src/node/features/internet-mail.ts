@@ -9,6 +9,14 @@ export interface MailTransportConfig {
   port: number
   secure: boolean
   requireTLS?: boolean
+  /** Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert). */
+  caFile?: string
+  /**
+   * Set false to accept a certificate that fails verification. Only honored
+   * when `host` is a loopback address — local bridges such as Proton Mail
+   * Bridge serve a self-signed cert, and nothing else should be trusted blind.
+   */
+  rejectUnauthorized?: boolean
 }
 
 /**
@@ -181,6 +189,12 @@ interface MailCursor {
   lastUid: number
 }
 
+/** True for hosts that resolve to this machine, where a self-signed bridge cert is acceptable. */
+export function isLoopbackHost(host: string): boolean {
+  const h = String(host || '').trim().toLowerCase().replace(/^\[|\]$/g, '')
+  return h === 'localhost' || h === '::1' || /^127\.\d+\.\d+\.\d+$/.test(h)
+}
+
 /** Extract a verdict for one mechanism from an Authentication-Results header. */
 export function extractAuthVerdict(authResults: string, mechanism: string): string {
   const match = authResults.match(new RegExp(`${mechanism}=([a-zA-Z]+)`, 'i'))
@@ -280,6 +294,8 @@ const TransportOverrideSchema = z.object({
   port: z.number().describe('Port to connect on'),
   secure: z.boolean().describe('true for implicit TLS (993/465), false to upgrade with STARTTLS'),
   requireTLS: z.boolean().optional().describe('Refuse to continue if STARTTLS is unavailable'),
+  caFile: z.string().optional().describe('PEM certificate to trust alongside the system roots, e.g. a local bridge\'s exported cert'),
+  rejectUnauthorized: z.boolean().optional().describe('false accepts an unverifiable certificate. Honored only for loopback hosts (127.0.0.1, ::1, localhost)'),
 })
 
 export const InternetMailStateSchema = FeatureStateSchema.extend({
@@ -358,6 +374,20 @@ export const InternetMailEventsSchema = FeatureEventsSchema.extend({
  * the From is always the configured address. Mail is untrusted input: every
  * message carries a `validation` block scoring SPF/DKIM/DMARC and flagging
  * display-name spoofing and Reply-To mismatches.
+ *
+ * **Local bridges (Proton Mail Bridge, Hydroxide).** Providers with no public
+ * IMAP work through a bridge on localhost. Pass explicit `imap` / `smtp`
+ * overrides; for Bridge's self-signed certificate either point `caFile` at
+ * the cert it exports or set `rejectUnauthorized: false`, which is honored
+ * only for loopback hosts:
+ * ```ts
+ * container.feature('internetMail', {
+ *   address: 'you@proton.me',
+ *   passwordEnv: 'PROTON_BRIDGE_PASSWORD',
+ *   imap: { host: '127.0.0.1', port: 1143, secure: false, requireTLS: true, rejectUnauthorized: false },
+ *   smtp: { host: '127.0.0.1', port: 1025, secure: false, requireTLS: true, rejectUnauthorized: false },
+ * })
+ * ```
  *
  * @example
  * ```typescript
@@ -458,6 +488,29 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
 
   // ── Client factories (overridable in tests) ────────────────────────────────
 
+  /**
+   * Build the `tls` block both ImapFlow and Nodemailer accept, from a
+   * transport's `caFile` / `rejectUnauthorized` settings. Returns undefined
+   * when neither is set so the libraries keep their defaults.
+   *
+   * Disabling verification is only allowed for loopback hosts. Local bridges
+   * (Proton Mail Bridge) present self-signed certs; a remote host asking for
+   * the same would be a man-in-the-middle invitation, so it throws instead.
+   */
+  protected tlsOptions(transport: MailTransportConfig): { ca?: string; rejectUnauthorized?: boolean } | undefined {
+    const tls: { ca?: string; rejectUnauthorized?: boolean } = {}
+    if (transport.caFile) {
+      tls.ca = String(this.container.feature('fs').readFile(transport.caFile))
+    }
+    if (transport.rejectUnauthorized === false) {
+      if (!isLoopbackHost(transport.host)) {
+        throw new Error(`internetMail: rejectUnauthorized=false is only allowed for loopback hosts, not "${transport.host}". Use caFile to trust a specific certificate instead.`)
+      }
+      tls.rejectUnauthorized = false
+    }
+    return Object.keys(tls).length ? tls : undefined
+  }
+
   /** Build a connected-ready ImapFlow client. Tests override this with a fake. */
   protected async createImapClient(config: ResolvedMailConfig): Promise<any> {
     const { ImapFlow } = await import('imapflow')
@@ -466,6 +519,7 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
       port: config.imap.port,
       secure: config.imap.secure,
       auth: { user: config.imapUsername, pass: this.readPassword(config) },
+      tls: this.tlsOptions(config.imap),
       logger: false,
     })
   }
@@ -479,6 +533,7 @@ export class InternetMail extends Feature<InternetMailState, InternetMailOptions
       secure: config.smtp.secure,
       requireTLS: config.smtp.requireTLS,
       auth: { user: config.smtpUsername, pass: this.readPassword(config) },
+      tls: this.tlsOptions(config.smtp),
     })
   }
 

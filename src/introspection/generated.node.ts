@@ -9833,7 +9833,7 @@ setBuildTimeData('features.ink', {
 
 setBuildTimeData('features.internetMail', {
   "id": "features.internetMail",
-  "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+  "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches. **Local bridges (Proton Mail Bridge, Hydroxide).** Providers with no public IMAP work through a bridge on localhost. Pass explicit `imap` / `smtp` overrides; for Bridge's self-signed certificate either point `caFile` at the cert it exports or set `rejectUnauthorized: false`, which is honored only for loopback hosts: ```ts container.feature('internetMail', { address: 'you@proton.me', passwordEnv: 'PROTON_BRIDGE_PASSWORD', imap: { host: '127.0.0.1', port: 1143, secure: false, requireTLS: true, rejectUnauthorized: false }, smtp: { host: '127.0.0.1', port: 1025, secure: false, requireTLS: true, rejectUnauthorized: false }, }) ```",
   "shortcut": "features.internetMail",
   "className": "InternetMail",
   "methods": {
@@ -9842,6 +9842,45 @@ setBuildTimeData('features.internetMail', {
       "parameters": {},
       "required": [],
       "returns": "ResolvedMailConfig"
+    },
+    "tlsOptions": {
+      "description": "Build the `tls` block both ImapFlow and Nodemailer accept, from a transport's `caFile` / `rejectUnauthorized` settings. Returns undefined when neither is set so the libraries keep their defaults. Disabling verification is only allowed for loopback hosts. Local bridges (Proton Mail Bridge) present self-signed certs; a remote host asking for the same would be a man-in-the-middle invitation, so it throws instead.",
+      "parameters": {
+        "transport": {
+          "type": "MailTransportConfig",
+          "description": "Parameter transport",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": ""
+            },
+            "port": {
+              "type": "number",
+              "description": ""
+            },
+            "secure": {
+              "type": "boolean",
+              "description": ""
+            },
+            "requireTLS": {
+              "type": "boolean",
+              "description": ""
+            },
+            "caFile": {
+              "type": "string",
+              "description": "Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert)."
+            },
+            "rejectUnauthorized": {
+              "type": "boolean",
+              "description": "Set false to accept a certificate that fails verification. Only honored when `host` is a loopback address — local bridges such as Proton Mail Bridge serve a self-signed cert, and nothing else should be trusted blind."
+            }
+          }
+        }
+      },
+      "required": [
+        "transport"
+      ],
+      "returns": "{ ca?: string; rejectUnauthorized?: boolean } | undefined"
     },
     "createImapClient": {
       "description": "Build a connected-ready ImapFlow client. Tests override this with a fake.",
@@ -10367,6 +10406,16 @@ setBuildTimeData('features.internetMail', {
         "requireTLS": {
           "type": "boolean",
           "description": "",
+          "optional": true
+        },
+        "caFile": {
+          "type": "string",
+          "description": "Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert).",
+          "optional": true
+        },
+        "rejectUnauthorized": {
+          "type": "boolean",
+          "description": "Set false to accept a certificate that fails verification. Only honored when `host` is a loopback address — local bridges such as Proton Mail Bridge serve a self-signed cert, and nothing else should be trusted blind.",
           "optional": true
         }
       }
@@ -31711,7 +31760,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.internetMail",
-    "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches.",
+    "description": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo. This is the protocol-level counterpart to `googleMail`: no vendor API, no OAuth, just a username and an (app-specific) password. **Configure it at construction** — the feature reads no config files: ```ts const mail = container.feature('internetMail', { provider: 'icloud', address: 'you@me.com', passwordEnv: 'ICLOUD_MAIL_APP_PASSWORD', trustedSenders: ['boss@example.com'], }) ``` **What it gives you:** - `verify()` — config, secret, IMAP login, and SMTP login diagnostics, each as an independent verdict so a failure names the thing that failed - `poll()` / `start()` / `stop()` — cursor-based inbound polling that emits one `message` event per new `StandardMailMessage` from a trusted sender. The cursor lives in `container.store()`, so a restart resumes rather than replaying, and a `UIDVALIDITY` change re-baselines instead of duplicating - `checkInbox()` / `readMessage()` / `searchMessages()` — pull-based reads that never advance the poll cursor or alter unread state - `downloadAttachments()` — the opt-in way to get attachment bytes onto disk. Messages carry attachment *metadata* only; bodies never arrive unasked-for - `sendMessage()` / `replyToMessage()` / `replyAllToMessage()` — outbound mail gated by `outboundEnabled` and the recipient allowlist **It fails closed on purpose.** Inbound needs a non-empty `trustedSenders` list, outbound needs `outboundEnabled` plus an allowlisted recipient, and the From is always the configured address. Mail is untrusted input: every message carries a `validation` block scoring SPF/DKIM/DMARC and flagging display-name spoofing and Reply-To mismatches. **Local bridges (Proton Mail Bridge, Hydroxide).** Providers with no public IMAP work through a bridge on localhost. Pass explicit `imap` / `smtp` overrides; for Bridge's self-signed certificate either point `caFile` at the cert it exports or set `rejectUnauthorized: false`, which is honored only for loopback hosts: ```ts container.feature('internetMail', { address: 'you@proton.me', passwordEnv: 'PROTON_BRIDGE_PASSWORD', imap: { host: '127.0.0.1', port: 1143, secure: false, requireTLS: true, rejectUnauthorized: false }, smtp: { host: '127.0.0.1', port: 1025, secure: false, requireTLS: true, rejectUnauthorized: false }, }) ```",
     "shortcut": "features.internetMail",
     "className": "InternetMail",
     "methods": {
@@ -31720,6 +31769,45 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "ResolvedMailConfig"
+      },
+      "tlsOptions": {
+        "description": "Build the `tls` block both ImapFlow and Nodemailer accept, from a transport's `caFile` / `rejectUnauthorized` settings. Returns undefined when neither is set so the libraries keep their defaults. Disabling verification is only allowed for loopback hosts. Local bridges (Proton Mail Bridge) present self-signed certs; a remote host asking for the same would be a man-in-the-middle invitation, so it throws instead.",
+        "parameters": {
+          "transport": {
+            "type": "MailTransportConfig",
+            "description": "Parameter transport",
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": ""
+              },
+              "port": {
+                "type": "number",
+                "description": ""
+              },
+              "secure": {
+                "type": "boolean",
+                "description": ""
+              },
+              "requireTLS": {
+                "type": "boolean",
+                "description": ""
+              },
+              "caFile": {
+                "type": "string",
+                "description": "Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert)."
+              },
+              "rejectUnauthorized": {
+                "type": "boolean",
+                "description": "Set false to accept a certificate that fails verification. Only honored when `host` is a loopback address — local bridges such as Proton Mail Bridge serve a self-signed cert, and nothing else should be trusted blind."
+              }
+            }
+          }
+        },
+        "required": [
+          "transport"
+        ],
+        "returns": "{ ca?: string; rejectUnauthorized?: boolean } | undefined"
       },
       "createImapClient": {
         "description": "Build a connected-ready ImapFlow client. Tests override this with a fake.",
@@ -32245,6 +32333,16 @@ export const introspectionData: Record<string, any>[] = [
           "requireTLS": {
             "type": "boolean",
             "description": "",
+            "optional": true
+          },
+          "caFile": {
+            "type": "string",
+            "description": "Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert).",
+            "optional": true
+          },
+          "rejectUnauthorized": {
+            "type": "boolean",
+            "description": "Set false to accept a certificate that fails verification. Only honored when `host` is a loopback address — local bridges such as Proton Mail Bridge serve a self-signed cert, and nothing else should be trusted blind.",
             "optional": true
           }
         }
