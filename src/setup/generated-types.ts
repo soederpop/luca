@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.16.3"
+export const typesBundleVersion = "3.16.4"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -22928,6 +22928,14 @@ export interface MailTransportConfig {
     port: number;
     secure: boolean;
     requireTLS?: boolean;
+    /** Path to a PEM certificate to trust in addition to the system roots (e.g. Proton Mail Bridge's exported cert). */
+    caFile?: string;
+    /**
+     * Set false to accept a certificate that fails verification. Only honored
+     * when \`host\` is a loopback address — local bridges such as Proton Mail
+     * Bridge serve a self-signed cert, and nothing else should be trusted blind.
+     */
+    rejectUnauthorized?: boolean;
 }
 /**
  * How a provider derives its login from the account address. iCloud wants the
@@ -23081,6 +23089,8 @@ interface MailCursor {
     uidValidity: string;
     lastUid: number;
 }
+/** True for hosts that resolve to this machine, where a self-signed bridge cert is acceptable. */
+export declare function isLoopbackHost(host: string): boolean;
 /** Extract a verdict for one mechanism from an Authentication-Results header. */
 export declare function extractAuthVerdict(authResults: string, mechanism: string): string;
 /** Parse "Name <email>" (or a bare address) into its parts. */
@@ -23150,12 +23160,16 @@ export declare const InternetMailOptionsSchema: z.ZodObject<{
         port: z.ZodNumber;
         secure: z.ZodBoolean;
         requireTLS: z.ZodOptional<z.ZodBoolean>;
+        caFile: z.ZodOptional<z.ZodString>;
+        rejectUnauthorized: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
     smtp: z.ZodOptional<z.ZodObject<{
         host: z.ZodString;
         port: z.ZodNumber;
         secure: z.ZodBoolean;
         requireTLS: z.ZodOptional<z.ZodBoolean>;
+        caFile: z.ZodOptional<z.ZodString>;
+        rejectUnauthorized: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type InternetMailOptions = z.infer<typeof InternetMailOptionsSchema>;
@@ -23215,6 +23229,20 @@ export declare const InternetMailEventsSchema: z.ZodObject<{
  * message carries a \`validation\` block scoring SPF/DKIM/DMARC and flagging
  * display-name spoofing and Reply-To mismatches.
  *
+ * **Local bridges (Proton Mail Bridge, Hydroxide).** Providers with no public
+ * IMAP work through a bridge on localhost. Pass explicit \`imap\` / \`smtp\`
+ * overrides; for Bridge's self-signed certificate either point \`caFile\` at
+ * the cert it exports or set \`rejectUnauthorized: false\`, which is honored
+ * only for loopback hosts:
+ * \`\`\`ts
+ * container.feature('internetMail', {
+ *   address: 'you@proton.me',
+ *   passwordEnv: 'PROTON_BRIDGE_PASSWORD',
+ *   imap: { host: '127.0.0.1', port: 1143, secure: false, requireTLS: true, rejectUnauthorized: false },
+ *   smtp: { host: '127.0.0.1', port: 1025, secure: false, requireTLS: true, rejectUnauthorized: false },
+ * })
+ * \`\`\`
+ *
  * @example
  * \`\`\`typescript
  * const mail = container.feature('internetMail')
@@ -23266,12 +23294,16 @@ export declare class InternetMail extends Feature<InternetMailState, InternetMai
             port: z.ZodNumber;
             secure: z.ZodBoolean;
             requireTLS: z.ZodOptional<z.ZodBoolean>;
+            caFile: z.ZodOptional<z.ZodString>;
+            rejectUnauthorized: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
         smtp: z.ZodOptional<z.ZodObject<{
             host: z.ZodString;
             port: z.ZodNumber;
             secure: z.ZodBoolean;
             requireTLS: z.ZodOptional<z.ZodBoolean>;
+            caFile: z.ZodOptional<z.ZodString>;
+            rejectUnauthorized: z.ZodOptional<z.ZodBoolean>;
         }, z.core.$strip>>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
@@ -23308,6 +23340,19 @@ export declare class InternetMail extends Feature<InternetMailState, InternetMai
     private requireConfig;
     /** Read the password. Names where it should come from, never prints the value. */
     private readPassword;
+    /**
+     * Build the \`tls\` block both ImapFlow and Nodemailer accept, from a
+     * transport's \`caFile\` / \`rejectUnauthorized\` settings. Returns undefined
+     * when neither is set so the libraries keep their defaults.
+     *
+     * Disabling verification is only allowed for loopback hosts. Local bridges
+     * (Proton Mail Bridge) present self-signed certs; a remote host asking for
+     * the same would be a man-in-the-middle invitation, so it throws instead.
+     */
+    protected tlsOptions(transport: MailTransportConfig): {
+        ca?: string;
+        rejectUnauthorized?: boolean;
+    } | undefined;
     /** Build a connected-ready ImapFlow client. Tests override this with a fake. */
     protected createImapClient(config: ResolvedMailConfig): Promise<any>;
     /** Build a Nodemailer SMTP transport. Tests override this with a fake. */
@@ -37101,7 +37146,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.3";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
