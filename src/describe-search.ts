@@ -408,14 +408,33 @@ async function searchWithEntryPointQuota(
 	const quota = Math.ceil(limit / 2)
 	// One common ranking matters for RRF: scores from model-filtered searches
 	// are relative to different candidate sets and cannot be compared fairly.
-	const ranked = await searchFn({ limit: Math.max(limit * 4, 32) })
+	// The helper-only search is therefore used to fill quota slots the global
+	// ranking left empty, never to reorder what it found — helper docs are
+	// short and lose BM25 to long tutorials on almost any query.
+	const [ranked, helpers] = await Promise.all([
+		searchFn({ limit: Math.max(limit * 4, 32) }),
+		searchFn({ limit: quota, model: 'helper' }),
+	])
 	const entries = ranked.filter(r => r.model === 'helper' || r.model === 'command').slice(0, quota)
 	const chosen = new Set(entries.map(r => r.pathId))
-	for (const result of ranked) {
-		if (chosen.size >= limit) break
-		chosen.add(result.pathId)
+	// Reserve one slot for a helper when there is room for more than a command.
+	if (quota >= 2 && entries.length >= quota && !entries.some(r => r.model === 'helper')) {
+		chosen.delete(entries.pop()!.pathId)
 	}
-	return ranked.filter(r => chosen.has(r.pathId)).slice(0, limit)
+	for (const r of helpers) {
+		if (entries.length >= quota) break
+		if (chosen.has(r.pathId)) continue
+		entries.push(r)
+		chosen.add(r.pathId)
+	}
+	const rest: SearchResult[] = []
+	for (const r of ranked) {
+		if (entries.length + rest.length >= limit) break
+		if (chosen.has(r.pathId)) continue
+		rest.push(r)
+		chosen.add(r.pathId)
+	}
+	return [...entries, ...rest]
 }
 
 /**
