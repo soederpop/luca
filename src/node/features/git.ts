@@ -599,6 +599,255 @@ export class Git extends Feature {
             }
         })
     }
+
+    // ── Async variants ──────────────────────────────────────────────────────
+    // The methods above run git through execSync, so they block the event loop
+    // until git exits. That includes lsFiles and getLatestChanges, which are
+    // declared async but still block. A server in the same process cannot read
+    // or send anything while they run. The variants below spawn git and await
+    // it instead.
+    //
+    // The sync methods stay unchanged on purpose. Some callers depend on the
+    // result being ready before any other event runs, for example the getters
+    // and code that reads shared state right after the call. Move a caller to
+    // an async variant only after checking that state it reads after the await
+    // can safely change while git runs.
+
+    /**
+     * Runs git without blocking the event loop.
+     *
+     * Arguments go to git as an array, so nothing is split or shell-expanded.
+     * Rejects when git exits non-zero, in the same cases where execSync throws.
+     *
+     * @param {string[]} args - Arguments for git
+     * @param {{ cwd?: string }} [options] - cwd defaults to the repository root
+     * @returns {Promise<string>} git's stdout, trimmed
+     *
+     * @example
+     * ```typescript
+     * const status = await git.execAsync(['status', '--porcelain'])
+     * ```
+     */
+    async execAsync(args: string[], options: { cwd?: string } = {}): Promise<string> {
+        const result = await this.container.feature('proc').spawnAndCapture(this.gitPath, args, {
+            cwd: options.cwd ?? this.repoRoot ?? this.container.cwd,
+        })
+        if (result.exitCode !== 0 || result.error) {
+            const detail = result.stderr.trim() || result.error?.message || ''
+            throw new Error(`git ${args.join(' ')} failed with exit code ${result.exitCode}${detail ? `: ${detail}` : ''}`)
+        }
+        return result.stdout.trim()
+    }
+
+    /**
+     * Async variant of {@link lsFiles}. Takes the same options.
+     *
+     * One difference: when git lists nothing, this returns `[]`. The sync
+     * lsFiles returns `['']` in that case, so its `.length` is never 0.
+     * Exclude patterns also reach git literally here, with no shell globbing.
+     *
+     * @param {LsFilesOptions} [options={}] - Same options as lsFiles
+     * @returns {Promise<string[]>} Repository-relative file paths
+     *
+     * @example
+     * ```typescript
+     * const modified = await git.lsFilesAsync({ modified: true })
+     * const untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })
+     * ```
+     */
+    async lsFilesAsync(options: LsFilesOptions = {}): Promise<string[]> {
+        const {
+            cached = false,
+            deleted = false,
+            modified = false,
+            others = false,
+            ignored = false,
+            status = false,
+            baseDir = '',
+            includeIgnored = false,
+        } = options || {}
+
+        const exclude = Array.isArray(options.exclude) ? options.exclude : [options.exclude || ''].filter(v => v?.length)
+
+        const args = ['ls-files']
+        if (baseDir) args.push(baseDir)
+        if (cached) args.push('--cached')
+        if (deleted) args.push('--deleted')
+        if (modified) args.push('--modified')
+        if (others) args.push('--others')
+        if (ignored) args.push('--ignored')
+        if (status) args.push('-t')
+        if (others) for (const pattern of exclude) args.push('--exclude', pattern)
+        if (others && !includeIgnored) args.push('--exclude-standard')
+
+        const output = await this.execAsync(args)
+        return output ? output.split(/\r?\n/) : []
+    }
+
+    /**
+     * Async variant of the {@link branch} getter.
+     *
+     * @returns {Promise<string | null>} The current branch name, or null outside a repository
+     *
+     * @example
+     * ```typescript
+     * const branch = await git.getBranch()
+     * ```
+     */
+    async getBranch(): Promise<string | null> {
+        if (!this.isRepo) return null
+        const output = await this.execAsync(['branch'], { cwd: this.container.cwd })
+        return output.split(/\r?\n/).filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
+    }
+
+    /**
+     * Async variant of the {@link sha} getter.
+     *
+     * @returns {Promise<string | null>} The HEAD commit SHA, or null outside a repository
+     *
+     * @example
+     * ```typescript
+     * const sha = await git.getSha()
+     * ```
+     */
+    async getSha(): Promise<string | null> {
+        if (!this.isRepo) return null
+        return await this.execAsync(['rev-parse', 'HEAD'])
+    }
+
+    /**
+     * Async variant of {@link getLatestChanges}.
+     *
+     * @param {number} [numberOfChanges=10] - How many recent commits to return
+     * @returns {Promise<Array<{ title: string, message: string, author: string }>>} Recent commits
+     *
+     * @example
+     * ```typescript
+     * const changes = await git.getLatestChangesAsync(5)
+     * ```
+     */
+    async getLatestChangesAsync(numberOfChanges: number = 10): Promise<Array<{ title: string, message: string, author: string }>> {
+        if (!this.isRepo) return []
+
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+        const output = await this.execAsync(['log', '-n', String(numberOfChanges), `--pretty=format:%s${fieldSep}%b${fieldSep}%an${separator}`])
+
+        return output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [title = '', message = '', author = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { title, message, author }
+            })
+    }
+
+    /**
+     * Async variant of {@link fileLog}.
+     *
+     * @param {...string} files - File paths, absolute or relative to container.cwd
+     * @returns {Promise<Array<{ sha: string, message: string }>>} Commits that touched the files
+     *
+     * @example
+     * ```typescript
+     * const log = await git.fileLogAsync('package.json')
+     * ```
+     */
+    async fileLogAsync(...files: string[]): Promise<Array<{ sha: string, message: string }>> {
+        if (!this.isRepo || !files.length) return []
+
+        const resolved = files.map(p => isAbsolute(p) ? p : resolve(this.container.cwd, p))
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+        const output = await this.execAsync(['log', `--pretty=format:%H${fieldSep}%s${separator}`, '--', ...resolved])
+
+        if (!output) return []
+
+        return output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [sha = '', message = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { sha, message }
+            })
+    }
+
+    /**
+     * Async variant of {@link diff}.
+     *
+     * @param {string} file - File path, absolute or relative to container.cwd
+     * @param {string} compareTo - The target ref
+     * @param {string} [compareFrom] - The base ref, HEAD by default
+     * @returns {Promise<string>} The diff, or an empty string when nothing changed
+     *
+     * @example
+     * ```typescript
+     * const changes = await git.diffAsync('package.json', 'abc1234')
+     * ```
+     */
+    async diffAsync(file: string, compareTo: string, compareFrom?: string): Promise<string> {
+        if (!this.isRepo) return ''
+
+        const from = compareFrom ?? (await this.getSha())!
+        const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
+        return await this.execAsync(['diff', from, compareTo, '--', resolved])
+    }
+
+    /**
+     * Async variant of {@link getChangeHistoryForFiles}.
+     *
+     * The sync version runs one blocking git call per commit. This one runs
+     * them one at a time without blocking, so a long history no longer
+     * freezes the process.
+     *
+     * @param {...string} paths - File paths or glob patterns
+     * @returns {Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>>} Matching commits
+     *
+     * @example
+     * ```typescript
+     * const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')
+     * ```
+     */
+    async getChangeHistoryForFilesAsync(...paths: string[]): Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>> {
+        if (!this.isRepo || !paths.length) return []
+
+        const root = this.repoRoot!
+        const resolved = paths.map(p => isAbsolute(p) ? p : resolve(this.container.cwd, p))
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+        const output = await this.execAsync(['log', `--pretty=format:%H${fieldSep}%s${fieldSep}%b${separator}`, '--', ...resolved])
+
+        if (!output) return []
+
+        const commits = output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [sha = '', message = '', longMessage = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { sha, message, longMessage }
+            })
+
+        const matchers = resolved.map(p => {
+            const hasGlob = /[*?{}\[\]]/.test(p)
+            return {
+                original: p,
+                match: hasGlob
+                    ? (file: string) => new Bun.Glob(p).match(file)
+                    : (file: string) => file === p,
+            }
+        })
+
+        const results: Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }> = []
+        for (const commit of commits) {
+            const changed = await this.execAsync(['diff-tree', '--no-commit-id', '--name-only', '-r', commit.sha])
+            const changedAbsolute = changed.split(/\r?\n/).filter(Boolean).map(f => resolve(root, f))
+            const filesMatched = matchers
+                .filter(m => changedAbsolute.some(f => m.match(f)))
+                .map(m => m.original)
+            results.push({ ...commit, filesMatched })
+        }
+        return results
+    }
 }
 
 export default Git
