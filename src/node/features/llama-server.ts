@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { spawn, execSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync, chmodSync, createWriteStream } from 'node:fs'
 import { rename, rm } from 'node:fs/promises'
 import { Readable } from 'node:stream'
@@ -493,10 +493,13 @@ export class LlamaServer extends Feature<LlamaServerState, LlamaServerOptions> {
 		await this.downloadFile(url, archivePath, `llama-server ${tag}`)
 
 		try {
-			if (asset.endsWith('.zip')) {
-				execSync(`unzip -o -q ${JSON.stringify(archivePath)} -d ${JSON.stringify(this.installDir)}`)
-			} else {
-				execSync(`tar -xzf ${JSON.stringify(archivePath)} -C ${JSON.stringify(this.installDir)}`)
+			// Spawned so a multi-second extract does not freeze the event loop.
+			const [cmd, args]: [string, string[]] = asset.endsWith('.zip')
+				? ['unzip', ['-o', '-q', archivePath, '-d', this.installDir]]
+				: ['tar', ['-xzf', archivePath, '-C', this.installDir]]
+			const result = await this.container.feature('proc').spawnAndCapture(cmd, args)
+			if (result.exitCode !== 0 || result.error) {
+				throw new Error(`Failed to extract ${asset} (${cmd} exited ${result.exitCode}): ${result.stderr.trim() || result.error?.message || ''}`)
 			}
 		} finally {
 			rmSync(archivePath, { force: true })

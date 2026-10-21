@@ -1487,12 +1487,13 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
     const results = await Promise.all(jsonFiles.map(async (file: string) => {
       try {
-        const raw = await fs.readFile(`${sessionsDir}/${file}`, 'utf8')
+        const raw = await fs.readFileAsync(`${sessionsDir}/${file}`, 'utf8') as string
         const data = JSON.parse(raw)
+        // Signal 0 checks the pid without spawning `kill -0`. EPERM counts as
+        // not alive, which matches what the old `kill -0` shell-out reported.
         let alive = false
         try {
-          proc.execSync(`kill -0 ${data.pid}`)
-          alive = true
+          alive = Number.isInteger(data.pid) && data.pid > 0 && proc.kill(data.pid, 0)
         } catch {
           alive = false
         }
@@ -1526,7 +1527,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const fs = this.container.feature('fs')
     const home = this.container.feature('os').homedir
     try {
-      const raw = await fs.readFile(`${home}/.claude/sessions/${pid}.json`, 'utf8')
+      const raw = await fs.readFileAsync(`${home}/.claude/sessions/${pid}.json`, 'utf8') as string
       return JSON.parse(raw)
     } catch {
       return null
@@ -1556,7 +1557,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const encodedCwd = resolvedCwd.replace(/[\\/]/g, '-').replace(/@/g, '-')
     const filePath = `${home}/.claude/projects/${encodedCwd}/${sessionId}.jsonl`
     try {
-      const raw = await fs.readFile(filePath, 'utf8')
+      const raw = await fs.readFileAsync(filePath, 'utf8') as string
       return raw
         .split('\n')
         .filter((line: string) => line.trim())
@@ -1599,17 +1600,24 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
     const jsonlFiles = files.filter((f: string) => f.endsWith('.jsonl'))
 
-    const results = await Promise.all(jsonlFiles.map(async (file: string) => {
+    const countMessages = async (file: string) => {
       const sessionId = file.replace(/\.jsonl$/, '')
       const filePath = `${projectDir}/${file}`
       try {
-        const raw = await fs.readFile(filePath, 'utf8')
+        const raw = await fs.readFileAsync(filePath, 'utf8') as string
         const messageCount = raw.split('\n').filter((l: string) => l.trim()).length
         return { sessionId, filePath, messageCount }
       } catch {
         return { sessionId, filePath, messageCount: 0 }
       }
-    }))
+    }
+
+    // Session logs can be tens of MB each. Reading a few at a time keeps
+    // memory bounded instead of holding every file in memory at once.
+    const results: Array<{ sessionId: string; filePath: string; messageCount: number }> = []
+    for (let i = 0; i < jsonlFiles.length; i += 8) {
+      results.push(...await Promise.all(jsonlFiles.slice(i, i + 8).map(countMessages)))
+    }
 
     return results
   }

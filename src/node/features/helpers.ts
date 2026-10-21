@@ -766,7 +766,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // Fall back to fs.walk if fileManager found nothing
     if (files.length === 0) {
       const { fs } = this.container
-      const walked = fs.walk(dir, { include: ['**/*.ts'] })
+      const walked = await fs.walkAsync(dir, { include: ['**/*.ts'] })
       files = walked.files
     }
 
@@ -864,7 +864,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     this.seedVirtualModules()
     const { fs } = this.container
     // Commands are top-level only (not recursive) — walk and filter to *.ts in the immediate dir
-    const walked = fs.walk(dir, { include: ['*.ts'] })
+    const walked = await fs.walkAsync(dir, { include: ['*.ts'] })
     const tsFiles = walked.files
       .map(f => parse(f))
       .filter(p => p.dir === dir) // top-level only
@@ -938,7 +938,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   private async discoverSelectorsViaVM(dir: string): Promise<void> {
     this.seedVirtualModules()
     const { fs } = this.container
-    const walked = fs.walk(dir, { include: ['*.ts'] })
+    const walked = await fs.walkAsync(dir, { include: ['*.ts'] })
     const tsFiles = walked.files
       .map(f => parse(f))
       .filter(p => p.dir === dir)
@@ -984,7 +984,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    */
   private async discoverEndpoints(dir: string): Promise<void> {
     const { fs } = this.container
-    const walked = fs.walk(dir, { include: ['**/*.ts'] })
+    const walked = await fs.walkAsync(dir, { include: ['**/*.ts'] })
 
     for (const file of walked.files) {
       try {

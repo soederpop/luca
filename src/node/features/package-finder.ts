@@ -492,9 +492,14 @@ export class PackageFinder<
   }
 
   async findLocalPackageFolders(): Promise<string[]> {
-	  const cmd = "find . -name package.json"
-	  const result = this.container.proc.execSync(cmd)
-	  const all = result.split(/\r?\n/).filter(Boolean).map((path: string) => this.container.paths.dirname(path))
+	  // Prune node_modules so find never descends into it; the filter below
+	  // still drops any stray match. Spawned, so the event loop stays free.
+	  const result = await this.container.proc.spawnAndCapture(
+	    'find', ['.', '-name', 'node_modules', '-prune', '-o', '-name', 'package.json', '-print'],
+	    { cwd: this.container.cwd }
+	  )
+	  if (result.error) throw result.error
+	  const all = result.stdout.trim().split(/\r?\n/).filter(Boolean).map((path: string) => this.container.paths.dirname(path))
 	  return all.filter((i: string) => !i.match(/node_modules/))
   }
    

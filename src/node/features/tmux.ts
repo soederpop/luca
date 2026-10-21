@@ -594,7 +594,7 @@ export class Tmux extends Feature<TmuxState, TmuxOptions> {
   async hasSession(name: string): Promise<boolean> {
     this._assertAvailable()
     try {
-      execSync(`${this.tmuxPath} has-session -t ${JSON.stringify(name)} 2>/dev/null`, { stdio: 'ignore' })
+      await execFileAsync(this.tmuxPath!, ['has-session', '-t', name])
       return true
     } catch {
       return false
