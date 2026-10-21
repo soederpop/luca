@@ -123,7 +123,18 @@ export async function publishRelease(container: NodeContainer, tag: string, dryR
     }
     await run('npm', ['whoami', '--registry', REGISTRY], npmOptions)
     if (!exists) await run('npm', ['publish', tarball, '--access', 'public', '--tag', distTag, '--ignore-scripts', '--registry', REGISTRY], npmOptions)
-    const integrity = JSON.parse(await run('npm', ['view', spec, 'dist.integrity', '--json', '--registry', REGISTRY], npmOptions))
+    // The registry can 404 a version for a minute or two after publish, so a
+    // fresh publish waits for it instead of failing the release half-promoted.
+    let integrity: any
+    for (let attempt = 0; ; attempt++) {
+      try {
+        integrity = JSON.parse(await run('npm', ['view', spec, 'dist.integrity', '--json', '--registry', REGISTRY], npmOptions))
+        break
+      } catch (error: any) {
+        if (exists || attempt >= 18 || !/E404/.test(String(error?.message))) throw error
+        await new Promise((resolve) => setTimeout(resolve, 10_000))
+      }
+    }
     if (integrity !== pack.integrity) throw new Error('Published npm integrity does not match; GitHub release was not promoted')
     if (exists) await run('npm', ['dist-tag', 'add', spec, distTag, '--registry', REGISTRY], npmOptions)
     await run('gh', ['release', 'edit', tag, '--repo', repo, '--draft=false', `--prerelease=${prerelease}`, `--latest=${!prerelease}`, '--verify-tag'])
