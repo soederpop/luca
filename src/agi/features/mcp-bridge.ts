@@ -96,7 +96,7 @@ function expandEnvVars<T>(value: T, path: string): T {
 }
 
 const McpBridgeOptionsSchema = z.object({
-	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting. Strings may use ${VAR} or ${VAR:-default} to read environment variables.'),
+	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting; a missing file warns and loads no servers. Strings may use ${VAR} or ${VAR:-default} to read environment variables.'),
 	servers: z.record(z.string(), McpServerConfigSchema).default({}).describe('MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile.'),
 	materializeTools: z.boolean().default(true).describe('Register discovered MCP tools as first-class assistant tools'),
 	separator: z.string().default('__').describe('Separator between server name and tool name for materialized tools'),
@@ -248,7 +248,8 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 	/**
 	 * Connect to all configured MCP servers, discover their capabilities,
 	 * and cache the results. Safe to call multiple times (no-ops if already connected).
-	 * Loads and validates configFile before connecting; unreadable or invalid files reject.
+	 * Loads and validates configFile before connecting. A missing file warns and
+	 * loads no servers; an unreadable or invalid file rejects.
 	 */
 	async connectAll(): Promise<void> {
 		if (this._connected) return
@@ -258,15 +259,23 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 		if (opts.configFile) {
 			const container = this.container as NodeContainer
 			const path = container.paths.resolve(opts.configFile)
-			try {
-				const config = await container.feature('fs').readJsonAsync(path)
-				fileServers = z.object({
-					mcpServers: z.record(z.string(), McpServerConfigSchema),
-				}).parse(config).mcpServers
-			} catch (cause) {
-				throw new Error(`Failed to load MCP config file "${path}"`, { cause })
+			const fs = container.feature('fs')
+			// A missing file is an empty config, so a project can point at
+			// .mcp.json before it has one. A file that exists but is broken
+			// still throws: silently dropping its servers would hide the typo.
+			if (!(await fs.existsAsync(path))) {
+				console.warn(`Warning: MCP config file "${path}" not found, no MCP servers loaded from it`)
+			} else {
+				try {
+					const config = await fs.readJsonAsync(path)
+					fileServers = z.object({
+						mcpServers: z.record(z.string(), McpServerConfigSchema),
+					}).parse(config).mcpServers
+				} catch (cause) {
+					throw new Error(`Failed to load MCP config file "${path}"`, { cause })
+				}
+				fileServers = expandEnvVars(fileServers, path)
 			}
-			fileServers = expandEnvVars(fileServers, path)
 		}
 		const servers = { ...fileServers, ...opts.servers }
 		if (Object.keys(servers).length === 0) {

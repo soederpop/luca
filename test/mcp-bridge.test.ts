@@ -124,12 +124,29 @@ describe('McpBridge', () => {
 			}
 		})
 
-		it.each([undefined, '{', '{}', '{"mcpServers":{"bad":{"args":42}}}'])(
-			'rejects missing or invalid config files before connecting and allows retry (%s)', async (content) => {
+		it('treats a missing config file as empty and warns instead of throwing', async () => {
+			const c = new AGIContainer()
+			const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
+			bridge = c.feature('mcpBridge', { configFile, servers: { inline: { command: 'bun', args: [] } } })
+			const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
+			const warn = spyOn(console, 'warn').mockImplementation(() => {})
+			try {
+				await bridge.connectAll()
+				expect(warn).toHaveBeenCalledWith(expect.stringContaining(`"${configFile}" not found`))
+				expect(connect).toHaveBeenCalledTimes(1)
+				expect(connect).toHaveBeenCalledWith('inline', { command: 'bun', args: [] })
+			} finally {
+				warn.mockRestore()
+				connect.mockRestore()
+			}
+		})
+
+		it.each(['{', '{}', '{"mcpServers":{"bad":{"args":42}}}'])(
+			'rejects invalid config files before connecting and allows retry (%s)', async (content) => {
 				const c = new AGIContainer()
 				const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
 				const fs = c.feature('fs')
-				if (content !== undefined) fs.writeFile(configFile, content)
+				fs.writeFile(configFile, content)
 				bridge = c.feature('mcpBridge', { configFile })
 				const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
 				try {
