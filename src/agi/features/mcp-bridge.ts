@@ -62,8 +62,41 @@ const McpServerConfigSchema = z.object({
 
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>
 
+const ENV_VAR_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g
+
+/**
+ * Expand `${VAR}` and `${VAR:-default}` in every string of a config file's
+ * servers, the same syntax Claude Code's .mcp.json uses, so one file can be
+ * shared without committing secrets. An unset variable with no default
+ * throws instead of passing the literal `${VAR}` along as a credential.
+ */
+function expandEnvVars<T>(value: T, path: string): T {
+	const missing = new Set<string>()
+	const walk = (v: unknown): unknown => {
+		if (typeof v === 'string') {
+			return v.replace(ENV_VAR_PATTERN, (match, name: string, fallback: string | undefined) => {
+				const env = process.env[name]
+				if (env !== undefined) return env
+				if (fallback !== undefined) return fallback
+				missing.add(name)
+				return match
+			})
+		}
+		if (Array.isArray(v)) return v.map(walk)
+		if (v && typeof v === 'object') {
+			return Object.fromEntries(Object.entries(v).map(([k, inner]) => [k, walk(inner)]))
+		}
+		return v
+	}
+	const expanded = walk(value) as T
+	if (missing.size) {
+		throw new Error(`MCP config file "${path}" references unset environment variables: ${[...missing].join(', ')}`)
+	}
+	return expanded
+}
+
 const McpBridgeOptionsSchema = z.object({
-	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting.'),
+	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting. Strings may use ${VAR} or ${VAR:-default} to read environment variables.'),
 	servers: z.record(z.string(), McpServerConfigSchema).default({}).describe('MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile.'),
 	materializeTools: z.boolean().default(true).describe('Register discovered MCP tools as first-class assistant tools'),
 	separator: z.string().default('__').describe('Separator between server name and tool name for materialized tools'),
@@ -142,6 +175,8 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  * Servers with a `command` are spawned locally over stdio; servers with a
  * `url` are reached over the Streamable HTTP transport.
  * Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk.
+ * Strings in that file may use `${VAR}` or `${VAR:-default}` to read from
+ * the environment, as in Claude Code's .mcp.json.
  * Explicit `servers` entries replace file entries with the same name.
  *
  * @example
@@ -231,6 +266,7 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 			} catch (cause) {
 				throw new Error(`Failed to load MCP config file "${path}"`, { cause })
 			}
+			fileServers = expandEnvVars(fileServers, path)
 		}
 		const servers = { ...fileServers, ...opts.servers }
 		if (Object.keys(servers).length === 0) {

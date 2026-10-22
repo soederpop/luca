@@ -79,6 +79,51 @@ describe('McpBridge', () => {
 			}
 		})
 
+		it('expands ${VAR} and ${VAR:-default} in config file strings', async () => {
+			const c = new AGIContainer()
+			const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
+			const fs = c.feature('fs')
+			fs.writeJson(configFile, { mcpServers: {
+				remote: { url: '${MCP_TEST_HOST:-https://fallback.example}/mcp', headers: { Authorization: 'Bearer ${MCP_TEST_TOKEN}' } },
+				local: { command: 'bun', args: ['--token=${MCP_TEST_TOKEN}'], env: { KEY: '${MCP_TEST_TOKEN}' } },
+			} })
+			process.env.MCP_TEST_TOKEN = 'secret'
+			bridge = c.feature('mcpBridge', { configFile })
+			const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
+			try {
+				await bridge.connectAll()
+				expect(connect).toHaveBeenCalledWith('remote', {
+					url: 'https://fallback.example/mcp', headers: { Authorization: 'Bearer secret' }, args: [],
+				})
+				expect(connect).toHaveBeenCalledWith('local', {
+					command: 'bun', args: ['--token=secret'], env: { KEY: 'secret' },
+				})
+			} finally {
+				delete process.env.MCP_TEST_TOKEN
+				connect.mockRestore()
+				await fs.remove(configFile)
+			}
+		})
+
+		it('rejects config files that reference unset variables without a default', async () => {
+			const c = new AGIContainer()
+			const configFile = `/tmp/luca-mcp-${c.utils.uuid()}.json`
+			const fs = c.feature('fs')
+			fs.writeJson(configFile, { mcpServers: {
+				remote: { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${MCP_TEST_UNSET_A}' } },
+				local: { command: '${MCP_TEST_UNSET_B}' },
+			} })
+			bridge = c.feature('mcpBridge', { configFile })
+			const connect = spyOn(bridge, 'connectServer').mockResolvedValue({} as any)
+			try {
+				await expect(bridge.connectAll()).rejects.toThrow('unset environment variables: MCP_TEST_UNSET_A, MCP_TEST_UNSET_B')
+				expect(connect).not.toHaveBeenCalled()
+			} finally {
+				connect.mockRestore()
+				await fs.remove(configFile)
+			}
+		})
+
 		it.each([undefined, '{', '{}', '{"mcpServers":{"bad":{"args":42}}}'])(
 			'rejects missing or invalid config files before connecting and allows retry (%s)', async (content) => {
 				const c = new AGIContainer()
