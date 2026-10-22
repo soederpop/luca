@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.16.6"
+export const typesBundleVersion = "3.17.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -20537,6 +20537,129 @@ export declare class Git extends Feature {
         longMessage: string;
         filesMatched: string[];
     }>;
+    /**
+     * Runs git without blocking the event loop.
+     *
+     * Arguments go to git as an array, so nothing is split or shell-expanded.
+     * Rejects when git exits non-zero, in the same cases where execSync throws.
+     *
+     * @param {string[]} args - Arguments for git
+     * @param {{ cwd?: string }} [options] - cwd defaults to the repository root
+     * @returns {Promise<string>} git's stdout, trimmed
+     *
+     * @example
+     * \`\`\`typescript
+     * const status = await git.execAsync(['status', '--porcelain'])
+     * \`\`\`
+     */
+    execAsync(args: string[], options?: {
+        cwd?: string;
+    }): Promise<string>;
+    /**
+     * Async variant of {@link lsFiles}. Takes the same options.
+     *
+     * One difference: when git lists nothing, this returns \`[]\`. The sync
+     * lsFiles returns \`['']\` in that case, so its \`.length\` is never 0.
+     * Exclude patterns also reach git literally here, with no shell globbing.
+     *
+     * @param {LsFilesOptions} [options={}] - Same options as lsFiles
+     * @returns {Promise<string[]>} Repository-relative file paths
+     *
+     * @example
+     * \`\`\`typescript
+     * const modified = await git.lsFilesAsync({ modified: true })
+     * const untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })
+     * \`\`\`
+     */
+    lsFilesAsync(options?: LsFilesOptions): Promise<string[]>;
+    /**
+     * Async variant of the {@link branch} getter.
+     *
+     * @returns {Promise<string | null>} The current branch name, or null outside a repository
+     *
+     * @example
+     * \`\`\`typescript
+     * const branch = await git.getBranch()
+     * \`\`\`
+     */
+    getBranch(): Promise<string | null>;
+    /**
+     * Async variant of the {@link sha} getter.
+     *
+     * @returns {Promise<string | null>} The HEAD commit SHA, or null outside a repository
+     *
+     * @example
+     * \`\`\`typescript
+     * const sha = await git.getSha()
+     * \`\`\`
+     */
+    getSha(): Promise<string | null>;
+    /**
+     * Async variant of {@link getLatestChanges}.
+     *
+     * @param {number} [numberOfChanges=10] - How many recent commits to return
+     * @returns {Promise<Array<{ title: string, message: string, author: string }>>} Recent commits
+     *
+     * @example
+     * \`\`\`typescript
+     * const changes = await git.getLatestChangesAsync(5)
+     * \`\`\`
+     */
+    getLatestChangesAsync(numberOfChanges?: number): Promise<Array<{
+        title: string;
+        message: string;
+        author: string;
+    }>>;
+    /**
+     * Async variant of {@link fileLog}.
+     *
+     * @param {...string} files - File paths, absolute or relative to container.cwd
+     * @returns {Promise<Array<{ sha: string, message: string }>>} Commits that touched the files
+     *
+     * @example
+     * \`\`\`typescript
+     * const log = await git.fileLogAsync('package.json')
+     * \`\`\`
+     */
+    fileLogAsync(...files: string[]): Promise<Array<{
+        sha: string;
+        message: string;
+    }>>;
+    /**
+     * Async variant of {@link diff}.
+     *
+     * @param {string} file - File path, absolute or relative to container.cwd
+     * @param {string} compareTo - The target ref
+     * @param {string} [compareFrom] - The base ref, HEAD by default
+     * @returns {Promise<string>} The diff, or an empty string when nothing changed
+     *
+     * @example
+     * \`\`\`typescript
+     * const changes = await git.diffAsync('package.json', 'abc1234')
+     * \`\`\`
+     */
+    diffAsync(file: string, compareTo: string, compareFrom?: string): Promise<string>;
+    /**
+     * Async variant of {@link getChangeHistoryForFiles}.
+     *
+     * The sync version runs one blocking git call per commit. This one runs
+     * them one at a time without blocking, so a long history no longer
+     * freezes the process.
+     *
+     * @param {...string} paths - File paths or glob patterns
+     * @returns {Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>>} Matching commits
+     *
+     * @example
+     * \`\`\`typescript
+     * const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')
+     * \`\`\`
+     */
+    getChangeHistoryForFilesAsync(...paths: string[]): Promise<Array<{
+        sha: string;
+        message: string;
+        longMessage: string;
+        filesMatched: string[];
+    }>>;
 }
 export default Git;
 //# sourceMappingURL=git.d.ts.map`,
@@ -37146,7 +37269,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.16.5";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.17.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
