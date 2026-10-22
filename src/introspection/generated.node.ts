@@ -7259,6 +7259,191 @@ setBuildTimeData('features.git', {
           "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')"
         }
       ]
+    },
+    "execAsync": {
+      "description": "Runs git without blocking the event loop. Arguments go to git as an array, so nothing is split or shell-expanded. Rejects when git exits non-zero, in the same cases where execSync throws.",
+      "parameters": {
+        "args": {
+          "type": "string[]",
+          "description": "Arguments for git"
+        },
+        "options": {
+          "type": "{ cwd?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const status = await git.execAsync(['status', '--porcelain'])"
+        }
+      ]
+    },
+    "lsFilesAsync": {
+      "description": "Async variant of {@link lsFiles}. Takes the same options. One difference: when git lists nothing, this returns `[]`. The sync lsFiles returns `['']` in that case, so its `.length` is never 0. Exclude patterns also reach git literally here, with no shell globbing.",
+      "parameters": {
+        "options": {
+          "type": "LsFilesOptions",
+          "description": "Same options as lsFiles",
+          "properties": {
+            "cached": {
+              "type": "boolean",
+              "description": ""
+            },
+            "deleted": {
+              "type": "boolean",
+              "description": ""
+            },
+            "modified": {
+              "type": "boolean",
+              "description": ""
+            },
+            "others": {
+              "type": "boolean",
+              "description": ""
+            },
+            "ignored": {
+              "type": "boolean",
+              "description": ""
+            },
+            "status": {
+              "type": "boolean",
+              "description": ""
+            },
+            "includeIgnored": {
+              "type": "boolean",
+              "description": ""
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": ""
+            },
+            "baseDir": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const modified = await git.lsFilesAsync({ modified: true })\nconst untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })"
+        }
+      ]
+    },
+    "getBranch": {
+      "description": "Async variant of the {@link branch} getter.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const branch = await git.getBranch()"
+        }
+      ]
+    },
+    "getSha": {
+      "description": "Async variant of the {@link sha} getter.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sha = await git.getSha()"
+        }
+      ]
+    },
+    "getLatestChangesAsync": {
+      "description": "Async variant of {@link getLatestChanges}.",
+      "parameters": {
+        "numberOfChanges": {
+          "type": "number",
+          "description": "How many recent commits to return"
+        }
+      },
+      "required": [],
+      "returns": "Promise<Array<{ title: string, message: string, author: string }>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const changes = await git.getLatestChangesAsync(5)"
+        }
+      ]
+    },
+    "fileLogAsync": {
+      "description": "Async variant of {@link fileLog}.",
+      "parameters": {
+        "files": {
+          "type": "string[]",
+          "description": "File paths, absolute or relative to container.cwd"
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "returns": "Promise<Array<{ sha: string, message: string }>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const log = await git.fileLogAsync('package.json')"
+        }
+      ]
+    },
+    "diffAsync": {
+      "description": "Async variant of {@link diff}.",
+      "parameters": {
+        "file": {
+          "type": "string",
+          "description": "File path, absolute or relative to container.cwd"
+        },
+        "compareTo": {
+          "type": "string",
+          "description": "The target ref"
+        },
+        "compareFrom": {
+          "type": "string",
+          "description": "The base ref, HEAD by default"
+        }
+      },
+      "required": [
+        "file",
+        "compareTo"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const changes = await git.diffAsync('package.json', 'abc1234')"
+        }
+      ]
+    },
+    "getChangeHistoryForFilesAsync": {
+      "description": "Async variant of {@link getChangeHistoryForFiles}. The sync version runs one blocking git call per commit. This one runs them one at a time without blocking, so a long history no longer freezes the process.",
+      "parameters": {
+        "paths": {
+          "type": "string[]",
+          "description": "File paths or glob patterns"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "returns": "Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')"
+        }
+      ]
     }
   },
   "getters": {
@@ -19866,7 +20051,7 @@ setBuildTimeData('features.vault', {
 
 setBuildTimeData('features.vm', {
   "id": "features.vm",
-  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
+  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
   "shortcut": "features.vm",
   "className": "VM",
   "methods": {
@@ -20014,7 +20199,7 @@ setBuildTimeData('features.vm', {
       "returns": "string"
     },
     "run": {
-      "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
+      "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. TypeScript is accepted too, with no flag: code that doesn't parse as JS is transpiled (type syntax stripped, `import` rewritten to `require`) and run. Valid JS is never rewritten. The same applies to `runSync`, `runCaptured`, `perform`, and `performSync`. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
       "parameters": {
         "code": {
           "type": "string",
@@ -29194,6 +29379,191 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')"
+          }
+        ]
+      },
+      "execAsync": {
+        "description": "Runs git without blocking the event loop. Arguments go to git as an array, so nothing is split or shell-expanded. Rejects when git exits non-zero, in the same cases where execSync throws.",
+        "parameters": {
+          "args": {
+            "type": "string[]",
+            "description": "Arguments for git"
+          },
+          "options": {
+            "type": "{ cwd?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const status = await git.execAsync(['status', '--porcelain'])"
+          }
+        ]
+      },
+      "lsFilesAsync": {
+        "description": "Async variant of {@link lsFiles}. Takes the same options. One difference: when git lists nothing, this returns `[]`. The sync lsFiles returns `['']` in that case, so its `.length` is never 0. Exclude patterns also reach git literally here, with no shell globbing.",
+        "parameters": {
+          "options": {
+            "type": "LsFilesOptions",
+            "description": "Same options as lsFiles",
+            "properties": {
+              "cached": {
+                "type": "boolean",
+                "description": ""
+              },
+              "deleted": {
+                "type": "boolean",
+                "description": ""
+              },
+              "modified": {
+                "type": "boolean",
+                "description": ""
+              },
+              "others": {
+                "type": "boolean",
+                "description": ""
+              },
+              "ignored": {
+                "type": "boolean",
+                "description": ""
+              },
+              "status": {
+                "type": "boolean",
+                "description": ""
+              },
+              "includeIgnored": {
+                "type": "boolean",
+                "description": ""
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": ""
+              },
+              "baseDir": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const modified = await git.lsFilesAsync({ modified: true })\nconst untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })"
+          }
+        ]
+      },
+      "getBranch": {
+        "description": "Async variant of the {@link branch} getter.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const branch = await git.getBranch()"
+          }
+        ]
+      },
+      "getSha": {
+        "description": "Async variant of the {@link sha} getter.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sha = await git.getSha()"
+          }
+        ]
+      },
+      "getLatestChangesAsync": {
+        "description": "Async variant of {@link getLatestChanges}.",
+        "parameters": {
+          "numberOfChanges": {
+            "type": "number",
+            "description": "How many recent commits to return"
+          }
+        },
+        "required": [],
+        "returns": "Promise<Array<{ title: string, message: string, author: string }>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const changes = await git.getLatestChangesAsync(5)"
+          }
+        ]
+      },
+      "fileLogAsync": {
+        "description": "Async variant of {@link fileLog}.",
+        "parameters": {
+          "files": {
+            "type": "string[]",
+            "description": "File paths, absolute or relative to container.cwd"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "returns": "Promise<Array<{ sha: string, message: string }>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const log = await git.fileLogAsync('package.json')"
+          }
+        ]
+      },
+      "diffAsync": {
+        "description": "Async variant of {@link diff}.",
+        "parameters": {
+          "file": {
+            "type": "string",
+            "description": "File path, absolute or relative to container.cwd"
+          },
+          "compareTo": {
+            "type": "string",
+            "description": "The target ref"
+          },
+          "compareFrom": {
+            "type": "string",
+            "description": "The base ref, HEAD by default"
+          }
+        },
+        "required": [
+          "file",
+          "compareTo"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const changes = await git.diffAsync('package.json', 'abc1234')"
+          }
+        ]
+      },
+      "getChangeHistoryForFilesAsync": {
+        "description": "Async variant of {@link getChangeHistoryForFiles}. The sync version runs one blocking git call per commit. This one runs them one at a time without blocking, so a long history no longer freezes the process.",
+        "parameters": {
+          "paths": {
+            "type": "string[]",
+            "description": "File paths or glob patterns"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "returns": "Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')"
           }
         ]
       }
@@ -41760,7 +42130,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.vm",
-    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
+    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
     "shortcut": "features.vm",
     "className": "VM",
     "methods": {
@@ -41908,7 +42278,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "string"
       },
       "run": {
-        "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
+        "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. TypeScript is accepted too, with no flag: code that doesn't parse as JS is transpiled (type syntax stripped, `import` rewritten to `require`) and run. Valid JS is never rewritten. The same applies to `runSync`, `runCaptured`, `perform`, and `performSync`. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
         "parameters": {
           "code": {
             "type": "string",

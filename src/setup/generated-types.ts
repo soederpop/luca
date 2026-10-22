@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.17.1"
+export const typesBundleVersion = "3.18.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -6729,6 +6729,8 @@ interface ConnectedServer {
  * Servers with a \`command\` are spawned locally over stdio; servers with a
  * \`url\` are reached over the Streamable HTTP transport.
  * Pass \`configFile: 'mcp.json'\` to load an \`mcpServers\` map from disk.
+ * Strings in that file may use \`\${VAR}\` or \`\${VAR:-default}\` to read from
+ * the environment, as in Claude Code's .mcp.json.
  * Explicit \`servers\` entries replace file entries with the same name.
  *
  * @example
@@ -6799,7 +6801,8 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
     /**
      * Connect to all configured MCP servers, discover their capabilities,
      * and cache the results. Safe to call multiple times (no-ops if already connected).
-     * Loads and validates configFile before connecting; unreadable or invalid files reject.
+     * Loads and validates configFile before connecting. A missing file warns and
+     * loads no servers; an unreadable or invalid file rejects.
      */
     connectAll(): Promise<void>;
     /**
@@ -34477,7 +34480,7 @@ export interface VMRequireOptions {
  *
  * Three capabilities compose the module system:
  * - \`run(code, ctx)\` — execute a snippet; top-level \`await\` is auto-wrapped and the
- *   final expression's value is returned.
+ *   final expression's value is returned. TypeScript is accepted as-is.
  * - \`loadModule(filePath)\` — load a .ts/.js file as a CommonJS module (ESM syntax is
  *   transpiled; \`export default\` becomes \`module.exports.default\`).
  * - \`defineModule(id, exports)\` — register a virtual module that \`require()\`/\`import\`
@@ -34652,6 +34655,27 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      */
     private _isTopLevelReturnError;
     /**
+     * Accept TypeScript (and ESM \`import\`s) anywhere plain JS is accepted.
+     *
+     * Code that already parses as JS is returned untouched, so valid JS pays one
+     * parse probe and nothing more, and its completion value is never changed by
+     * a rewrite. Only code that fails to parse goes through the transpiler
+     * (\`loader: 'ts'\`, \`format: 'cjs'\`, so imports become \`require\` calls). If
+     * the transpiled output still doesn't parse, the ORIGINAL code is returned so
+     * the run reports the caller's own syntax error, not one in our rewrite.
+     *
+     * The probe has to happen before running: a SyntaxError thrown at run time
+     * can't be told apart from user code calling \`JSON.parse\` on bad input, and
+     * re-running after that would repeat side effects.
+     */
+    private _acceptSource;
+    /**
+     * Parse-only probe (never invoked). An async function body accepts top-level
+     * \`await\` and \`return\`; the plain body covers sloppy code that uses \`await\`
+     * as an identifier.
+     */
+    private _parsesAsJs;
+    /**
      * Run a script, recovering from a top-level \`return\` by re-running the
      * snippet as an IIFE body — where the \`return\` is legal and produces the
      * completion value the user meant. REPL users write \`return x\` constantly
@@ -34732,6 +34756,13 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      */
     wrapTopLevelAwait(code: string): string;
     /**
+     * True when \`head\` ends in a control-flow header still waiting for its body
+     * statement: \`for (...)\`, \`for await (...)\`, \`while (...)\`, \`if (...)\`,
+     * \`with (...)\`, \`else\`, or \`do\`. Injecting \`return\` right after one would
+     * make the return that statement's body.
+     */
+    private _endsWithBodylessHeader;
+    /**
      * True when an unmasked (non-string/comment) \`await\` is immediately followed
      * by \`(\`, \`[\`, or a backtick — the forms where sloppy-mode parsing would
      * silently treat \`await\` as an identifier instead of the keyword. Used by
@@ -34751,6 +34782,11 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * This method creates a script from the provided code, sets up an execution context
      * with the specified variables, and runs the code. Code containing top-level \`await\`
      * is automatically wrapped in an async IIFE so the final expression's value is returned.
+     *
+     * TypeScript is accepted too, with no flag: code that doesn't parse as JS is
+     * transpiled (type syntax stripped, \`import\` rewritten to \`require\`) and run.
+     * Valid JS is never rewritten. The same applies to \`runSync\`, \`runCaptured\`,
+     * \`perform\`, and \`performSync\`.
      *
      * Dynamic \`import()\` is supported: virtual modules resolve first (same as \`require\`),
      * relative specifiers resolve against \`opts.filePath\` (or \`container.cwd\` when omitted),
@@ -34880,6 +34916,8 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
         result: T;
         context: vm.Context;
     };
+    /** @internal performSync without the TS probe, for code we already transpiled. */
+    private _performSyncRaw;
     /**
      * Synchronously loads a JavaScript/TypeScript module from a file path, executing it
      * in an isolated VM context and returning its exports. The module gets \`require\`,
@@ -37269,7 +37307,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.17.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.17.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
