@@ -1,10 +1,42 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
+import { execSync } from 'child_process'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { NodeContainer } from '../src/node/container'
 
-// Runs against the luca repo itself. Each async variant must return what its
-// sync counterpart returns, apart from the documented empty-list difference.
-const container = new NodeContainer()
-const git = container.feature('git')
+// Each async variant must return what its sync counterpart returns, apart from
+// the documented empty-list difference. Uses a purpose-built repo, not the luca
+// checkout: `luca release` runs the suite from a `git archive` snapshot with no .git.
+let repoDir: string
+let git: any
+
+beforeAll(() => {
+  repoDir = realpathSync(mkdtempSync(join(tmpdir(), 'luca-git-async-')))
+  mkdirSync(join(repoDir, 'src'), { recursive: true })
+  writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'git-fixture', version: '1.0.0' }))
+  writeFileSync(join(repoDir, 'src', 'index.ts'), 'export const answer = 42\n')
+
+  const run = (args: string) => execSync(`git ${args}`, { cwd: repoDir, stdio: 'pipe' })
+  run('init -q -b main')
+  run('config user.email fixture@example.com')
+  run('config user.name Fixture')
+  run('add -A')
+  run('commit -q -m "seed the fixture repo"')
+  writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'git-fixture', version: '1.0.1' }))
+  writeFileSync(join(repoDir, 'src', 'index.ts'), 'export const answer = 43\n')
+  run('commit -q -am "bump the fixture version"')
+  // Untracked files, one of them excluded, for the --others listing.
+  writeFileSync(join(repoDir, 'notes.txt'), 'untracked\n')
+  mkdirSync(join(repoDir, 'dist'), { recursive: true })
+  writeFileSync(join(repoDir, 'dist', 'out.js'), '// build output\n')
+
+  git = new NodeContainer({ cwd: repoDir }).feature('git')
+})
+
+afterAll(() => {
+  rmSync(repoDir, { recursive: true, force: true })
+})
 
 describe('git async variants', () => {
   it('getBranch and getSha match the sync getters', async () => {
@@ -39,7 +71,7 @@ describe('git async variants', () => {
   })
 
   it('getChangeHistoryForFilesAsync matches the sync version', async () => {
-    const path = 'src/node/features/git.ts'
+    const path = 'src/index.ts'
     expect(await git.getChangeHistoryForFilesAsync(path)).toEqual(git.getChangeHistoryForFiles(path))
   })
 
