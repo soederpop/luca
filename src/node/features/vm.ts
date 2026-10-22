@@ -341,19 +341,56 @@ export class VM<
    * the transpiled output still doesn't parse, the ORIGINAL code is returned so
    * the run reports the caller's own syntax error, not one in our rewrite.
    *
+   * The transpiler rejects a top-level `return`, which agents write in nearly
+   * every snippet. When the plain transpile fails, the code is transpiled again
+   * as the body of an async IIFE, where `return` and `await` are both legal.
+   * Top-level `import` statements are lifted out first, since they are not
+   * legal inside a function.
+   *
    * The probe has to happen before running: a SyntaxError thrown at run time
    * can't be told apart from user code calling `JSON.parse` on bad input, and
    * re-running after that would repeat side effects.
    */
   private _acceptSource(code: string): string {
     if (this._parsesAsJs(code)) return code
-    let transpiled: string
+    const plain = this._tryTranspile(code)
+    if (plain !== undefined) return plain
+    const { imports, body } = this._liftImports(code)
+    const asBody = this._tryTranspile(`${imports}\n(async () => {\n${body}\n})()`)
+    return asBody ?? code
+  }
+
+  /** Transpile TS to CJS; undefined when it fails or the output still doesn't parse. */
+  private _tryTranspile(code: string): string | undefined {
     try {
-      transpiled = this.container.feature('transpiler').transformSync(code, { loader: 'ts', format: 'cjs' }).code
+      const out = this.container.feature('transpiler').transformSync(code, { loader: 'ts', format: 'cjs' }).code
+      return this._parsesAsJs(out) ? out : undefined
     } catch {
-      return code
+      return undefined
     }
-    return this._parsesAsJs(transpiled) ? transpiled : code
+  }
+
+  /**
+   * Split out top-level `import` statements (static only, not `import(...)`)
+   * so the rest can be wrapped in a function. Only statements that start a
+   * line outside strings and comments count.
+   */
+  private _liftImports(code: string): { imports: string; body: string } {
+    const mask = computeNonCodeMask(code)
+    const re = /^[ \t]*import\s*(?:[\w*{][\s\S]*?\bfrom\s*)?(['"])[^'"\n]+\1[ \t]*;?/gm
+    const imports: string[] = []
+    let body = ''
+    let last = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(code))) {
+      const start = m.index + m[0].length - m[0].trimStart().length
+      if (mask[start]) continue
+      imports.push(m[0].trim())
+      body += code.slice(last, m.index)
+      last = m.index + m[0].length
+    }
+    body += code.slice(last)
+    return { imports: imports.join('\n'), body }
   }
 
   /**
@@ -509,8 +546,8 @@ export class VM<
    * `return` before the final expression so its value is not lost.
    *
    * Resolution order:
-   * 1. No `await` substring, or code already starts with an async wrapper →
-   *    returned unchanged (native `vm.Script` completion-value semantics apply).
+     * 1. No `await` substring → returned unchanged (native `vm.Script`
+   *    completion-value semantics apply).
    * 2. Code parses as a plain (non-async) function body via `new Function` →
    *    the `await` is inside a string, comment, or nested async function, not
    *    at the top level → returned unchanged.
@@ -527,7 +564,10 @@ export class VM<
    * `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.
    */
   wrapTopLevelAwait(code: string): string {
-    if (!/\bawait\b/.test(code) || /^\s*\(?\s*async\b/.test(code)) {
+    // No "already starts with async" shortcut: `async function f() {}` at the
+    // top is a declaration, and top-level awaits after it still need the
+    // wrapper. Real `(async () => ...)()` wrappers pass the parse probe below.
+    if (!/\bawait\b/.test(code)) {
       return code
     }
 
@@ -1102,13 +1142,11 @@ export class VM<
         helpers.seedVirtualModules?.()
       }
 
-      let code = args.code
-      try {
-        code = this.container.feature('transpiler').transformSync(code, { loader: 'ts', format: 'cjs' }).code
-      } catch {
-        // Leave the input as written — the run surfaces the real syntax error
-        // against the assistant's own code, not the transpiler's rewrite.
-      }
+      // runCaptured accepts TypeScript, top-level return, and imports on its
+      // own (see _acceptSource). Transpiling here first used to break exactly
+      // the snippets agents write most: the transpiler rejects top-level
+      // `return`, and the fallback ran the raw TypeScript.
+      const code = args.code
 
       // Shared so a snippet that does export something sees one consistent
       // view, the same contract loadModule follows.
