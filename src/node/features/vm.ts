@@ -6,6 +6,8 @@ import vm from 'vm'
 import { Feature } from "../feature.js";
 import { computeNonCodeMask } from './transpiler.js'
 
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as FunctionConstructor
+
 export const VMStateSchema = FeatureStateSchema.extend({})
 export type VMState = z.infer<typeof VMStateSchema>
 
@@ -57,7 +59,7 @@ const VM_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
  *
  * Three capabilities compose the module system:
  * - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the
- *   final expression's value is returned.
+ *   final expression's value is returned. TypeScript is accepted as-is.
  * - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is
  *   transpiled; `export default` becomes `module.exports.default`).
  * - `defineModule(id, exports)` — register a virtual module that `require()`/`import`
@@ -330,6 +332,51 @@ export class VM<
   }
 
   /**
+   * Accept TypeScript (and ESM `import`s) anywhere plain JS is accepted.
+   *
+   * Code that already parses as JS is returned untouched, so valid JS pays one
+   * parse probe and nothing more, and its completion value is never changed by
+   * a rewrite. Only code that fails to parse goes through the transpiler
+   * (`loader: 'ts'`, `format: 'cjs'`, so imports become `require` calls). If
+   * the transpiled output still doesn't parse, the ORIGINAL code is returned so
+   * the run reports the caller's own syntax error, not one in our rewrite.
+   *
+   * The probe has to happen before running: a SyntaxError thrown at run time
+   * can't be told apart from user code calling `JSON.parse` on bad input, and
+   * re-running after that would repeat side effects.
+   */
+  private _acceptSource(code: string): string {
+    if (this._parsesAsJs(code)) return code
+    let transpiled: string
+    try {
+      transpiled = this.container.feature('transpiler').transformSync(code, { loader: 'ts', format: 'cjs' }).code
+    } catch {
+      return code
+    }
+    return this._parsesAsJs(transpiled) ? transpiled : code
+  }
+
+  /**
+   * Parse-only probe (never invoked). An async function body accepts top-level
+   * `await` and `return`; the plain body covers sloppy code that uses `await`
+   * as an identifier.
+   */
+  private _parsesAsJs(code: string): boolean {
+    try {
+      // eslint-disable-next-line no-new-func
+      new AsyncFunction(code)
+      return true
+    } catch {}
+    try {
+      // eslint-disable-next-line no-new-func
+      new Function(code)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
    * Run a script, recovering from a top-level `return` by re-running the
    * snippet as an IIFE body — where the `return` is legal and produces the
    * completion value the user meant. REPL users write `return x` constantly
@@ -526,6 +573,10 @@ export class VM<
       if (boundary.kind === 'newline' && asiContinuation.test(tail)) continue
 
       const head = code.slice(0, boundary.index)
+      // `for (...)\nexpr` parses fine with `return` injected, but the return
+      // becomes the loop body and exits on the first pass. The transpiler
+      // emits exactly this shape for brace-less bodies.
+      if (this._endsWithBodylessHeader(head)) continue
       try {
         // Parse probe only — parenthesized tail rejects multi-statement tails
         // and disambiguates `{...}` as an object literal.
@@ -538,6 +589,31 @@ export class VM<
     // No returnable final expression (declaration/loop-final program, or
     // nothing parsed) — wrap without injection; the run resolves undefined.
     return `(async () => {\n${code}\n})()`
+  }
+
+  /**
+   * True when `head` ends in a control-flow header still waiting for its body
+   * statement: `for (...)`, `for await (...)`, `while (...)`, `if (...)`,
+   * `with (...)`, `else`, or `do`. Injecting `return` right after one would
+   * make the return that statement's body.
+   */
+  private _endsWithBodylessHeader(head: string): boolean {
+    const mask = computeNonCodeMask(head)
+    let end = head.length - 1
+    while (end >= 0 && (mask[end] || /\s/.test(head[end]!))) end--
+    if (end < 0) return false
+    if (/\b(else|do)$/.test(head.slice(0, end + 1))) return true
+    if (head[end] !== ')') return false
+
+    let depth = 0
+    for (let i = end; i >= 0; i--) {
+      if (mask[i]) continue
+      if (head[i] === ')') depth++
+      else if (head[i] === '(' && --depth === 0) {
+        return /\b(for(\s+await)?|while|if|with)\s*$/.test(head.slice(0, i))
+      }
+    }
+    return false
   }
 
   /**
@@ -589,6 +665,11 @@ export class VM<
    * with the specified variables, and runs the code. Code containing top-level `await`
    * is automatically wrapped in an async IIFE so the final expression's value is returned.
    *
+   * TypeScript is accepted too, with no flag: code that doesn't parse as JS is
+   * transpiled (type syntax stripped, `import` rewritten to `require`) and run.
+   * Valid JS is never rewritten. The same applies to `runSync`, `runCaptured`,
+   * `perform`, and `performSync`.
+   *
    * Dynamic `import()` is supported: virtual modules resolve first (same as `require`),
    * relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted),
    * and everything else falls through to native import.
@@ -626,7 +707,7 @@ export class VM<
    * ```
    */
   async run<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<T> {
-    const wrapped = this.wrapTopLevelAwait(code)
+    const wrapped = this.wrapTopLevelAwait(this._acceptSource(code))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return this._runInContextWithReturnRecovery<T>(wrapped, context, opts)
@@ -672,7 +753,7 @@ export class VM<
     const prevConsole = isExisting ? ctx.console : undefined
     if (isExisting) ctx.console = captureConsole
 
-    const wrapped = this.wrapTopLevelAwait(code)
+    const wrapped = this.wrapTopLevelAwait(this._acceptSource(code))
     try {
       const result = await this._runInContextWithReturnRecovery<T>(wrapped, context, opts)
       return { result, console: calls, context }
@@ -698,7 +779,7 @@ export class VM<
   runSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): T {
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return this._runInContextSyncWithReturnRecovery<T>(code, context, opts)
+    return this._runInContextSyncWithReturnRecovery<T>(this._acceptSource(code), context, opts)
   }
 
   /**
@@ -722,7 +803,7 @@ export class VM<
   async perform<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<{ result: T, context: vm.Context }> {
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
-    return { result: await this._runInContextWithReturnRecovery<T>(code, context, opts), context }
+    return { result: await this._runInContextWithReturnRecovery<T>(this._acceptSource(code), context, opts), context }
   }
 
   /**
@@ -749,6 +830,11 @@ export class VM<
    * ```
    */
   performSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): { result: T, context: vm.Context } {
+    return this._performSyncRaw<T>(this._acceptSource(code), ctx, opts)
+  }
+
+  /** @internal performSync without the TS probe, for code we already transpiled. */
+  private _performSyncRaw<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): { result: T, context: vm.Context } {
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return { result: this._runInContextSyncWithReturnRecovery<T>(code, context, opts), context }
@@ -941,7 +1027,8 @@ export class VM<
   /** @internal Execute CJS code in a VM context and return its exports. */
   private _execModule(code: string, filePath: string, ctx: any, requireOpts: VMRequireOptions = {}): Record<string, any> {
     const sharedExports = {}
-    const { context } = this.performSync(code, {
+    // Already transpiled by the caller, so skip the TS probe.
+    const { context } = this._performSyncRaw(code, {
       require: this.createRequireFor(filePath, requireOpts),
       exports: sharedExports,
       module: { exports: sharedExports },

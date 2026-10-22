@@ -143,4 +143,16 @@ out.matched = re.test(s)
     )
     expect(JSON.parse(result as string)).toEqual({ a: 2, b: 6 })
   })
+
+  it('does not inject return as the body of a brace-less loop (transpiler output shape)', async () => {
+    const seen: number[] = []
+    await vm().run('for (const x of [1, 2, 3])\n  seen.push(await Promise.resolve(x));\n', { seen })
+    expect(seen).toEqual([1, 2, 3])
+  })
+
+  it('does not inject return as the body of a brace-less if/else', async () => {
+    const seen: string[] = []
+    await vm().run('if (false)\n  seen.push("no")\nelse\n  seen.push(await Promise.resolve("yes"))\nseen.push("after")', { seen })
+    expect(seen).toEqual(['yes', 'after'])
+  })
 })
