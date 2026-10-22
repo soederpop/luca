@@ -7,7 +7,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js'
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv-provider.js'
+import { McpOAuthConfigSchema, McpOAuthProvider, mcpOAuthKey, mcpOAuthStore } from './mcp-oauth'
 
 // Servers written against protobuf/OpenAPI conventions (cua-driver, for one)
 // annotate numbers with formats Ajv has never heard of. Ajv logs
@@ -53,6 +55,7 @@ const McpServerConfigSchema = z.object({
 	command: z.string().optional().describe('The executable to run for a stdio server (e.g. npx, bun, node). Mutually exclusive with url.'),
 	url: z.string().optional().describe('URL of a remote MCP server using the Streamable HTTP transport (e.g. https://example.com/mcp). Takes precedence over command.'),
 	headers: z.record(z.string(), z.string()).optional().describe('Headers sent with every request to an http server (e.g. Authorization). Ignored for stdio servers.'),
+	oauth: z.union([McpOAuthConfigSchema, z.literal(false)]).optional().describe('OAuth settings for an http server. HTTP servers without an Authorization header use OAuth automatically when the server asks for it; set this only for a pre-registered client or a fixed callback port, or false to turn OAuth off.'),
 	args: z.array(z.string()).optional().default([]).describe('Arguments to pass to the command (stdio only)'),
 	env: z.record(z.string(), z.string()).optional().describe('Extra environment variables merged with process.env (stdio only)'),
 	cwd: z.string().optional().describe('Working directory for the server process (stdio only)'),
@@ -98,8 +101,10 @@ function expandEnvVars<T>(value: T, path: string): T {
 const McpBridgeOptionsSchema = z.object({
 	configFile: z.string().optional().describe('Path to a JSON file containing an mcpServers map, resolved relative to the container working directory. Loaded when connecting; a missing file warns and loads no servers. Strings may use ${VAR} or ${VAR:-default} to read environment variables.'),
 	servers: z.record(z.string(), McpServerConfigSchema).default({}).describe('MCP server configurations keyed by server name. Explicit entries replace matching entries from configFile.'),
+	skipServers: z.array(z.string()).default([]).describe('Server names to leave out, from configFile or servers. Lets one assistant share a project .mcp.json without getting every server in it.'),
 	materializeTools: z.boolean().default(true).describe('Register discovered MCP tools as first-class assistant tools'),
 	separator: z.string().default('__').describe('Separator between server name and tool name for materialized tools'),
+	interactiveAuth: z.boolean().default(false).describe('When an OAuth server has no valid login, open a browser and wait for it during connect. Default false: the server is marked auth-required and the others connect, so headless runs never hang. Log in ahead of time with bridge.login() or `luca mcp-auth login`.'),
 })
 
 export type McpBridgeOptions = z.infer<typeof McpBridgeOptionsSchema>
@@ -107,7 +112,7 @@ export type McpBridgeOptions = z.infer<typeof McpBridgeOptionsSchema>
 const McpBridgeStateSchema = z.looseObject({
 	enabled: z.boolean().default(false).describe('Whether this feature is currently enabled'),
 	servers: z.record(z.string(), z.object({
-		status: z.enum(['connecting', 'connected', 'error', 'disconnected']).describe('Connection status'),
+		status: z.enum(['connecting', 'connected', 'error', 'disconnected', 'auth-required']).describe('Connection status. auth-required means the server needs an OAuth login first.'),
 		toolCount: z.number().default(0).describe('Number of tools discovered'),
 		resourceCount: z.number().default(0).describe('Number of resources discovered'),
 		promptCount: z.number().default(0).describe('Number of prompts discovered'),
@@ -121,6 +126,7 @@ const McpBridgeEventsSchema = z.object({
 	serverConnected: z.tuple([z.string().describe('server name'), z.number().describe('tool count')]).describe('Fired when an MCP server connects and its capabilities are discovered'),
 	serverDisconnected: z.tuple([z.string().describe('server name')]).describe('Fired when an MCP server disconnects'),
 	serverError: z.tuple([z.string().describe('server name'), z.string().describe('error message')]).describe('Fired when an MCP server connection fails'),
+	authRequired: z.tuple([z.string().describe('server name'), z.string().describe('authorization URL')]).describe('Fired when an http server needs an OAuth login. In interactive mode the browser is opening; otherwise the server is left in auth-required.'),
 	toolCalled: z.tuple([z.string().describe('server name'), z.string().describe('tool name')]).describe('Fired when a tool call is proxied to an MCP server'),
 })
 
@@ -165,6 +171,14 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
 	return patterns.some(p => matchesPattern(name, p))
 }
 
+/** Thrown by connectServer when an OAuth server has no usable login and interactiveAuth is off. */
+export class McpAuthRequiredError extends Error {
+	constructor(readonly serverName: string, readonly authorizationUrl: URL) {
+		super(`MCP server "${serverName}" needs an OAuth login. Run \`luca mcp-auth login ${serverName}\` (or bridge.login('${serverName}')) once; the login is then reused.`)
+		this.name = 'McpAuthRequiredError'
+	}
+}
+
 // ── Feature ──────────────────────────────────────────────────────────────────
 
 /**
@@ -179,6 +193,14 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  * the environment, as in Claude Code's .mcp.json.
  * Explicit `servers` entries replace file entries with the same name.
  *
+ * HTTP servers that use OAuth (most hosted MCP servers) need no config: the
+ * bridge discovers the server's authorization server, registers a client,
+ * and stores the login in `~/.luca/store/mcp-oauth.json` (mode 0600), keyed by
+ * server URL and shared by every project on the machine. Tokens refresh on
+ * their own. Log in once with `luca mcp-auth login` or `bridge.login()`;
+ * until then the server reports `auth-required` and the others still connect.
+ * The same `.mcp.json` works in Claude Code, which keeps its own login.
+ *
  * @example
  * ```ts
  * const bridge = container.feature('mcpBridge', {
@@ -192,8 +214,10 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  *       url: 'https://mcp.example.com/mcp',
  *       headers: { Authorization: `Bearer ${token}` },
  *     },
+ *     fellow: { url: 'https://fellow.app/mcp' }, // OAuth, discovered automatically
  *   },
  * })
+ * await bridge.login('fellow') // opens a browser once; later runs reuse the stored login
  * ```
  */
 export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & FeatureOptions> {
@@ -254,30 +278,7 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 	async connectAll(): Promise<void> {
 		if (this._connected) return
 
-		const opts = this.options as McpBridgeOptions
-		let fileServers: Record<string, McpServerConfig> = {}
-		if (opts.configFile) {
-			const container = this.container as NodeContainer
-			const path = container.paths.resolve(opts.configFile)
-			const fs = container.feature('fs')
-			// A missing file is an empty config, so a project can point at
-			// .mcp.json before it has one. A file that exists but is broken
-			// still throws: silently dropping its servers would hide the typo.
-			if (!(await fs.existsAsync(path))) {
-				console.warn(`Warning: MCP config file "${path}" not found, no MCP servers loaded from it`)
-			} else {
-				try {
-					const config = await fs.readJsonAsync(path)
-					fileServers = z.object({
-						mcpServers: z.record(z.string(), McpServerConfigSchema),
-					}).parse(config).mcpServers
-				} catch (cause) {
-					throw new Error(`Failed to load MCP config file "${path}"`, { cause })
-				}
-				fileServers = expandEnvVars(fileServers, path)
-			}
-		}
-		const servers = { ...fileServers, ...opts.servers }
+		const servers = await this.loadServerConfigs()
 		if (Object.keys(servers).length === 0) {
 			this._connected = true
 			return
@@ -302,18 +303,62 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 	}
 
 	/**
+	 * The merged server map: configFile entries (with ${VAR} expanded) overlaid
+	 * by explicit `servers` options. Does not connect anything.
+	 */
+	async loadServerConfigs(): Promise<Record<string, McpServerConfig>> {
+		const opts = this.options as McpBridgeOptions
+		let fileServers: Record<string, McpServerConfig> = {}
+		if (opts.configFile) {
+			const container = this.container as NodeContainer
+			const path = container.paths.resolve(opts.configFile)
+			const fs = container.feature('fs')
+			// A missing file is an empty config, so a project can point at
+			// .mcp.json before it has one. A file that exists but is broken
+			// still throws: silently dropping its servers would hide the typo.
+			if (!(await fs.existsAsync(path))) {
+				console.warn(`Warning: MCP config file "${path}" not found, no MCP servers loaded from it`)
+			} else {
+				try {
+					const config = await fs.readJsonAsync(path)
+					fileServers = z.object({
+						mcpServers: z.record(z.string(), McpServerConfigSchema),
+					}).parse(config).mcpServers
+				} catch (cause) {
+					throw new Error(`Failed to load MCP config file "${path}"`, { cause })
+				}
+				fileServers = expandEnvVars(fileServers, path)
+			}
+		}
+		const servers: Record<string, McpServerConfig> = { ...fileServers, ...opts.servers }
+		for (const name of opts.skipServers || []) delete servers[name]
+		return servers
+	}
+
+	/**
 	 * Connect to a single MCP server, discover its tools/resources/prompts.
 	 */
-	async connectServer(name: string, config: McpServerConfig): Promise<ConnectedServer> {
+	async connectServer(name: string, config: McpServerConfig, connectOptions: { interactiveAuth?: boolean } = {}): Promise<ConnectedServer> {
 		// Update state to connecting
 		this._updateServerState(name, { status: 'connecting', toolCount: 0, resourceCount: 0, promptCount: 0 })
 
+		const interactive = connectOptions.interactiveAuth ?? (this.options as McpBridgeOptions).interactiveAuth ?? false
+		const authProvider = this._oauthProviderFor(name, config, interactive)
+		if (authProvider) await authProvider.prepare()
+
 		let transport: Transport
+		let client: Client
+		const newClient = () => new Client(
+			{ name: `luca-mcp-bridge/${name}`, version: '1.0.0' },
+			{ jsonSchemaValidator: schemaValidator() },
+		)
+		const newHttpTransport = () => new StreamableHTTPClientTransport(new URL(config.url!), {
+			...(config.headers ? { requestInit: { headers: config.headers } } : {}),
+			...(authProvider ? { authProvider } : {}),
+		})
+
 		if (config.url) {
-			transport = new StreamableHTTPClientTransport(
-				new URL(config.url),
-				config.headers ? { requestInit: { headers: config.headers } } : undefined,
-			)
+			transport = newHttpTransport()
 		} else if (config.command) {
 			transport = new StdioClientTransport({
 				command: config.command,
@@ -327,13 +372,28 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 			throw err
 		}
 
-		const client = new Client(
-			{ name: `luca-mcp-bridge/${name}`, version: '1.0.0' },
-			{ jsonSchemaValidator: schemaValidator() },
-		)
+		client = newClient()
 
 		try {
-			await client.connect(transport)
+			try {
+				await client.connect(transport)
+			} catch (err) {
+				if (!(err instanceof UnauthorizedError) || !authProvider?.authorizationUrl) throw err
+
+				this.emit('authRequired', name, authProvider.authorizationUrl.toString())
+				if (!interactive) {
+					throw new McpAuthRequiredError(name, authProvider.authorizationUrl)
+				}
+
+				// Browser is open; trade the redirect's code for tokens, then
+				// reconnect on a fresh transport (a failed one can't restart).
+				const code = await authProvider.waitForAuthorizationCode()
+				await (transport as StreamableHTTPClientTransport).finishAuth(code)
+				await transport.close().catch(() => {})
+				transport = newHttpTransport()
+				client = newClient()
+				await client.connect(transport)
+			}
 
 			// Discover capabilities (don't fail if a server doesn't support all types)
 			const [toolsResult, resourcesResult, promptsResult] = await Promise.allSettled([
@@ -377,7 +437,7 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 			return conn
 		} catch (err: any) {
 			this._updateServerState(name, {
-				status: 'error',
+				status: err instanceof McpAuthRequiredError ? 'auth-required' : 'error',
 				toolCount: 0,
 				resourceCount: 0,
 				promptCount: 0,
@@ -385,6 +445,94 @@ export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & Featur
 			})
 			throw err
 		}
+	}
+
+	/**
+	 * OAuth applies to http servers unless the config sends its own
+	 * Authorization header or sets `oauth: false`. Attaching a provider to a
+	 * server that never asks for auth costs nothing: it is only used on a 401.
+	 */
+	private _oauthProviderFor(name: string, config: McpServerConfig, interactive: boolean): McpOAuthProvider | undefined {
+		if (!config.url || config.oauth === false) return undefined
+		const hasAuthHeader = Object.keys(config.headers || {}).some(h => h.toLowerCase() === 'authorization')
+		if (hasAuthHeader) return undefined
+		return new McpOAuthProvider(this.container as NodeContainer, {
+			serverName: name,
+			serverUrl: config.url,
+			config: config.oauth || undefined,
+			interactive,
+		})
+	}
+
+	/**
+	 * Log in to OAuth servers by opening a browser, then connect them. With no
+	 * name, logs in to every configured http server that needs it. A server
+	 * with a valid stored login connects without opening anything.
+	 *
+	 * @param name - One server name from the config. Omit for all.
+	 * @returns Each server's resulting status
+	 *
+	 * @example
+	 * ```ts
+	 * const bridge = container.feature('mcpBridge', { configFile: '.mcp.json' })
+	 * await bridge.login('fellow')
+	 * ```
+	 */
+	async login(name?: string): Promise<Record<string, { status: string; error?: string }>> {
+		const servers = await this.loadServerConfigs()
+		if (name && !servers[name]) throw new Error(`No MCP server named "${name}". Configured: ${Object.keys(servers).join(', ') || 'none'}`)
+		const names = name ? [name] : Object.keys(servers).filter(n => this._oauthProviderFor(n, servers[n]!, false))
+
+		const results: Record<string, { status: string; error?: string }> = {}
+		// One at a time: each login opens a browser tab and may share the callback port.
+		for (const n of names) {
+			await this.disconnectServer(n)
+			try {
+				await this.connectServer(n, servers[n]!, { interactiveAuth: true })
+				results[n] = { status: 'connected' }
+			} catch (err: any) {
+				results[n] = { status: (this.state.get('servers') as any)?.[n]?.status || 'error', error: err?.message || String(err) }
+			}
+		}
+		return results
+	}
+
+	/**
+	 * Forget the stored OAuth login (tokens and registered client) for a server
+	 * and disconnect it. The next connect needs a fresh login.
+	 *
+	 * @param name - Server name from the config
+	 */
+	async logout(name: string): Promise<void> {
+		const config = (await this.loadServerConfigs())[name]
+		if (!config?.url) throw new Error(`No http MCP server named "${name}"`)
+		await this.disconnectServer(name)
+		const key = mcpOAuthKey(config.url)
+		await mcpOAuthStore(this.container as NodeContainer).update(draft => {
+			if (draft.servers) delete draft.servers[key]
+		})
+	}
+
+	/**
+	 * Which configured http servers have a stored OAuth login. Reads the store
+	 * only; it does not check that the tokens are still accepted.
+	 */
+	async authStatus(): Promise<Record<string, { url: string; oauth: boolean; loggedIn: boolean; tokensSavedAt?: string; hasRefreshToken: boolean }>> {
+		const servers = await this.loadServerConfigs()
+		const stored = (await mcpOAuthStore(this.container as NodeContainer).read()).servers || {}
+		const result: Record<string, any> = {}
+		for (const [n, config] of Object.entries(servers)) {
+			if (!config.url) continue
+			const entry = stored[mcpOAuthKey(config.url)]
+			result[n] = {
+				url: config.url,
+				oauth: !!this._oauthProviderFor(n, config, false),
+				loggedIn: !!entry?.tokens?.access_token,
+				tokensSavedAt: entry?.tokensSavedAt,
+				hasRefreshToken: !!entry?.tokens?.refresh_token,
+			}
+		}
+		return result
 	}
 
 	/**

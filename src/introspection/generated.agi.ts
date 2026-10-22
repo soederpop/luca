@@ -11154,6 +11154,16 @@ setBuildTimeData('features.fs', {
         "content": {
           "type": "Buffer | string",
           "description": "The content to write to the file"
+        },
+        "options": {
+          "type": "{ mode?: number }",
+          "description": "Write options",
+          "properties": {
+            "mode": {
+              "type": "any",
+              "description": "Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode."
+            }
+          }
         }
       },
       "required": [
@@ -11164,7 +11174,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
+          "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))\nfs.writeFile('token.json', '{}', { mode: 0o600 })"
         }
       ]
     },
@@ -11178,6 +11188,10 @@ setBuildTimeData('features.fs', {
         "content": {
           "type": "Buffer | string",
           "description": "Parameter content"
+        },
+        "options": {
+          "type": "{ mode?: number }",
+          "description": "Parameter options"
         }
       },
       "required": [
@@ -17545,7 +17559,7 @@ setBuildTimeData('features.llamaServer', {
 
 setBuildTimeData('features.mcpBridge', {
   "id": "features.mcpBridge",
-  "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Strings in that file may use `${VAR}` or `${VAR:-default}` to read from the environment, as in Claude Code's .mcp.json. Explicit `servers` entries replace file entries with the same name.",
+  "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Strings in that file may use `${VAR}` or `${VAR:-default}` to read from the environment, as in Claude Code's .mcp.json. Explicit `servers` entries replace file entries with the same name. HTTP servers that use OAuth (most hosted MCP servers) need no config: the bridge discovers the server's authorization server, registers a client, and stores the login in `~/.luca/store/mcp-oauth.json` (mode 0600), keyed by server URL and shared by every project on the machine. Tokens refresh on their own. Log in once with `luca mcp-auth login` or `bridge.login()`; until then the server reports `auth-required` and the others still connect. The same `.mcp.json` works in Claude Code, which keeps its own login.",
   "shortcut": "features.mcpBridge",
   "className": "McpBridge",
   "methods": {
@@ -17554,6 +17568,12 @@ setBuildTimeData('features.mcpBridge', {
       "parameters": {},
       "required": [],
       "returns": "Promise<void>"
+    },
+    "loadServerConfigs": {
+      "description": "The merged server map: configFile entries (with ${VAR} expanded) overlaid by explicit `servers` options. Does not connect anything.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, McpServerConfig>>"
     },
     "connectServer": {
       "description": "Connect to a single MCP server, discover its tools/resources/prompts.",
@@ -17565,6 +17585,10 @@ setBuildTimeData('features.mcpBridge', {
         "config": {
           "type": "McpServerConfig",
           "description": "Parameter config"
+        },
+        "connectOptions": {
+          "type": "{ interactiveAuth?: boolean }",
+          "description": "Parameter connectOptions"
         }
       },
       "required": [
@@ -17572,6 +17596,42 @@ setBuildTimeData('features.mcpBridge', {
         "config"
       ],
       "returns": "Promise<ConnectedServer>"
+    },
+    "login": {
+      "description": "Log in to OAuth servers by opening a browser, then connect them. With no name, logs in to every configured http server that needs it. A server with a valid stored login connects without opening anything.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "One server name from the config. Omit for all."
+        }
+      },
+      "required": [],
+      "returns": "Promise<Record<string, { status: string; error?: string }>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const bridge = container.feature('mcpBridge', { configFile: '.mcp.json' })\nawait bridge.login('fellow')"
+        }
+      ]
+    },
+    "logout": {
+      "description": "Forget the stored OAuth login (tokens and registered client) for a server and disconnect it. The next connect needs a fresh login.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Server name from the config"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<void>"
+    },
+    "authStatus": {
+      "description": "Which configured http servers have a stored OAuth login. Reads the store only; it does not check that the tokens are still accepted.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, { url: string; oauth: boolean; loggedIn: boolean; tokensSavedAt?: string; hasRefreshToken: boolean }>>"
     },
     "disconnectAll": {
       "description": "Disconnect from all MCP servers and clean up.",
@@ -17687,6 +17747,11 @@ setBuildTimeData('features.mcpBridge', {
       "description": "Event emitted by McpBridge",
       "arguments": {}
     },
+    "authRequired": {
+      "name": "authRequired",
+      "description": "Event emitted by McpBridge",
+      "arguments": {}
+    },
     "serverConnected": {
       "name": "serverConnected",
       "description": "Event emitted by McpBridge",
@@ -17711,7 +17776,7 @@ setBuildTimeData('features.mcpBridge', {
   "examples": [
     {
       "language": "ts",
-      "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n },\n})"
+      "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n   fellow: { url: 'https://fellow.app/mcp' }, // OAuth, discovered automatically\n },\n})\nawait bridge.login('fellow') // opens a browser once; later runs reuse the stored login"
     }
   ],
   "types": {
@@ -27117,6 +27182,11 @@ setBuildTimeData('features.store', {
           "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
           "optional": true
         },
+        "fileMode": {
+          "type": "number",
+          "description": "Permission bits for the backing file, e.g. `0o600` for a store that holds credentials. Defaults to the process umask (usually 0644).",
+          "optional": true
+        },
         "lockStale": {
           "type": "number",
           "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
@@ -29595,7 +29665,7 @@ setBuildTimeData('features.vm', {
       ]
     },
     "wrapTopLevelAwait": {
-      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
+      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
       "parameters": {
         "code": {
           "type": "string",
@@ -43038,6 +43108,16 @@ export const introspectionData: Record<string, any>[] = [
           "content": {
             "type": "Buffer | string",
             "description": "The content to write to the file"
+          },
+          "options": {
+            "type": "{ mode?: number }",
+            "description": "Write options",
+            "properties": {
+              "mode": {
+                "type": "any",
+                "description": "Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode."
+              }
+            }
           }
         },
         "required": [
@@ -43048,7 +43128,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
+            "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))\nfs.writeFile('token.json', '{}', { mode: 0o600 })"
           }
         ]
       },
@@ -43062,6 +43142,10 @@ export const introspectionData: Record<string, any>[] = [
           "content": {
             "type": "Buffer | string",
             "description": "Parameter content"
+          },
+          "options": {
+            "type": "{ mode?: number }",
+            "description": "Parameter options"
           }
         },
         "required": [
@@ -49413,7 +49497,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.mcpBridge",
-    "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Strings in that file may use `${VAR}` or `${VAR:-default}` to read from the environment, as in Claude Code's .mcp.json. Explicit `servers` entries replace file entries with the same name.",
+    "description": "Bridges MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools. Servers with a `command` are spawned locally over stdio; servers with a `url` are reached over the Streamable HTTP transport. Pass `configFile: 'mcp.json'` to load an `mcpServers` map from disk. Strings in that file may use `${VAR}` or `${VAR:-default}` to read from the environment, as in Claude Code's .mcp.json. Explicit `servers` entries replace file entries with the same name. HTTP servers that use OAuth (most hosted MCP servers) need no config: the bridge discovers the server's authorization server, registers a client, and stores the login in `~/.luca/store/mcp-oauth.json` (mode 0600), keyed by server URL and shared by every project on the machine. Tokens refresh on their own. Log in once with `luca mcp-auth login` or `bridge.login()`; until then the server reports `auth-required` and the others still connect. The same `.mcp.json` works in Claude Code, which keeps its own login.",
     "shortcut": "features.mcpBridge",
     "className": "McpBridge",
     "methods": {
@@ -49422,6 +49506,12 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "Promise<void>"
+      },
+      "loadServerConfigs": {
+        "description": "The merged server map: configFile entries (with ${VAR} expanded) overlaid by explicit `servers` options. Does not connect anything.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, McpServerConfig>>"
       },
       "connectServer": {
         "description": "Connect to a single MCP server, discover its tools/resources/prompts.",
@@ -49433,6 +49523,10 @@ export const introspectionData: Record<string, any>[] = [
           "config": {
             "type": "McpServerConfig",
             "description": "Parameter config"
+          },
+          "connectOptions": {
+            "type": "{ interactiveAuth?: boolean }",
+            "description": "Parameter connectOptions"
           }
         },
         "required": [
@@ -49440,6 +49534,42 @@ export const introspectionData: Record<string, any>[] = [
           "config"
         ],
         "returns": "Promise<ConnectedServer>"
+      },
+      "login": {
+        "description": "Log in to OAuth servers by opening a browser, then connect them. With no name, logs in to every configured http server that needs it. A server with a valid stored login connects without opening anything.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "One server name from the config. Omit for all."
+          }
+        },
+        "required": [],
+        "returns": "Promise<Record<string, { status: string; error?: string }>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const bridge = container.feature('mcpBridge', { configFile: '.mcp.json' })\nawait bridge.login('fellow')"
+          }
+        ]
+      },
+      "logout": {
+        "description": "Forget the stored OAuth login (tokens and registered client) for a server and disconnect it. The next connect needs a fresh login.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Server name from the config"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<void>"
+      },
+      "authStatus": {
+        "description": "Which configured http servers have a stored OAuth login. Reads the store only; it does not check that the tokens are still accepted.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, { url: string; oauth: boolean; loggedIn: boolean; tokensSavedAt?: string; hasRefreshToken: boolean }>>"
       },
       "disconnectAll": {
         "description": "Disconnect from all MCP servers and clean up.",
@@ -49555,6 +49685,11 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Event emitted by McpBridge",
         "arguments": {}
       },
+      "authRequired": {
+        "name": "authRequired",
+        "description": "Event emitted by McpBridge",
+        "arguments": {}
+      },
       "serverConnected": {
         "name": "serverConnected",
         "description": "Event emitted by McpBridge",
@@ -49579,7 +49714,7 @@ export const introspectionData: Record<string, any>[] = [
     "examples": [
       {
         "language": "ts",
-        "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n },\n})"
+        "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n   remote: {\n     url: 'https://mcp.example.com/mcp',\n     headers: { Authorization: `Bearer ${token}` },\n   },\n   fellow: { url: 'https://fellow.app/mcp' }, // OAuth, discovered automatically\n },\n})\nawait bridge.login('fellow') // opens a browser once; later runs reuse the stored login"
       }
     ],
     "types": {
@@ -58959,6 +59094,11 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
             "optional": true
           },
+          "fileMode": {
+            "type": "number",
+            "description": "Permission bits for the backing file, e.g. `0o600` for a store that holds credentials. Defaults to the process umask (usually 0644).",
+            "optional": true
+          },
           "lockStale": {
             "type": "number",
             "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
@@ -61428,7 +61568,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "wrapTopLevelAwait": {
-        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
+        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
         "parameters": {
           "code": {
             "type": "string",

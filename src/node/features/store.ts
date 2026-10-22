@@ -32,6 +32,8 @@ export interface StoreHandleOptions<T = any> {
   scope?: StoreScope
   /** Ms to wait for a contended lock before update() throws (default: feature option, 5000) */
   lockTimeout?: number
+  /** Permission bits for the backing file, e.g. `0o600` for a store that holds credentials. Defaults to the process umask (usually 0644). */
+  fileMode?: number
   /** Ms after which an abandoned lock is stolen (default: feature option, 10000) */
   lockStale?: number
 }
@@ -125,7 +127,7 @@ export class StoreHandle<T = any> {
     const { fs, paths } = this.container
     fs.ensureFolder(paths.dirname(this.path))
     const tmp = `${this.path}.${process.pid}.${this.container.utils.uuid().slice(0, 8)}.tmp`
-    fs.writeFile(tmp, JSON.stringify(next, null, 2) + '\n')
+    fs.writeFile(tmp, JSON.stringify(next, null, 2) + '\n', this.opts.fileMode === undefined ? undefined : { mode: this.opts.fileMode })
     fs.renameSync(tmp, this.path)
     this.feature.emit('changed', this.name, this.path)
     return next

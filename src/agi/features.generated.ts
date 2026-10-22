@@ -54,7 +54,7 @@ export { FileTools } from "./features/file-tools";
 export { HermesAgent } from "./features/hermes-agent";
 export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSession, HermesAgentState, HermesAgentOptions, HermesRunOptions } from "./features/hermes-agent";
 export { McpBridge } from "./features/mcp-bridge";
-export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
+export type { McpServerConfig, McpBridgeOptions, McpBridgeState, McpAuthRequiredError } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
 export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProviderConfigSuggestion, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ReasoningEffort, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";

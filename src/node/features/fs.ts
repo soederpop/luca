@@ -335,24 +335,27 @@ export class FS extends Feature {
    *
    * @param {string} path - The file path where content should be written
    * @param {Buffer | string} content - The content to write to the file
+   * @param {object} [options] - Write options
+   * @param {number} [options.mode] - Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode.
    * @throws {Error} Throws an error if the file cannot be written
    *
    * @example
    * ```typescript
    * fs.writeFile('output.txt', 'Hello World')
    * fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
+   * fs.writeFile('token.json', '{}', { mode: 0o600 })
    * ```
    */
-  writeFile(path: string, content: Buffer | string): void {
-    writeFileSync(this.container.paths.resolve(path), content)
+  writeFile(path: string, content: Buffer | string, options?: { mode?: number }): void {
+    writeFileSync(this.container.paths.resolve(path), content, options?.mode === undefined ? undefined : { mode: options.mode })
   }
 
   /**
    * Synchronously writes content to a file (node's name).
    * @alias writeFile
    */
-  writeFileSync(path: string, content: Buffer | string): void {
-    this.writeFile(path, content)
+  writeFileSync(path: string, content: Buffer | string, options?: { mode?: number }): void {
+    this.writeFile(path, content, options)
   }
 
   /**

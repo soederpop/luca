@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.18.0"
+export const typesBundleVersion = "3.19.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -120,7 +120,7 @@ export { FileTools } from "./features/file-tools";
 export { HermesAgent } from "./features/hermes-agent";
 export type { HermesSessionUpdate, HermesMessageEvent, HermesUsage, HermesSession, HermesAgentState, HermesAgentOptions, HermesRunOptions } from "./features/hermes-agent";
 export { McpBridge } from "./features/mcp-bridge";
-export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
+export type { McpServerConfig, McpBridgeOptions, McpBridgeState, McpAuthRequiredError } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
 export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderConfigSource, DiscoveredModelServer, ModelProviderConfigSuggestion, ModelProvidersState, ModelProviderDiscoverOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ReasoningEffort, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, ThinkTagSplitter, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
@@ -6658,6 +6658,12 @@ declare const McpServerConfigSchema: z.ZodObject<{
     command: z.ZodOptional<z.ZodString>;
     url: z.ZodOptional<z.ZodString>;
     headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    oauth: z.ZodOptional<z.ZodUnion<readonly [z.ZodObject<{
+        clientId: z.ZodOptional<z.ZodString>;
+        clientSecret: z.ZodOptional<z.ZodString>;
+        callbackPort: z.ZodOptional<z.ZodNumber>;
+        scopes: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    }, z.core.$strip>, z.ZodLiteral<false>]>>;
     args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
     cwd: z.ZodOptional<z.ZodString>;
@@ -6671,14 +6677,22 @@ declare const McpBridgeOptionsSchema: z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         url: z.ZodOptional<z.ZodString>;
         headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        oauth: z.ZodOptional<z.ZodUnion<readonly [z.ZodObject<{
+            clientId: z.ZodOptional<z.ZodString>;
+            clientSecret: z.ZodOptional<z.ZodString>;
+            callbackPort: z.ZodOptional<z.ZodNumber>;
+            scopes: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        }, z.core.$strip>, z.ZodLiteral<false>]>>;
         args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
         env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
         cwd: z.ZodOptional<z.ZodString>;
         include: z.ZodOptional<z.ZodArray<z.ZodString>>;
         exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
     }, z.core.$strip>>>;
+    skipServers: z.ZodDefault<z.ZodArray<z.ZodString>>;
     materializeTools: z.ZodDefault<z.ZodBoolean>;
     separator: z.ZodDefault<z.ZodString>;
+    interactiveAuth: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 export type McpBridgeOptions = z.infer<typeof McpBridgeOptionsSchema>;
 declare const McpBridgeStateSchema: z.ZodObject<{
@@ -6689,6 +6703,7 @@ declare const McpBridgeStateSchema: z.ZodObject<{
             error: "error";
             connecting: "connecting";
             disconnected: "disconnected";
+            "auth-required": "auth-required";
         }>;
         toolCount: z.ZodDefault<z.ZodNumber>;
         resourceCount: z.ZodDefault<z.ZodNumber>;
@@ -6721,6 +6736,12 @@ interface ConnectedServer {
         }>;
     }>;
 }
+/** Thrown by connectServer when an OAuth server has no usable login and interactiveAuth is off. */
+export declare class McpAuthRequiredError extends Error {
+    readonly serverName: string;
+    readonly authorizationUrl: URL;
+    constructor(serverName: string, authorizationUrl: URL);
+}
 /**
  * Bridges MCP servers to Luca assistants by connecting to them,
  * discovering their tools/resources/prompts, and exposing them as first-class
@@ -6732,6 +6753,14 @@ interface ConnectedServer {
  * Strings in that file may use \`\${VAR}\` or \`\${VAR:-default}\` to read from
  * the environment, as in Claude Code's .mcp.json.
  * Explicit \`servers\` entries replace file entries with the same name.
+ *
+ * HTTP servers that use OAuth (most hosted MCP servers) need no config: the
+ * bridge discovers the server's authorization server, registers a client,
+ * and stores the login in \`~/.luca/store/mcp-oauth.json\` (mode 0600), keyed by
+ * server URL and shared by every project on the machine. Tokens refresh on
+ * their own. Log in once with \`luca mcp-auth login\` or \`bridge.login()\`;
+ * until then the server reports \`auth-required\` and the others still connect.
+ * The same \`.mcp.json\` works in Claude Code, which keeps its own login.
  *
  * @example
  * \`\`\`ts
@@ -6746,8 +6775,10 @@ interface ConnectedServer {
  *       url: 'https://mcp.example.com/mcp',
  *       headers: { Authorization: \`Bearer \${token}\` },
  *     },
+ *     fellow: { url: 'https://fellow.app/mcp' }, // OAuth, discovered automatically
  *   },
  * })
+ * await bridge.login('fellow') // opens a browser once; later runs reuse the stored login
  * \`\`\`
  */
 export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & FeatureOptions> {
@@ -6760,14 +6791,22 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
             command: z.ZodOptional<z.ZodString>;
             url: z.ZodOptional<z.ZodString>;
             headers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+            oauth: z.ZodOptional<z.ZodUnion<readonly [z.ZodObject<{
+                clientId: z.ZodOptional<z.ZodString>;
+                clientSecret: z.ZodOptional<z.ZodString>;
+                callbackPort: z.ZodOptional<z.ZodNumber>;
+                scopes: z.ZodOptional<z.ZodArray<z.ZodString>>;
+            }, z.core.$strip>, z.ZodLiteral<false>]>>;
             args: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString>>>;
             env: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
             cwd: z.ZodOptional<z.ZodString>;
             include: z.ZodOptional<z.ZodArray<z.ZodString>>;
             exclude: z.ZodOptional<z.ZodArray<z.ZodString>>;
         }, z.core.$strip>>>;
+        skipServers: z.ZodDefault<z.ZodArray<z.ZodString>>;
         materializeTools: z.ZodDefault<z.ZodBoolean>;
         separator: z.ZodDefault<z.ZodString>;
+        interactiveAuth: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>;
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -6777,6 +6816,7 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
                 error: "error";
                 connecting: "connecting";
                 disconnected: "disconnected";
+                "auth-required": "auth-required";
             }>;
             toolCount: z.ZodDefault<z.ZodNumber>;
             resourceCount: z.ZodDefault<z.ZodNumber>;
@@ -6788,6 +6828,7 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
         serverConnected: z.ZodTuple<[z.ZodString, z.ZodNumber], null>;
         serverDisconnected: z.ZodTuple<[z.ZodString], null>;
         serverError: z.ZodTuple<[z.ZodString, z.ZodString], null>;
+        authRequired: z.ZodTuple<[z.ZodString, z.ZodString], null>;
         toolCalled: z.ZodTuple<[z.ZodString, z.ZodString], null>;
     }, z.core.$strip>;
     static description: string;
@@ -6806,9 +6847,58 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
      */
     connectAll(): Promise<void>;
     /**
+     * The merged server map: configFile entries (with \${VAR} expanded) overlaid
+     * by explicit \`servers\` options. Does not connect anything.
+     */
+    loadServerConfigs(): Promise<Record<string, McpServerConfig>>;
+    /**
      * Connect to a single MCP server, discover its tools/resources/prompts.
      */
-    connectServer(name: string, config: McpServerConfig): Promise<ConnectedServer>;
+    connectServer(name: string, config: McpServerConfig, connectOptions?: {
+        interactiveAuth?: boolean;
+    }): Promise<ConnectedServer>;
+    /**
+     * OAuth applies to http servers unless the config sends its own
+     * Authorization header or sets \`oauth: false\`. Attaching a provider to a
+     * server that never asks for auth costs nothing: it is only used on a 401.
+     */
+    private _oauthProviderFor;
+    /**
+     * Log in to OAuth servers by opening a browser, then connect them. With no
+     * name, logs in to every configured http server that needs it. A server
+     * with a valid stored login connects without opening anything.
+     *
+     * @param name - One server name from the config. Omit for all.
+     * @returns Each server's resulting status
+     *
+     * @example
+     * \`\`\`ts
+     * const bridge = container.feature('mcpBridge', { configFile: '.mcp.json' })
+     * await bridge.login('fellow')
+     * \`\`\`
+     */
+    login(name?: string): Promise<Record<string, {
+        status: string;
+        error?: string;
+    }>>;
+    /**
+     * Forget the stored OAuth login (tokens and registered client) for a server
+     * and disconnect it. The next connect needs a fresh login.
+     *
+     * @param name - Server name from the config
+     */
+    logout(name: string): Promise<void>;
+    /**
+     * Which configured http servers have a stored OAuth login. Reads the store
+     * only; it does not check that the tokens are still accepted.
+     */
+    authStatus(): Promise<Record<string, {
+        url: string;
+        oauth: boolean;
+        loggedIn: boolean;
+        tokensSavedAt?: string;
+        hasRefreshToken: boolean;
+    }>>;
     /**
      * Disconnect from all MCP servers and clean up.
      */
@@ -6896,6 +6986,88 @@ export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions 
 }
 export default McpBridge;
 //# sourceMappingURL=mcp-bridge.d.ts.map`,
+  "agi/features/mcp-oauth.d.ts": `import { z } from 'zod';
+import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
+import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { NodeContainer } from '../../node/container';
+export declare const McpOAuthConfigSchema: z.ZodObject<{
+    clientId: z.ZodOptional<z.ZodString>;
+    clientSecret: z.ZodOptional<z.ZodString>;
+    callbackPort: z.ZodOptional<z.ZodNumber>;
+    scopes: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+export type McpOAuthConfig = z.infer<typeof McpOAuthConfigSchema>;
+/** What one server's login looks like on disk. */
+interface McpOAuthEntry {
+    serverName?: string;
+    redirectUrl?: string;
+    clientInformation?: OAuthClientInformationMixed;
+    tokens?: OAuthTokens;
+    tokensSavedAt?: string;
+}
+type McpOAuthStoreShape = {
+    servers: Record<string, McpOAuthEntry>;
+};
+export declare const MCP_OAUTH_STORE = "mcp-oauth";
+/** The store handle that holds every server's login. 0600 because it holds bearer tokens. */
+export declare function mcpOAuthStore(container: NodeContainer): {
+    read(): Promise<McpOAuthStoreShape>;
+    update(fn: (draft: McpOAuthStoreShape) => void): Promise<McpOAuthStoreShape>;
+    path: string;
+};
+/** Logins are keyed by URL, not server name, so two projects that name a server differently still share one login. */
+export declare function mcpOAuthKey(serverUrl: string): string;
+export interface McpOAuthProviderOptions {
+    serverName: string;
+    serverUrl: string;
+    config?: McpOAuthConfig;
+    /** Open a browser and wait for the redirect when a login is needed. False fails fast instead. */
+    interactive: boolean;
+    /** Called with the authorization URL before the browser opens, so callers can print it. */
+    onAuthorizationUrl?: (url: URL) => void;
+}
+export declare class McpOAuthProvider implements OAuthClientProvider {
+    private container;
+    private opts;
+    private _redirectUrl?;
+    private _dropStoredClient;
+    private _codeVerifier?;
+    private _state?;
+    private _lastReadTokens?;
+    private _codePromise?;
+    private _stopCallbackServer?;
+    /** Set when the SDK asked for a browser login during the last connect attempt. */
+    authorizationUrl?: URL;
+    constructor(container: NodeContainer, opts: McpOAuthProviderOptions);
+    get key(): string;
+    private get store();
+    private entry;
+    private updateEntry;
+    /**
+     * Settle the redirect URL before the SDK reads it (its getter is sync).
+     * A dynamically registered client is bound to its redirect URI, so reuse
+     * the stored one. If an interactive login finds that port taken, ignore
+     * the stored client so the SDK registers a new one on a free port.
+     * Writes nothing: servers that never ask for auth leave no trace.
+     */
+    prepare(): Promise<void>;
+    get redirectUrl(): string | undefined;
+    get clientMetadata(): OAuthClientMetadata;
+    state(): string;
+    clientInformation(): Promise<OAuthClientInformationMixed | undefined>;
+    saveClientInformation(info: OAuthClientInformationMixed): Promise<void>;
+    tokens(): Promise<OAuthTokens | undefined>;
+    saveTokens(tokens: OAuthTokens): Promise<void>;
+    invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier'): Promise<void>;
+    saveCodeVerifier(codeVerifier: string): void;
+    codeVerifier(): string;
+    redirectToAuthorization(authorizationUrl: URL): Promise<void>;
+    /** Resolve with the authorization code from the browser redirect. Only valid after redirectToAuthorization in interactive mode. */
+    waitForAuthorizationCode(): Promise<string>;
+    private listenForCallback;
+}
+export {};
+//# sourceMappingURL=mcp-oauth.d.ts.map`,
   "agi/features/model-providers.d.ts": `import { Feature } from '../feature';
 import { z } from 'zod';
 import OpenAI from 'openai';
@@ -12767,6 +12939,7 @@ import './serve.js';
 import './chat.js';
 import './prompt.js';
 import './mcp.js';
+import './mcp-auth.js';
 import './sandbox-mcp.js';
 import './describe.js';
 import './eval.js';
@@ -13100,6 +13273,59 @@ export declare function transpileBlock(transpiler: any, lang: string, source: st
  */
 export declare function sliceNodeSource(node: any, rawSource: string, stringify: (node: any) => string): string;
 //# sourceMappingURL=markdown-eval.d.ts.map`,
+  "commands/mcp-auth.d.ts": `import { z } from 'zod';
+import type { ContainerContext } from '../container.js';
+declare module '../command.js' {
+    interface AvailableCommands {
+        'mcp-auth': ReturnType<typeof commands.registerHandler>;
+    }
+}
+export declare const argsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    _: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    dispatchSource: z.ZodDefault<z.ZodEnum<{
+        cli: "cli";
+        headless: "headless";
+        mcp: "mcp";
+        rpc: "rpc";
+    }>>;
+    action: z.ZodDefault<z.ZodEnum<{
+        status: "status";
+        login: "login";
+        logout: "logout";
+    }>>;
+    server: z.ZodOptional<z.ZodString>;
+    config: z.ZodDefault<z.ZodString>;
+    json: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$strip>;
+export declare const positionals: string[];
+export declare const subcommands: {
+    status: {
+        args: string;
+        description: string;
+        examples: string[];
+    };
+    login: {
+        args: string;
+        description: string;
+        examples: (string | {
+            command: string;
+            description: string;
+        })[];
+    };
+    logout: {
+        args: string;
+        description: string;
+        examples: string[];
+    };
+};
+export declare const examples: (string | {
+    command: string;
+    description: string;
+})[];
+export default function mcpAuth(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
+//# sourceMappingURL=mcp-auth.d.ts.map`,
   "commands/mcp.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container.js';
 declare module '../command.js' {
@@ -19348,20 +19574,27 @@ export declare class FS extends Feature {
      *
      * @param {string} path - The file path where content should be written
      * @param {Buffer | string} content - The content to write to the file
+     * @param {object} [options] - Write options
+     * @param {number} [options.mode] - Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode.
      * @throws {Error} Throws an error if the file cannot be written
      *
      * @example
      * \`\`\`typescript
      * fs.writeFile('output.txt', 'Hello World')
      * fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
+     * fs.writeFile('token.json', '{}', { mode: 0o600 })
      * \`\`\`
      */
-    writeFile(path: string, content: Buffer | string): void;
+    writeFile(path: string, content: Buffer | string, options?: {
+        mode?: number;
+    }): void;
     /**
      * Synchronously writes content to a file (node's name).
      * @alias writeFile
      */
-    writeFileSync(path: string, content: Buffer | string): void;
+    writeFileSync(path: string, content: Buffer | string, options?: {
+        mode?: number;
+    }): void;
     /**
      * Asynchronously writes content to a file.
      *
@@ -30651,6 +30884,8 @@ export interface StoreHandleOptions<T = any> {
     scope?: StoreScope;
     /** Ms to wait for a contended lock before update() throws (default: feature option, 5000) */
     lockTimeout?: number;
+    /** Permission bits for the backing file, e.g. \`0o600\` for a store that holds credentials. Defaults to the process umask (usually 0644). */
+    fileMode?: number;
     /** Ms after which an abandoned lock is stolen (default: feature option, 10000) */
     lockStale?: number;
 }
@@ -34664,11 +34899,25 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * the transpiled output still doesn't parse, the ORIGINAL code is returned so
      * the run reports the caller's own syntax error, not one in our rewrite.
      *
+     * The transpiler rejects a top-level \`return\`, which agents write in nearly
+     * every snippet. When the plain transpile fails, the code is transpiled again
+     * as the body of an async IIFE, where \`return\` and \`await\` are both legal.
+     * Top-level \`import\` statements are lifted out first, since they are not
+     * legal inside a function.
+     *
      * The probe has to happen before running: a SyntaxError thrown at run time
      * can't be told apart from user code calling \`JSON.parse\` on bad input, and
      * re-running after that would repeat side effects.
      */
     private _acceptSource;
+    /** Transpile TS to CJS; undefined when it fails or the output still doesn't parse. */
+    private _tryTranspile;
+    /**
+     * Split out top-level \`import\` statements (static only, not \`import(...)\`)
+     * so the rest can be wrapped in a function. Only statements that start a
+     * line outside strings and comments count.
+     */
+    private _liftImports;
     /**
      * Parse-only probe (never invoked). An async function body accepts top-level
      * \`await\` and \`return\`; the plain body covers sloppy code that uses \`await\`
@@ -34737,8 +34986,8 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * \`return\` before the final expression so its value is not lost.
      *
      * Resolution order:
-     * 1. No \`await\` substring, or code already starts with an async wrapper →
-     *    returned unchanged (native \`vm.Script\` completion-value semantics apply).
+       * 1. No \`await\` substring → returned unchanged (native \`vm.Script\`
+     *    completion-value semantics apply).
      * 2. Code parses as a plain (non-async) function body via \`new Function\` →
      *    the \`await\` is inside a string, comment, or nested async function, not
      *    at the top level → returned unchanged.
@@ -37307,7 +37556,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.17.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.18.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

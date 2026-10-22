@@ -5539,6 +5539,16 @@ setBuildTimeData('features.fs', {
         "content": {
           "type": "Buffer | string",
           "description": "The content to write to the file"
+        },
+        "options": {
+          "type": "{ mode?: number }",
+          "description": "Write options",
+          "properties": {
+            "mode": {
+              "type": "any",
+              "description": "Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode."
+            }
+          }
         }
       },
       "required": [
@@ -5549,7 +5559,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
+          "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))\nfs.writeFile('token.json', '{}', { mode: 0o600 })"
         }
       ]
     },
@@ -5563,6 +5573,10 @@ setBuildTimeData('features.fs', {
         "content": {
           "type": "Buffer | string",
           "description": "Parameter content"
+        },
+        "options": {
+          "type": "{ mode?: number }",
+          "description": "Parameter options"
         }
       },
       "required": [
@@ -17708,6 +17722,11 @@ setBuildTimeData('features.store', {
           "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
           "optional": true
         },
+        "fileMode": {
+          "type": "number",
+          "description": "Permission bits for the backing file, e.g. `0o600` for a store that holds credentials. Defaults to the process umask (usually 0644).",
+          "optional": true
+        },
         "lockStale": {
           "type": "number",
           "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
@@ -20186,7 +20205,7 @@ setBuildTimeData('features.vm', {
       ]
     },
     "wrapTopLevelAwait": {
-      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
+      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
       "parameters": {
         "code": {
           "type": "string",
@@ -27662,6 +27681,16 @@ export const introspectionData: Record<string, any>[] = [
           "content": {
             "type": "Buffer | string",
             "description": "The content to write to the file"
+          },
+          "options": {
+            "type": "{ mode?: number }",
+            "description": "Write options",
+            "properties": {
+              "mode": {
+                "type": "any",
+                "description": "Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode."
+              }
+            }
           }
         },
         "required": [
@@ -27672,7 +27701,7 @@ export const introspectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
+            "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))\nfs.writeFile('token.json', '{}', { mode: 0o600 })"
           }
         ]
       },
@@ -27686,6 +27715,10 @@ export const introspectionData: Record<string, any>[] = [
           "content": {
             "type": "Buffer | string",
             "description": "Parameter content"
+          },
+          "options": {
+            "type": "{ mode?: number }",
+            "description": "Parameter options"
           }
         },
         "required": [
@@ -39796,6 +39829,11 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
             "optional": true
           },
+          "fileMode": {
+            "type": "number",
+            "description": "Permission bits for the backing file, e.g. `0o600` for a store that holds credentials. Defaults to the process umask (usually 0644).",
+            "optional": true
+          },
           "lockStale": {
             "type": "number",
             "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
@@ -42265,7 +42303,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "wrapTopLevelAwait": {
-        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
+        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
         "parameters": {
           "code": {
             "type": "string",
