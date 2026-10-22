@@ -351,11 +351,16 @@ export class FileManager<
       const cwdRelative = repoRoot ? relative(repoRoot, cwd) : '';
       const baseDir = cwdRelative || '';
 
-      const deleted = await git.lsFiles({ deleted: true, baseDir })
-      await git.lsFiles({ baseDir }).then((results) => fileIds.push(...results.filter((id:string) => !deleted.includes(id))));
-      await git
-        .lsFiles({ others: true, includeIgnored: true, exclude, baseDir })
-        .then((results) => fileIds.push(...results.filter((id:string) => !deleted.includes(id))));
+      // Async variants so a big repo scan does not freeze the event loop. They
+      // return [] for an empty listing, so no '' file id slips in.
+      const [deletedList, tracked, untracked] = await Promise.all([
+        git.lsFilesAsync({ deleted: true, baseDir }),
+        git.lsFilesAsync({ baseDir }),
+        git.lsFilesAsync({ others: true, includeIgnored: true, exclude, baseDir }),
+      ])
+      const deleted = new Set(deletedList)
+      fileIds.push(...tracked.filter((id: string) => !deleted.has(id)))
+      fileIds.push(...untracked.filter((id: string) => !deleted.has(id)))
 
       // git ls-files returns paths relative to repo root; make them relative to cwd
       if (cwdRelative) {
