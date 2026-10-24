@@ -821,7 +821,18 @@ function substituteInputs(content: string, inputs: Record<string, any>): string 
 	})
 }
 
-export async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode: EvalMode = 'none'): Promise<string> {
+/**
+ * Build the prompt from a markdown file, running its code blocks per `evalMode`.
+ * Sections named in `excludeSections` are dropped here, before anything runs:
+ * removing them after evaluation would still execute their code blocks.
+ */
+export async function executePromptFile(
+	resolvedPath: string,
+	container: any,
+	inputs?: Record<string, any>,
+	evalMode: EvalMode = 'none',
+	excludeSections: string[] = [],
+): Promise<string> {
 	if (!container.docs.isLoaded) await container.docs.load()
 	const doc = await container.docs.parseMarkdownAtPath(resolvedPath)
 	const vm = container.feature('vm')
@@ -851,8 +862,20 @@ export async function executePromptFile(resolvedPath: string, container: any, in
 		fetch, URL, URLSearchParams,
 	})
 
+	// Same matching as contentbase's removeSection: case-insensitive heading
+	// text, and the section runs until a heading of the same or higher level.
+	const excluded = new Set(excludeSections.map((heading) => heading.trim().toLowerCase()).filter(Boolean))
+	let skipBelowDepth: number | undefined
+
 	for (const node of doc.ast.children) {
 		if (node.type === 'yaml') continue
+		if (node.type === 'heading') {
+			if (skipBelowDepth !== undefined && node.depth <= skipBelowDepth) skipBelowDepth = undefined
+			if (skipBelowDepth === undefined && excluded.has(headingText(node).trim().toLowerCase())) {
+				skipBelowDepth = node.depth
+			}
+		}
+		if (skipBelowDepth !== undefined) continue
 		if (node.type === 'code') {
 			const { value, lang, meta } = node
 			const decision = decideBlock(lang, meta, evalMode)
@@ -883,6 +906,11 @@ export async function executePromptFile(resolvedPath: string, container: any, in
 	}
 
 	return parts.join('\n\n')
+}
+
+function headingText(node: any): string {
+	if (typeof node?.value === 'string') return node.value
+	return (node?.children || []).map(headingText).join('')
 }
 
 let warnedSkipEvalDeprecated = false
@@ -960,7 +988,8 @@ async function preparePrompt(
 	}
 
 	const evalMode = resolvePromptEvalMode(options, meta)
-	let promptContent = await executePromptFile(resolvedPath, container, resolvedInputs, evalMode)
+	const excludeSections = (options['exclude-sections'] || '').split(',').map((s: string) => s.trim()).filter(Boolean)
+	let promptContent = await executePromptFile(resolvedPath, container, resolvedInputs, evalMode, excludeSections)
 
 	// Re-attach frontmatter if requested
 	if (options['include-frontmatter'] && content.startsWith('---')) {
@@ -976,12 +1005,12 @@ async function preparePrompt(
 		promptContent = substituteInputs(promptContent, resolvedInputs)
 	}
 
-	// Exclude sections by heading name
-	if (options['exclude-sections']) {
-		const headings = options['exclude-sections'].split(',').map((s) => s.trim()).filter(Boolean)
+	// executePromptFile already dropped excluded sections from the file. This
+	// pass catches headings that only appear in spliced block output.
+	if (excludeSections.length) {
 		let doc = new Document({ id: filePath, content: promptContent })
 
-		for (const heading of headings) {
+		for (const heading of excludeSections) {
 			try {
 				doc = doc.removeSection(heading)
 			} catch {

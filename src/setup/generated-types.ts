@@ -13422,7 +13422,7 @@ export declare const argsSchema: z.ZodObject<{
  * @returns Options to merge into the agent run
  */
 export declare function resolveAgentOptions(meta: Record<string, any>): Record<string, any>;
-export declare function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode?: EvalMode): Promise<string>;
+export declare function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode?: EvalMode, excludeSections?: string[]): Promise<string>;
 export default function prompt(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
     name: string;
