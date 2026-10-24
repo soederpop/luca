@@ -210,19 +210,17 @@ export class ChildProcess extends Feature {
 	    options.onStart(childProcess as any)
     }
 
-    if (childProcess.stdout && childProcess.stderr) {
-      childProcess.stdout.on("data", (buf: Buffer) => {
-        stdout = stdout + buf.toString();
-        onOutput(buf.toString());
-      });
+    // With stdio 'inherit' or 'ignore' the streams are null: output goes straight
+    // to the terminal (or nowhere), so there is nothing to capture.
+    childProcess.stdout?.on("data", (buf: Buffer) => {
+      stdout = stdout + buf.toString();
+      onOutput(buf.toString());
+    });
 
-      childProcess.stderr.on("data", (buf: Buffer) => {
-        stderr = stderr + buf.toString();
-        onError(buf.toString());
-      });
-    } else {
-      throw new Error(`Unable to spawn process ${command}`);
-    }
+    childProcess.stderr?.on("data", (buf: Buffer) => {
+      stderr = stderr + buf.toString();
+      onError(buf.toString());
+    });
 
     if (typeof childProcess.pid === "number") {
       pid = childProcess.pid;
