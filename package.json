@@ -5,7 +5,10 @@
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
   "type": "module",
-  "repository": "https://github.com/soederpop/luca",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soederpop/luca.git"
+  },
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -108,7 +111,7 @@
     }
   },
   "bin": {
-    "luca": "./src/cli/cli.ts"
+    "luca": "src/cli/cli.ts"
   },
   "scripts": {
     "prepack": "bun run build:web",
