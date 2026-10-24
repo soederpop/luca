@@ -226,6 +226,7 @@ async function publishOnTailnet(container: any, port: number, options: z.infer<t
 	try {
 		const url = funnel ? await tailscale.funnel(port, { https }) : await tailscale.serve(port, { https })
 		console.log(funnel ? `\nPublic on the internet (Tailscale Funnel) at ${url}` : `\nOn your tailnet at ${url}`)
+		console.log(`(The first request can take up to a minute while tailscale issues the HTTPS certificate.)`)
 	} catch (error: any) {
 		console.error(`\nCould not ${funnel ? 'funnel' : 'serve'} on the tailnet: ${error.message}`)
 		return
