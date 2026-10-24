@@ -17737,6 +17737,420 @@ setBuildTimeData('features.store', {
   }
 });
 
+setBuildTimeData('features.tailscale', {
+  "id": "features.tailscale",
+  "description": "Wraps the `tailscale` CLI so the tailnet becomes typed, observable container state. Call `refresh()` (or `watch()`) to load peers into state, then look machines up by name with `findPeer()`. `serve()` and `funnel()` put a local server on an HTTPS URL, private to the tailnet or public. The CLI's JSON is not a stable API, so the parse reads only a few well-known fields and ignores the rest.",
+  "shortcut": "features.tailscale",
+  "className": "Tailscale",
+  "methods": {
+    "ensureAvailable": {
+      "description": "Find a working tailscale binary and record it in state. Never throws.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "if (!await ts.ensureAvailable()) console.log('install tailscale first')"
+        }
+      ]
+    },
+    "run": {
+      "description": "Run any tailscale subcommand. The low-level escape hatch for anything the API doesn't cover. Does not throw on a non-zero exit; check `exitCode`.",
+      "parameters": {
+        "args": {
+          "type": "string[]",
+          "description": "Arguments after `tailscale`, e.g. `['netcheck']`"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<TailscaleRunResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { stdout } = await ts.run(['netcheck'])"
+        }
+      ]
+    },
+    "status": {
+      "description": "The raw parsed output of `tailscale status --json`. Prefer `refresh()` unless you need a field it drops.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const raw = await ts.status()\nconsole.log(raw.Health)"
+        }
+      ]
+    },
+    "refresh": {
+      "description": "Load status into state, and emit `peer:online` / `peer:offline` for peers whose state changed since the last refresh. The first refresh emits no peer events.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ self?: TailscaleNode; peers: TailscaleNode[] }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { self, peers } = await ts.refresh()"
+        }
+      ]
+    },
+    "findPeer": {
+      "description": "Find a peer from the last refresh by hostname, MagicDNS name (short or full), or tailscale IP. Matching is case-insensitive. Call `refresh()` first.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "e.g. `chief`, `chief.tailnet.ts.net`, or `100.64.0.2`"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "TailscaleNode | undefined",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ts.refresh()\nconst box = ts.findPeer('chief')"
+        }
+      ]
+    },
+    "ip": {
+      "description": "This machine's tailscale IPv4 address.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string | undefined>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const myIp = await ts.ip()"
+        }
+      ]
+    },
+    "ping": {
+      "description": "Ping a peer through tailscale once and report latency and whether the path is direct. Never throws for an unreachable peer; returns `ok: false`.",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "Peer name or tailscale IP"
+        },
+        "options": {
+          "type": "{ timeout?: number }",
+          "description": "Parameter options",
+          "properties": {
+            "timeout": {
+              "type": "any",
+              "description": "Seconds to wait for a pong (default 5)"
+            }
+          }
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "returns": "Promise<TailscalePingResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { ok, latencyMs, direct } = await ts.ping('chief')"
+        }
+      ]
+    },
+    "whois": {
+      "description": "Who owns a tailscale IP: the machine and the user. Useful to check who is calling an endpoint.",
+      "parameters": {
+        "ip": {
+          "type": "string",
+          "description": "A tailscale IP, optionally with :port"
+        }
+      },
+      "required": [
+        "ip"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const who = await ts.whois('100.64.0.2')\nconsole.log(who.UserProfile?.LoginName)"
+        }
+      ]
+    },
+    "serve": {
+      "description": "Expose a local server on this machine's MagicDNS name over HTTPS, private to the tailnet. Runs in the background and persists until `stopServe()` or `resetServe()`. HTTPS certificates must be enabled for the tailnet in the admin console.",
+      "parameters": {
+        "target": {
+          "type": "number | string",
+          "description": "A port (3000), host:port, or full URL of the local service"
+        },
+        "options": {
+          "type": "TailscaleServeOptions",
+          "description": "Parameter options",
+          "properties": {
+            "https": {
+              "type": "number",
+              "description": "HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000."
+            },
+            "http": {
+              "type": "number",
+              "description": "Expose plain HTTP on this port instead of HTTPS. Ignored by funnel."
+            },
+            "path": {
+              "type": "string",
+              "description": "Mount the target under this path, e.g. /api."
+            }
+          }
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const url = await ts.serve(3000)\nconst api = await ts.serve('http://localhost:8080', { path: '/api' })"
+        }
+      ]
+    },
+    "funnel": {
+      "description": "Expose a local server on the public internet through Tailscale Funnel. Anyone with the URL can reach it. Funnel must be allowed for this node in the tailnet ACLs.",
+      "parameters": {
+        "target": {
+          "type": "number | string",
+          "description": "A port (3000), host:port, or full URL of the local service"
+        },
+        "options": {
+          "type": "Omit<TailscaleServeOptions, 'http'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const publicUrl = await ts.funnel(3000)"
+        }
+      ]
+    },
+    "stopServe": {
+      "description": "Turn off one serve or funnel mapping, by the same port and path it was started with.",
+      "parameters": {
+        "options": {
+          "type": "TailscaleServeOptions & { funnel?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ts.stopServe({ https: 8443 })"
+        }
+      ]
+    },
+    "resetServe": {
+      "description": "Remove every serve and funnel mapping on this machine.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ts.resetServe()"
+        }
+      ]
+    },
+    "serveStatus": {
+      "description": "The current serve and funnel config as parsed JSON. An empty object means nothing is served.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const config = await ts.serveStatus()"
+        }
+      ]
+    },
+    "sendFile": {
+      "description": "Send a file to a peer with Taildrop.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Local file to send"
+        },
+        "target": {
+          "type": "string",
+          "description": "Peer name or tailscale IP"
+        }
+      },
+      "required": [
+        "filePath",
+        "target"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ts.sendFile('./build.zip', 'chief')"
+        }
+      ]
+    },
+    "watch": {
+      "description": "Poll status and emit `peer:online` / `peer:offline` as machines come and go. Runs never overlap. A failed refresh is skipped, not fatal.",
+      "parameters": {
+        "options": {
+          "type": "{ interval?: number }",
+          "description": "Parameter options",
+          "properties": {
+            "interval": {
+              "type": "any",
+              "description": "Milliseconds between refreshes (default 30000)"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "() => void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "ts.on('peer:online', peer => console.log(`${peer.shortName} is up`))\nts.watch({ interval: 10_000 })"
+        }
+      ]
+    },
+    "unwatch": {
+      "description": "Stop the polling started by `watch()`.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "available": {
+      "description": "Whether a working tailscale binary was found. Only meaningful after `ensureAvailable()` or any CLI call.",
+      "returns": "boolean"
+    },
+    "self": {
+      "description": "This machine, from the last refresh.",
+      "returns": "TailscaleNode | undefined"
+    },
+    "peers": {
+      "description": "All other machines on the tailnet, from the last refresh.",
+      "returns": "TailscaleNode[]"
+    },
+    "onlinePeers": {
+      "description": "Peers the coordination server sees as online, from the last refresh.",
+      "returns": "TailscaleNode[]"
+    },
+    "isRunning": {
+      "description": "Whether the daemon reported Running on the last refresh.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "peer:online": {
+      "name": "peer:online",
+      "description": "Event emitted by Tailscale",
+      "arguments": {}
+    },
+    "peer:offline": {
+      "name": "peer:offline",
+      "description": "Event emitted by Tailscale",
+      "arguments": {}
+    },
+    "refreshed": {
+      "name": "refreshed",
+      "description": "Event emitted by Tailscale",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "networking",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const ts = container.feature('tailscale')\nawait ts.refresh()\nconst chief = ts.findPeer('chief')\nconsole.log(chief?.ipv4, chief?.online)\n\nconst url = await ts.serve(3000)   // https://this-machine.tailnet.ts.net"
+    }
+  ],
+  "types": {
+    "TailscaleRunResult": {
+      "description": "",
+      "properties": {
+        "stdout": {
+          "type": "string",
+          "description": ""
+        },
+        "stderr": {
+          "type": "string",
+          "description": ""
+        },
+        "exitCode": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "TailscalePingResult": {
+      "description": "",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": "Whether a pong came back before the timeout."
+        },
+        "latencyMs": {
+          "type": "number",
+          "description": "Round trip time in ms, when ok.",
+          "optional": true
+        },
+        "via": {
+          "type": "string",
+          "description": "Path the pong took: an ip:port for a direct link, or DERP(region) for a relay.",
+          "optional": true
+        },
+        "direct": {
+          "type": "boolean",
+          "description": "True when the path is a direct link, false when relayed through DERP.",
+          "optional": true
+        },
+        "output": {
+          "type": "string",
+          "description": "Raw CLI output, for anything the parse missed."
+        }
+      }
+    },
+    "TailscaleServeOptions": {
+      "description": "",
+      "properties": {
+        "https": {
+          "type": "number",
+          "description": "HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000.",
+          "optional": true
+        },
+        "http": {
+          "type": "number",
+          "description": "Expose plain HTTP on this port instead of HTTPS. Ignored by funnel.",
+          "optional": true
+        },
+        "path": {
+          "type": "string",
+          "description": "Mount the target under this path, e.g. /api.",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.telegram', {
   "id": "features.telegram",
   "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly (via `.bot`) for full API access while bridging Telegram events to Luca's event bus — `started`, `stopped`, `command`, `webhook_ready`, and `error` all fire as container events, so other features can react to bot activity. Requires a bot token from @BotFather: set the `TELEGRAM_BOT_TOKEN` environment variable (read automatically) or pass `token` explicitly as an option.",
@@ -39837,6 +40251,419 @@ export const introspectionData: Record<string, any>[] = [
           "lockStale": {
             "type": "number",
             "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.tailscale",
+    "description": "Wraps the `tailscale` CLI so the tailnet becomes typed, observable container state. Call `refresh()` (or `watch()`) to load peers into state, then look machines up by name with `findPeer()`. `serve()` and `funnel()` put a local server on an HTTPS URL, private to the tailnet or public. The CLI's JSON is not a stable API, so the parse reads only a few well-known fields and ignores the rest.",
+    "shortcut": "features.tailscale",
+    "className": "Tailscale",
+    "methods": {
+      "ensureAvailable": {
+        "description": "Find a working tailscale binary and record it in state. Never throws.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "if (!await ts.ensureAvailable()) console.log('install tailscale first')"
+          }
+        ]
+      },
+      "run": {
+        "description": "Run any tailscale subcommand. The low-level escape hatch for anything the API doesn't cover. Does not throw on a non-zero exit; check `exitCode`.",
+        "parameters": {
+          "args": {
+            "type": "string[]",
+            "description": "Arguments after `tailscale`, e.g. `['netcheck']`"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<TailscaleRunResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { stdout } = await ts.run(['netcheck'])"
+          }
+        ]
+      },
+      "status": {
+        "description": "The raw parsed output of `tailscale status --json`. Prefer `refresh()` unless you need a field it drops.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const raw = await ts.status()\nconsole.log(raw.Health)"
+          }
+        ]
+      },
+      "refresh": {
+        "description": "Load status into state, and emit `peer:online` / `peer:offline` for peers whose state changed since the last refresh. The first refresh emits no peer events.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ self?: TailscaleNode; peers: TailscaleNode[] }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { self, peers } = await ts.refresh()"
+          }
+        ]
+      },
+      "findPeer": {
+        "description": "Find a peer from the last refresh by hostname, MagicDNS name (short or full), or tailscale IP. Matching is case-insensitive. Call `refresh()` first.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "e.g. `chief`, `chief.tailnet.ts.net`, or `100.64.0.2`"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "TailscaleNode | undefined",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ts.refresh()\nconst box = ts.findPeer('chief')"
+          }
+        ]
+      },
+      "ip": {
+        "description": "This machine's tailscale IPv4 address.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string | undefined>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const myIp = await ts.ip()"
+          }
+        ]
+      },
+      "ping": {
+        "description": "Ping a peer through tailscale once and report latency and whether the path is direct. Never throws for an unreachable peer; returns `ok: false`.",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "Peer name or tailscale IP"
+          },
+          "options": {
+            "type": "{ timeout?: number }",
+            "description": "Parameter options",
+            "properties": {
+              "timeout": {
+                "type": "any",
+                "description": "Seconds to wait for a pong (default 5)"
+              }
+            }
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "returns": "Promise<TailscalePingResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { ok, latencyMs, direct } = await ts.ping('chief')"
+          }
+        ]
+      },
+      "whois": {
+        "description": "Who owns a tailscale IP: the machine and the user. Useful to check who is calling an endpoint.",
+        "parameters": {
+          "ip": {
+            "type": "string",
+            "description": "A tailscale IP, optionally with :port"
+          }
+        },
+        "required": [
+          "ip"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const who = await ts.whois('100.64.0.2')\nconsole.log(who.UserProfile?.LoginName)"
+          }
+        ]
+      },
+      "serve": {
+        "description": "Expose a local server on this machine's MagicDNS name over HTTPS, private to the tailnet. Runs in the background and persists until `stopServe()` or `resetServe()`. HTTPS certificates must be enabled for the tailnet in the admin console.",
+        "parameters": {
+          "target": {
+            "type": "number | string",
+            "description": "A port (3000), host:port, or full URL of the local service"
+          },
+          "options": {
+            "type": "TailscaleServeOptions",
+            "description": "Parameter options",
+            "properties": {
+              "https": {
+                "type": "number",
+                "description": "HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000."
+              },
+              "http": {
+                "type": "number",
+                "description": "Expose plain HTTP on this port instead of HTTPS. Ignored by funnel."
+              },
+              "path": {
+                "type": "string",
+                "description": "Mount the target under this path, e.g. /api."
+              }
+            }
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const url = await ts.serve(3000)\nconst api = await ts.serve('http://localhost:8080', { path: '/api' })"
+          }
+        ]
+      },
+      "funnel": {
+        "description": "Expose a local server on the public internet through Tailscale Funnel. Anyone with the URL can reach it. Funnel must be allowed for this node in the tailnet ACLs.",
+        "parameters": {
+          "target": {
+            "type": "number | string",
+            "description": "A port (3000), host:port, or full URL of the local service"
+          },
+          "options": {
+            "type": "Omit<TailscaleServeOptions, 'http'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const publicUrl = await ts.funnel(3000)"
+          }
+        ]
+      },
+      "stopServe": {
+        "description": "Turn off one serve or funnel mapping, by the same port and path it was started with.",
+        "parameters": {
+          "options": {
+            "type": "TailscaleServeOptions & { funnel?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ts.stopServe({ https: 8443 })"
+          }
+        ]
+      },
+      "resetServe": {
+        "description": "Remove every serve and funnel mapping on this machine.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ts.resetServe()"
+          }
+        ]
+      },
+      "serveStatus": {
+        "description": "The current serve and funnel config as parsed JSON. An empty object means nothing is served.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const config = await ts.serveStatus()"
+          }
+        ]
+      },
+      "sendFile": {
+        "description": "Send a file to a peer with Taildrop.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Local file to send"
+          },
+          "target": {
+            "type": "string",
+            "description": "Peer name or tailscale IP"
+          }
+        },
+        "required": [
+          "filePath",
+          "target"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ts.sendFile('./build.zip', 'chief')"
+          }
+        ]
+      },
+      "watch": {
+        "description": "Poll status and emit `peer:online` / `peer:offline` as machines come and go. Runs never overlap. A failed refresh is skipped, not fatal.",
+        "parameters": {
+          "options": {
+            "type": "{ interval?: number }",
+            "description": "Parameter options",
+            "properties": {
+              "interval": {
+                "type": "any",
+                "description": "Milliseconds between refreshes (default 30000)"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "() => void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "ts.on('peer:online', peer => console.log(`${peer.shortName} is up`))\nts.watch({ interval: 10_000 })"
+          }
+        ]
+      },
+      "unwatch": {
+        "description": "Stop the polling started by `watch()`.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "available": {
+        "description": "Whether a working tailscale binary was found. Only meaningful after `ensureAvailable()` or any CLI call.",
+        "returns": "boolean"
+      },
+      "self": {
+        "description": "This machine, from the last refresh.",
+        "returns": "TailscaleNode | undefined"
+      },
+      "peers": {
+        "description": "All other machines on the tailnet, from the last refresh.",
+        "returns": "TailscaleNode[]"
+      },
+      "onlinePeers": {
+        "description": "Peers the coordination server sees as online, from the last refresh.",
+        "returns": "TailscaleNode[]"
+      },
+      "isRunning": {
+        "description": "Whether the daemon reported Running on the last refresh.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "peer:online": {
+        "name": "peer:online",
+        "description": "Event emitted by Tailscale",
+        "arguments": {}
+      },
+      "peer:offline": {
+        "name": "peer:offline",
+        "description": "Event emitted by Tailscale",
+        "arguments": {}
+      },
+      "refreshed": {
+        "name": "refreshed",
+        "description": "Event emitted by Tailscale",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "networking",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const ts = container.feature('tailscale')\nawait ts.refresh()\nconst chief = ts.findPeer('chief')\nconsole.log(chief?.ipv4, chief?.online)\n\nconst url = await ts.serve(3000)   // https://this-machine.tailnet.ts.net"
+      }
+    ],
+    "types": {
+      "TailscaleRunResult": {
+        "description": "",
+        "properties": {
+          "stdout": {
+            "type": "string",
+            "description": ""
+          },
+          "stderr": {
+            "type": "string",
+            "description": ""
+          },
+          "exitCode": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "TailscalePingResult": {
+        "description": "",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether a pong came back before the timeout."
+          },
+          "latencyMs": {
+            "type": "number",
+            "description": "Round trip time in ms, when ok.",
+            "optional": true
+          },
+          "via": {
+            "type": "string",
+            "description": "Path the pong took: an ip:port for a direct link, or DERP(region) for a relay.",
+            "optional": true
+          },
+          "direct": {
+            "type": "boolean",
+            "description": "True when the path is a direct link, false when relayed through DERP.",
+            "optional": true
+          },
+          "output": {
+            "type": "string",
+            "description": "Raw CLI output, for anything the parse missed."
+          }
+        }
+      },
+      "TailscaleServeOptions": {
+        "description": "",
+        "properties": {
+          "https": {
+            "type": "number",
+            "description": "HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000.",
+            "optional": true
+          },
+          "http": {
+            "type": "number",
+            "description": "Expose plain HTTP on this port instead of HTTPS. Ignored by funnel.",
+            "optional": true
+          },
+          "path": {
+            "type": "string",
+            "description": "Mount the target under this path, e.g. /api.",
             "optional": true
           }
         }

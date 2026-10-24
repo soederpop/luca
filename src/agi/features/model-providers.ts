@@ -1855,26 +1855,18 @@ export class ModelProviders extends Feature<ModelProvidersState> {
    * installed, isn't running, or its output can't be parsed. Never throws.
    */
   private async tailscalePeers(): Promise<Array<{ host: string; hostname?: string }>> {
-    // The mac app doesn't put `tailscale` on PATH — fall back to its bundled binary.
-    const binaries = ['tailscale', '/Applications/Tailscale.app/Contents/MacOS/Tailscale']
-    for (const bin of binaries) {
-      try {
-        const proc = this.container.feature('proc') as any
-        const result = await proc.spawnAndCapture(bin, ['status', '--json'])
-        if (result.exitCode !== 0 || !result.stdout) continue
-        const status = JSON.parse(result.stdout)
-        return Object.values((status?.Peer ?? {}) as Record<string, any>)
-          .filter(peer => peer?.Online)
-          .map(peer => ({
-            host: (peer.TailscaleIPs ?? []).find((ip: string) => ip.includes('.')) ?? peer.TailscaleIPs?.[0],
-            hostname: peer.HostName ?? peer.DNSName?.replace(/\.$/, ''),
-          }))
-          .filter(peer => !!peer.host)
-      } catch {
-        // tailscale missing or misbehaving — try the next binary, else skip
-      }
+    try {
+      const tailscale = this.container.feature('tailscale')
+      if (!await tailscale.ensureAvailable()) return []
+      const { peers } = await tailscale.refresh()
+      return peers
+        .filter(peer => peer.online)
+        .map(peer => ({ host: peer.ipv4 ?? peer.ips[0]!, hostname: peer.hostname || peer.dnsName }))
+        .filter(peer => !!peer.host)
+    } catch {
+      // tailscale daemon down or its output changed — discovery just skips the tailnet
+      return []
     }
-    return []
   }
 
   async resolve(options: ModelProviderResolveOptions = {}): Promise<ResolvedModelProvider> {
