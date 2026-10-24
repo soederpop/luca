@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.20.0"
+export const typesBundleVersion = "3.20.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -13422,6 +13422,11 @@ export declare const argsSchema: z.ZodObject<{
  * @returns Options to merge into the agent run
  */
 export declare function resolveAgentOptions(meta: Record<string, any>): Record<string, any>;
+/**
+ * Build the prompt from a markdown file, running its code blocks per \`evalMode\`.
+ * Sections named in \`excludeSections\` are dropped here, before anything runs:
+ * removing them after evaluation would still execute their code blocks.
+ */
 export declare function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>, evalMode?: EvalMode, excludeSections?: string[]): Promise<string>;
 export default function prompt(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
@@ -37556,7 +37561,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.20.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.20.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
