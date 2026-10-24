@@ -12121,6 +12121,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`socketRepl\` | feature | system | stable | Socket REPL — a WebSocket-powered interactive read-eval-print loop. |
 | \`sqlite\` | feature | data-storage | core | SQLite feature for safe SQL execution through Bun's native sqlite binding. |
 | \`store\` | feature | data-storage | stable | Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to "two luca processes need to share state." Every \`luca <command>\` invocation is a separate process: a server and its \`--stats\` sibling, a fleet manager and its \`stop\` command, a watcher and a reporter — none of them share memory. |
+| \`tailscale\` | feature | networking | experimental | Wraps the \`tailscale\` CLI so the tailnet becomes typed, observable container state. |
 | \`telegram\` | feature | media-browser | stable | Telegram bot feature powered by grammY. |
 | \`telnyxConnector\` | feature | ai-assistants | experimental | Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings. |
 | \`tmux\` | feature | process | stable | Tmux session manager for controlling coding assistants and long-running CLI tools. |
