@@ -20,6 +20,9 @@ export const argsSchema = CommandOptionsSchema.extend({
 	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
 	open: z.boolean().default(true).describe('Open the server URL in Google Chrome'),
 	watch: z.boolean().default(false).describe('Watch endpoint files and hot-reload handlers on change'),
+	tailnet: z.boolean().default(false).describe('Also expose the server over HTTPS on your tailnet with tailscale serve'),
+	funnel: z.boolean().default(false).describe('Expose the server on the public internet with Tailscale Funnel'),
+	tailnetPort: z.number().optional().describe('HTTPS port on the tailnet side for --tailnet/--funnel (default 443; funnel allows only 443, 8443, 10000)'),
 })
 
 export default async function serve(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -199,7 +202,42 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		console.log(`\n[watch] Watching ${endpointsDir} for changes`)
 	}
 
+	if (options.tailnet || options.funnel) {
+		await publishOnTailnet(container, port, options)
+	}
+
 	console.log()
+}
+
+/**
+ * Map the local port onto this machine's tailnet name, and remove the mapping on shutdown.
+ * tailscale keeps the mapping after we exit, so a crash leaves it pointing at a dead port
+ * until `tailscale serve reset`.
+ */
+async function publishOnTailnet(container: any, port: number, options: z.infer<typeof argsSchema>) {
+	const tailscale = container.feature('tailscale')
+	if (!await tailscale.ensureAvailable()) {
+		console.error(`\n--tailnet/--funnel need tailscale, and it isn't installed. Get it from https://tailscale.com/download`)
+		return
+	}
+
+	const funnel = options.funnel
+	const https = options.tailnetPort
+	try {
+		const url = funnel ? await tailscale.funnel(port, { https }) : await tailscale.serve(port, { https })
+		console.log(funnel ? `\nPublic on the internet (Tailscale Funnel) at ${url}` : `\nOn your tailnet at ${url}`)
+	} catch (error: any) {
+		console.error(`\nCould not ${funnel ? 'funnel' : 'serve'} on the tailnet: ${error.message}`)
+		return
+	}
+
+	await container.runUntilShutdown(async () => {
+		try {
+			await tailscale.stopServe({ https, funnel })
+		} catch (error: any) {
+			console.error(`Could not remove the tailnet mapping, run \`tailscale serve reset\`: ${error.message}`)
+		}
+	})
 }
 
 function resolveEndpointsDir(options: any, fs: any, paths: any): string | null {

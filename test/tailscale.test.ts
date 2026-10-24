@@ -83,6 +83,19 @@ describe('Tailscale', () => {
     ])
   })
 
+  it('kills serve at the enable prompt instead of hanging, and throws with the link', async () => {
+    // pid 0 is never a real process group here, so process.kill throws and we fall back to child.kill
+    const kill = { pid: 0x7fffffff, kill: () => { killed = true } }
+    let killed = false
+    run.mockImplementationOnce(async (_args, options) => {
+      options?.onStart?.(kill)
+      options?.onOutput?.('Serve is not enabled on your tailnet.\nTo enable, visit:\n\n         https://login.tailscale.com/f/serve?node=abc\n')
+      return { stdout: '', stderr: '', exitCode: 143 }
+    })
+    await expect(ts.serve(3000)).rejects.toThrow('Serve is not enabled on your tailnet. Turn it on at https://login.tailscale.com/f/serve?node=abc')
+    expect(killed).toBe(true)
+  })
+
   it('throws with stderr when a command fails', async () => {
     run.mockResolvedValueOnce({ stdout: '', stderr: 'Funnel not available', exitCode: 1 })
     await expect(ts.funnel(3000)).rejects.toThrow('Funnel not available')

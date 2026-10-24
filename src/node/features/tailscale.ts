@@ -80,6 +80,9 @@ const CANDIDATE_BINARIES = [
   '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
 ]
 
+// When Serve or Funnel is off for the tailnet, the CLI prints this and then blocks until an admin enables it.
+const ENABLE_PROMPT_RE = /To enable, visit:\s+(https:\/\/\S+)/
+
 const PONG_RE = /pong from \S+ \(([^)]+)\) via (.+?) in ([\d.]+)ms/
 
 // ─── Tailscale ──────────────────────────────────────────────────────────────
@@ -188,16 +191,20 @@ export class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
    * Does not throw on a non-zero exit; check `exitCode`.
    *
    * @param args - Arguments after `tailscale`, e.g. `['netcheck']`
+   * @param options.onOutput - Called with each chunk of stdout or stderr as it arrives
+   * @param options.onStart - Called with the child process once it spawns, e.g. to kill it early
+   * @param options.detached - Run in its own process group, so `process.kill(-child.pid)` reaches its children too
    *
    * @example
    * ```ts
    * const { stdout } = await ts.run(['netcheck'])
    * ```
    */
-  async run(args: string[]): Promise<TailscaleRunResult> {
+  async run(args: string[], options: { onOutput?: (chunk: string) => void; onStart?: (child: any) => void; detached?: boolean } = {}): Promise<TailscaleRunResult> {
     const bin = await this.ensureAvailable()
     if (!bin) throw new Error('tailscale is not installed or not found. Install it from https://tailscale.com/download')
-    const result = await this.container.feature('proc').spawnAndCapture(bin, args)
+    const { onOutput, onStart, detached } = options
+    const result = await this.container.feature('proc').spawnAndCapture(bin, args, { onOutput, onError: onOutput, onStart, detached } as any)
     return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode }
   }
 
@@ -346,7 +353,7 @@ export class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
    * ```
    */
   async serve(target: number | string, options: TailscaleServeOptions = {}): Promise<string> {
-    await this._runOrThrow(['serve', '--bg', '--yes', ...portFlags(options), String(target)])
+    await this._runServeCommand('Serve', ['serve', '--bg', '--yes', ...portFlags(options), String(target)])
     return this._serveUrl(options)
   }
 
@@ -363,7 +370,7 @@ export class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
    * ```
    */
   async funnel(target: number | string, options: Omit<TailscaleServeOptions, 'http'> = {}): Promise<string> {
-    await this._runOrThrow(['funnel', '--bg', '--yes', ...portFlags(options), String(target)])
+    await this._runServeCommand('Funnel', ['funnel', '--bg', '--yes', ...portFlags(options), String(target)])
     return this._serveUrl(options)
   }
 
@@ -446,6 +453,34 @@ export class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
     this._stopWatch?.()
     this._stopWatch = undefined
     this.setState({ watching: false })
+  }
+
+  /**
+   * Run serve/funnel, but fail fast instead of hanging when the tailnet hasn't enabled
+   * the feature: kill the CLI at its enable prompt and throw with the link.
+   * Homebrew's `tailscale` is a shell wrapper around the app binary, so killing only the
+   * wrapper orphans the real CLI with our pipe still open. Kill the whole process group.
+   */
+  private async _runServeCommand(what: 'Serve' | 'Funnel', args: string[]): Promise<void> {
+    let child: any
+    let output = ''
+    let enableUrl: string | undefined
+    const result = await this.run(args, {
+      detached: true,
+      onStart: c => { child = c },
+      onOutput: chunk => {
+        output += chunk
+        const match = !enableUrl && output.match(ENABLE_PROMPT_RE)
+        if (match) {
+          enableUrl = match[1]
+          try { process.kill(-child.pid, 'SIGTERM') } catch { child?.kill() }
+        }
+      },
+    })
+    if (enableUrl) throw new Error(`${what} is not enabled on your tailnet. Turn it on at ${enableUrl}, then try again.`)
+    if (result.exitCode !== 0) {
+      throw new Error(`tailscale ${args.join(' ')} failed (exit ${result.exitCode}): ${(result.stderr || result.stdout).trim()}`)
+    }
   }
 
   private async _serveUrl(options: TailscaleServeOptions): Promise<string> {

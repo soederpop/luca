@@ -27221,6 +27221,24 @@ setBuildTimeData('features.tailscale', {
         "args": {
           "type": "string[]",
           "description": "Arguments after `tailscale`, e.g. `['netcheck']`"
+        },
+        "options": {
+          "type": "{ onOutput?: (chunk: string) => void; onStart?: (child: any) => void; detached?: boolean }",
+          "description": "Parameter options",
+          "properties": {
+            "onOutput": {
+              "type": "any",
+              "description": "Called with each chunk of stdout or stderr as it arrives"
+            },
+            "onStart": {
+              "type": "any",
+              "description": "Called with the child process once it spawns, e.g. to kill it early"
+            },
+            "detached": {
+              "type": "any",
+              "description": "Run in its own process group, so `process.kill(-child.pid)` reaches its children too"
+            }
+          }
         }
       },
       "required": [
@@ -59546,6 +59564,24 @@ export const introspectionData: Record<string, any>[] = [
           "args": {
             "type": "string[]",
             "description": "Arguments after `tailscale`, e.g. `['netcheck']`"
+          },
+          "options": {
+            "type": "{ onOutput?: (chunk: string) => void; onStart?: (child: any) => void; detached?: boolean }",
+            "description": "Parameter options",
+            "properties": {
+              "onOutput": {
+                "type": "any",
+                "description": "Called with each chunk of stdout or stderr as it arrives"
+              },
+              "onStart": {
+                "type": "any",
+                "description": "Called with the child process once it spawns, e.g. to kill it early"
+              },
+              "detached": {
+                "type": "any",
+                "description": "Run in its own process group, so `process.kill(-child.pid)` reaches its children too"
+              }
+            }
           }
         },
         "required": [
