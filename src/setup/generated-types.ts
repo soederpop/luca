@@ -7192,8 +7192,8 @@ export declare const ModelProvidersStateSchema: z.ZodObject<{
         host: z.ZodString;
         port: z.ZodNumber;
         source: z.ZodEnum<{
-            localhost: "localhost";
             tailscale: "tailscale";
+            localhost: "localhost";
         }>;
         hostname: z.ZodOptional<z.ZodString>;
         hint: z.ZodOptional<z.ZodString>;
@@ -7485,8 +7485,8 @@ export declare class ModelProviders extends Feature<ModelProvidersState> {
             host: z.ZodString;
             port: z.ZodNumber;
             source: z.ZodEnum<{
-                localhost: "localhost";
                 tailscale: "tailscale";
+                localhost: "localhost";
             }>;
             hostname: z.ZodOptional<z.ZodString>;
             hint: z.ZodOptional<z.ZodString>;
@@ -12954,6 +12954,7 @@ import './social.js';
 import './bundle.js';
 import './assistant.js';
 import './test-binaries.js';
+import './self-update.js';
 //# sourceMappingURL=index.d.ts.map`,
   "commands/introspect.d.ts": `import { z } from 'zod';
 import '../introspection/scan.js';
@@ -13599,6 +13600,32 @@ export declare const examples: (string | {
     description: string;
 })[];
 //# sourceMappingURL=select.d.ts.map`,
+  "commands/self-update.d.ts": `import { z } from 'zod';
+import type { ContainerContext } from '../container.js';
+declare module '../command.js' {
+    interface AvailableCommands {
+        'self-update': ReturnType<typeof commands.registerHandler>;
+    }
+}
+export declare const argsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    _: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    dispatchSource: z.ZodDefault<z.ZodEnum<{
+        cli: "cli";
+        headless: "headless";
+        mcp: "mcp";
+        rpc: "rpc";
+    }>>;
+    check: z.ZodDefault<z.ZodBoolean>;
+    force: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$strip>;
+export declare const examples: (string | {
+    command: string;
+    description: string;
+})[];
+export default function selfUpdate(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
+//# sourceMappingURL=self-update.d.ts.map`,
   "commands/serve.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container.js';
 declare module '../command.js' {
@@ -13625,6 +13652,9 @@ export declare const argsSchema: z.ZodObject<{
     anyPort: z.ZodDefault<z.ZodBoolean>;
     open: z.ZodDefault<z.ZodBoolean>;
     watch: z.ZodDefault<z.ZodBoolean>;
+    tailnet: z.ZodDefault<z.ZodBoolean>;
+    funnel: z.ZodDefault<z.ZodBoolean>;
+    tailnetPort: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 export default function serve(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 //# sourceMappingURL=serve.d.ts.map`,
@@ -16004,6 +16034,7 @@ import "./features/semantic-search";
 import "./features/socket-repl";
 import "./features/sqlite";
 import "./features/store";
+import "./features/tailscale";
 import "./features/telegram";
 import "./features/telnyx-connector";
 import "./features/tmux";
@@ -16061,6 +16092,7 @@ import type { SemanticSearch } from "./features/semantic-search";
 import type { SocketRepl } from "./features/socket-repl";
 import type { Sqlite } from "./features/sqlite";
 import type { Store } from "./features/store";
+import type { Tailscale } from "./features/tailscale";
 import type { Telegram } from "./features/telegram";
 import type { TelnyxConnector } from "./features/telnyx-connector";
 import type { Tmux } from "./features/tmux";
@@ -16118,6 +16150,7 @@ export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, S
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
 export type { StoreScope, StoreHandleOptions, StoreHandle, Store } from "./features/store";
+export type { TailscaleNode, TailscaleState, TailscaleOptions, TailscaleRunResult, TailscalePingResult, TailscaleServeOptions, Tailscale } from "./features/tailscale";
 export type { TelegramState, TelegramOptions, Telegram } from "./features/telegram";
 export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxConnector } from "./features/telnyx-connector";
 export type { TmuxState, TmuxOptions, CaptureOptions, SessionInfo, TmuxPane, TmuxSession, Tmux } from "./features/tmux";
@@ -16176,6 +16209,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     socketRepl: typeof SocketRepl;
     sqlite: typeof Sqlite;
     store: typeof Store;
+    tailscale: typeof Tailscale;
     telegram: typeof Telegram;
     telnyxConnector: typeof TelnyxConnector;
     tmux: typeof Tmux;
@@ -31111,6 +31145,472 @@ declare module '../../feature' {
     }
 }
 //# sourceMappingURL=store.d.ts.map`,
+  "node/features/tailscale.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+export declare const TailscaleNodeSchema: z.ZodObject<{
+    id: z.ZodString;
+    hostname: z.ZodString;
+    dnsName: z.ZodString;
+    shortName: z.ZodString;
+    ips: z.ZodArray<z.ZodString>;
+    ipv4: z.ZodOptional<z.ZodString>;
+    os: z.ZodOptional<z.ZodString>;
+    online: z.ZodBoolean;
+    exitNode: z.ZodBoolean;
+    exitNodeOption: z.ZodBoolean;
+    lastSeen: z.ZodOptional<z.ZodString>;
+    tags: z.ZodArray<z.ZodString>;
+}, z.core.$strip>;
+export type TailscaleNode = z.infer<typeof TailscaleNodeSchema>;
+export declare const TailscaleStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    available: z.ZodBoolean;
+    binaryPath: z.ZodOptional<z.ZodString>;
+    backendState: z.ZodOptional<z.ZodString>;
+    tailnet: z.ZodOptional<z.ZodString>;
+    self: z.ZodOptional<z.ZodObject<{
+        id: z.ZodString;
+        hostname: z.ZodString;
+        dnsName: z.ZodString;
+        shortName: z.ZodString;
+        ips: z.ZodArray<z.ZodString>;
+        ipv4: z.ZodOptional<z.ZodString>;
+        os: z.ZodOptional<z.ZodString>;
+        online: z.ZodBoolean;
+        exitNode: z.ZodBoolean;
+        exitNodeOption: z.ZodBoolean;
+        lastSeen: z.ZodOptional<z.ZodString>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>>;
+    peers: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        hostname: z.ZodString;
+        dnsName: z.ZodString;
+        shortName: z.ZodString;
+        ips: z.ZodArray<z.ZodString>;
+        ipv4: z.ZodOptional<z.ZodString>;
+        os: z.ZodOptional<z.ZodString>;
+        online: z.ZodBoolean;
+        exitNode: z.ZodBoolean;
+        exitNodeOption: z.ZodBoolean;
+        lastSeen: z.ZodOptional<z.ZodString>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>>;
+    lastRefreshedAt: z.ZodOptional<z.ZodNumber>;
+    watching: z.ZodBoolean;
+}, z.core.$loose>;
+export type TailscaleState = z.infer<typeof TailscaleStateSchema>;
+export declare const TailscaleOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    binaryPath: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type TailscaleOptions = z.infer<typeof TailscaleOptionsSchema>;
+export declare const TailscaleEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    refreshed: z.ZodTuple<[z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        hostname: z.ZodString;
+        dnsName: z.ZodString;
+        shortName: z.ZodString;
+        ips: z.ZodArray<z.ZodString>;
+        ipv4: z.ZodOptional<z.ZodString>;
+        os: z.ZodOptional<z.ZodString>;
+        online: z.ZodBoolean;
+        exitNode: z.ZodBoolean;
+        exitNodeOption: z.ZodBoolean;
+        lastSeen: z.ZodOptional<z.ZodString>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>>], null>;
+    'peer:online': z.ZodTuple<[z.ZodObject<{
+        id: z.ZodString;
+        hostname: z.ZodString;
+        dnsName: z.ZodString;
+        shortName: z.ZodString;
+        ips: z.ZodArray<z.ZodString>;
+        ipv4: z.ZodOptional<z.ZodString>;
+        os: z.ZodOptional<z.ZodString>;
+        online: z.ZodBoolean;
+        exitNode: z.ZodBoolean;
+        exitNodeOption: z.ZodBoolean;
+        lastSeen: z.ZodOptional<z.ZodString>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>], null>;
+    'peer:offline': z.ZodTuple<[z.ZodObject<{
+        id: z.ZodString;
+        hostname: z.ZodString;
+        dnsName: z.ZodString;
+        shortName: z.ZodString;
+        ips: z.ZodArray<z.ZodString>;
+        ipv4: z.ZodOptional<z.ZodString>;
+        os: z.ZodOptional<z.ZodString>;
+        online: z.ZodBoolean;
+        exitNode: z.ZodBoolean;
+        exitNodeOption: z.ZodBoolean;
+        lastSeen: z.ZodOptional<z.ZodString>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export interface TailscaleRunResult {
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+}
+export interface TailscalePingResult {
+    /** Whether a pong came back before the timeout. */
+    ok: boolean;
+    /** Round trip time in ms, when ok. */
+    latencyMs?: number;
+    /** Path the pong took: an ip:port for a direct link, or DERP(region) for a relay. */
+    via?: string;
+    /** True when the path is a direct link, false when relayed through DERP. */
+    direct?: boolean;
+    /** Raw CLI output, for anything the parse missed. */
+    output: string;
+}
+export interface TailscaleServeOptions {
+    /** HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000. */
+    https?: number;
+    /** Expose plain HTTP on this port instead of HTTPS. Ignored by funnel. */
+    http?: number;
+    /** Mount the target under this path, e.g. /api. */
+    path?: string;
+}
+/**
+ * Wraps the \`tailscale\` CLI so the tailnet becomes typed, observable container state.
+ *
+ * Call \`refresh()\` (or \`watch()\`) to load peers into state, then look machines up by
+ * name with \`findPeer()\`. \`serve()\` and \`funnel()\` put a local server on an HTTPS URL,
+ * private to the tailnet or public. The CLI's JSON is not a stable API, so the parse
+ * reads only a few well-known fields and ignores the rest.
+ *
+ * @example
+ * \`\`\`ts
+ * const ts = container.feature('tailscale')
+ * await ts.refresh()
+ * const chief = ts.findPeer('chief')
+ * console.log(chief?.ipv4, chief?.online)
+ *
+ * const url = await ts.serve(3000)   // https://this-machine.tailnet.ts.net
+ * \`\`\`
+ */
+export declare class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
+    static shortcut: "features.tailscale";
+    static stability: "experimental";
+    static category: "networking";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        available: z.ZodBoolean;
+        binaryPath: z.ZodOptional<z.ZodString>;
+        backendState: z.ZodOptional<z.ZodString>;
+        tailnet: z.ZodOptional<z.ZodString>;
+        self: z.ZodOptional<z.ZodObject<{
+            id: z.ZodString;
+            hostname: z.ZodString;
+            dnsName: z.ZodString;
+            shortName: z.ZodString;
+            ips: z.ZodArray<z.ZodString>;
+            ipv4: z.ZodOptional<z.ZodString>;
+            os: z.ZodOptional<z.ZodString>;
+            online: z.ZodBoolean;
+            exitNode: z.ZodBoolean;
+            exitNodeOption: z.ZodBoolean;
+            lastSeen: z.ZodOptional<z.ZodString>;
+            tags: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>>;
+        peers: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            hostname: z.ZodString;
+            dnsName: z.ZodString;
+            shortName: z.ZodString;
+            ips: z.ZodArray<z.ZodString>;
+            ipv4: z.ZodOptional<z.ZodString>;
+            os: z.ZodOptional<z.ZodString>;
+            online: z.ZodBoolean;
+            exitNode: z.ZodBoolean;
+            exitNodeOption: z.ZodBoolean;
+            lastSeen: z.ZodOptional<z.ZodString>;
+            tags: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>>;
+        lastRefreshedAt: z.ZodOptional<z.ZodNumber>;
+        watching: z.ZodBoolean;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        binaryPath: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        refreshed: z.ZodTuple<[z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            hostname: z.ZodString;
+            dnsName: z.ZodString;
+            shortName: z.ZodString;
+            ips: z.ZodArray<z.ZodString>;
+            ipv4: z.ZodOptional<z.ZodString>;
+            os: z.ZodOptional<z.ZodString>;
+            online: z.ZodBoolean;
+            exitNode: z.ZodBoolean;
+            exitNodeOption: z.ZodBoolean;
+            lastSeen: z.ZodOptional<z.ZodString>;
+            tags: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>>], null>;
+        'peer:online': z.ZodTuple<[z.ZodObject<{
+            id: z.ZodString;
+            hostname: z.ZodString;
+            dnsName: z.ZodString;
+            shortName: z.ZodString;
+            ips: z.ZodArray<z.ZodString>;
+            ipv4: z.ZodOptional<z.ZodString>;
+            os: z.ZodOptional<z.ZodString>;
+            online: z.ZodBoolean;
+            exitNode: z.ZodBoolean;
+            exitNodeOption: z.ZodBoolean;
+            lastSeen: z.ZodOptional<z.ZodString>;
+            tags: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>], null>;
+        'peer:offline': z.ZodTuple<[z.ZodObject<{
+            id: z.ZodString;
+            hostname: z.ZodString;
+            dnsName: z.ZodString;
+            shortName: z.ZodString;
+            ips: z.ZodArray<z.ZodString>;
+            ipv4: z.ZodOptional<z.ZodString>;
+            os: z.ZodOptional<z.ZodString>;
+            online: z.ZodBoolean;
+            exitNode: z.ZodBoolean;
+            exitNodeOption: z.ZodBoolean;
+            lastSeen: z.ZodOptional<z.ZodString>;
+            tags: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    private _stopWatch?;
+    private _resolving?;
+    get initialState(): TailscaleState;
+    /** Whether a working tailscale binary was found. Only meaningful after \`ensureAvailable()\` or any CLI call. */
+    get available(): boolean;
+    /** This machine, from the last refresh. */
+    get self(): TailscaleNode | undefined;
+    /** All other machines on the tailnet, from the last refresh. */
+    get peers(): TailscaleNode[];
+    /** Peers the coordination server sees as online, from the last refresh. */
+    get onlinePeers(): TailscaleNode[];
+    /** Whether the daemon reported Running on the last refresh. */
+    get isRunning(): boolean;
+    /**
+     * Find a working tailscale binary and record it in state. Never throws.
+     *
+     * @returns The binary path, or null when tailscale is not installed
+     *
+     * @example
+     * \`\`\`ts
+     * if (!await ts.ensureAvailable()) console.log('install tailscale first')
+     * \`\`\`
+     */
+    ensureAvailable(): Promise<string | null>;
+    private _resolveBinary;
+    /**
+     * Run any tailscale subcommand. The low-level escape hatch for anything the API doesn't cover.
+     * Does not throw on a non-zero exit; check \`exitCode\`.
+     *
+     * @param args - Arguments after \`tailscale\`, e.g. \`['netcheck']\`
+     * @param options.onOutput - Called with each chunk of stdout or stderr as it arrives
+     * @param options.onStart - Called with the child process once it spawns, e.g. to kill it early
+     * @param options.detached - Run in its own process group, so \`process.kill(-child.pid)\` reaches its children too
+     *
+     * @example
+     * \`\`\`ts
+     * const { stdout } = await ts.run(['netcheck'])
+     * \`\`\`
+     */
+    run(args: string[], options?: {
+        onOutput?: (chunk: string) => void;
+        onStart?: (child: any) => void;
+        detached?: boolean;
+    }): Promise<TailscaleRunResult>;
+    /** Run a subcommand and throw with its stderr when it fails. */
+    private _runOrThrow;
+    /**
+     * The raw parsed output of \`tailscale status --json\`. Prefer \`refresh()\` unless you need a field it drops.
+     *
+     * @example
+     * \`\`\`ts
+     * const raw = await ts.status()
+     * console.log(raw.Health)
+     * \`\`\`
+     */
+    status(): Promise<any>;
+    /**
+     * Load status into state, and emit \`peer:online\` / \`peer:offline\` for peers whose
+     * state changed since the last refresh. The first refresh emits no peer events.
+     *
+     * @example
+     * \`\`\`ts
+     * const { self, peers } = await ts.refresh()
+     * \`\`\`
+     */
+    refresh(): Promise<{
+        self?: TailscaleNode;
+        peers: TailscaleNode[];
+    }>;
+    /**
+     * Find a peer from the last refresh by hostname, MagicDNS name (short or full), or tailscale IP.
+     * Matching is case-insensitive. Call \`refresh()\` first.
+     *
+     * @param query - e.g. \`chief\`, \`chief.tailnet.ts.net\`, or \`100.64.0.2\`
+     *
+     * @example
+     * \`\`\`ts
+     * await ts.refresh()
+     * const box = ts.findPeer('chief')
+     * \`\`\`
+     */
+    findPeer(query: string): TailscaleNode | undefined;
+    /**
+     * This machine's tailscale IPv4 address.
+     *
+     * @example
+     * \`\`\`ts
+     * const myIp = await ts.ip()
+     * \`\`\`
+     */
+    ip(): Promise<string | undefined>;
+    /**
+     * Ping a peer through tailscale once and report latency and whether the path is direct.
+     * Never throws for an unreachable peer; returns \`ok: false\`.
+     *
+     * @param target - Peer name or tailscale IP
+     * @param options.timeout - Seconds to wait for a pong (default 5)
+     *
+     * @example
+     * \`\`\`ts
+     * const { ok, latencyMs, direct } = await ts.ping('chief')
+     * \`\`\`
+     */
+    ping(target: string, options?: {
+        timeout?: number;
+    }): Promise<TailscalePingResult>;
+    /**
+     * Who owns a tailscale IP: the machine and the user. Useful to check who is calling an endpoint.
+     *
+     * @param ip - A tailscale IP, optionally with :port
+     *
+     * @example
+     * \`\`\`ts
+     * const who = await ts.whois('100.64.0.2')
+     * console.log(who.UserProfile?.LoginName)
+     * \`\`\`
+     */
+    whois(ip: string): Promise<any>;
+    /**
+     * Expose a local server on this machine's MagicDNS name over HTTPS, private to the tailnet.
+     * Runs in the background and persists until \`stopServe()\` or \`resetServe()\`.
+     * HTTPS certificates must be enabled for the tailnet in the admin console.
+     *
+     * @param target - A port (3000), host:port, or full URL of the local service
+     * @returns The URL peers can use to reach it
+     *
+     * @example
+     * \`\`\`ts
+     * const url = await ts.serve(3000)
+     * const api = await ts.serve('http://localhost:8080', { path: '/api' })
+     * \`\`\`
+     */
+    serve(target: number | string, options?: TailscaleServeOptions): Promise<string>;
+    /**
+     * Expose a local server on the public internet through Tailscale Funnel.
+     * Anyone with the URL can reach it. Funnel must be allowed for this node in the tailnet ACLs.
+     *
+     * @param target - A port (3000), host:port, or full URL of the local service
+     * @returns The public URL
+     *
+     * @example
+     * \`\`\`ts
+     * const publicUrl = await ts.funnel(3000)
+     * \`\`\`
+     */
+    funnel(target: number | string, options?: Omit<TailscaleServeOptions, 'http'>): Promise<string>;
+    /**
+     * Turn off one serve or funnel mapping, by the same port and path it was started with.
+     *
+     * @example
+     * \`\`\`ts
+     * await ts.stopServe({ https: 8443 })
+     * \`\`\`
+     */
+    stopServe(options?: TailscaleServeOptions & {
+        funnel?: boolean;
+    }): Promise<void>;
+    /**
+     * Remove every serve and funnel mapping on this machine.
+     *
+     * @example
+     * \`\`\`ts
+     * await ts.resetServe()
+     * \`\`\`
+     */
+    resetServe(): Promise<void>;
+    /**
+     * The current serve and funnel config as parsed JSON. An empty object means nothing is served.
+     *
+     * @example
+     * \`\`\`ts
+     * const config = await ts.serveStatus()
+     * \`\`\`
+     */
+    serveStatus(): Promise<any>;
+    /**
+     * Send a file to a peer with Taildrop.
+     *
+     * @param filePath - Local file to send
+     * @param target - Peer name or tailscale IP
+     *
+     * @example
+     * \`\`\`ts
+     * await ts.sendFile('./build.zip', 'chief')
+     * \`\`\`
+     */
+    sendFile(filePath: string, target: string): Promise<void>;
+    /**
+     * Poll status and emit \`peer:online\` / \`peer:offline\` as machines come and go.
+     * Runs never overlap. A failed refresh is skipped, not fatal.
+     *
+     * @param options.interval - Milliseconds between refreshes (default 30000)
+     * @returns A function that stops watching
+     *
+     * @example
+     * \`\`\`ts
+     * ts.on('peer:online', peer => console.log(\`\${peer.shortName} is up\`))
+     * ts.watch({ interval: 10_000 })
+     * \`\`\`
+     */
+    watch(options?: {
+        interval?: number;
+    }): () => void;
+    /** Stop the polling started by \`watch()\`. */
+    unwatch(): void;
+    /**
+     * Run serve/funnel, but fail fast instead of hanging when the tailnet hasn't enabled
+     * the feature: kill the CLI at its enable prompt and throw with the link.
+     * Homebrew's \`tailscale\` is a shell wrapper around the app binary, so killing only the
+     * wrapper orphans the real CLI with our pipe still open. Kill the whole process group.
+     */
+    private _runServeCommand;
+    private _serveUrl;
+}
+/** Map one node from \`tailscale status --json\` to a TailscaleNode. Reads only well-known fields. */
+export declare function tailscaleNodeFromStatus(raw: any): TailscaleNode;
+/** Parse \`tailscale ping\` output. */
+export declare function parseTailscalePing(output: string): TailscalePingResult;
+export default Tailscale;
+//# sourceMappingURL=tailscale.d.ts.map`,
   "node/features/telegram.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import { Bot, type Context, type Middleware } from 'grammy';
