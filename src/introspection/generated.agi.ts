@@ -32408,7 +32408,7 @@ setContainerBuildTimeData('NodeContainer', {
     },
     "urlUtils": {
       "description": "Returns URL utility functions for parsing URIs.",
-      "returns": "{ parse: (uri: string) => url.UrlWithStringQuery }"
+      "returns": "{ parse: (uri: string) => ParsedUrl }"
     },
     "paths": {
       "description": "Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse).",
@@ -64733,7 +64733,7 @@ export const containerIntrospectionData: Record<string, any>[] = [
       },
       "urlUtils": {
         "description": "Returns URL utility functions for parsing URIs.",
-        "returns": "{ parse: (uri: string) => url.UrlWithStringQuery }"
+        "returns": "{ parse: (uri: string) => ParsedUrl }"
       },
       "paths": {
         "description": "Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse).",

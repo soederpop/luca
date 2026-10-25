@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.21.1"
+export const typesBundleVersion = "3.22.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -15786,8 +15786,7 @@ export type { SetStateValue, StateChangeType } from './state';
 export { z } from 'zod';
 export * from './schemas/base';
 //# sourceMappingURL=node.d.ts.map`,
-  "node/container.d.ts": `import url from 'node:url';
-import { Container, type ContainerState } from "../container";
+  "node/container.d.ts": `import { Container, type ContainerState } from "../container";
 import { State } from "../state";
 import type { FeatureOptions } from "./feature";
 import { features, Feature } from "./feature";
@@ -15947,7 +15946,7 @@ export declare class NodeContainer<Features extends NodeFeatures = NodeFeatures,
     runUntilShutdown(cleanup?: () => void | Promise<void>): Promise<void>;
     /** Returns URL utility functions for parsing URIs. */
     get urlUtils(): {
-        parse: (uri: string) => url.UrlWithStringQuery;
+        parse: (uri: string) => ParsedUrl;
     };
     /** Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse). */
     get paths(): {
@@ -15968,6 +15967,21 @@ export declare class NodeContainer<Features extends NodeFeatures = NodeFeatures,
     */
     private onMissingCommand;
 }
+/** The legacy url.parse() result shape, kept so urlUtils.parse callers don't break. */
+export type ParsedUrl = {
+    protocol: string | null;
+    slashes: boolean | null;
+    auth: string | null;
+    host: string | null;
+    port: string | null;
+    hostname: string | null;
+    hash: string | null;
+    search: string | null;
+    query: string | null;
+    pathname: string | null;
+    path: string | null;
+    href: string;
+};
 //# sourceMappingURL=container.d.ts.map`,
   "node/feature.d.ts": `import type { NodeFeatures, NodeContainer } from './container.js';
 import type { FeatureOptions, FeatureState } from '../feature.ts';
@@ -36407,7 +36421,7 @@ export { ContainerContext, ContainerProvider, useContainer, useContainerState, u
 //# sourceMappingURL=index.d.ts.map`,
   "registry.d.ts": `import type { Helper } from './helper.js';
 import type { ContainerContext } from './container.js';
-import type { HelperIntrospection } from './introspection/index.js';
+import type { HelperIntrospection, IntrospectionSection } from './introspection/index.js';
 export type { HelperIntrospection };
 declare abstract class Registry<T extends Helper> {
     scope: string;
@@ -36456,10 +36470,36 @@ declare abstract class Registry<T extends Helper> {
     */
     lookup(id: string): new (options: any, context: ContainerContext) => T;
     /**
-     * View data about the interface for a particular Helper.  Will tell you about the options
+     * View data about the interface for a particular Helper as plain JSON.  Will tell you about the options
      * to create one, the state it maintains, the methods and properties it has, and the events it emits.
+     * No instance is created, so this is safe for helpers with side effects on construction.
+     *
+     * @param id - The id of the helper, e.g. \`'fs'\` or \`'features.fs'\`
+     * @param section - Only return one section: \`'methods'\`, \`'getters'\`, \`'events'\`, \`'state'\`, \`'options'\`, \`'envVars'\`
+     * @returns The introspection data, or undefined if the helper is not registered or has no introspection data
+     *
+     * @example
+     * \`\`\`ts
+     * container.features.introspect('fs').methods.readFile.parameters
+     * container.features.introspect('fs', 'events')
+     * \`\`\`
     */
-    introspect(id: string): HelperIntrospection | undefined;
+    introspect(id: string, section?: IntrospectionSection): HelperIntrospection | undefined;
+    /**
+     * Introspection data for every helper in this registry, keyed by id, as plain JSON.
+     * Use this to build data-driven inspection UIs or indexes without creating any instances.
+     * Helpers with no introspection data are left out.
+     *
+     * @param section - Only include one section per helper, e.g. \`'methods'\`
+     * @returns A map of helper id to its introspection data
+     *
+     * @example
+     * \`\`\`ts
+     * const all = container.features.introspectAll()
+     * Object.entries(all).map(([id, i]) => [id, Object.keys(i.methods)])
+     * \`\`\`
+    */
+    introspectAll(section?: IntrospectionSection): Record<string, HelperIntrospection>;
     /**
      * Learn about the interface for a particular Helper.  Will tell you about the options
      * to create one, the state it maintains, the methods and properties it has, and the events it emits.
