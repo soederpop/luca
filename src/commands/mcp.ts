@@ -33,6 +33,13 @@ export const argsSchema = CommandOptionsSchema.extend({
 
 export default async function mcp(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+	// In stdio mode stdout IS the protocol. Helpers log with console.log
+	// (e.g. skills-library's preload notices), and one stray line breaks the
+	// client's JSON-RPC parse ("Connection closed" in Claude Code). The SDK
+	// writes frames with process.stdout.write, so moving console to stderr is safe.
+	if (options.transport === 'stdio') {
+		console.log = console.info = console.debug = (...args: any[]) => console.error(...args)
+	}
 	const envCompat = process.env.MCP_HTTP_COMPAT?.toLowerCase()
 	const resolvedCompat = options.mcpCompat || (envCompat === 'codex' ? 'codex' : 'standard')
 	const envStdioCompat = process.env.MCP_STDIO_COMPAT?.toLowerCase()
