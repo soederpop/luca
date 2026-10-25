@@ -4,7 +4,7 @@ import { Bus } from './bus.js';
 import { inspect } from 'util';
 
 import { interceptRegistration } from './introspection/index.js';
-import type { HelperIntrospection } from './introspection/index.js';
+import type { HelperIntrospection, IntrospectionSection } from './introspection/index.js';
 
 export type { HelperIntrospection }
 
@@ -134,13 +134,47 @@ abstract class Registry<T extends Helper> {
     return Constructor;
   }
 
-  /** 
-   * View data about the interface for a particular Helper.  Will tell you about the options
+  /**
+   * View data about the interface for a particular Helper as plain JSON.  Will tell you about the options
    * to create one, the state it maintains, the methods and properties it has, and the events it emits.
+   * No instance is created, so this is safe for helpers with side effects on construction.
+   *
+   * @param id - The id of the helper, e.g. `'fs'` or `'features.fs'`
+   * @param section - Only return one section: `'methods'`, `'getters'`, `'events'`, `'state'`, `'options'`, `'envVars'`
+   * @returns The introspection data, or undefined if the helper is not registered or has no introspection data
+   *
+   * @example
+   * ```ts
+   * container.features.introspect('fs').methods.readFile.parameters
+   * container.features.introspect('fs', 'events')
+   * ```
   */
-  introspect(id: string) : HelperIntrospection | undefined {
+  introspect(id: string, section?: IntrospectionSection) : HelperIntrospection | undefined {
     const Constructor = this.members.get(this._normalizeId(id)) as typeof Helper | undefined
-    return Constructor?.introspect()
+    return Constructor?.introspect(section)
+  }
+
+  /**
+   * Introspection data for every helper in this registry, keyed by id, as plain JSON.
+   * Use this to build data-driven inspection UIs or indexes without creating any instances.
+   * Helpers with no introspection data are left out.
+   *
+   * @param section - Only include one section per helper, e.g. `'methods'`
+   * @returns A map of helper id to its introspection data
+   *
+   * @example
+   * ```ts
+   * const all = container.features.introspectAll()
+   * Object.entries(all).map(([id, i]) => [id, Object.keys(i.methods)])
+   * ```
+  */
+  introspectAll(section?: IntrospectionSection) : Record<string, HelperIntrospection> {
+    const out: Record<string, HelperIntrospection> = {}
+    for (const id of this.available) {
+      const data = this.introspect(id, section)
+      if (data) out[id] = data
+    }
+    return out
   }
  
   /** 

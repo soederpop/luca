@@ -119,4 +119,22 @@ describe('vm evalCode tool', () => {
 		const out: any = await added.evalCode!({ code: 'assistant.name' })
 		expect(out.result).toBe('me')
 	})
+
+	it('returns introspection JSON intact, not collapsed at depth 4', async () => {
+		// Introspection nests methods → name → parameters → param → type. The
+		// old flat depth cap turned every parameter into "[object Object]".
+		const container = new NodeContainer()
+		const out: any = await container.feature('vm').evalCode({ code: "container.features.introspect('fs')" })
+		expect(typeof out.result.methods.readFile.parameters.path).toBe('object')
+		expect(out.result.methods.readFile.parameters.path.type).toBeDefined()
+	})
+
+	it('accepts purpose and expectation alongside code', async () => {
+		const container = new NodeContainer()
+		const bundle = container.feature('vm').toTools()
+		const parsed = (bundle.schemas.evalCode as any).parse({ code: '1', purpose: 'check math', expectation: '1' })
+		expect(parsed.purpose).toBe('check math')
+		const out = await bundle.handlers.evalCode!({ code: '1 + 1', purpose: 'check math', expectation: '2' })
+		expect(out.result).toBe(2)
+	})
 })

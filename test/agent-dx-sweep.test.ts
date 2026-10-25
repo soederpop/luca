@@ -111,3 +111,16 @@ describe('file tool input contracts', () => {
     } finally { container.fs.remove(folder) }
   })
 })
+
+describe('registry introspection as JSON', () => {
+  it('narrows introspect() to a section and lists every helper via introspectAll()', () => {
+    const methods: any = container.features.introspect('fs', 'methods')
+    expect(methods.methods.readFile).toBeDefined()
+    expect(Object.keys(methods.events ?? {})).toEqual([])
+
+    const all = container.features.introspectAll()
+    expect(all.fs?.methods.readFile).toBeDefined()
+    expect(Object.keys(all).length).toBeGreaterThan(5)
+    expect(JSON.parse(JSON.stringify(all.fs)).methods.readFile).toBeDefined()
+  })
+})

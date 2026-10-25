@@ -107,6 +107,8 @@ export class VM<
       description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` and every enabled feature in scope by bare name. Top-level await works; the final expression is the result; console output is captured and returned with it. Use it to inspect live state, call any container feature, or prototype code against the real runtime. Nothing is sandboxed away from the real process — side effects are real, and no state carries over to the next call.',
       schema: z.object({
         code: z.string().describe('The snippet to run. `container` and every enabled feature (`fs`, `proc`, …) are in scope; TypeScript and `import { z } from "zod"` work. The last expression is returned — end with the value you want to see.'),
+        purpose: z.string().optional().describe('Optional but encouraged: one sentence on why you are running this snippet — what question it answers or what step it performs.'),
+        expectation: z.string().optional().describe('Optional but encouraged: what you expect the result to look like (a value, a shape, an error). Compare it to what comes back; a mismatch means your model of the runtime is wrong, so stop and investigate before building on it.'),
       }).describe('Execute a snippet in the live process with the container in scope.'),
     },
   }
@@ -1185,7 +1187,9 @@ export class VM<
   override setupToolsConsumer(consumer: any) {
     if (typeof consumer.addTool === 'function') {
       const vm = this
-      consumer.addTool('evalCode', function evalCode(args: { code: string }) {
+      // purpose/expectation are for the agent's reasoning and the transcript;
+      // the method only needs the code.
+      consumer.addTool('evalCode', function evalCode(args: { code: string; purpose?: string; expectation?: string }) {
         return vm.evalCode(args, { assistant: consumer })
       }, VM.tools.evalCode!.schema)
     }
@@ -1210,6 +1214,10 @@ export class VM<
         '**Errors are returned, not thrown** — a failing snippet gives you `{ error }`. Read it and retry.',
         '',
         '**Discover APIs from inside:** the runtime documents itself — never guess a method name. `(await container.describer.describeHelper(\'fs\')).text` returns the full docs for a helper, `describeHelper(\'fs.readFile\')` for one member, `describeRegistry(\'features\')` for the index of everything available.',
+        '',
+        '**Introspection as JSON:** `container.features.introspect(\'fs\')` returns structured data (options, state, methods with parameters, getters, events) without creating an instance; pass a section to narrow it: `introspect(\'fs\', \'methods\')`. `container.features.introspectAll()` returns every helper keyed by id. Same on `container.clients` and `container.servers`. A live instance has `.introspect()` too.',
+        '',
+        '**Say why and what you expect.** Fill `purpose` (why you are running it) and `expectation` (what you think comes back). When the result does not match the expectation, investigate before moving on.',
       ].join('\n'))
     }
   }
@@ -1219,6 +1227,11 @@ export class VM<
  * Render a value JSON-safe without throwing: primitives pass through, circular
  * references and functions are replaced with tags, depth is capped so a
  * container-sized object graph comes back as a readable shallow summary.
+ *
+ * Plain data (object literals, arrays) gets a much deeper cap than class
+ * instances. Introspection JSON nests past 4 levels (methods → name →
+ * parameters → param → type), and the old flat cap turned every parameter
+ * into "[object Object]", so agents could never read it back.
  */
 function safeSerialize(value: any, depth = 0, seen = new WeakSet()): any {
   if (value === undefined) return null
@@ -1226,7 +1239,9 @@ function safeSerialize(value: any, depth = 0, seen = new WeakSet()): any {
   if (typeof value === 'function') return `[function ${value.name || 'anonymous'}]`
   if (typeof value !== 'object') return String(value)
   if (seen.has(value)) return '[circular]'
-  if (depth >= 4) return Array.isArray(value) ? `[array of ${value.length}]` : `[object ${value.constructor?.name || 'Object'}]`
+  const proto = Object.getPrototypeOf(value)
+  const isPlain = Array.isArray(value) || proto === Object.prototype || proto === null
+  if (depth >= (isPlain ? 12 : 4)) return Array.isArray(value) ? `[array of ${value.length}]` : `[object ${value.constructor?.name || 'Object'}]`
   seen.add(value)
   if (Array.isArray(value)) return value.slice(0, 100).map((v) => safeSerialize(v, depth + 1, seen))
   const out: Record<string, any> = {}
