@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.21.0"
+export const typesBundleVersion = "3.21.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -38061,7 +38061,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.20.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.21.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
