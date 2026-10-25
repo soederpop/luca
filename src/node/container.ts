@@ -1,5 +1,3 @@
-import url from 'node:url'
-
 import { Container, type ContainerState } from "../container";
 import { ContainerDescriber } from "../container-describer";
 import { State } from "../state";
@@ -339,10 +337,8 @@ export class NodeContainer<
   }
 
   /** Returns URL utility functions for parsing URIs. */
-  get urlUtils(): { parse: (uri: string) => url.UrlWithStringQuery } {
-    return {
-      parse: (uri: string) => url.parse(uri)
-    }
+  get urlUtils(): { parse: (uri: string) => ParsedUrl } {
+    return { parse: parseUrl }
   }
 
   /** Returns path utility functions scoped to the current working directory (cwd, join, resolve, relative, dirname, parse). */
@@ -390,5 +386,60 @@ export class NodeContainer<
     this.state.set('missingCommandHandler', handler)
     
     return this
+  }
+}
+
+/** The legacy url.parse() result shape, kept so urlUtils.parse callers don't break. */
+export type ParsedUrl = {
+  protocol: string | null
+  slashes: boolean | null
+  auth: string | null
+  host: string | null
+  port: string | null
+  hostname: string | null
+  hash: string | null
+  search: string | null
+  query: string | null
+  pathname: string | null
+  path: string | null
+  href: string
+}
+
+// Same shape as node's url.parse(), built on WHATWG URL. url.parse() is
+// deprecated (DEP0169) and prints a warning the first time it runs.
+// WHATWG URL rejects relative input, so relative URIs parse against a
+// throwaway base and the host fields stay null, matching the legacy output.
+function parseUrl(uri: string): ParsedUrl {
+  const isAbsolute = /^[a-z][a-z0-9+.-]*:/i.test(uri)
+  let u: URL
+  try {
+    u = isAbsolute ? new URL(uri) : new URL(uri, 'http://relative.invalid')
+  } catch {
+    return { protocol: null, slashes: null, auth: null, host: null, port: null, hostname: null, hash: null, search: null, query: null, pathname: uri, path: uri, href: uri }
+  }
+  const search = u.search || null
+  const hash = u.hash || null
+  if (!isAbsolute) {
+    const pathname = uri.startsWith('/') ? u.pathname : u.pathname.slice(1)
+    const path = pathname + (search ?? '')
+    return { protocol: null, slashes: null, auth: null, host: null, port: null, hostname: null, hash, search, query: search ? search.slice(1) : null, pathname, path, href: path + (hash ?? '') }
+  }
+  const auth = u.username ? decodeURIComponent(u.username) + (u.password ? ':' + decodeURIComponent(u.password) : '') : null
+  const pathname = u.pathname || null
+  // Legacy keeps an empty host ('') for slashed URLs like file:///x, null otherwise.
+  const slashes = uri.slice(u.protocol.length).startsWith('//') || null
+  return {
+    protocol: u.protocol,
+    slashes,
+    auth,
+    host: slashes ? u.host : u.host || null,
+    port: u.port || null,
+    hostname: slashes ? u.hostname : u.hostname || null,
+    hash,
+    search,
+    query: search ? search.slice(1) : null,
+    pathname,
+    path: pathname === null ? null : pathname + (search ?? ''),
+    href: u.href,
   }
 }
