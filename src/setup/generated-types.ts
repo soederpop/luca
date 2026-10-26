@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.22.0"
+export const typesBundleVersion = "3.22.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -1017,6 +1017,7 @@ export declare const AssistantEventsSchema: z.ZodObject<{
     enabled: z.ZodTuple<[], null>;
     created: z.ZodTuple<[], null>;
     started: z.ZodTuple<[], null>;
+    stopped: z.ZodTuple<[], null>;
     turnStart: z.ZodTuple<[z.ZodObject<{
         turn: z.ZodNumber;
         isFollowUp: z.ZodBoolean;
@@ -1267,6 +1268,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         enabled: z.ZodTuple<[], null>;
         created: z.ZodTuple<[], null>;
         started: z.ZodTuple<[], null>;
+        stopped: z.ZodTuple<[], null>;
         turnStart: z.ZodTuple<[z.ZodObject<{
             turn: z.ZodNumber;
             isFollowUp: z.ZodBoolean;
@@ -1802,6 +1804,16 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      * @returns {Promise<this>} The initialized assistant
      */
     start(): Promise<this>;
+    /**
+     * Stop the assistant and release what its hooks started. Runs the \`stopped\`
+     * hook, which is where an assistant closes MCP servers, child processes, or
+     * sockets it opened in beforeStart. Without this, a stdio child can keep a
+     * one-shot process like \`luca prompt\` alive after the run is done.
+     * Safe to call more than once, and a no-op if the assistant never started.
+     *
+     * @returns {Promise<this>} The stopped assistant
+     */
+    stop(): Promise<this>;
     /**
      * Resolved vision delegation config, or undefined when visionSupport is not enabled.
      * Merges the option (constructor or CORE.md frontmatter) with env-var defaults:
@@ -38101,7 +38113,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.21.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.22.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

@@ -22,6 +22,7 @@ declare module 'luca/feature' {
 export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	created: z.tuple([]).describe('Emitted immediately after the assistant loads its prompt, tools, and hooks.'),
 	started: z.tuple([]).describe('Emitted when the assistant has been initialized'),
+	stopped: z.tuple([]).describe('Emitted after stop() runs the stopped hook and the assistant is done for good'),
 	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Emitted when a new completion turn begins. isFollowUp is true when resuming after tool calls'),
 	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Emitted when a completion turn ends. hasToolCalls indicates whether tool calls will follow'),
 	chunk: z.tuple([z.string().describe('A chunk of streamed text')]).describe('Emitted as tokens stream in'),
@@ -1922,6 +1923,23 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// afterStart blocks until complete — use for setup that needs the full assistant ready
 		await this.triggerHook('afterStart')
 
+		return this
+	}
+
+	/**
+	 * Stop the assistant and release what its hooks started. Runs the `stopped`
+	 * hook, which is where an assistant closes MCP servers, child processes, or
+	 * sockets it opened in beforeStart. Without this, a stdio child can keep a
+	 * one-shot process like `luca prompt` alive after the run is done.
+	 * Safe to call more than once, and a no-op if the assistant never started.
+	 *
+	 * @returns {Promise<this>} The stopped assistant
+	 */
+	async stop(): Promise<this> {
+		if (!this.isStarted) return this
+		this.state.set('started', false)
+		await this.triggerHook('stopped')
+		this.emit('stopped')
 		return this
 	}
 

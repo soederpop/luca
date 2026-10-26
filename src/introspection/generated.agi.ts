@@ -2712,6 +2712,12 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "Promise<this>"
     },
+    "stop": {
+      "description": "Stop the assistant and release what its hooks started. Runs the `stopped` hook, which is where an assistant closes MCP servers, child processes, or sockets it opened in beforeStart. Without this, a stdio child can keep a one-shot process like `luca prompt` alive after the run is done. Safe to call more than once, and a no-op if the assistant never started.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
     "describeImages": {
       "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Used by ask() when visionSupport is enabled; also callable directly, and `overrides` lets a single call opt into batch mode without reconfiguring the assistant. Two modes: - default: one vision call per image, run `concurrency` at a time. Each image is described in isolation, so the model cannot compare them. - batch: ONE call containing every image, described as an ordered sequence. Use this for video frames or before/after pairs — it is the only mode that can report what changed between images. All image parts collapse into a single text part where the first image was, so the returned array is shorter than the input.",
       "parameters": {
@@ -3130,6 +3136,11 @@ setBuildTimeData('features.assistant', {
     },
     "started": {
       "name": "started",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "stopped": {
+      "name": "stopped",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -35118,6 +35129,12 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<this>"
       },
+      "stop": {
+        "description": "Stop the assistant and release what its hooks started. Runs the `stopped` hook, which is where an assistant closes MCP servers, child processes, or sockets it opened in beforeStart. Without this, a stdio child can keep a one-shot process like `luca prompt` alive after the run is done. Safe to call more than once, and a no-op if the assistant never started.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
       "describeImages": {
         "description": "Replace image parts in a content array with text descriptions produced by the configured vision model. Used by ask() when visionSupport is enabled; also callable directly, and `overrides` lets a single call opt into batch mode without reconfiguring the assistant. Two modes: - default: one vision call per image, run `concurrency` at a time. Each image is described in isolation, so the model cannot compare them. - batch: ONE call containing every image, described as an ordered sequence. Use this for video frames or before/after pairs — it is the only mode that can report what changed between images. All image parts collapse into a single text part where the first image was, so the returned array is shorter than the input.",
         "parameters": {
@@ -35536,6 +35553,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "started": {
         "name": "started",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "stopped": {
+        "name": "stopped",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },

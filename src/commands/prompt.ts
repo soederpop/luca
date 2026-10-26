@@ -285,7 +285,12 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	})
 
 	const startTime = Date.now()
-	await assistant.ask(promptContent)
+	try {
+		await assistant.ask(promptContent)
+	} finally {
+		// Let the assistant's stopped hook close MCP servers and other children it started
+		await assistant.stop().catch(() => {})
+	}
 	process.stdout.write('\n')
 
 	// Flush accumulated text buffer as a single event
@@ -541,7 +546,7 @@ async function runParallel(
 				})
 				allDone = true
 			},
-		)
+		).finally(() => Promise.allSettled(assistants.map((a) => a.stop())))
 	}
 
 	// --- Ink React Component ---
@@ -1098,7 +1103,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 
 		if (prepared.length > 1) {
 			await runParallel(target, prepared, options, container)
-			return
+			await exitWhenFlushed()
 		}
 		// Only 1 left after filtering — fall through to single mode
 	}
@@ -1165,6 +1170,18 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		await Bun.write(outPath, markdown)
 		console.log(`Session saved to ${outPath}`)
 	}
+
+	await exitWhenFlushed()
+}
+
+/**
+ * luca prompt is one-shot, so exit once output is flushed. Anything a run left
+ * open (an MCP stdio child, a socket, a timer) would otherwise keep the process
+ * alive, and the scheduler would kill it at its timeout and mark the play failed.
+ */
+async function exitWhenFlushed(): Promise<never> {
+	await new Promise<void>((resolve) => process.stdout.write('', () => resolve()))
+	process.exit(process.exitCode ?? 0)
 }
 
 export const positionals = [
