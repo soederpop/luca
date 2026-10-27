@@ -109,6 +109,7 @@ export class WebSocketClient<
   ws!: WebSocket
   _intentionalClose: boolean
   _pending = new Map<string, PendingRequest>()
+  _connecting: Promise<this> | null = null
 
   static override shortcut = "clients.websocket" as const
   static override stability = 'stable' as const
@@ -136,6 +137,8 @@ export class WebSocketClient<
    * Helper event bus and updates connection state accordingly.
    * Resolves once the connection is open; rejects on error.
    * Calling connect() while already connected is a no-op that resolves immediately.
+   * Calling it while a connect is already in flight returns that same attempt,
+   * so callers sharing a cached client never open a second, orphaned socket.
    *
    * @example
    * ```typescript
@@ -158,7 +161,20 @@ export class WebSocketClient<
     if (this.isConnected) {
       return this
     }
+    // container.client() caches by options, so unrelated callers share this
+    // instance. A second socket here would replace this.ws, and disconnect()
+    // could never close the first one; it would keep the process alive.
+    if (this._connecting) {
+      return this._connecting
+    }
 
+    this._connecting = this.openSocket().finally(() => {
+      this._connecting = null
+    })
+    return this._connecting
+  }
+
+  private async openSocket(): Promise<this> {
     const ws = this.ws = new WebSocket(this.baseURL)
     const state = this.state as any
 
