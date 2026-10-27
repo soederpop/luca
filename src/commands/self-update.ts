@@ -25,6 +25,7 @@ export const examples = [
 	'luca self-update',
 	{ command: 'luca self-update --check', description: 'See if a newer release exists' },
 	{ command: 'luca self-update --force', description: 'Reinstall the latest release even if versions match' },
+	{ command: 'luca self-update', description: 'Inside a project with .claude/skills/luca-framework, also refreshes that skill' },
 ]
 
 async function latestVersion(): Promise<string | undefined> {
@@ -107,10 +108,23 @@ export default async function selfUpdate(options: z.infer<typeof argsSchema>, co
 		ui.print.red(`Update failed (exit ${result.exitCode}). Your existing binary is unchanged.`)
 		process.exit(result.exitCode || 1)
 	}
+
+	// The skill's files are compiled into the binary, so this process only has
+	// the old ones. Ask the freshly installed binary to write its own. Only
+	// projects that already have the skill get it: running self-update from
+	// any folder must not drop a .claude/ into it.
+	const skillDir = container.paths.resolve('.claude', 'skills', 'luca-framework')
+	if (!fs.exists(skillDir)) return
+
+	ui.print.cyan('Refreshing .claude/skills/luca-framework with the new release')
+	const skill = await proc.spawnAndCapture(binary, ['bootstrap', '--update-skill'], { stdio: 'inherit' })
+	if (skill.exitCode !== 0) {
+		ui.print.yellow(`The binary updated, but refreshing the skill failed. Run: luca bootstrap --update-skill`)
+	}
 }
 
 commands.registerHandler('self-update', {
-	description: 'Reinstall the luca binary from the latest GitHub release, the same way install.sh does',
+	description: 'Reinstall the luca binary from the latest GitHub release, the same way install.sh does, then refresh the project\'s luca-framework skill',
 	argsSchema,
 	examples,
 	handler: selfUpdate,
