@@ -27,6 +27,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
 	'include-output': z.boolean().default(false).describe('Include tool call outputs in the markdown (requires --out-file)'),
+	'events-file': z.string().optional().describe('Append every agent event to this file as NDJSON while the session runs (raw Claude Code / Codex events; luca.* records for assistants)'),
 	'inputs-file': z.string().optional().describe('Path to a JSON or YAML file supplying input values'),
 	'parallel': z.boolean().default(false).describe('Run multiple prompt files in parallel with side-by-side terminal UI'),
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
@@ -101,6 +102,21 @@ interface PreparedPrompt {
 	agentOptions: Record<string, any>
 }
 
+/**
+ * Line-at-a-time NDJSON sink for --events-file. Written as events arrive, not
+ * at the end, so a watcher can render a session that is still running.
+ */
+function createEventsWriter(container: any, path?: string): (record: any) => void {
+	if (!path) return () => {}
+	const fs = container.feature('fs')
+	const resolved = container.paths.resolve(path)
+	fs.ensureFolder(container.paths.dirname(resolved))
+	fs.writeFile(resolved, '')
+	return (record: any) => {
+		try { fs.appendFile(resolved, JSON.stringify(record) + '\n') } catch {}
+	}
+}
+
 async function runClaudeOrCodex(target: 'claude' | 'codex' | 'hermes', promptContent: string, container: any, options: z.infer<typeof argsSchema>, agentOptions: Record<string, any> = {}): Promise<RunStats> {
 	const ui = container.feature('ui')
 	const featureName = CLI_TARGET_FEATURES[target]!
@@ -145,6 +161,11 @@ async function runClaudeOrCodex(target: 'claude' | 'codex' | 'hermes', promptCon
 			}
 		}
 	})
+
+	const writeEvent = createEventsWriter(container, options['events-file'])
+	if (options['events-file']) {
+		feature.on('session:event', ({ event }: { event: any }) => writeEvent(event))
+	}
 
 	// Collect structured events for --out-file
 	const collectedEvents: any[] = []
@@ -247,6 +268,29 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 
 	const assistant = manager.create(name, createOptions)
 	let isFirstChunk = true
+
+	// Assistant tool events carry no call id. Number each call and pair results
+	// first-in-first-out per tool name: a tool's result always follows its call.
+	const writeEvent = createEventsWriter(container, options['events-file'])
+	const pendingCalls = new Map<string, string[]>()
+	let callCounter = 0
+	const takeCallId = (toolName: string) => pendingCalls.get(toolName)?.shift() ?? `call-${++callCounter}`
+	if (options['events-file']) {
+		assistant.on('chunk', (text: string) => writeEvent({ type: 'luca.text_delta', text }))
+		assistant.on('reasoning', (text: string) => writeEvent({ type: 'luca.reasoning_delta', text }))
+		assistant.on('toolCall', (toolName: string, args: any) => {
+			const id = `call-${++callCounter}`
+			pendingCalls.set(toolName, [...(pendingCalls.get(toolName) || []), id])
+			writeEvent({ type: 'luca.tool_call', id, name: toolName, input: args })
+		})
+		assistant.on('toolResult', (toolName: string, result: any) => {
+			const content = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+			writeEvent({ type: 'luca.tool_result', id: takeCallId(toolName), name: toolName, content })
+		})
+		assistant.on('toolError', (toolName: string, error: any) => {
+			writeEvent({ type: 'luca.tool_result', id: takeCallId(toolName), name: toolName, content: error?.message || String(error), isError: true })
+		})
+	}
 
 	// Collect structured events for --out-file
 	const collectedEvents: any[] = []
@@ -1102,6 +1146,10 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		}
 
 		if (prepared.length > 1) {
+			if (options['events-file']) {
+				console.error('--events-file records one session; run the prompts one at a time to record each')
+				process.exit(1)
+			}
 			await runParallel(target, prepared, options, container)
 			await exitWhenFlushed()
 		}

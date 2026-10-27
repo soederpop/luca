@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.22.1"
+export const typesBundleVersion = "3.22.2"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -13415,6 +13415,7 @@ export declare const argsSchema: z.ZodObject<{
     'in-folder': z.ZodOptional<z.ZodString>;
     'out-file': z.ZodOptional<z.ZodString>;
     'include-output': z.ZodDefault<z.ZodBoolean>;
+    'events-file': z.ZodOptional<z.ZodString>;
     'inputs-file': z.ZodOptional<z.ZodString>;
     parallel: z.ZodDefault<z.ZodBoolean>;
     'exclude-sections': z.ZodOptional<z.ZodString>;
@@ -38113,7 +38114,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.22.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.22.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
