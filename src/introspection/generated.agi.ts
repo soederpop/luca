@@ -2165,7 +2165,7 @@ setBuildTimeData('clients.websocket', {
   "className": "WebSocketClient",
   "methods": {
     "connect": {
-      "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately.",
+      "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately. Calling it while a connect is already in flight returns that same attempt, so callers sharing a cached client never open a second, orphaned socket.",
       "parameters": {},
       "required": [],
       "returns": "Promise<this>",
@@ -34583,7 +34583,7 @@ export const introspectionData: Record<string, any>[] = [
     "className": "WebSocketClient",
     "methods": {
       "connect": {
-        "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately.",
+        "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately. Calling it while a connect is already in flight returns that same attempt, so callers sharing a cached client never open a second, orphaned socket.",
         "parameters": {},
         "required": [],
         "returns": "Promise<this>",

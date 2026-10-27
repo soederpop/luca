@@ -12216,6 +12216,7 @@ export declare class WebSocketClient<T extends WebSocketClientState = WebSocketC
     ws: WebSocket;
     _intentionalClose: boolean;
     _pending: Map<string, PendingRequest<any>>;
+    _connecting: Promise<this> | null;
     static shortcut: "clients.websocket";
     static stability: "stable";
     static category: "networking";
@@ -12250,6 +12251,8 @@ export declare class WebSocketClient<T extends WebSocketClientState = WebSocketC
      * Helper event bus and updates connection state accordingly.
      * Resolves once the connection is open; rejects on error.
      * Calling connect() while already connected is a no-op that resolves immediately.
+     * Calling it while a connect is already in flight returns that same attempt,
+     * so callers sharing a cached client never open a second, orphaned socket.
      *
      * @example
      * \`\`\`typescript
@@ -12269,6 +12272,7 @@ export declare class WebSocketClient<T extends WebSocketClientState = WebSocketC
      * \`\`\`
      */
     connect(): Promise<this>;
+    private openSocket;
     /**
      * Send data over the WebSocket connection. Objects are JSON-serialized; a
      * \`Buffer\`/\`ArrayBuffer\`/typed array is sent as a raw binary frame and a
