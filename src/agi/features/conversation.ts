@@ -103,6 +103,10 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	extraBody: z.record(z.string(), z.any()).optional().describe("Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } } for llama-server/vLLM). Chat API only"),
 	/** How hard a thinking model should reason. Mapped per backend: reasoning_effort (chat), reasoning.effort (Responses), model_reasoning_effort (codex), --effort (claude-code, clamped to low/medium/high). Omit for the model's default. */
 	reasoningEffort: z.enum(['minimal', 'low', 'medium', 'high', 'xhigh']).optional().describe('Reasoning effort for thinking models: minimal, low, medium, high, xhigh. Mapped to each backend\'s own knob; omit for the model default'),
+	/** Keep the reasoning a thinking model streams on each assistant message as `message.reasoning`, so history and save() can show it later. Luca strips the field before every request; see replayReasoning. */
+	recordReasoning: z.boolean().optional().describe('Keep streamed reasoning on each assistant message as message.reasoning for inspection (default true). Never sent to the model unless replayReasoning is on'),
+	/** Send recorded reasoning back as `reasoning_content` on the assistant tool-call messages of the turn in progress. DeepSeek-style chat templates read it there and drop it across user turns. Chat API only. */
+	replayReasoning: z.boolean().optional().describe('Send recorded reasoning back as reasoning_content on assistant tool-call messages within the current turn (DeepSeek-style thinking with tools). Chat API only, default false'),
 
 	/** Enable automatic compaction when estimated input tokens approach the context limit */
 	autoCompact: z.boolean().optional().describe('Enable automatic compaction when input tokens approach the context limit'),
@@ -451,6 +455,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
 	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
+
+	/** Index of the first message the turn in progress produced. replayReasoning only reaches messages from here on. */
+	private _turnStartIndex = 0
 
 	/** Resolved max tokens: per-call override > state-level. Undefined means no limit (model default). */
 	private get maxTokens(): number | undefined {
@@ -1555,6 +1562,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		// never injected — they belong to that dead turn, not this one.
 		this._pendingToolImages = []
 		const inputIndex = this.messages.length - 1
+		this._turnStartIndex = inputIndex + 1
 		const content = this.messages[inputIndex]!.content as string | ContentPart[]
 		// Continuation handles as they stood before this turn ran. If the turn
 		// fails without minting new ones, the pre-turn chain is still valid.
@@ -1820,6 +1828,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
 			let turnContent = ''
+			let turnReasoning = ''
 			let toolCalls: ModelToolCall[] = []
 
 			try {
@@ -1847,6 +1856,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 						this.emit('chunk', event.text)
 						this.emit('preview', accumulated)
 					} else if (event.type === 'reasoning') {
+						turnReasoning += event.text
 						this.emit('reasoning', event.text)
 					} else if (event.type === 'toolCall') {
 						toolCalls.push(event.toolCall)
@@ -1883,7 +1893,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					})),
 				} : {}),
 			}
-			this.pushMessage(assistantMessage)
+			this.pushMessage(this.withReasoning(assistantMessage, turnReasoning))
 			this.emit('turnEnd', { turn, hasToolCalls: toolCalls.length > 0 })
 
 			if (!toolCalls.length) break
@@ -2187,6 +2197,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const { turn } = context
 		let accumulated = context.accumulated
 		let turnContent = ''
+		let turnReasoning = ''
 		let finalResponse: OpenAI.Responses.Response | undefined
 
 		const provider = await this.resolveTransportProvider('openai-responses')
@@ -2241,6 +2252,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
 				} else if (transportEvent.type === 'reasoning') {
+					turnReasoning += transportEvent.text
 					this.emit('reasoning', transportEvent.text)
 				} else if (transportEvent.type === 'response') {
 					finalResponse = (transportEvent.response.providerData?.response ?? finalResponse) as OpenAI.Responses.Response | undefined
@@ -2277,7 +2289,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					}
 				}))
 			}
-			this.pushMessage(assistantMessage)
+			this.pushMessage(this.withReasoning(assistantMessage, turnReasoning))
 
 			this.emit('toolCallsStart', functionCalls)
 
@@ -2321,7 +2333,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		const finalText = turnContent || finalResponse.output_text || ''
 		const assistantMessage: Message = { role: 'assistant', content: finalText }
-		this.pushMessage(assistantMessage)
+		this.pushMessage(this.withReasoning(assistantMessage, turnReasoning))
 		this.state.set('lastResponseMessageCount', this.messages.length)
 		this.state.set('lastResponse', accumulated || finalText)
 
@@ -2399,12 +2411,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
 		let turnContent = ''
+		let turnReasoning = ''
 		let toolCalls: Array<{ id: string; function: { name: string; arguments: string }; type: 'function' }> = []
 
 		try {
 			const stream = provider.transport.stream({
 				model: this.model,
-				messages: this.sanitizeMessages(this.getMessagesWithinBudget()) as any,
+				messages: this.sanitizeMessages(this.getMessagesWithinBudget(), { replayReasoning: !!this.options.replayReasoning }) as any,
 				tools: tools.length ? tools : undefined,
 				maxTokens: this.maxTokens,
 				instructions: this._activeInstructions ?? undefined,
@@ -2430,6 +2443,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
 				} else if (transportEvent.type === 'reasoning') {
+					turnReasoning += transportEvent.text
 					this.emit('reasoning', transportEvent.text)
 				} else if (transportEvent.type === 'response') {
 					const response = transportEvent.response
@@ -2482,7 +2496,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				content: turnContent || null,
 				tool_calls: toolCalls
 			}
-			this.pushMessage(assistantMessage)
+			this.pushMessage(this.withReasoning(assistantMessage, turnReasoning))
 
 			this.emit('toolCallsStart', toolCalls)
 
@@ -2513,7 +2527,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		// Final text response — use this turn's content for the message history,
 		// but accumulated for the response event and return value
 		const assistantMessage: Message = { role: 'assistant', content: turnContent }
-		this.pushMessage(assistantMessage)
+		this.pushMessage(this.withReasoning(assistantMessage, turnReasoning))
 		this.state.set('lastResponse', accumulated)
 
 		this.emit('turnEnd', { turn, hasToolCalls: false })
@@ -2598,11 +2612,33 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return systemMsg ? [systemMsg, ...kept] : kept
 	}
 
-	private sanitizeMessages(messages: Message[]): Message[] {
+	/**
+	 * Attach a turn's reasoning to its assistant message as `reasoning`, unless
+	 * recordReasoning is off or the model streamed none.
+	 */
+	private withReasoning<T extends Message>(message: T, reasoning: string): T {
+		if (!reasoning || this.options.recordReasoning === false) return message
+		return { ...message, reasoning }
+	}
+
+	private sanitizeMessages(messages: Message[], options: { replayReasoning?: boolean } = {}): Message[] {
 		const result: Message[] = []
+		// Recorded reasoning is local inspection data and must never reach the
+		// wire as-is: OpenRouter reads a `reasoning` key on input messages. With
+		// replay on, it goes back as reasoning_content, but only on this turn's
+		// tool-call messages, which is where DeepSeek-style templates read it.
+		const currentTurn = options.replayReasoning ? new Set(this.messages.slice(this._turnStartIndex)) : null
 
 		for (let i = 0; i < messages.length; i++) {
-			const msg = messages[i]!
+			const original = messages[i]!
+			let msg = original
+			if ('reasoning' in msg) {
+				const { reasoning, ...rest } = msg as any
+				msg = rest
+				if (currentTurn?.has(original) && (rest as any).tool_calls?.length && typeof reasoning === 'string') {
+					msg = { ...rest, reasoning_content: reasoning } as Message
+				}
+			}
 			result.push(msg)
 
 			// Check if this is an assistant message with tool_calls

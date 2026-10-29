@@ -868,7 +868,7 @@ describe('reasoning stream events', () => {
     expect(events.at(-1).response.content).toBe('the answer is 4')
   })
 
-  it('conversation re-emits reasoning and keeps it out of the response and history', async () => {
+  it('conversation re-emits reasoning, keeps it out of the content, and records it on the message', async () => {
     const container = new AGIContainer()
     const conv = container.feature('conversation', {
       cached: false,
@@ -882,6 +882,6 @@ describe('reasoning stream events', () => {
     expect(answer).toBe('the answer is 4')
     expect(reasoning.join('')).toBe('let me think. more thoughts')
     expect(conv.messages.at(-1).content).toBe('the answer is 4')
-    expect(JSON.stringify(conv.messages)).not.toContain('more thoughts')
+    expect(conv.messages.at(-1).reasoning).toBe('let me think. more thoughts')
   })
 })
