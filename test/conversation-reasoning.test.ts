@@ -81,4 +81,38 @@ describe('Conversation reasoning', () => {
 		await conversation.ask('one')
 		expect(conversation.messages.some((m: any) => 'reasoning' in m)).toBe(false)
 	})
+
+	it('parses structured output that LM Studio put in the reasoning channel', async () => {
+		const container = new AGIContainer()
+		container.feature('modelProviders').registerTransport('openai-chat-completions', {
+			apiMode: 'openai-chat-completions',
+			async *stream() {
+				yield { type: 'reasoning', text: '{"year": 1976}' } as const
+				yield { type: 'response', response: { content: '', toolCalls: [] } } as const
+			},
+		})
+		const conversation = container.feature('conversation', { cached: false, model: 'gpt-5', api: 'chat' }) as Conversation
+		const { z } = await import('zod')
+
+		const result = await conversation.ask('when?', { schema: z.object({ year: z.number() }).describe('Founded') })
+		expect(result).toEqual({ year: 1976 })
+		const last = conversation.messages.at(-1) as any
+		expect(last.content).toBe('{"year": 1976}')
+		expect(last.reasoning).toBeUndefined()
+	})
+
+	it('keeps reasoning as reasoning when no schema is active', async () => {
+		const container = new AGIContainer()
+		container.feature('modelProviders').registerTransport('openai-chat-completions', {
+			apiMode: 'openai-chat-completions',
+			async *stream() {
+				yield { type: 'reasoning', text: '{"not": "an answer"}' } as const
+				yield { type: 'response', response: { content: '', toolCalls: [] } } as const
+			},
+		})
+		const conversation = container.feature('conversation', { cached: false, model: 'gpt-5', api: 'chat' }) as Conversation
+
+		expect(await conversation.ask('hi')).toBe('')
+		expect((conversation.messages.at(-1) as any).reasoning).toBe('{"not": "an answer"}')
+	})
 })

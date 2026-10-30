@@ -2524,6 +2524,19 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			return this.runChatCompletionLoop({ turn: turn + 1, accumulated })
 		}
 
+		// LM Studio routes grammar-constrained output from thinking templates
+		// (qwen3.5 family) into reasoning_content and leaves content empty, even
+		// with thinking disabled. When a schema is active and the "reasoning" is
+		// the JSON answer, treat it as the content.
+		const reasoningJson = turnReasoning.trim()
+		if (this._activeSchema && !turnContent.trim() && /^[\[{]/.test(reasoningJson)) {
+			turnContent = reasoningJson
+			turnReasoning = ''
+			accumulated += reasoningJson
+			this.emit('chunk', reasoningJson)
+			this.emit('preview', accumulated)
+		}
+
 		// Final text response — use this turn's content for the message history,
 		// but accumulated for the response event and return value
 		const assistantMessage: Message = { role: 'assistant', content: turnContent }
