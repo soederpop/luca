@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.22.2"
+export const typesBundleVersion = "3.23.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -4789,6 +4789,8 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
         medium: "medium";
         xhigh: "xhigh";
     }>>;
+    recordReasoning: z.ZodOptional<z.ZodBoolean>;
+    replayReasoning: z.ZodOptional<z.ZodBoolean>;
     autoCompact: z.ZodOptional<z.ZodBoolean>;
     compactThreshold: z.ZodOptional<z.ZodNumber>;
     contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -5156,6 +5158,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
             medium: "medium";
             xhigh: "xhigh";
         }>>;
+        recordReasoning: z.ZodOptional<z.ZodBoolean>;
+        replayReasoning: z.ZodOptional<z.ZodBoolean>;
         autoCompact: z.ZodOptional<z.ZodBoolean>;
         compactThreshold: z.ZodOptional<z.ZodNumber>;
         contextWindow: z.ZodOptional<z.ZodNumber>;
@@ -5278,6 +5282,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     private _askQueue;
     /** Registered stubs: matched against user input to short-circuit the API with a canned response. */
     private _stubs;
+    /** Index of the first message the turn in progress produced. replayReasoning only reaches messages from here on. */
+    private _turnStartIndex;
     /** Resolved max tokens: per-call override > state-level. Undefined means no limit (model default). */
     private get maxTokens();
     /** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -5867,6 +5873,11 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * If no maxInputTokens is set, returns messages as-is.
      */
     private getMessagesWithinBudget;
+    /**
+     * Attach a turn's reasoning to its assistant message as \`reasoning\`, unless
+     * recordReasoning is off or the model streamed none.
+     */
+    private withReasoning;
     private sanitizeMessages;
     /**
      * Append a message to the conversation state.
