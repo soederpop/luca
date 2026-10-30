@@ -17869,10 +17869,10 @@ setBuildTimeData('features.memory', {
       "returns": "void"
     },
     "recall": {
-      "description": "Tool handler: search memories by semantic similarity.",
+      "description": "Tool handler: search memories by semantic similarity, across all categories unless one is given.",
       "parameters": {
         "args": {
-          "type": "{ category: string; query: string; n_results?: number }",
+          "type": "{ category?: string; query: string; n_results?: number }",
           "description": "Parameter args"
         }
       },
@@ -17925,7 +17925,7 @@ setBuildTimeData('features.memory', {
       "returns": "void"
     },
     "setupToolsConsumer": {
-      "description": "When an assistant uses memory, inject system prompt guidance.",
+      "description": "When an assistant uses memory: scope it to that assistant, inject system prompt guidance, and auto-recall relevant memories on every user message. Memory left on the 'default' namespace is re-scoped to the assistant's name, so two assistants never read each other's memories by accident. Pass an explicit namespace to share one memory set on purpose.",
       "parameters": {
         "consumer": {
           "type": "Helper",
@@ -18234,8 +18234,8 @@ setBuildTimeData('features.memory', {
       "description": "Search memories by semantic similarity.",
       "parameters": {
         "category": {
-          "type": "string",
-          "description": "The category to search in"
+          "type": "string | null",
+          "description": "The category to search in, or null to search every category in the namespace"
         },
         "query": {
           "type": "string",
@@ -50249,10 +50249,10 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "recall": {
-        "description": "Tool handler: search memories by semantic similarity.",
+        "description": "Tool handler: search memories by semantic similarity, across all categories unless one is given.",
         "parameters": {
           "args": {
-            "type": "{ category: string; query: string; n_results?: number }",
+            "type": "{ category?: string; query: string; n_results?: number }",
             "description": "Parameter args"
           }
         },
@@ -50305,7 +50305,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "void"
       },
       "setupToolsConsumer": {
-        "description": "When an assistant uses memory, inject system prompt guidance.",
+        "description": "When an assistant uses memory: scope it to that assistant, inject system prompt guidance, and auto-recall relevant memories on every user message. Memory left on the 'default' namespace is re-scoped to the assistant's name, so two assistants never read each other's memories by accident. Pass an explicit namespace to share one memory set on purpose.",
         "parameters": {
           "consumer": {
             "type": "Helper",
@@ -50614,8 +50614,8 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Search memories by semantic similarity.",
         "parameters": {
           "category": {
-            "type": "string",
-            "description": "The category to search in"
+            "type": "string | null",
+            "description": "The category to search in, or null to search every category in the namespace"
           },
           "query": {
             "type": "string",

@@ -27,7 +27,9 @@ export const MemoryOptionsSchema = FeatureOptionsSchema.extend({
   provider: z.any().optional().describe("Model provider preset id (e.g. a modelProviders preset like 'claude-code' or a registered local model) or inline provider config for the consolidation judge. consolidate() uses it when no judge or provider is passed to the call. Chat/judging only — embeddings are controlled by embeddingProvider"),
   model: z.string().optional().describe('Model for the consolidation judge conversation. Usually unnecessary when provider is set (the preset carries its own model)'),
   dormantAfterEpochs: z.number().optional().describe('Default decay horizon for consolidate(): never-used, never-confirmed episodic memories go dormant after this many unreviewed epochs (default 3; 0 disables decay)'),
-  namespace: z.string().default('default').describe('Namespace to isolate memory sets (e.g. per-assistant)'),
+  namespace: z.string().default('default').describe('Namespace to isolate memory sets. Left at "default", an assistant that uses this feature gets its own namespace named after the assistant, so assistants never share memory by accident. Set it explicitly to share one memory set between assistants on purpose'),
+  autoRecall: z.number().default(3).describe('When an assistant uses this feature, search memory with each user message and prepend up to this many relevant memories to it, so recall does not depend on the model choosing to call the recall tool. Each memory is injected at most once per assistant. 0 disables'),
+  autoRecallMaxDistance: z.number().default(0.6).describe('Cosine distance (0 = identical) a memory must be within to be auto-recalled. Keeps unrelated memories out of small-talk turns. Tune per embedding model — local models tend to score unrelated text closer than openai ones'),
 })
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>
 
@@ -164,12 +166,12 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       }).describe('Store something in long-term memory, declaring WHY you are storing it. An observation is appended as-is (repeats are fine — they become confirmation strength). A correction supersedes an outdated memory by id. A confirmation strengthens an existing memory by id. Nothing is ever silently dropped.'),
     },
     recall: {
-      description: 'Search long-term memory using natural language. Returns the most relevant memories with their ids — keep the ids: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.',
+      description: 'Search long-term memory using natural language. Returns the most relevant memories with their ids and categories — keep both: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.',
       schema: z.object({
-        category: z.string().describe('The category to search in. If unsure which category holds what you need, call listCategories first, then search the most likely one. Use "facts" as a default.'),
+        category: z.string().optional().describe('Restrict the search to one category. Omit it to search every category — the safe default, since a memory filed under an unexpected category is otherwise missed.'),
         query: z.string().describe('A natural-language description of what you are looking for. Phrase it as a question or topic, not keywords. Good: "what programming languages does the user prefer". Bad: "languages".'),
         n_results: z.number().default(5).describe('How many results to return. Use 3-5 for focused lookups, up to 10 for broad exploration.'),
-      }).describe('Search long-term memory using natural language. Returns the most relevant memories with their ids — keep the ids: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.'),
+      }).describe('Search long-term memory using natural language. Returns the most relevant memories with their ids and categories — keep both: they are how you correct, confirm, or forget a specific memory later. Call this BEFORE answering questions — you may already know something from a previous conversation.'),
     },
     forget: {
       description: 'Retract one specific memory by id (from recall) — it stops being recalled but stays in the audit trail. Use when the user says a specific thing is wrong or should be forgotten, but there is no replacement fact (if there IS a replacement, use remember with intent "correction" instead).',
@@ -371,11 +373,12 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return { stored: true, id: created.id, category: created.category }
   }
 
-  /** Tool handler: search memories by semantic similarity. */
-  async recall(args: { category: string; query: string; n_results?: number }) {
-    const results = await this.search(args.category, args.query, args.n_results ?? 5)
+  /** Tool handler: search memories by semantic similarity, across all categories unless one is given. */
+  async recall(args: { category?: string; query: string; n_results?: number }) {
+    const results = await this.search(args.category || null, args.query, args.n_results ?? 5)
     return results.map(r => ({
       id: r.id,
+      category: r.category,
       document: r.document,
       metadata: r.metadata,
       distance: Math.round(r.distance * 1000) / 1000,
@@ -430,14 +433,43 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   }
 
   /**
-   * When an assistant uses memory, inject system prompt guidance.
+   * When an assistant uses memory: scope it to that assistant, inject system
+   * prompt guidance, and auto-recall relevant memories on every user message.
+   *
+   * Memory left on the 'default' namespace is re-scoped to the assistant's
+   * name, so two assistants never read each other's memories by accident.
+   * Pass an explicit namespace to share one memory set on purpose.
    */
   override setupToolsConsumer(consumer: Helper) {
-    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
-      (consumer as any).addSystemPromptExtension('memory', [
+    const assistant = consumer as any
+    const ownerName = typeof assistant.name === 'string' ? assistant.name : undefined
+    if (this.options.namespace === 'default' && ownerName && ownerName !== 'default') {
+      // Re-registering under the same tool names replaces this instance's
+      // handlers with the scoped instance's, which then runs this setup itself.
+      assistant.use(this.container.feature('memory', { ...this.options, namespace: ownerName }))
+      return
+    }
+
+    if (this.options.autoRecall > 0 && typeof assistant.intercept === 'function') {
+      // Ids already shown to this assistant. The block lands in conversation
+      // history, so re-injecting the same memory every turn only burns tokens.
+      const injected = new Set<number>()
+      assistant.intercept('beforeAsk', async (ctx: { question: string | any[] }, next: () => Promise<void>) => {
+        if (typeof ctx.question === 'string' && ctx.question.trim()) {
+          const block = await this.autoRecallBlock(ctx.question, injected)
+          if (block) ctx.question = `${block}\n\n${ctx.question}`
+        }
+        await next()
+      })
+    }
+
+    if (typeof assistant.addSystemPromptExtension === 'function') {
+      assistant.addSystemPromptExtension('memory', [
         '## Long-Term Memory',
         '',
         'You have persistent memory that survives across conversations, and you are its gardener: you don\'t just store and retrieve, you keep it TRUE. Use it proactively:',
+        '',
+        '**Recalled automatically:** Memories relevant to each user message are prepended to it in a <recalled-memories> block, with their ids and categories. Treat them as what you already know. The block only holds close matches, so still call `recall` when you need more.',
         '',
         '**Start of conversation:** Call `listCategories` to see what you already know. If categories exist, call `recall` with a broad query related to the user\'s first message. Do this before responding — context from prior sessions makes your answers dramatically better.',
         '',
@@ -451,8 +483,31 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         '',
         '**Tending:** If recall returns memories that contradict each other, resolve it now — decide which is current (ask the user if unclear) and use correction/forget to fix it. If memory feels cluttered, run `consolidateMemory`.',
         '',
-        '**Categories:** Use consistent, descriptive kebab-case categories. Prefer a few broad categories ("facts", "preferences", "context") over many narrow ones. Always reuse existing categories rather than creating similar new ones.',
+        '**Categories:** Use consistent, descriptive kebab-case categories. Prefer a few broad categories ("facts", "preferences", "context") over many narrow ones. Always reuse existing categories rather than creating similar new ones. `recall` searches every category unless you pass one.',
       ].join('\n'))
+    }
+  }
+
+  /**
+   * @internal Build the <recalled-memories> block for one user message, or
+   * null when nothing new is close enough. Failures return null: a broken
+   * embedder must never stop the assistant from answering.
+   */
+  private async autoRecallBlock(question: string, injected: Set<number>): Promise<string | null> {
+    try {
+      // trackUsage off: usage feeds decay, and it should mean the model went
+      // looking for a memory, not that it happened to sit near a message.
+      const results = await this.search(null, question, this.options.autoRecall, {
+        maxDistance: this.options.autoRecallMaxDistance,
+        trackUsage: false,
+      })
+      const fresh = results.filter(r => !injected.has(r.id))
+      if (!fresh.length) return null
+      for (const r of fresh) injected.add(r.id)
+      const lines = fresh.map(r => `- [id ${r.id}, ${r.category}] ${r.document}`)
+      return ['<recalled-memories>', ...lines, '</recalled-memories>'].join('\n')
+    } catch {
+      return null
     }
   }
 
@@ -820,7 +875,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   /**
    * Search memories by semantic similarity.
    *
-   * @param {string} category - The category to search in
+   * @param {string | null} category - The category to search in, or null to search every category in the namespace
    * @param {string} query - The search query (will be embedded)
    * @param {number} nResults - Maximum number of results (default 5)
    * @param {object} options - Additional search options
@@ -830,15 +885,17 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
    * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
    */
-  async search(category: string, query: string, nResults = 5, options: { maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean } = {}): Promise<MemorySearchResult[]> {
+  async search(category: string | null, query: string, nResults = 5, options: { maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean } = {}): Promise<MemorySearchResult[]> {
     await this.ensureDb()
 
     const queryEmbedding = await this.embed(query)
 
     const statusClause = options.includeInactive ? '' : " AND status = 'active'"
+    const categoryClause = category ? ' AND category = ?' : ''
+    const params = category ? [this.options.namespace, category] : [this.options.namespace]
     const rows = await this.db.query(
-      `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND embedding IS NOT NULL${statusClause}`,
-      [this.options.namespace, category]
+      `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ?${categoryClause} AND embedding IS NOT NULL${statusClause}`,
+      params
     ) as any[]
 
     let scored = rows.map((row: any) => {
@@ -983,7 +1040,9 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     for (const category of categories) {
       const rows = await this.db.query(
-        `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND status = 'active' AND embedding IS NOT NULL`,
+        // ORDER BY id keeps clustering stable between passes, so skipping
+        // already-reviewed clusters doesn't let reshuffled groupings slip by.
+        `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND status = 'active' AND embedding IS NOT NULL ORDER BY id`,
         [this.options.namespace, category]
       ) as any[]
       if (!rows.length) continue
@@ -994,13 +1053,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       const clusters = this.clusterBySimilarity(records, clusterThreshold, report.warnings)
 
       for (const cluster of clusters) {
-        // Only clusters that need a decision cost a judge call: multi-row
-        // clusters (possible duplicates/contradictions) and lone episodic
-        // observations not yet reviewed (promote to belief, or leave?).
-        // A kept singleton is NOT re-stamped on later passes — it must earn
-        // usage or confirmations, or decay will eventually claim it.
+        // Only clusters holding something the judge has not seen cost a call.
+        // Duplicates and contradictions only arise when a new row lands, so a
+        // cluster of already-reviewed rows (e.g. distinct facts the judge kept
+        // last pass) is skipped instead of re-judged every epoch. A lone row
+        // needs judging only if it is an unreviewed episodic observation
+        // (promote to belief, or leave?). A kept singleton is NOT re-stamped
+        // on later passes — it must earn usage or confirmations, or decay
+        // will eventually claim it.
+        const hasUnreviewed = cluster.some(m => m.reviewed_epoch === 0)
         const needsJudgment = cluster.length > 1
-          || (cluster[0]!.layer === 'episodic' && cluster[0]!.reviewed_epoch === 0)
+          ? hasUnreviewed
+          : cluster[0]!.layer === 'episodic' && hasUnreviewed
         if (!needsJudgment) continue
 
         report.clusters++

@@ -363,3 +363,115 @@ describe('memory feature-level judge/decay options', () => {
 		expect((await mem.get('facts', row.id)).status).toBe('dormant')
 	})
 })
+
+describe('recall across categories', () => {
+	it('searches every category when none is given, and reports where each hit lives', async () => {
+		const mem = makeMem()
+		const codex = await mem.create('context', 'User prefers codex')
+		await mem.create('facts', 'User drinks black coffee')
+
+		const all = await mem.recall({ query: 'which provider does the user prefer', n_results: 5 })
+		expect(all.length).toBe(2)
+		expect(all[0].id).toBe(codex.id)
+		expect(all[0].category).toBe('context')
+
+		const scoped = await mem.recall({ category: 'facts', query: 'which provider does the user prefer' })
+		expect(scoped.map((r: any) => r.category)).toEqual(['facts'])
+	})
+})
+
+describe('consolidate judge cost', () => {
+	const keepJudge = (calls: string[]) => async (prompt: string) => {
+		calls.push(prompt)
+		const rows = prompt.split('\n').filter(l => l.startsWith('{')).map(l => JSON.parse(l))
+		return JSON.stringify({ actions: [{ type: 'keep', ids: rows.map(r => r.id) }] })
+	}
+
+	it('skips a cluster the judge already reviewed, and re-judges it once a new row joins', async () => {
+		const mem = makeMem()
+		await mem.create('facts', 'User prefers codex')
+		await mem.observe('facts', 'The user prefers codex for coding tasks')
+
+		const first: string[] = []
+		await mem.consolidate({ judge: keepJudge(first) })
+		expect(first.length).toBe(1)
+
+		const second: string[] = []
+		await mem.consolidate({ judge: keepJudge(second) })
+		expect(second.length).toBe(0)
+
+		await mem.observe('facts', 'User no longer prefers codex; now prefers claude-code')
+		const third: string[] = []
+		await mem.consolidate({ judge: keepJudge(third) })
+		expect(third.length).toBe(1)
+		expect(third[0]).toContain('no longer')
+	})
+})
+
+describe('memory used by assistants', () => {
+	const stubEmbed = async (texts: string[]) => texts.map(t => VECS[t] ?? [0.577, 0.577, 0.577])
+
+	// The scoped instance an assistant gets is a different feature instance,
+	// but it shares the cached semanticSearch searcher, so stub that one.
+	function makeSharedMem(extra: Record<string, any> = {}) {
+		const c = makeContainer()
+		const tmp = c.feature('os').tmpdir
+		const dbPath = c.paths.resolve(tmp, `agent-memory-test-${process.pid}-${Date.now()}-${dbCounter++}.db`)
+		const mem = c.feature('memory', { dbPath, embeddingProvider: 'local', ...extra }) as any
+		mem.searcher.embed = stubEmbed
+		return { c, mem }
+	}
+
+	async function recallVia(assistant: any, query: string) {
+		return assistant.tools.recall.handler({ query })
+	}
+
+	it('gives each assistant its own namespace when none is set', async () => {
+		const { c, mem } = makeSharedMem()
+		const alpha = c.feature('assistant', { name: 'alpha', systemPrompt: 'a' }).use(mem) as any
+		const beta = c.feature('assistant', { name: 'beta', systemPrompt: 'b' }).use(mem) as any
+
+		await alpha.tools.remember.handler({ category: 'facts', text: 'User prefers codex' })
+
+		expect((await recallVia(alpha, 'which provider does the user prefer')).length).toBe(1)
+		expect((await recallVia(beta, 'which provider does the user prefer')).length).toBe(0)
+	})
+
+	it('shares memory between assistants when a namespace is set explicitly', async () => {
+		const { c, mem } = makeSharedMem({ namespace: 'team' })
+		const alpha = c.feature('assistant', { name: 'alpha', systemPrompt: 'a' }).use(mem) as any
+		const beta = c.feature('assistant', { name: 'beta', systemPrompt: 'b' }).use(mem) as any
+
+		await alpha.tools.remember.handler({ category: 'facts', text: 'User prefers codex' })
+		expect((await recallVia(beta, 'which provider does the user prefer')).length).toBe(1)
+	})
+
+	it('prepends close memories to the user message once, without counting it as usage', async () => {
+		const { c, mem } = makeSharedMem({ namespace: 'auto' })
+		const codex = await mem.create('facts', 'User prefers codex')
+		await mem.create('facts', 'User drinks black coffee')
+		const assistant = c.feature('assistant', { name: 'alpha', systemPrompt: 'a' }).use(mem) as any
+
+		const ctx = { question: 'which provider does the user prefer' }
+		await assistant.interceptors.beforeAsk.run(ctx, async () => {})
+		expect(ctx.question).toContain('<recalled-memories>')
+		expect(ctx.question).toContain(`[id ${codex.id}, facts] User prefers codex`)
+		expect(ctx.question).not.toContain('coffee') // too far away
+		expect(ctx.question.endsWith('which provider does the user prefer')).toBe(true)
+
+		const again = { question: 'which provider does the user prefer' }
+		await assistant.interceptors.beforeAsk.run(again, async () => {})
+		expect(again.question).toBe('which provider does the user prefer')
+
+		expect((await mem.get('facts', codex.id)).usage_count).toBe(0)
+	})
+
+	it('autoRecall 0 leaves the user message alone', async () => {
+		const { c, mem } = makeSharedMem({ namespace: 'off', autoRecall: 0 })
+		await mem.create('facts', 'User prefers codex')
+		const assistant = c.feature('assistant', { name: 'alpha', systemPrompt: 'a' }).use(mem) as any
+		const ctx = { question: 'which provider does the user prefer' }
+		await assistant.interceptors.beforeAsk.run(ctx, async () => {})
+		expect(ctx.question).toBe('which provider does the user prefer')
+	})
+})
