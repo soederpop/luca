@@ -704,8 +704,11 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     return new Promise((resolve) => {
       const handler = (data: { sessionId: string }) => {
         if (data.sessionId === sessionId) {
-          this.off('session:result')
-          this.off('session:error')
+          // Remove only this waiter. off() with no listener clears every
+          // listener on the event, which strands any other session being
+          // awaited at the same time.
+          this.off('session:result', handler)
+          this.off('session:error', handler)
           resolve(this.state.current.sessions[sessionId]!)
         }
       }
