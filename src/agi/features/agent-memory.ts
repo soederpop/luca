@@ -27,6 +27,7 @@ export const MemoryOptionsSchema = FeatureOptionsSchema.extend({
   provider: z.any().optional().describe("Model provider preset id (e.g. a modelProviders preset like 'claude-code' or a registered local model) or inline provider config for the consolidation judge. consolidate() uses it when no judge or provider is passed to the call. Chat/judging only — embeddings are controlled by embeddingProvider"),
   model: z.string().optional().describe('Model for the consolidation judge conversation. Usually unnecessary when provider is set (the preset carries its own model)'),
   dormantAfterEpochs: z.number().optional().describe('Default decay horizon for consolidate(): never-used, never-confirmed episodic memories go dormant after this many unreviewed epochs (default 3; 0 disables decay)'),
+  beliefReviewAfterEpochs: z.number().optional().describe('Default re-review horizon for consolidate(): a belief goes back to the judge once it has gone this many epochs without review, so a fact that was true when last reviewed can still be expired later (default 30; 0 disables re-review)'),
   namespace: z.string().default('default').describe('Namespace to isolate memory sets. Left at "default", an assistant that uses this feature gets its own namespace named after the assistant, so assistants never share memory by accident. Set it explicitly to share one memory set between assistants on purpose'),
   autoRecall: z.number().default(3).describe('When an assistant uses this feature, search memory with each user message and prepend up to this many relevant memories to it, so recall does not depend on the model choosing to call the recall tool. Each memory is injected at most once per assistant. 0 disables'),
   autoRecallMaxDistance: z.number().default(0.6).describe('Cosine distance (0 = identical) a memory must be within to be auto-recalled. Keeps unrelated memories out of small-talk turns. Tune per embedding model — local models tend to score unrelated text closer than openai ones'),
@@ -43,19 +44,23 @@ export const MemoryEventsSchema = FeatureEventsSchema.extend({
 // --- Types ---
 
 /** @internal Columns selected for MemoryRecord hydration (everything but the embedding blob). */
-const MEMORY_COLUMNS = 'id, category, document, metadata, created_at, updated_at, layer, status, superseded_by, confirmations, usage_count, last_used_at, derived_from, reviewed_epoch'
+const MEMORY_COLUMNS = 'id, category, document, metadata, created_at, updated_at, layer, status, superseded_by, confirmations, usage_count, last_used_at, derived_from, reviewed_epoch, valid_until'
+
+/** @internal SQL filter for rows whose valid_until has not passed. Dates are UTC and valid_until is inclusive. */
+const NOT_EXPIRED = "(valid_until IS NULL OR valid_until >= date('now'))"
 
 /** @internal System prompt for the consolidation judge. Embeddings cluster rows that are about the same thing; this judge decides what the cluster means — the one job cosine similarity cannot do (it cannot see negation or which statement is current). */
 const GARDENER_SYSTEM_PROMPT = [
   'You are a memory gardener. You review clusters of an AI assistant\'s memories that are about the same topic and decide how to consolidate them.',
   '',
-  'Each memory has: id, layer ("episodic" = raw observation, "belief" = curated knowledge), text, created_at, confirmations, usage_count.',
+  'Each memory has: id, layer ("episodic" = raw observation, "belief" = curated knowledge), text, created_at, confirmations, usage_count. Each cluster states today\'s date.',
   '',
   'Respond with ONLY a JSON object: {"actions": [...]}. Each action is one of:',
   '- {"type": "merge", "ids": [keepId, ...absorbedIds], "text": "optional improved canonical wording"} — the memories say the same thing. The first id is kept (and becomes a belief); the rest are absorbed into it as confirmations. Use this for duplicates and rephrasings, and for a single episodic observation worth keeping as a belief (ids with just one element).',
   '- {"type": "supersede", "ids": [winnerId, ...loserIds]} — the memories CONTRADICT each other. The winner is the statement that is currently true (usually the newest); the losers are outdated. Never merge contradictions.',
   '- {"type": "generalize", "ids": [...sourceIds], "text": "the general rule"} — several specific memories reveal a pattern worth stating once. Sources are kept; a new belief is added.',
-  '- {"type": "keep", "ids": [...]} — leave these alone (distinct facts that merely share a topic, or a lone observation not worth promoting yet).',
+  '- {"type": "expire", "ids": [...], "reason": "short note"} — the text itself shows these referred to a date, event, or temporary state that has now passed, compared to today\'s date (a meeting that has happened, a deadline that is gone, "as of" status that could only hold at that time). Expired memories stop being recalled. Age alone is NEVER a reason: an old fact with no time in it stays.',
+  '- {"type": "keep", "ids": [...]} — leave these alone (distinct facts that merely share a topic, a current belief, or a lone observation not worth promoting yet).',
   '',
   'Rules: be conservative — when unsure, keep. Watch for negation and corrections: "X" and "no longer X" are near-identical to a similarity metric but are contradictions to you. Only reference ids you were shown. Every id you were shown should appear in exactly one action.',
 ].join('\n')
@@ -70,7 +75,7 @@ export interface MemoryRecord {
   /** 'episodic' rows are raw appended observations; 'belief' rows are curated knowledge. */
   layer: 'episodic' | 'belief'
   /** Only 'active' rows are returned by search/recall. Other statuses preserve history. */
-  status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'
+  status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated' | 'expired'
   /** When superseded, the id of the row that replaced this one. */
   superseded_by: number | null
   /** How many independent observations support this row. Merging duplicates sums them. */
@@ -82,6 +87,8 @@ export interface MemoryRecord {
   derived_from: number[]
   /** The epoch (sleep-cycle counter) this row was last reviewed in. */
   reviewed_epoch: number
+  /** The last UTC date (YYYY-MM-DD, inclusive) this memory holds. Null means it has no known end. */
+  valid_until: string | null
 }
 
 export interface MemorySearchResult extends MemoryRecord {
@@ -95,6 +102,8 @@ export interface MemoryConsolidateOptions {
   clusterThreshold?: number
   /** Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay. */
   dormantAfterEpochs?: number
+  /** Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review. */
+  beliefReviewAfterEpochs?: number
   /** Report what would happen without changing anything. The epoch is not advanced. */
   dryRun?: boolean
   /** Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime. */
@@ -106,10 +115,11 @@ export interface MemoryConsolidateOptions {
 }
 
 export interface MemoryConsolidateAction {
-  type: 'merge' | 'supersede' | 'generalize' | 'keep'
+  type: 'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'
   category: string
   ids: number[]
   text?: string
+  reason?: string
 }
 
 export interface MemoryConsolidateReport {
@@ -121,6 +131,8 @@ export interface MemoryConsolidateReport {
   superseded: number
   generalized: number
   dormant: number
+  /** Rows expired this pass, by the judge or because their valid_until passed. */
+  expired: number
   actions: MemoryConsolidateAction[]
   warnings: string[]
   dryRun: boolean
@@ -162,6 +174,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         text: z.string().describe('A single, self-contained statement of what to remember. Write it as a fact, not a conversation excerpt. Good: "User prefers dark mode". Bad: "The user said they like dark mode in our chat".'),
         intent: z.enum(['observation', 'correction', 'confirmation']).default('observation').describe('Why you are storing this. "observation": new information (the default). "correction": this CONTRADICTS or REPLACES a memory you recalled — pass its id as regarding, and the old memory is superseded. "confirmation": the user re-affirmed a memory you recalled — pass its id as regarding to strengthen it instead of duplicating it. Whenever the user changes their mind, updates a fact, or says something no longer holds, use correction — never store a contradiction as a plain observation.'),
         regarding: z.number().optional().describe('The id of the existing memory this corrects or confirms (ids are returned by recall). Required for confirmation; strongly recommended for correction — a correction without it returns candidate memories to pick from instead of storing.'),
+        valid_until: z.string().optional().describe('The last date this stays true, as YYYY-MM-DD, for anything time-bound (a scheduled meeting, a deadline, a temporary state). After this date it stops being recalled. Omit it for facts with no known end.'),
         metadata: z.record(z.string(), z.string()).optional().describe('Optional key-value tags for filtering later (e.g. {"source": "onboarding", "confidence": "high"})'),
       }).describe('Store something in long-term memory, declaring WHY you are storing it. An observation is appended as-is (repeats are fine — they become confirmation strength). A correction supersedes an outdated memory by id. A confirmation strengthens an existing memory by id. Nothing is ever silently dropped.'),
     },
@@ -192,11 +205,11 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       schema: z.object({}).describe('List all memory categories and how many memories each contains. Call this at the start of a conversation to understand what you already know, and before recall if unsure which category to search.'),
     },
     consolidateMemory: {
-      description: 'Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.',
+      description: 'Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, facts whose time has passed expire, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.',
       schema: z.object({
         category: z.string().optional().describe('Restrict the pass to one category. Omit to consolidate everything.'),
         dryRun: z.boolean().default(false).describe('Preview what would happen without changing anything.'),
-      }).describe('Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.'),
+      }).describe('Run a maintenance pass over long-term memory: duplicates merge into confirmation strength, contradictions resolve in favor of the current fact, facts whose time has passed expire, and stale unused observations go dormant. Run it when memory feels cluttered or contradictory, or when the user asks you to tidy your memory. It is safe — nothing is deleted, and every change is auditable and reversible.'),
     },
   }
 
@@ -299,6 +312,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       ['last_used_at', 'ALTER TABLE memories ADD COLUMN last_used_at TEXT'],
       ['derived_from', "ALTER TABLE memories ADD COLUMN derived_from TEXT NOT NULL DEFAULT '[]'"],
       ['reviewed_epoch', 'ALTER TABLE memories ADD COLUMN reviewed_epoch INTEGER NOT NULL DEFAULT 0'],
+      ['valid_until', 'ALTER TABLE memories ADD COLUMN valid_until TEXT'],
     ]
     for (const [column, sql] of migrations) {
       if (!existingColumns.has(column)) await this.db.execute(sql)
@@ -335,13 +349,22 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   // --- Tool handler methods (auto-wired by toTools via matching names) ---
 
   /** Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id. */
-  async remember(args: { category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }) {
+  async remember(args: { category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; valid_until?: string; metadata?: Record<string, any> }) {
     const intent = args.intent ?? 'observation'
     const metadata = args.metadata || {}
 
+    // An empty string counts as unset: strict tool schemas make models fill every field.
+    const validUntil = args.valid_until ? this.parseValidUntil(args.valid_until) : undefined
+    if (validUntil === null) {
+      return { stored: false, reason: `valid_until must be a real date written as YYYY-MM-DD, got "${args.valid_until}"` }
+    }
+    if (validUntil && validUntil < this.today) {
+      return { stored: false, reason: `valid_until ${validUntil} has already passed, so this would never be recalled. Use a later date, or omit it.` }
+    }
+
     if (intent === 'correction') {
       if (args.regarding !== undefined) {
-        const revised = await this.revise(args.category, args.regarding, args.text, metadata)
+        const revised = await this.revise(args.category, args.regarding, args.text, metadata, { validUntil })
         if (revised) return { stored: true, id: revised.id, category: args.category, superseded: args.regarding }
         return { stored: false, reason: `No memory with id ${args.regarding} in ${args.category} — call recall to find the right id` }
       }
@@ -357,7 +380,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
           candidates: candidates.map(c => ({ id: c.id, document: c.document, created_at: c.created_at })),
         }
       }
-      const created = await this.observe(args.category, args.text, metadata)
+      const created = await this.observe(args.category, args.text, metadata, { validUntil })
       return { stored: true, id: created.id, category: args.category, note: 'Nothing to correct was found, so this was stored as a new observation' }
     }
 
@@ -369,7 +392,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     // Plain observation (also: a confirmation without an id — a repeated
     // observation IS a confirmation once consolidation merges it).
-    const created = await this.observe(args.category, args.text, metadata)
+    const created = await this.observe(args.category, args.text, metadata, { validUntil })
     return { stored: true, id: created.id, category: created.category }
   }
 
@@ -384,6 +407,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       distance: Math.round(r.distance * 1000) / 1000,
       created_at: r.created_at,
       confirmations: r.confirmations,
+      valid_until: r.valid_until,
     }))
   }
 
@@ -417,6 +441,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       superseded: report.superseded,
       generalized: report.generalized,
       dormant: report.dormant,
+      expired: report.expired,
       warnings: report.warnings,
       dryRun: report.dryRun,
     }
@@ -469,7 +494,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         '',
         'You have persistent memory that survives across conversations, and you are its gardener: you don\'t just store and retrieve, you keep it TRUE. Use it proactively:',
         '',
-        '**Recalled automatically:** Memories relevant to each user message are prepended to it in a <recalled-memories> block, with their ids and categories. Treat them as what you already know. The block only holds close matches, so still call `recall` when you need more.',
+        '**Recalled automatically:** Memories relevant to each user message are prepended to it in a <recalled-memories> block, with their ids, categories, and the date each was written. Treat them as what you already know, and weigh older ones accordingly. The block only holds close matches, so still call `recall` when you need more.',
         '',
         '**Start of conversation:** Call `listCategories` to see what you already know. If categories exist, call `recall` with a broad query related to the user\'s first message. Do this before responding — context from prior sessions makes your answers dramatically better.',
         '',
@@ -480,6 +505,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         '**When the user contradicts a memory:** This is the moment that matters most. If the user says something that conflicts with a memory you recalled ("actually I switched to...", "that\'s not true anymore", "we changed that"), do NOT store it as a plain observation — call `remember` with intent "correction" and regarding set to the outdated memory\'s id. The old memory is superseded and stops being recalled. Storing a contradiction as an observation leaves both versions active, and you will answer from stale beliefs later.',
         '',
         '**When the user re-affirms a memory:** Call `remember` with intent "confirmation" and the memory\'s id — ESPECIALLY when the memory already exists. Do not skip this because "I already know that": an unconfirmed memory decays and is trusted less, so re-affirmation is new information even when the text is not. Seeing a recalled memory proven true again = call confirmation, every time.',
+        '',
+        '**Time-bound facts:** When something only holds until a date (a scheduled meeting, a deadline, a temporary state), pass `valid_until` so it stops being recalled afterward.',
         '',
         '**Tending:** If recall returns memories that contradict each other, resolve it now — decide which is current (ask the user if unclear) and use correction/forget to fix it. If memory feels cluttered, run `consolidateMemory`.',
         '',
@@ -504,7 +531,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       const fresh = results.filter(r => !injected.has(r.id))
       if (!fresh.length) return null
       for (const r of fresh) injected.add(r.id)
-      const lines = fresh.map(r => `- [id ${r.id}, ${r.category}] ${r.document}`)
+      const lines = fresh.map(r => {
+        const until = r.valid_until ? `, valid until ${r.valid_until}` : ''
+        return `- [id ${r.id}, ${r.category}, ${r.created_at.slice(0, 10)}${until}] ${r.document}`
+      })
       return ['<recalled-memories>', ...lines, '</recalled-memories>'].join('\n')
     } catch {
       return null
@@ -519,6 +549,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {string} category - The category to store the memory in
    * @param {string} text - The text content of the memory
    * @param {Record<string, any>} metadata - Optional metadata key-value pairs
+   * @param {object} options - Additional options
+   * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) this memory holds
    * @returns {Promise<MemoryRecord>} The created memory
    *
    * @example
@@ -527,8 +559,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * await mem.create('facts', 'The user lives in Austin', { confidence: 0.9 })
    * ```
    */
-  async create(category: string, text: string, metadata: Record<string, any> = {}): Promise<MemoryRecord> {
-    return this._insert(category, text, metadata, { layer: 'belief' })
+  async create(category: string, text: string, metadata: Record<string, any> = {}, options: { validUntil?: string } = {}): Promise<MemoryRecord> {
+    return this._insert(category, text, metadata, { layer: 'belief', validUntil: options.validUntil })
   }
 
   /**
@@ -540,6 +572,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {string} category - The category to store the observation in
    * @param {string} text - What was observed
    * @param {Record<string, any>} metadata - Optional metadata (e.g. provenance)
+   * @param {object} options - Additional options
+   * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) this memory holds
    * @returns {Promise<MemoryRecord>} The created episodic memory
    *
    * @example
@@ -548,8 +582,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * await mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })
    * ```
    */
-  async observe(category: string, text: string, metadata: Record<string, any> = {}): Promise<MemoryRecord> {
-    return this._insert(category, text, metadata, { layer: 'episodic' })
+  async observe(category: string, text: string, metadata: Record<string, any> = {}, options: { validUntil?: string } = {}): Promise<MemoryRecord> {
+    return this._insert(category, text, metadata, { layer: 'episodic', validUntil: options.validUntil })
   }
 
   /**
@@ -562,6 +596,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {number} id - The id of the memory being corrected
    * @param {string} newText - The corrected statement
    * @param {Record<string, any>} metadata - Optional metadata for the new row
+   * @param {object} options - Additional options
+   * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) the new row holds
    * @returns {Promise<MemoryRecord | null>} The new active memory, or null if the old id wasn't found
    *
    * @example
@@ -570,7 +606,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * await mem.revise('facts', 42, 'User now prefers claude-code over codex')
    * ```
    */
-  async revise(category: string, id: number, newText: string, metadata: Record<string, any> = {}): Promise<MemoryRecord | null> {
+  async revise(category: string, id: number, newText: string, metadata: Record<string, any> = {}, options: { validUntil?: string } = {}): Promise<MemoryRecord | null> {
     await this.ensureDb()
 
     const existing = await this.get(category, id)
@@ -580,6 +616,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       layer: 'belief',
       derivedFrom: [id],
       confirmations: existing.confirmations,
+      validUntil: options.validUntil,
     })
 
     await this.db.execute(
@@ -628,27 +665,48 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return this.get(category, id)
   }
 
+  /** @internal Today as a UTC YYYY-MM-DD string, the same clock SQLite's date('now') uses. */
+  private get today(): string {
+    return new Date().toISOString().slice(0, 10)
+  }
+
+  /** @internal Normalize a date to UTC YYYY-MM-DD, or null if it isn't a real ISO date. The round trip catches dates like 2026-02-31, which can roll over instead of failing. */
+  private parseValidUntil(value: string): string | null {
+    if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return null
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return null
+    const normalized = parsed.toISOString().slice(0, 10)
+    if (value.length === 10 && normalized !== value) return null
+    return normalized
+  }
+
   /** @internal Shared insert used by create/observe/revise/consolidate. */
   private async _insert(
     category: string,
     text: string,
     metadata: Record<string, any>,
-    opts: { layer?: 'episodic' | 'belief'; derivedFrom?: number[]; confirmations?: number } = {}
+    opts: { layer?: 'episodic' | 'belief'; derivedFrom?: number[]; confirmations?: number; validUntil?: string } = {}
   ): Promise<MemoryRecord> {
     await this.ensureDb()
+
+    const validUntil = opts.validUntil ? this.parseValidUntil(opts.validUntil) : null
+    if (opts.validUntil && !validUntil) {
+      throw new Error(`validUntil must be a real date written as YYYY-MM-DD, got "${opts.validUntil}"`)
+    }
 
     const embedding = await this.embed(text)
     const embeddingBlob = this.float64ToBlob(embedding)
     const metaJson = JSON.stringify({ ...metadata, epoch: this.state.get('epoch') })
 
     const { lastInsertRowid } = await this.db.execute(
-      'INSERT INTO memories (namespace, category, document, metadata, embedding, layer, confirmations, derived_from, reviewed_epoch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO memories (namespace, category, document, metadata, embedding, layer, confirmations, derived_from, reviewed_epoch, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         this.options.namespace, category, text, metaJson, embeddingBlob,
         opts.layer ?? 'belief',
         opts.confirmations ?? 1,
         JSON.stringify(opts.derivedFrom ?? []),
         0, // reviewed_epoch: never reviewed — the next consolidate() pass judges it
+        validUntil,
       ]
     )
 
@@ -881,7 +939,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * @param {object} options - Additional search options
    * @param {number} options.maxDistance - Maximum cosine distance threshold (0-2, default none)
    * @param {Record<string, any>} options.filterMetadata - Filter by metadata key-value pairs
-   * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated rows (default false)
+   * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated/expired rows and rows past their valid_until (default false)
    * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
    * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
    */
@@ -890,7 +948,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     const queryEmbedding = await this.embed(query)
 
-    const statusClause = options.includeInactive ? '' : " AND status = 'active'"
+    const statusClause = options.includeInactive ? '' : ` AND status = 'active' AND ${NOT_EXPIRED}`
     const categoryClause = category ? ' AND category = ?' : ''
     const params = category ? [this.options.namespace, category] : [this.options.namespace]
     const rows = await this.db.query(
@@ -997,8 +1055,9 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
    * options.judge) then decides what each cluster means: duplicates merge
    * into one belief with summed confirmations, contradictions resolve by
    * superseding the outdated row, patterns across observations become
-   * generalized beliefs, and everything else is left alone. Old, never-used
-   * episodic rows decay to dormant. Nothing is ever deleted — every outcome
+   * generalized beliefs, memories whose time has passed expire, and everything
+   * else is left alone. Rows past their valid_until expire without a judge
+   * call. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome
    * is a status change with an audit trail (superseded_by, derived_from),
    * so a wrong judgment is always reversible.
    *
@@ -1020,6 +1079,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     const clusterThreshold = options.clusterThreshold ?? 0.7
     const dormantAfterEpochs = options.dormantAfterEpochs ?? this.options.dormantAfterEpochs ?? 3
+    const beliefReviewAfter = options.beliefReviewAfterEpochs ?? this.options.beliefReviewAfterEpochs ?? 30
     const dryRun = options.dryRun ?? false
     const epoch = this.getEpoch()
     // Judge backend: per-call options win, then the feature's own
@@ -1034,7 +1094,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     const categories = options.categories ?? await this.categories()
     const report: MemoryConsolidateReport = {
       epoch, categories, rowsReviewed: 0, clusters: 0,
-      merged: 0, superseded: 0, generalized: 0, dormant: 0,
+      merged: 0, superseded: 0, generalized: 0, dormant: 0, expired: 0,
       actions: [], warnings: [], dryRun,
     }
 
@@ -1042,7 +1102,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       const rows = await this.db.query(
         // ORDER BY id keeps clustering stable between passes, so skipping
         // already-reviewed clusters doesn't let reshuffled groupings slip by.
-        `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND status = 'active' AND embedding IS NOT NULL ORDER BY id`,
+        `SELECT ${MEMORY_COLUMNS}, embedding FROM memories WHERE namespace = ? AND category = ? AND status = 'active' AND ${NOT_EXPIRED} AND embedding IS NOT NULL ORDER BY id`,
         [this.options.namespace, category]
       ) as any[]
       if (!rows.length) continue
@@ -1053,18 +1113,13 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       const clusters = this.clusterBySimilarity(records, clusterThreshold, report.warnings)
 
       for (const cluster of clusters) {
-        // Only clusters holding something the judge has not seen cost a call.
-        // Duplicates and contradictions only arise when a new row lands, so a
-        // cluster of already-reviewed rows (e.g. distinct facts the judge kept
-        // last pass) is skipped instead of re-judged every epoch. A lone row
-        // needs judging only if it is an unreviewed episodic observation
-        // (promote to belief, or leave?). A kept singleton is NOT re-stamped
-        // on later passes — it must earn usage or confirmations, or decay
-        // will eventually claim it.
-        const hasUnreviewed = cluster.some(m => m.reviewed_epoch === 0)
-        const needsJudgment = cluster.length > 1
-          ? hasUnreviewed
-          : cluster[0]!.layer === 'episodic' && hasUnreviewed
+        // Only clusters holding a row due for review cost a judge call. A row
+        // is due if it has never been reviewed, or if it is a belief whose last
+        // review is old enough that its time may have passed since. A kept
+        // episodic row is NOT re-reviewed: it must earn usage or confirmations,
+        // or decay will eventually claim it.
+        const needsJudgment = cluster.some(m => m.reviewed_epoch === 0
+          || (m.layer === 'belief' && beliefReviewAfter > 0 && m.reviewed_epoch <= epoch - beliefReviewAfter))
         if (!needsJudgment) continue
 
         report.clusters++
@@ -1094,6 +1149,22 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         [this.options.namespace, epoch - dormantAfterEpochs]
       )
       report.dormant = changes
+    }
+
+    // Past valid_until needs no judge. Search already hides these rows; this
+    // records it, so the status matches what recall does.
+    if (dryRun) {
+      const rows = await this.db.query(
+        `SELECT COUNT(*) as cnt FROM memories WHERE namespace = ? AND status = 'active' AND NOT ${NOT_EXPIRED}`,
+        [this.options.namespace]
+      ) as { cnt: number }[]
+      report.expired += rows[0]!.cnt
+    } else {
+      const { changes } = await this.db.execute(
+        `UPDATE memories SET status = 'expired', updated_at = datetime('now') WHERE namespace = ? AND status = 'active' AND NOT ${NOT_EXPIRED}`,
+        [this.options.namespace]
+      )
+      report.expired += changes
     }
 
     if (!dryRun) await this.incrementEpoch()
@@ -1157,8 +1228,9 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       created_at: m.created_at,
       confirmations: m.confirmations,
       usage_count: m.usage_count,
+      valid_until: m.valid_until ?? undefined,
     }))
-    return `Category: ${category}\nMemories:\n${rows.join('\n')}\n\nRespond with the JSON verdict.`
+    return `Today: ${this.today}\nCategory: ${category}\nMemories:\n${rows.join('\n')}\n\nRespond with the JSON verdict.`
   }
 
   /** @internal Extract and validate the judge's JSON actions. Anything malformed is skipped with a warning — the conservative failure mode is to change nothing. */
@@ -1182,7 +1254,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     for (const raw of Array.isArray(parsed?.actions) ? parsed.actions : []) {
       const type = raw?.type
       const ids = Array.isArray(raw?.ids) ? raw.ids.filter((id: any) => Number.isInteger(id)) : []
-      if (!['merge', 'supersede', 'generalize', 'keep'].includes(type)) {
+      if (!['merge', 'supersede', 'generalize', 'expire', 'keep'].includes(type)) {
         warnings.push(`judge proposed unknown action type "${type}"`)
         continue
       }
@@ -1190,7 +1262,11 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         warnings.push(`judge action "${type}" referenced ids outside the cluster — skipped`)
         continue
       }
-      actions.push({ type, category, ids, text: typeof raw.text === 'string' ? raw.text : undefined })
+      actions.push({
+        type, category, ids,
+        text: typeof raw.text === 'string' ? raw.text : undefined,
+        reason: typeof raw.reason === 'string' ? raw.reason : undefined,
+      })
     }
     return actions
   }
@@ -1200,6 +1276,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     if (action.type === 'merge') report.merged++
     if (action.type === 'supersede') report.superseded++
     if (action.type === 'generalize') report.generalized++
+    if (action.type === 'expire') report.expired += action.ids.length
   }
 
   /** @internal Apply one judged action. All outcomes are status changes plus audit links — never deletion. */
@@ -1209,6 +1286,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     if (action.type === 'keep') {
       await this.stampReviewed(ids, epoch)
+      return
+    }
+
+    if (action.type === 'expire') {
+      for (const id of ids) {
+        if (action.reason) await this.update(category, id, { metadata: { expired_reason: action.reason } })
+        await this.db.execute(
+          "UPDATE memories SET status = 'expired', reviewed_epoch = ?, updated_at = datetime('now') WHERE id = ? AND namespace = ?",
+          [epoch, id, ns]
+        )
+      }
+      report.expired += ids.length
       return
     }
 
@@ -1430,6 +1519,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       last_used_at: row.last_used_at ?? null,
       derived_from: typeof row.derived_from === 'string' ? JSON.parse(row.derived_from) : (row.derived_from ?? []),
       reviewed_epoch: row.reviewed_epoch ?? 0,
+      valid_until: row.valid_until ?? null,
     }
   }
 }

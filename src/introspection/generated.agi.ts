@@ -17901,7 +17901,7 @@ setBuildTimeData('features.memory', {
       "description": "Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id.",
       "parameters": {
         "args": {
-          "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }",
+          "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; valid_until?: string; metadata?: Record<string, any> }",
           "description": "Parameter args"
         }
       },
@@ -17993,6 +17993,16 @@ setBuildTimeData('features.memory', {
         "metadata": {
           "type": "Record<string, any>",
           "description": "Optional metadata key-value pairs"
+        },
+        "options": {
+          "type": "{ validUntil?: string }",
+          "description": "Additional options",
+          "properties": {
+            "validUntil": {
+              "type": "any",
+              "description": "Last UTC date (YYYY-MM-DD, inclusive) this memory holds"
+            }
+          }
         }
       },
       "required": [
@@ -18021,6 +18031,16 @@ setBuildTimeData('features.memory', {
         "metadata": {
           "type": "Record<string, any>",
           "description": "Optional metadata (e.g. provenance)"
+        },
+        "options": {
+          "type": "{ validUntil?: string }",
+          "description": "Additional options",
+          "properties": {
+            "validUntil": {
+              "type": "any",
+              "description": "Last UTC date (YYYY-MM-DD, inclusive) this memory holds"
+            }
+          }
         }
       },
       "required": [
@@ -18053,6 +18073,16 @@ setBuildTimeData('features.memory', {
         "metadata": {
           "type": "Record<string, any>",
           "description": "Optional metadata for the new row"
+        },
+        "options": {
+          "type": "{ validUntil?: string }",
+          "description": "Additional options",
+          "properties": {
+            "validUntil": {
+              "type": "any",
+              "description": "Last UTC date (YYYY-MM-DD, inclusive) the new row holds"
+            }
+          }
         }
       },
       "required": [
@@ -18301,7 +18331,7 @@ setBuildTimeData('features.memory', {
             },
             "includeInactive": {
               "type": "any",
-              "description": "Also return superseded/retracted/dormant/consolidated rows (default false)"
+              "description": "Also return superseded/retracted/dormant/consolidated/expired rows and rows past their valid_until (default false)"
             },
             "trackUsage": {
               "type": "any",
@@ -18380,7 +18410,7 @@ setBuildTimeData('features.memory', {
       "returns": "Promise<MemoryRecord[]>"
     },
     "consolidate": {
-      "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, and everything else is left alone. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
+      "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, memories whose time has passed expire, and everything else is left alone. Rows past their valid_until expire without a judge call. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
       "parameters": {
         "options": {
           "type": "MemoryConsolidateOptions",
@@ -18397,6 +18427,10 @@ setBuildTimeData('features.memory', {
             "dormantAfterEpochs": {
               "type": "number",
               "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay."
+            },
+            "beliefReviewAfterEpochs": {
+              "type": "number",
+              "description": "Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review."
             },
             "dryRun": {
               "type": "boolean",
@@ -18529,7 +18563,7 @@ setBuildTimeData('features.memory', {
           "description": "'episodic' rows are raw appended observations; 'belief' rows are curated knowledge."
         },
         "status": {
-          "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'",
+          "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated' | 'expired'",
           "description": "Only 'active' rows are returned by search/recall. Other statuses preserve history."
         },
         "superseded_by": {
@@ -18555,6 +18589,10 @@ setBuildTimeData('features.memory', {
         "reviewed_epoch": {
           "type": "number",
           "description": "The epoch (sleep-cycle counter) this row was last reviewed in."
+        },
+        "valid_until": {
+          "type": "string | null",
+          "description": "The last UTC date (YYYY-MM-DD, inclusive) this memory holds. Null means it has no known end."
         }
       }
     },
@@ -18583,6 +18621,11 @@ setBuildTimeData('features.memory', {
         "dormantAfterEpochs": {
           "type": "number",
           "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay.",
+          "optional": true
+        },
+        "beliefReviewAfterEpochs": {
+          "type": "number",
+          "description": "Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review.",
           "optional": true
         },
         "dryRun": {
@@ -18642,6 +18685,10 @@ setBuildTimeData('features.memory', {
           "type": "number",
           "description": ""
         },
+        "expired": {
+          "type": "number",
+          "description": "Rows expired this pass, by the judge or because their valid_until passed."
+        },
         "actions": {
           "type": "MemoryConsolidateAction[]",
           "description": ""
@@ -18660,7 +18707,7 @@ setBuildTimeData('features.memory', {
       "description": "",
       "properties": {
         "type": {
-          "type": "'merge' | 'supersede' | 'generalize' | 'keep'",
+          "type": "'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'",
           "description": ""
         },
         "category": {
@@ -18672,6 +18719,11 @@ setBuildTimeData('features.memory', {
           "description": ""
         },
         "text": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "reason": {
           "type": "string",
           "description": "",
           "optional": true
@@ -50323,7 +50375,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Tool handler: store a memory with declared intent — observe, correct by id, or confirm by id.",
         "parameters": {
           "args": {
-            "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }",
+            "type": "{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; valid_until?: string; metadata?: Record<string, any> }",
             "description": "Parameter args"
           }
         },
@@ -50415,6 +50467,16 @@ export const introspectionData: Record<string, any>[] = [
           "metadata": {
             "type": "Record<string, any>",
             "description": "Optional metadata key-value pairs"
+          },
+          "options": {
+            "type": "{ validUntil?: string }",
+            "description": "Additional options",
+            "properties": {
+              "validUntil": {
+                "type": "any",
+                "description": "Last UTC date (YYYY-MM-DD, inclusive) this memory holds"
+              }
+            }
           }
         },
         "required": [
@@ -50443,6 +50505,16 @@ export const introspectionData: Record<string, any>[] = [
           "metadata": {
             "type": "Record<string, any>",
             "description": "Optional metadata (e.g. provenance)"
+          },
+          "options": {
+            "type": "{ validUntil?: string }",
+            "description": "Additional options",
+            "properties": {
+              "validUntil": {
+                "type": "any",
+                "description": "Last UTC date (YYYY-MM-DD, inclusive) this memory holds"
+              }
+            }
           }
         },
         "required": [
@@ -50475,6 +50547,16 @@ export const introspectionData: Record<string, any>[] = [
           "metadata": {
             "type": "Record<string, any>",
             "description": "Optional metadata for the new row"
+          },
+          "options": {
+            "type": "{ validUntil?: string }",
+            "description": "Additional options",
+            "properties": {
+              "validUntil": {
+                "type": "any",
+                "description": "Last UTC date (YYYY-MM-DD, inclusive) the new row holds"
+              }
+            }
           }
         },
         "required": [
@@ -50723,7 +50805,7 @@ export const introspectionData: Record<string, any>[] = [
               },
               "includeInactive": {
                 "type": "any",
-                "description": "Also return superseded/retracted/dormant/consolidated rows (default false)"
+                "description": "Also return superseded/retracted/dormant/consolidated/expired rows and rows past their valid_until (default false)"
               },
               "trackUsage": {
                 "type": "any",
@@ -50802,7 +50884,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<MemoryRecord[]>"
       },
       "consolidate": {
-        "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, and everything else is left alone. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
+        "description": "Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, memories whose time has passed expire, and everything else is left alone. Rows past their valid_until expire without a judge call. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.",
         "parameters": {
           "options": {
             "type": "MemoryConsolidateOptions",
@@ -50819,6 +50901,10 @@ export const introspectionData: Record<string, any>[] = [
               "dormantAfterEpochs": {
                 "type": "number",
                 "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay."
+              },
+              "beliefReviewAfterEpochs": {
+                "type": "number",
+                "description": "Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review."
               },
               "dryRun": {
                 "type": "boolean",
@@ -50951,7 +51037,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "'episodic' rows are raw appended observations; 'belief' rows are curated knowledge."
           },
           "status": {
-            "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated'",
+            "type": "'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated' | 'expired'",
             "description": "Only 'active' rows are returned by search/recall. Other statuses preserve history."
           },
           "superseded_by": {
@@ -50977,6 +51063,10 @@ export const introspectionData: Record<string, any>[] = [
           "reviewed_epoch": {
             "type": "number",
             "description": "The epoch (sleep-cycle counter) this row was last reviewed in."
+          },
+          "valid_until": {
+            "type": "string | null",
+            "description": "The last UTC date (YYYY-MM-DD, inclusive) this memory holds. Null means it has no known end."
           }
         }
       },
@@ -51005,6 +51095,11 @@ export const introspectionData: Record<string, any>[] = [
           "dormantAfterEpochs": {
             "type": "number",
             "description": "Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay.",
+            "optional": true
+          },
+          "beliefReviewAfterEpochs": {
+            "type": "number",
+            "description": "Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review.",
             "optional": true
           },
           "dryRun": {
@@ -51064,6 +51159,10 @@ export const introspectionData: Record<string, any>[] = [
             "type": "number",
             "description": ""
           },
+          "expired": {
+            "type": "number",
+            "description": "Rows expired this pass, by the judge or because their valid_until passed."
+          },
           "actions": {
             "type": "MemoryConsolidateAction[]",
             "description": ""
@@ -51082,7 +51181,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "",
         "properties": {
           "type": {
-            "type": "'merge' | 'supersede' | 'generalize' | 'keep'",
+            "type": "'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'",
             "description": ""
           },
           "category": {
@@ -51094,6 +51193,11 @@ export const introspectionData: Record<string, any>[] = [
             "description": ""
           },
           "text": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "reason": {
             "type": "string",
             "description": "",
             "optional": true

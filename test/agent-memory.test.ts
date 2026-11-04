@@ -455,7 +455,7 @@ describe('memory used by assistants', () => {
 		const ctx = { question: 'which provider does the user prefer' }
 		await assistant.interceptors.beforeAsk.run(ctx, async () => {})
 		expect(ctx.question).toContain('<recalled-memories>')
-		expect(ctx.question).toContain(`[id ${codex.id}, facts] User prefers codex`)
+		expect(ctx.question).toContain(`[id ${codex.id}, facts, ${codex.created_at.slice(0, 10)}] User prefers codex`)
 		expect(ctx.question).not.toContain('coffee') // too far away
 		expect(ctx.question.endsWith('which provider does the user prefer')).toBe(true)
 
@@ -473,5 +473,166 @@ describe('memory used by assistants', () => {
 		const ctx = { question: 'which provider does the user prefer' }
 		await assistant.interceptors.beforeAsk.run(ctx, async () => {})
 		expect(ctx.question).toBe('which provider does the user prefer')
+	})
+})
+
+describe('memory freshness', () => {
+	const today = () => new Date().toISOString().slice(0, 10)
+	const QUERY = 'which provider does the user prefer'
+
+	const judgeWith = (decide: (rows: any[]) => any[], calls: string[] = []) => async (prompt: string) => {
+		calls.push(prompt)
+		const rows = prompt.split('\n').filter(l => l.startsWith('{')).map(l => JSON.parse(l))
+		return JSON.stringify({ actions: decide(rows) })
+	}
+	const keepAll = (rows: any[]) => [{ type: 'keep', ids: rows.map(r => r.id) }]
+
+	describe('valid_until', () => {
+		it('hides a row after its date, keeps it through the date itself', async () => {
+			const mem = makeMem()
+			const past = await mem.create('facts', 'User prefers codex', {}, { validUntil: '2020-01-01' })
+			const current = await mem.create('facts', 'The user prefers codex for coding tasks', {}, { validUntil: today() })
+
+			const ids = (await mem.search('facts', QUERY, 10)).map((r: any) => r.id)
+			expect(ids).toEqual([current.id])
+
+			const all = (await mem.search('facts', QUERY, 10, { includeInactive: true })).map((r: any) => r.id)
+			expect(all).toContain(past.id)
+		})
+
+		it('remember stores it, and treats an empty string as unset', async () => {
+			const mem = makeMem()
+			const dated = await mem.remember({ category: 'facts', text: 'User prefers codex', valid_until: '2099-06-01' })
+			expect((await mem.get('facts', dated.id)).valid_until).toBe('2099-06-01')
+
+			const blank = await mem.remember({ category: 'facts', text: 'User drinks black coffee', valid_until: '' })
+			expect(blank.stored).toBe(true)
+			expect((await mem.get('facts', blank.id)).valid_until).toBeNull()
+		})
+
+		it('remember refuses bad and already-passed dates instead of storing them', async () => {
+			const mem = makeMem()
+			for (const valid_until of ['next thursday', '2099-02-31', '2020-01-01']) {
+				const result = await mem.remember({ category: 'facts', text: 'User prefers codex', valid_until })
+				expect(result.stored).toBe(false)
+				expect(result.reason).toContain('valid_until')
+			}
+			expect(await mem.count('facts')).toBe(0)
+		})
+
+		it('a correction carries its own date onto the new row', async () => {
+			const mem = makeMem()
+			const old = await mem.create('facts', 'User prefers codex')
+			const fixed = await mem.remember({
+				category: 'facts', text: 'User no longer prefers codex; now prefers claude-code',
+				intent: 'correction', regarding: old.id, valid_until: '2099-06-01',
+			})
+			expect((await mem.get('facts', fixed.id)).valid_until).toBe('2099-06-01')
+		})
+
+		it('shows the written date and the end date in automatic recall', async () => {
+			const c = makeContainer()
+			const dbPath = c.paths.resolve(c.feature('os').tmpdir, `agent-memory-test-${process.pid}-${Date.now()}-${dbCounter++}.db`)
+			const mem = c.feature('memory', { namespace: 'dated', dbPath, embeddingProvider: 'local' }) as any
+			mem.searcher.embed = async (texts: string[]) => texts.map(t => VECS[t] ?? [0.577, 0.577, 0.577])
+			const row = await mem.create('facts', 'User prefers codex', {}, { validUntil: '2099-06-01' })
+			const assistant = c.feature('assistant', { name: 'alpha', systemPrompt: 'a' }).use(mem) as any
+
+			const ctx = { question: QUERY }
+			await assistant.interceptors.beforeAsk.run(ctx, async () => {})
+			expect(ctx.question).toContain(`[id ${row.id}, facts, ${row.created_at.slice(0, 10)}, valid until 2099-06-01] User prefers codex`)
+		})
+
+		it('adds the column to a database created before it existed', async () => {
+			const mem = makeMem()
+			const row = await mem.create('facts', 'User prefers codex')
+			await mem.db.execute('ALTER TABLE memories DROP COLUMN valid_until')
+			mem.state.set('dbReady', false)
+			await mem.initDb()
+			const after = await mem.get('facts', row.id)
+			expect(after.document).toBe('User prefers codex')
+			expect(after.valid_until).toBeNull()
+		})
+	})
+
+	describe('consolidate', () => {
+		it('marks rows past valid_until as expired without a judge call, and a dry run changes nothing', async () => {
+			const mem = makeMem()
+			const row = await mem.create('facts', 'User prefers codex', {}, { validUntil: '2020-01-01' })
+			const calls: string[] = []
+
+			const preview = await mem.consolidate({ judge: judgeWith(keepAll, calls), dryRun: true })
+			expect(preview.expired).toBe(1)
+			expect((await mem.get('facts', row.id)).status).toBe('active')
+
+			const report = await mem.consolidate({ judge: judgeWith(keepAll, calls) })
+			expect(report.expired).toBe(1)
+			expect((await mem.get('facts', row.id)).status).toBe('expired')
+			expect(calls.length).toBe(0)
+		})
+
+		it('tells the judge today, and applies its expire with the reason kept', async () => {
+			const mem = makeMem()
+			const row = await mem.create('facts', 'User prefers codex')
+			const calls: string[] = []
+			const judge = judgeWith(rows => [{ type: 'expire', ids: rows.map(r => r.id), reason: 'the meeting has passed' }], calls)
+
+			const report = await mem.consolidate({ judge })
+			expect(calls[0]).toContain(`Today: ${today()}`)
+			expect(report.expired).toBe(1)
+
+			const after = await mem.get('facts', row.id)
+			expect(after.status).toBe('expired')
+			expect(after.metadata.expired_reason).toBe('the meeting has passed')
+			expect((await mem.search('facts', QUERY, 10)).length).toBe(0)
+		})
+
+		it('a dry run reports the judge expire without applying it', async () => {
+			const mem = makeMem()
+			const row = await mem.create('facts', 'User prefers codex')
+			const report = await mem.consolidate({ judge: judgeWith(rows => [{ type: 'expire', ids: rows.map(r => r.id) }]), dryRun: true })
+			expect(report.expired).toBe(1)
+			expect(report.actions[0].type).toBe('expire')
+			expect((await mem.get('facts', row.id)).status).toBe('active')
+		})
+
+		it('reviews a lone belief once, skips it, then re-reviews it after the horizon', async () => {
+			const mem = makeMem()
+			await mem.create('facts', 'User prefers codex')
+
+			const first: string[] = []
+			await mem.consolidate({ judge: judgeWith(keepAll, first) })
+			expect(first.length).toBe(1)
+
+			const second: string[] = []
+			await mem.consolidate({ judge: judgeWith(keepAll, second) })
+			expect(second.length).toBe(0)
+
+			await mem.setEpoch(31)
+			const third: string[] = []
+			await mem.consolidate({ judge: judgeWith(keepAll, third) })
+			expect(third.length).toBe(1)
+		})
+
+		it('beliefReviewAfterEpochs 0 turns re-review off', async () => {
+			const mem = makeMem()
+			await mem.create('facts', 'User prefers codex')
+			await mem.consolidate({ judge: judgeWith(keepAll) })
+			await mem.setEpoch(500)
+			const calls: string[] = []
+			await mem.consolidate({ judge: judgeWith(keepAll, calls), beliefReviewAfterEpochs: 0 })
+			expect(calls.length).toBe(0)
+		})
+
+		it('does not re-review a kept episodic row, so decay can still claim it', async () => {
+			const mem = makeMem()
+			const row = await mem.observe('facts', 'User drinks black coffee')
+			await mem.consolidate({ judge: judgeWith(keepAll) })
+			await mem.setEpoch(31)
+			const calls: string[] = []
+			await mem.consolidate({ judge: judgeWith(keepAll, calls) })
+			expect(calls.length).toBe(0)
+			expect((await mem.get('facts', row.id)).status).toBe('dormant')
+		})
 	})
 })
