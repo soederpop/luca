@@ -636,3 +636,51 @@ describe('memory freshness', () => {
 		})
 	})
 })
+
+describe('memory plan API', () => {
+	it('applies an action from a dry run without asking the judge again', async () => {
+		const mem = makeMem()
+		const row = await mem.create('facts', 'User prefers codex')
+		const calls: string[] = []
+		const plan = await mem.consolidate({
+			dryRun: true,
+			judge: async (prompt: string) => {
+				calls.push(prompt)
+				return JSON.stringify({ actions: [{ type: 'expire', ids: [row.id], reason: 'passed' }] })
+			},
+		})
+
+		expect(await mem.applyConsolidationAction(plan.actions[0])).toEqual({ applied: true })
+		expect(calls.length).toBe(1)
+		const after = await mem.get('facts', row.id)
+		expect(after.status).toBe('expired')
+		expect(after.metadata.expired_reason).toBe('passed')
+	})
+
+	it('refuses an action whose row changed after the plan was made', async () => {
+		const mem = makeMem()
+		const row = await mem.create('facts', 'User prefers codex')
+		await mem.retract('facts', row.id)
+		const result = await mem.applyConsolidationAction({ type: 'expire', category: 'facts', ids: [row.id] })
+		expect(result.applied).toBe(false)
+		expect(result.reason).toContain('retracted')
+		expect((await mem.get('facts', row.id)).status).toBe('retracted')
+	})
+
+	it('settleConsolidation records passed dates and advances the epoch', async () => {
+		const mem = makeMem()
+		const row = await mem.create('facts', 'User prefers codex', {}, { validUntil: '2020-01-01' })
+		expect(await mem.settleConsolidation()).toEqual({ epoch: 2, dormant: 0, expired: 1 })
+		expect((await mem.get('facts', row.id)).status).toBe('expired')
+	})
+
+	it('namespaces lists every namespace in the file, and dbPath reports where it is', async () => {
+		const mem = makeMem()
+		await mem.create('facts', 'User prefers codex')
+		const other = mem.container.feature('memory', { namespace: 'other', dbPath: mem.dbPath }) as any
+		other._searcher = mem._searcher
+		await other.create('facts', 'User drinks black coffee')
+		expect(await mem.namespaces()).toEqual(['other', 'test'])
+		expect(mem.dbPath).toBe(mem.options.dbPath)
+	})
+})
