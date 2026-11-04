@@ -206,6 +206,7 @@ export declare const MemoryOptionsSchema: z.ZodObject<{
     provider: z.ZodOptional<z.ZodAny>;
     model: z.ZodOptional<z.ZodString>;
     dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
+    beliefReviewAfterEpochs: z.ZodOptional<z.ZodNumber>;
     namespace: z.ZodDefault<z.ZodString>;
     autoRecall: z.ZodDefault<z.ZodNumber>;
     autoRecallMaxDistance: z.ZodDefault<z.ZodNumber>;
@@ -236,7 +237,7 @@ export interface MemoryRecord {
     /** 'episodic' rows are raw appended observations; 'belief' rows are curated knowledge. */
     layer: 'episodic' | 'belief';
     /** Only 'active' rows are returned by search/recall. Other statuses preserve history. */
-    status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated';
+    status: 'active' | 'superseded' | 'retracted' | 'dormant' | 'consolidated' | 'expired';
     /** When superseded, the id of the row that replaced this one. */
     superseded_by: number | null;
     /** How many independent observations support this row. Merging duplicates sums them. */
@@ -248,6 +249,8 @@ export interface MemoryRecord {
     derived_from: number[];
     /** The epoch (sleep-cycle counter) this row was last reviewed in. */
     reviewed_epoch: number;
+    /** The last UTC date (YYYY-MM-DD, inclusive) this memory holds. Null means it has no known end. */
+    valid_until: string | null;
 }
 export interface MemorySearchResult extends MemoryRecord {
     distance: number;
@@ -259,6 +262,8 @@ export interface MemoryConsolidateOptions {
     clusterThreshold?: number;
     /** Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay. */
     dormantAfterEpochs?: number;
+    /** Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review. */
+    beliefReviewAfterEpochs?: number;
     /** Report what would happen without changing anything. The epoch is not advanced. */
     dryRun?: boolean;
     /** Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime. */
@@ -269,10 +274,11 @@ export interface MemoryConsolidateOptions {
     provider?: any;
 }
 export interface MemoryConsolidateAction {
-    type: 'merge' | 'supersede' | 'generalize' | 'keep';
+    type: 'merge' | 'supersede' | 'generalize' | 'expire' | 'keep';
     category: string;
     ids: number[];
     text?: string;
+    reason?: string;
 }
 export interface MemoryConsolidateReport {
     epoch: number;
@@ -283,6 +289,8 @@ export interface MemoryConsolidateReport {
     superseded: number;
     generalized: number;
     dormant: number;
+    /** Rows expired this pass, by the judge or because their valid_until passed. */
+    expired: number;
     actions: MemoryConsolidateAction[];
     warnings: string[];
     dryRun: boolean;
@@ -329,6 +337,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         provider: z.ZodOptional<z.ZodAny>;
         model: z.ZodOptional<z.ZodString>;
         dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
+        beliefReviewAfterEpochs: z.ZodOptional<z.ZodNumber>;
         namespace: z.ZodDefault<z.ZodString>;
         autoRecall: z.ZodDefault<z.ZodNumber>;
         autoRecallMaxDistance: z.ZodDefault<z.ZodNumber>;
@@ -366,6 +375,12 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
     /** @internal */
     private get searcher();
     /**
+     * Where this memory set is stored. Defaults to a file named after the working
+     * directory, which keeps separate projects and agentic loops from sharing
+     * memory even when their assistants have the same name.
+     */
+    get dbPath(): string;
+    /**
      * Initialize the SQLite database and create tables.
      * Called automatically on first use, but can be called explicitly.
      *
@@ -384,23 +399,24 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         text: string;
         intent?: 'observation' | 'correction' | 'confirmation';
         regarding?: number;
+        valid_until?: string;
         metadata?: Record<string, any>;
     }): Promise<{
         stored: boolean;
-        id: number;
-        category: string;
-        superseded: number;
-        reason?: undefined;
+        reason: string;
+        id?: undefined;
+        category?: undefined;
+        superseded?: undefined;
         candidates?: undefined;
         note?: undefined;
         confirmed?: undefined;
         confirmations?: undefined;
     } | {
         stored: boolean;
-        reason: string;
-        id?: undefined;
-        category?: undefined;
-        superseded?: undefined;
+        id: number;
+        category: string;
+        superseded: number;
+        reason?: undefined;
         candidates?: undefined;
         note?: undefined;
         confirmed?: undefined;
@@ -424,8 +440,8 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         id: number;
         category: string;
         note: string;
-        superseded?: undefined;
         reason?: undefined;
+        superseded?: undefined;
         candidates?: undefined;
         confirmed?: undefined;
         confirmations?: undefined;
@@ -434,17 +450,17 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         id: number;
         confirmations: number;
         stored?: undefined;
+        reason?: undefined;
         category?: undefined;
         superseded?: undefined;
-        reason?: undefined;
         candidates?: undefined;
         note?: undefined;
     } | {
         stored: boolean;
         id: number;
         category: string;
-        superseded?: undefined;
         reason?: undefined;
+        superseded?: undefined;
         candidates?: undefined;
         note?: undefined;
         confirmed?: undefined;
@@ -463,6 +479,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         distance: number;
         created_at: string;
         confirmations: number;
+        valid_until: string | null;
     }[]>;
     /** Tool handler: retract one memory by id. */
     forget(args: {
@@ -496,6 +513,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         superseded: number;
         generalized: number;
         dormant: number;
+        expired: number;
         warnings: string[];
         dryRun: boolean;
     }>;
@@ -524,6 +542,8 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {string} category - The category to store the memory in
      * @param {string} text - The text content of the memory
      * @param {Record<string, any>} metadata - Optional metadata key-value pairs
+     * @param {object} options - Additional options
+     * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) this memory holds
      * @returns {Promise<MemoryRecord>} The created memory
      *
      * @example
@@ -532,7 +552,9 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * await mem.create('facts', 'The user lives in Austin', { confidence: 0.9 })
      * \`\`\`
      */
-    create(category: string, text: string, metadata?: Record<string, any>): Promise<MemoryRecord>;
+    create(category: string, text: string, metadata?: Record<string, any>, options?: {
+        validUntil?: string;
+    }): Promise<MemoryRecord>;
     /**
      * Append a raw observation to the episodic layer — no dedup, no judgment.
      * This is the cheap write path: repeated observations are welcome (they
@@ -542,6 +564,8 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {string} category - The category to store the observation in
      * @param {string} text - What was observed
      * @param {Record<string, any>} metadata - Optional metadata (e.g. provenance)
+     * @param {object} options - Additional options
+     * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) this memory holds
      * @returns {Promise<MemoryRecord>} The created episodic memory
      *
      * @example
@@ -550,7 +574,9 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * await mem.observe('facts', 'User said they moved to Denver', { source: 'chat' })
      * \`\`\`
      */
-    observe(category: string, text: string, metadata?: Record<string, any>): Promise<MemoryRecord>;
+    observe(category: string, text: string, metadata?: Record<string, any>, options?: {
+        validUntil?: string;
+    }): Promise<MemoryRecord>;
     /**
      * Replace a memory with a corrected statement. The old row is kept but
      * marked superseded (and excluded from search); the new row records what
@@ -561,6 +587,8 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {number} id - The id of the memory being corrected
      * @param {string} newText - The corrected statement
      * @param {Record<string, any>} metadata - Optional metadata for the new row
+     * @param {object} options - Additional options
+     * @param {string} options.validUntil - Last UTC date (YYYY-MM-DD, inclusive) the new row holds
      * @returns {Promise<MemoryRecord | null>} The new active memory, or null if the old id wasn't found
      *
      * @example
@@ -569,7 +597,9 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * await mem.revise('facts', 42, 'User now prefers claude-code over codex')
      * \`\`\`
      */
-    revise(category: string, id: number, newText: string, metadata?: Record<string, any>): Promise<MemoryRecord | null>;
+    revise(category: string, id: number, newText: string, metadata?: Record<string, any>, options?: {
+        validUntil?: string;
+    }): Promise<MemoryRecord | null>;
     /**
      * Mark a memory as retracted — no longer believed, but kept for audit.
      * Retracted rows are excluded from search results.
@@ -589,6 +619,10 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @returns {Promise<MemoryRecord | null>} The strengthened memory, or null if not found
      */
     confirm(category: string, id: number): Promise<MemoryRecord | null>;
+    /** @internal Today as a UTC YYYY-MM-DD string, the same clock SQLite's date('now') uses. */
+    private get today();
+    /** @internal Normalize a date to UTC YYYY-MM-DD, or null if it isn't a real ISO date. The round trip catches dates like 2026-02-31, which can roll over instead of failing. */
+    private parseValidUntil;
     /** @internal Shared insert used by create/observe/revise/consolidate. */
     private _insert;
     /**
@@ -679,6 +713,12 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      */
     categories(): Promise<string[]>;
     /**
+     * List every namespace stored in this database, not just the current one.
+     *
+     * @returns {Promise<string[]>} Namespace names, sorted
+     */
+    namespaces(): Promise<string[]>;
+    /**
      * Search memories by semantic similarity.
      *
      * @param {string | null} category - The category to search in, or null to search every category in the namespace
@@ -687,7 +727,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {object} options - Additional search options
      * @param {number} options.maxDistance - Maximum cosine distance threshold (0-2, default none)
      * @param {Record<string, any>} options.filterMetadata - Filter by metadata key-value pairs
-     * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated rows (default false)
+     * @param {boolean} options.includeInactive - Also return superseded/retracted/dormant/consolidated/expired rows and rows past their valid_until (default false)
      * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
      * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
      */
@@ -741,8 +781,9 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * options.judge) then decides what each cluster means: duplicates merge
      * into one belief with summed confirmations, contradictions resolve by
      * superseding the outdated row, patterns across observations become
-     * generalized beliefs, and everything else is left alone. Old, never-used
-     * episodic rows decay to dormant. Nothing is ever deleted — every outcome
+     * generalized beliefs, memories whose time has passed expire, and everything
+     * else is left alone. Rows past their valid_until expire without a judge
+     * call. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome
      * is a status change with an audit trail (superseded_by, derived_from),
      * so a wrong judgment is always reversible.
      *
@@ -760,6 +801,45 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * \`\`\`
      */
     consolidate(options?: MemoryConsolidateOptions): Promise<MemoryConsolidateReport>;
+    /**
+     * Apply one action from a consolidate() report, such as a dry run a person
+     * has reviewed. Re-running consolidate() would ask the judge again and could
+     * decide differently, so this applies exactly what was reviewed. An action is
+     * refused if any of its rows is no longer active, because the plan is stale
+     * for that row. Call settleConsolidation() once the whole plan is done.
+     *
+     * @param {MemoryConsolidateAction} action - The action to apply
+     * @returns {Promise<{ applied: boolean; reason?: string }>} Whether it was applied, and why not if it wasn't
+     *
+     * @example
+     * \`\`\`typescript
+     * const mem = container.feature('memory', { namespace: 'my-assistant' })
+     * const plan = await mem.consolidate({ dryRun: true })
+     * for (const action of plan.actions) await mem.applyConsolidationAction(action)
+     * await mem.settleConsolidation()
+     * \`\`\`
+     */
+    applyConsolidationAction(action: MemoryConsolidateAction): Promise<{
+        applied: boolean;
+        reason?: string;
+    }>;
+    /**
+     * Finish a consolidation pass: decay old unused observations, record rows past
+     * their valid_until as expired, and advance the epoch. consolidate() calls
+     * this itself. Call it directly after applying a plan with
+     * applyConsolidationAction().
+     *
+     * @param {object} options - Settle options
+     * @param {number} options.dormantAfterEpochs - Decay horizon (default: the feature option, then 3). 0 disables decay
+     * @returns {Promise<{ epoch: number; dormant: number; expired: number }>} The new epoch and how many rows changed
+     */
+    settleConsolidation(options?: {
+        dormantAfterEpochs?: number;
+    }): Promise<{
+        epoch: number;
+        dormant: number;
+        expired: number;
+    }>;
     /** @internal Build the default runtime judge: a fresh, zero-temperature conversation per cluster. */
     private defaultJudge;
     /** @internal Greedy single-link clustering on stored embeddings. Similarity proposes, it never decides. */
@@ -38167,7 +38247,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.23.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.24.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
