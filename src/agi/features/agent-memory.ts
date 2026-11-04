@@ -261,6 +261,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   }
 
   /**
+   * Where this memory set is stored. Defaults to a file named after the working
+   * directory, which keeps separate projects and agentic loops from sharing
+   * memory even when their assistants have the same name.
+   */
+  get dbPath(): string {
+    if (this.options.dbPath) return this.options.dbPath
+    const homedir = this.container.feature('os').homedir
+    const cwdHash = this.container.utils.hashObject(this.container.cwd)
+    return this.container.paths.join(homedir, '.luca', 'agent-memory', `${cwdHash}.db`)
+  }
+
+  /**
    * Initialize the SQLite database and create tables.
    * Called automatically on first use, but can be called explicitly.
    *
@@ -273,9 +285,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   async initDb() {
     if (this.state.get('dbReady')) return
 
-    const homedir = this.container.feature('os').homedir
-    const cwdHash = this.container.utils.hashObject(this.container.cwd)
-    const dbPath = this.options.dbPath || this.container.paths.join(homedir, '.luca', 'agent-memory', `${cwdHash}.db`)
+    const dbPath = this.dbPath
     const dir = dbPath.replace(/\/[^/]+$/, '')
 
     const fs = this.container.feature('fs')
@@ -930,6 +940,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     return rows.map((r: { category: string }) => r.category)
   }
 
+  /**
+   * List every namespace stored in this database, not just the current one.
+   *
+   * @returns {Promise<string[]>} Namespace names, sorted
+   */
+  async namespaces(): Promise<string[]> {
+    await this.ensureDb()
+
+    const rows = await this.db.query('SELECT DISTINCT namespace FROM memories ORDER BY namespace') as { namespace: string }[]
+    return rows.map((r: { namespace: string }) => r.namespace)
+  }
+
   // --- Semantic Search ---
 
   /**
@@ -1142,19 +1164,6 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       }
     }
 
-    if (!dryRun && dormantAfterEpochs > 0) {
-      const { changes } = await this.db.execute(
-        `UPDATE memories SET status = 'dormant', updated_at = datetime('now')
-         WHERE namespace = ? AND status = 'active' AND layer = 'episodic'
-           AND usage_count = 0 AND confirmations <= 1
-           AND reviewed_epoch > 0 AND reviewed_epoch <= ?`,
-        [this.options.namespace, epoch - dormantAfterEpochs]
-      )
-      report.dormant = changes
-    }
-
-    // Past valid_until needs no judge. Search already hides these rows; this
-    // records it, so the status matches what recall does.
     if (dryRun) {
       const rows = await this.db.query(
         `SELECT COUNT(*) as cnt FROM memories WHERE namespace = ? AND status = 'active' AND NOT ${NOT_EXPIRED}`,
@@ -1162,16 +1171,81 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       ) as { cnt: number }[]
       report.expired += rows[0]!.cnt
     } else {
-      const { changes } = await this.db.execute(
-        `UPDATE memories SET status = 'expired', updated_at = datetime('now') WHERE namespace = ? AND status = 'active' AND NOT ${NOT_EXPIRED}`,
-        [this.options.namespace]
-      )
-      report.expired += changes
+      const settled = await this.settleConsolidation({ dormantAfterEpochs })
+      report.dormant = settled.dormant
+      report.expired += settled.expired
     }
 
-    if (!dryRun) await this.incrementEpoch()
-
     return report
+  }
+
+  /**
+   * Apply one action from a consolidate() report, such as a dry run a person
+   * has reviewed. Re-running consolidate() would ask the judge again and could
+   * decide differently, so this applies exactly what was reviewed. An action is
+   * refused if any of its rows is no longer active, because the plan is stale
+   * for that row. Call settleConsolidation() once the whole plan is done.
+   *
+   * @param {MemoryConsolidateAction} action - The action to apply
+   * @returns {Promise<{ applied: boolean; reason?: string }>} Whether it was applied, and why not if it wasn't
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory', { namespace: 'my-assistant' })
+   * const plan = await mem.consolidate({ dryRun: true })
+   * for (const action of plan.actions) await mem.applyConsolidationAction(action)
+   * await mem.settleConsolidation()
+   * ```
+   */
+  async applyConsolidationAction(action: MemoryConsolidateAction): Promise<{ applied: boolean; reason?: string }> {
+    await this.ensureDb()
+
+    for (const id of action.ids) {
+      const row = await this.get(action.category, id)
+      if (!row) return { applied: false, reason: `memory ${id} no longer exists in ${action.category}` }
+      if (row.status !== 'active') return { applied: false, reason: `memory ${id} is ${row.status}, not active` }
+    }
+
+    const report = { merged: 0, superseded: 0, generalized: 0, expired: 0 } as MemoryConsolidateReport
+    await this.applyAction(action, this.getEpoch(), report)
+    return { applied: true }
+  }
+
+  /**
+   * Finish a consolidation pass: decay old unused observations, record rows past
+   * their valid_until as expired, and advance the epoch. consolidate() calls
+   * this itself. Call it directly after applying a plan with
+   * applyConsolidationAction().
+   *
+   * @param {object} options - Settle options
+   * @param {number} options.dormantAfterEpochs - Decay horizon (default: the feature option, then 3). 0 disables decay
+   * @returns {Promise<{ epoch: number; dormant: number; expired: number }>} The new epoch and how many rows changed
+   */
+  async settleConsolidation(options: { dormantAfterEpochs?: number } = {}): Promise<{ epoch: number; dormant: number; expired: number }> {
+    await this.ensureDb()
+
+    const dormantAfterEpochs = options.dormantAfterEpochs ?? this.options.dormantAfterEpochs ?? 3
+    let dormant = 0
+    if (dormantAfterEpochs > 0) {
+      const { changes } = await this.db.execute(
+        `UPDATE memories SET status = 'dormant', updated_at = datetime('now')
+         WHERE namespace = ? AND status = 'active' AND layer = 'episodic'
+           AND usage_count = 0 AND confirmations <= 1
+           AND reviewed_epoch > 0 AND reviewed_epoch <= ?`,
+        [this.options.namespace, this.getEpoch() - dormantAfterEpochs]
+      )
+      dormant = changes
+    }
+
+    // Past valid_until needs no judge. Search already hides these rows; this
+    // records it, so the status matches what recall does.
+    const { changes: expired } = await this.db.execute(
+      `UPDATE memories SET status = 'expired', updated_at = datetime('now') WHERE namespace = ? AND status = 'active' AND NOT ${NOT_EXPIRED}`,
+      [this.options.namespace]
+    )
+
+    const epoch = await this.incrementEpoch()
+    return { epoch, dormant, expired }
   }
 
   /** @internal Build the default runtime judge: a fresh, zero-temperature conversation per cluster. */

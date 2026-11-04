@@ -18302,6 +18302,12 @@ setBuildTimeData('features.memory', {
       "required": [],
       "returns": "Promise<string[]>"
     },
+    "namespaces": {
+      "description": "List every namespace stored in this database, not just the current one.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
     "search": {
       "description": "Search memories by semantic similarity.",
       "parameters": {
@@ -18460,6 +18466,64 @@ setBuildTimeData('features.memory', {
         }
       ]
     },
+    "applyConsolidationAction": {
+      "description": "Apply one action from a consolidate() report, such as a dry run a person has reviewed. Re-running consolidate() would ask the judge again and could decide differently, so this applies exactly what was reviewed. An action is refused if any of its rows is no longer active, because the plan is stale for that row. Call settleConsolidation() once the whole plan is done.",
+      "parameters": {
+        "action": {
+          "type": "MemoryConsolidateAction",
+          "description": "The action to apply",
+          "properties": {
+            "type": {
+              "type": "'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'",
+              "description": ""
+            },
+            "category": {
+              "type": "string",
+              "description": ""
+            },
+            "ids": {
+              "type": "number[]",
+              "description": ""
+            },
+            "text": {
+              "type": "string",
+              "description": ""
+            },
+            "reason": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "returns": "Promise<{ applied: boolean; reason?: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mem = container.feature('memory', { namespace: 'my-assistant' })\nconst plan = await mem.consolidate({ dryRun: true })\nfor (const action of plan.actions) await mem.applyConsolidationAction(action)\nawait mem.settleConsolidation()"
+        }
+      ]
+    },
+    "settleConsolidation": {
+      "description": "Finish a consolidation pass: decay old unused observations, record rows past their valid_until as expired, and advance the epoch. consolidate() calls this itself. Call it directly after applying a plan with applyConsolidationAction().",
+      "parameters": {
+        "options": {
+          "type": "{ dormantAfterEpochs?: number }",
+          "description": "Settle options",
+          "properties": {
+            "dormantAfterEpochs": {
+              "type": "any",
+              "description": "Decay horizon (default: the feature option, then 3). 0 disables decay"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ epoch: number; dormant: number; expired: number }>"
+    },
     "reembedAll": {
       "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
       "parameters": {},
@@ -18496,7 +18560,12 @@ setBuildTimeData('features.memory', {
       "returns": "Promise<number>"
     }
   },
-  "getters": {},
+  "getters": {
+    "dbPath": {
+      "description": "Where this memory set is stored. Defaults to a file named after the working directory, which keeps separate projects and agentic loops from sharing memory even when their assistants have the same name.",
+      "returns": "string"
+    }
+  },
   "events": {
     "dbInitialized": {
       "name": "dbInitialized",
@@ -50776,6 +50845,12 @@ export const introspectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<string[]>"
       },
+      "namespaces": {
+        "description": "List every namespace stored in this database, not just the current one.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
       "search": {
         "description": "Search memories by semantic similarity.",
         "parameters": {
@@ -50934,6 +51009,64 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "applyConsolidationAction": {
+        "description": "Apply one action from a consolidate() report, such as a dry run a person has reviewed. Re-running consolidate() would ask the judge again and could decide differently, so this applies exactly what was reviewed. An action is refused if any of its rows is no longer active, because the plan is stale for that row. Call settleConsolidation() once the whole plan is done.",
+        "parameters": {
+          "action": {
+            "type": "MemoryConsolidateAction",
+            "description": "The action to apply",
+            "properties": {
+              "type": {
+                "type": "'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'",
+                "description": ""
+              },
+              "category": {
+                "type": "string",
+                "description": ""
+              },
+              "ids": {
+                "type": "number[]",
+                "description": ""
+              },
+              "text": {
+                "type": "string",
+                "description": ""
+              },
+              "reason": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "returns": "Promise<{ applied: boolean; reason?: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mem = container.feature('memory', { namespace: 'my-assistant' })\nconst plan = await mem.consolidate({ dryRun: true })\nfor (const action of plan.actions) await mem.applyConsolidationAction(action)\nawait mem.settleConsolidation()"
+          }
+        ]
+      },
+      "settleConsolidation": {
+        "description": "Finish a consolidation pass: decay old unused observations, record rows past their valid_until as expired, and advance the epoch. consolidate() calls this itself. Call it directly after applying a plan with applyConsolidationAction().",
+        "parameters": {
+          "options": {
+            "type": "{ dormantAfterEpochs?: number }",
+            "description": "Settle options",
+            "properties": {
+              "dormantAfterEpochs": {
+                "type": "any",
+                "description": "Decay horizon (default: the feature option, then 3). 0 disables decay"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ epoch: number; dormant: number; expired: number }>"
+      },
       "reembedAll": {
         "description": "Re-embed every memory in this namespace with the currently configured embedding model. Use this after changing embeddingModel or embeddingProvider — search compares vectors directly, so a database holding two different dimensionalities cannot be searched.",
         "parameters": {},
@@ -50970,7 +51103,12 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<number>"
       }
     },
-    "getters": {},
+    "getters": {
+      "dbPath": {
+        "description": "Where this memory set is stored. Defaults to a file named after the working directory, which keeps separate projects and agentic loops from sharing memory even when their assistants have the same name.",
+        "returns": "string"
+      }
+    },
     "events": {
       "dbInitialized": {
         "name": "dbInitialized",
