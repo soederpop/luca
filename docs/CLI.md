@@ -212,6 +212,13 @@ Use `--list` to browse recent conversations:
 luca chat my-assistant --list
 ```
 
+Use `--export` to combine this project's saved conversations, with full messages, into one JSON document. Pass a file path, or omit it to print to stdout. Name the assistant first to export only its history:
+
+```
+luca chat --export history.json
+luca chat my-assistant --export > my-assistant.json
+```
+
 ---
 
 ### prompt

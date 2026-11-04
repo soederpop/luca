@@ -19,6 +19,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
 	offRecord: z.boolean().optional().describe('Alias for --history-mode lifecycle (ephemeral, no persistence)'),
 	clear: z.boolean().optional().describe('Clear the conversation history for the resolved history mode and exit'),
+	export: z.union([z.string(), z.boolean()]).optional().describe("Combine this project's saved conversations into one JSON document and exit. Pass a file path, or omit it to print to stdout. Name an assistant to export only its history."),
 	prependPrompt: z.string().optional().describe('Text or path to a markdown file to prepend to the system prompt'),
 	appendPrompt: z.string().optional().describe('Text or path to a markdown file to append to the system prompt'),
 	use: z.union([z.string(), z.array(z.string())]).optional().describe('Feature(s) to inject into the assistant via .use(). Supports options: --use "contentDb:rootPath=/tmp;lazy=true"'),
@@ -30,6 +31,30 @@ export const argsSchema = CommandOptionsSchema.extend({
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
 	const ui = container.feature('ui')
+
+	// Runs before assistant discovery: history can outlive the assistant that wrote it
+	if (options.export) {
+		const assistantName = container.argv._[1] as string | undefined
+		const exported = await container.feature('conversationHistory').exportAll(
+			assistantName ? { threadPrefix: `${assistantName}:` } : undefined,
+		)
+		const json = JSON.stringify(exported, null, 2) + '\n'
+		const summary = `Exported ${exported.count} conversation(s)${assistantName ? ` for ${assistantName}` : ''}`
+
+		// Status goes to stderr so stdout stays valid JSON when piped
+		if (typeof options.export === 'string') {
+			const outputPath = container.paths.resolve(options.export)
+			container.feature('fs').writeFile(outputPath, json)
+			console.error(ui.colors.green(`  ${summary} to ${outputPath}`))
+		} else {
+			process.stdout.write(json)
+			console.error(ui.colors.dim(`  ${summary}`))
+		}
+		if (exported.missing.length > 0) {
+			console.error(ui.colors.yellow(`  Could not load ${exported.missing.length} conversation(s): ${exported.missing.join(', ')}`))
+		}
+		return
+	}
 
 	const manager = container.feature('assistantsManager')
 	await manager.discover()
@@ -186,6 +211,8 @@ export const examples = [
 	'luca chat researcher',
 	{ command: 'luca chat', description: 'Open the lobby — @mention any discovered assistant to talk to it' },
 	{ command: 'luca chat --list', description: 'List recent conversations' },
+	{ command: 'luca chat --export history.json', description: "Combine all of this project's saved conversations into one JSON file" },
+	{ command: 'luca chat researcher --export', description: "Print one assistant's saved conversations as JSON to stdout" },
 	{ command: 'luca chat researcher --resume <threadId>', description: 'Resume a previous conversation' },
 	{ command: 'luca chat researcher --use "contentDb:rootPath=./docs"', description: 'Inject a feature into the assistant' },
 	{ command: 'luca chat researcher --provider claude-code', description: 'Route the assistant through a specific model provider' },

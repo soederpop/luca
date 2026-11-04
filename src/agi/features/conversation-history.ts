@@ -43,6 +43,15 @@ export interface ConversationRecord {
 
 export type ConversationMeta = Omit<ConversationRecord, 'messages'>
 
+export interface ConversationExport {
+	exportedAt: string
+	namespace: string
+	count: number
+	conversations: ConversationRecord[]
+	/** IDs that have metadata but whose full record could not be loaded. */
+	missing: string[]
+}
+
 export interface SearchOptions {
 	tag?: string
 	tags?: string[]
@@ -430,6 +439,38 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 			if (await this.delete(meta.id)) count++
 		}
 		return count
+	}
+
+	/**
+	 * Combine stored conversations, with their full messages, into one JSON-serializable object.
+	 *
+	 * @param {SearchOptions & { threadPrefix?: string }} [options] - Optional filters. `threadPrefix` keeps only threads that start with it.
+	 * @returns {Promise<ConversationExport>} The conversations (newest first), plus the IDs of any records that could not be loaded
+	 *
+	 * @example
+	 * const everything = await history.exportAll()
+	 * const researcher = await history.exportAll({ threadPrefix: 'researcher:' })
+	 */
+	async exportAll(options?: SearchOptions & { threadPrefix?: string }): Promise<ConversationExport> {
+		const { threadPrefix, ...filters } = options ?? {}
+		const metas = await this.list(filters)
+		const conversations: ConversationRecord[] = []
+		const missing: string[] = []
+
+		for (const meta of metas) {
+			if (threadPrefix && !meta.thread.startsWith(threadPrefix)) continue
+			const record = await this.load(meta.id)
+			if (record) conversations.push(record)
+			else missing.push(meta.id)
+		}
+
+		return {
+			exportedAt: new Date().toISOString(),
+			namespace: this.namespace,
+			count: conversations.length,
+			conversations,
+			missing,
+		}
 	}
 
 	/** @returns An OpenAI client from the container for LLM calls. */
