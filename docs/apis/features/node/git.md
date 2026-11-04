@@ -198,6 +198,156 @@ const globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')
 
 
 
+### execAsync
+
+Runs git without blocking the event loop. Arguments go to git as an array, so nothing is split or shell-expanded. Rejects when git exits non-zero, in the same cases where execSync throws.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `string[]` | ✓ | Arguments for git |
+| `options` | `{ cwd?: string }` |  | Parameter options |
+
+**Returns:** `Promise<string>`
+
+```ts
+const status = await git.execAsync(['status', '--porcelain'])
+```
+
+
+
+### lsFilesAsync
+
+Async variant of {@link lsFiles}. Takes the same options. One difference: when git lists nothing, this returns `[]`. The sync lsFiles returns `['']` in that case, so its `.length` is never 0. Exclude patterns also reach git literally here, with no shell globbing.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `LsFilesOptions` |  | Same options as lsFiles |
+
+`LsFilesOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `cached` | `boolean` |  |
+| `deleted` | `boolean` |  |
+| `modified` | `boolean` |  |
+| `others` | `boolean` |  |
+| `ignored` | `boolean` |  |
+| `status` | `boolean` |  |
+| `includeIgnored` | `boolean` |  |
+| `exclude` | `string | string[]` |  |
+| `baseDir` | `string` |  |
+
+**Returns:** `Promise<string[]>`
+
+```ts
+const modified = await git.lsFilesAsync({ modified: true })
+const untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })
+```
+
+
+
+### getBranch
+
+Async variant of the {@link branch} getter.
+
+**Returns:** `Promise<string | null>`
+
+```ts
+const branch = await git.getBranch()
+```
+
+
+
+### getSha
+
+Async variant of the {@link sha} getter.
+
+**Returns:** `Promise<string | null>`
+
+```ts
+const sha = await git.getSha()
+```
+
+
+
+### getLatestChangesAsync
+
+Async variant of {@link getLatestChanges}.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `numberOfChanges` | `number` |  | How many recent commits to return |
+
+**Returns:** `Promise<Array<{ title: string, message: string, author: string }>>`
+
+```ts
+const changes = await git.getLatestChangesAsync(5)
+```
+
+
+
+### fileLogAsync
+
+Async variant of {@link fileLog}.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `files` | `string[]` | ✓ | File paths, absolute or relative to container.cwd |
+
+**Returns:** `Promise<Array<{ sha: string, message: string }>>`
+
+```ts
+const log = await git.fileLogAsync('package.json')
+```
+
+
+
+### diffAsync
+
+Async variant of {@link diff}.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file` | `string` | ✓ | File path, absolute or relative to container.cwd |
+| `compareTo` | `string` | ✓ | The target ref |
+| `compareFrom` | `string` |  | The base ref, HEAD by default |
+
+**Returns:** `Promise<string>`
+
+```ts
+const changes = await git.diffAsync('package.json', 'abc1234')
+```
+
+
+
+### getChangeHistoryForFilesAsync
+
+Async variant of {@link getChangeHistoryForFiles}. The sync version runs one blocking git call per commit. This one runs them one at a time without blocking, so a long history no longer freezes the process.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `paths` | `string[]` | ✓ | File paths or glob patterns |
+
+**Returns:** `Promise<Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>>`
+
+```ts
+const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -328,6 +478,71 @@ await git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/d
 ```ts
 const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
 const globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')
+```
+
+
+
+**execAsync**
+
+```ts
+const status = await git.execAsync(['status', '--porcelain'])
+```
+
+
+
+**lsFilesAsync**
+
+```ts
+const modified = await git.lsFilesAsync({ modified: true })
+const untracked = await git.lsFilesAsync({ others: true, exclude: ['tmp'] })
+```
+
+
+
+**getBranch**
+
+```ts
+const branch = await git.getBranch()
+```
+
+
+
+**getSha**
+
+```ts
+const sha = await git.getSha()
+```
+
+
+
+**getLatestChangesAsync**
+
+```ts
+const changes = await git.getLatestChangesAsync(5)
+```
+
+
+
+**fileLogAsync**
+
+```ts
+const log = await git.fileLogAsync('package.json')
+```
+
+
+
+**diffAsync**
+
+```ts
+const changes = await git.diffAsync('package.json', 'abc1234')
+```
+
+
+
+**getChangeHistoryForFilesAsync**
+
+```ts
+const history = await git.getChangeHistoryForFilesAsync('src/node/features/*.ts')
 ```
 
 

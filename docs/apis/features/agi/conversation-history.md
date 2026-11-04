@@ -309,6 +309,25 @@ Delete all conversations matching a thread prefix.
 
 
 
+### exportAll
+
+Combine stored conversations, with their full messages, into one JSON-serializable object.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `SearchOptions & { threadPrefix?: string }` |  | Parameter options |
+
+**Returns:** `Promise<ConversationExport>`
+
+```ts
+const everything = await history.exportAll()
+const researcher = await history.exportAll({ threadPrefix: 'researcher:' })
+```
+
+
+
 ### summarize
 
 Generate a concise summary of a stored conversation using the LLM. The summary is stored in `metadata.summary` and returned. No tool calls are made — this is a single completion request.
@@ -408,5 +427,14 @@ const loaded = await history.load(record.id)
 
 // Search and filter
 const results = await history.search({ tag: 'important', limit: 10 })
+```
+
+
+
+**exportAll**
+
+```ts
+const everything = await history.exportAll()
+const researcher = await history.exportAll({ threadPrefix: 'researcher:' })
 ```
 

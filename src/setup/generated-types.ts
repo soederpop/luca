@@ -35391,6 +35391,25 @@ export interface VMRequireOptions {
  * free from the realm, and luca injects console, timers, process, Buffer, fetch and
  * friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.
  *
+ * **Shared container model.** A snippet run through \`evalCode\` (or \`run\`) is a live
+ * handle on the container, not a sandbox. Shared: every feature, command, helper,
+ * server, endpoint, the event bus, container state and context, and every file on
+ * disk; every assistant instance in this process (every session, channel, scheduled
+ * run) shares that one container, so a write from one session is visible to the next.
+ * Reset: only the snippet's own scope (variables, closures, imports, \`globalThis\`),
+ * fresh on every call. Boundary: the container is per process; a \`luca\` CLI call is a
+ * different process that shares only the filesystem, and separate daemons are separate
+ * containers, so never assume cross-daemon sharing. Carrying state: write it to the
+ * container and name it (\`container.addContext('name', value)\` puts it in scope for
+ * every later snippet; feature state and \`container.store()\` outlive the snippet;
+ * files outlive the process).
+ *
+ * \`evalCode\` errors come back as \`{ error }\` with a \`Hint:\` line when the failure is a
+ * guessed method name, \`.then\`/\`.catch\` on a synchronous method, an unregistered
+ * feature id, or an options object passed to \`proc.spawnAndCapture\`. The hint is built
+ * from the helpers' own introspection data, so it names the real method and marks it
+ * sync or async.
+ *
  * @example
  * \`\`\`typescript
  * const vm = container.feature('vm')
@@ -35937,6 +35956,37 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
     } | {
         error: string;
     }>;
+    /**
+     * Turn the common classes of evalCode failure into a one-line hint that
+     * carries the answer, so the agent does not spend a second model turn on a
+     * guessed API. Field data from production loops showed 10-14% of snippets
+     * failing on exactly these shapes: a method name that does not exist on a
+     * helper, \`.then\`/\`.catch\` on a synchronous method, a feature id that is
+     * not registered, and an options object passed where \`proc.spawnAndCapture\`
+     * takes positional arguments. Everything here is derived from the helpers'
+     * own introspection data, so it never drifts from the real surface.
+     *
+     * @param message - The error message the snippet produced
+     * @param code - The snippet source, used to spot which helper was called
+     * @param extraContext - Extra scope entries given to evalCode (e.g. \`assistant\`)
+     * @returns A single-line hint, or undefined when the error is not a recognised shape
+     *
+     * @example
+     * \`\`\`typescript
+     * vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(".")')
+     * // => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'
+     * \`\`\`
+     */
+    hintForEvalError(message: string, code?: string, extraContext?: Record<string, any>): string | undefined;
+    /**
+     * Feature ids worth searching for a method named in an error. A receiver
+     * that is itself a feature in scope wins; otherwise fall back to every
+     * feature the snippet mentions by name, then everything in scope. Aliases
+     * (\`const f = fs\`) are why the fallback exists.
+     */
+    private helpersInScope;
+    /** The feature in scope that has a method of this exact name, preferring ones the snippet mentions. */
+    private findMethodOwner;
     /**
      * When a consumer mounts the vm via \`use()\`, rebind evalCode so the snippet
      * context includes that consumer as \`assistant\`, and inject the tool's

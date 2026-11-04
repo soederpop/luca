@@ -52,6 +52,12 @@ container.feature('conversation', {
   stop,
   // Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } } for llama-server/vLLM). Chat API only
   extraBody,
+  // Reasoning effort for thinking models: minimal, low, medium, high, xhigh. Mapped to each backend's own knob; omit for the model default
+  reasoningEffort,
+  // Keep streamed reasoning on each assistant message as message.reasoning for inspection (default true). Never sent to the model unless replayReasoning is on
+  recordReasoning,
+  // Send recorded reasoning back as reasoning_content on assistant tool-call messages within the current turn (DeepSeek-style thinking with tools). Chat API only, default false
+  replayReasoning,
   // Enable automatic compaction when input tokens approach the context limit
   autoCompact,
   // Fraction of context window at which auto-compact triggers (default 0.8)
@@ -91,6 +97,9 @@ container.feature('conversation', {
 | `presencePenalty` | `number` | Presence penalty (-2 to 2). Positive = encourage new topics |
 | `stop` | `array` | Stop sequences — generation halts when any of these strings is produced |
 | `extraBody` | `object` | Extra keys merged verbatim into the chat-completions request body (e.g. { chat_template_kwargs: { enable_thinking: false } } for llama-server/vLLM). Chat API only |
+| `reasoningEffort` | `string` | Reasoning effort for thinking models: minimal, low, medium, high, xhigh. Mapped to each backend's own knob; omit for the model default |
+| `recordReasoning` | `boolean` | Keep streamed reasoning on each assistant message as message.reasoning for inspection (default true). Never sent to the model unless replayReasoning is on |
+| `replayReasoning` | `boolean` | Send recorded reasoning back as reasoning_content on assistant tool-call messages within the current turn (DeepSeek-style thinking with tools). Chat API only, default false |
 | `autoCompact` | `boolean` | Enable automatic compaction when input tokens approach the context limit |
 | `compactThreshold` | `number` | Fraction of context window at which auto-compact triggers (default 0.8) |
 | `contextWindow` | `number` | Override the inferred context window size for this model |
@@ -206,6 +215,24 @@ const results = await conversation.research([
  "Quick factual question",
  { question: "Needs recent context", forkOptions: { history: 5 } },
 ], { history: 'none' })
+```
+
+
+
+### setReasoningEffort
+
+Set how hard a thinking model reasons on every subsequent turn. Safe to call mid-conversation. Pass null to go back to the model's default.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `effort` | `ReasoningEffort | null` | ✓ | Parameter effort |
+
+**Returns:** `this`
+
+```ts
+conversation.setReasoningEffort('high')
 ```
 
 
@@ -860,6 +887,7 @@ Fired when the Responses API stream completes
 | `stop` | `any` | Stop sequences. Null means none |
 | `maxTokens` | `any` | Maximum output tokens per completion. Null means use model default |
 | `extraBody` | `any` | Extra keys merged verbatim into the chat-completions request body (e.g. chat_template_kwargs). Null means none |
+| `reasoningEffort` | `any` | Reasoning effort requested from thinking models. Null means the model default |
 
 ## Examples
 
@@ -898,6 +926,14 @@ const results = await conversation.research([
  "Quick factual question",
  { question: "Needs recent context", forkOptions: { history: 5 } },
 ], { history: 'none' })
+```
+
+
+
+**setReasoningEffort**
+
+```ts
+conversation.setReasoningEffort('high')
 ```
 
 

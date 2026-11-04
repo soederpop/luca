@@ -231,12 +231,20 @@ Synchronously writes content to a file.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The file path where content should be written |
 | `content` | `Buffer | string` | ✓ | The content to write to the file |
+| `options` | `{ mode?: number }` |  | Write options |
+
+`{ mode?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `mode` | `any` | Permission bits for a newly created file (e.g. 0o600 for secrets). An existing file keeps its mode. |
 
 **Returns:** `void`
 
 ```ts
 fs.writeFile('output.txt', 'Hello World')
 fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
+fs.writeFile('token.json', '{}', { mode: 0o600 })
 ```
 
 
@@ -251,6 +259,7 @@ Synchronously writes content to a file (node's name).
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | Parameter path |
 | `content` | `Buffer | string` | ✓ | Parameter content |
+| `options` | `{ mode?: number }` |  | Parameter options |
 
 **Returns:** `void`
 
@@ -1579,6 +1588,7 @@ console.log(entries) // ['index.ts', 'utils.ts', 'components']
 ```ts
 fs.writeFile('output.txt', 'Hello World')
 fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
+fs.writeFile('token.json', '{}', { mode: 0o600 })
 ```
 
 

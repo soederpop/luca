@@ -24,8 +24,14 @@ container.feature('memory', {
   model,
   // Default decay horizon for consolidate(): never-used, never-confirmed episodic memories go dormant after this many unreviewed epochs (default 3; 0 disables decay)
   dormantAfterEpochs,
-  // Namespace to isolate memory sets (e.g. per-assistant)
+  // Default re-review horizon for consolidate(): a belief goes back to the judge once it has gone this many epochs without review, so a fact that was true when last reviewed can still be expired later (default 30; 0 disables re-review)
+  beliefReviewAfterEpochs,
+  // Namespace to isolate memory sets. Left at "default", an assistant that uses this feature gets its own namespace named after the assistant, so assistants never share memory by accident. Set it explicitly to share one memory set between assistants on purpose
   namespace,
+  // When an assistant uses this feature, search memory with each user message and prepend up to this many relevant memories to it, so recall does not depend on the model choosing to call the recall tool. Each memory is injected at most once per assistant. 0 disables
+  autoRecall,
+  // Cosine distance (0 = identical) a memory must be within to be auto-recalled. Keeps unrelated memories out of small-talk turns. Tune per embedding model — local models tend to score unrelated text closer than openai ones
+  autoRecallMaxDistance,
 })
 ```
 
@@ -41,7 +47,10 @@ container.feature('memory', {
 | `provider` | `any` | Model provider preset id (e.g. a modelProviders preset like 'claude-code' or a registered local model) or inline provider config for the consolidation judge. consolidate() uses it when no judge or provider is passed to the call. Chat/judging only — embeddings are controlled by embeddingProvider |
 | `model` | `string` | Model for the consolidation judge conversation. Usually unnecessary when provider is set (the preset carries its own model) |
 | `dormantAfterEpochs` | `number` | Default decay horizon for consolidate(): never-used, never-confirmed episodic memories go dormant after this many unreviewed epochs (default 3; 0 disables decay) |
-| `namespace` | `string` | Namespace to isolate memory sets (e.g. per-assistant) |
+| `beliefReviewAfterEpochs` | `number` | Default re-review horizon for consolidate(): a belief goes back to the judge once it has gone this many epochs without review, so a fact that was true when last reviewed can still be expired later (default 30; 0 disables re-review) |
+| `namespace` | `string` | Namespace to isolate memory sets. Left at "default", an assistant that uses this feature gets its own namespace named after the assistant, so assistants never share memory by accident. Set it explicitly to share one memory set between assistants on purpose |
+| `autoRecall` | `number` | When an assistant uses this feature, search memory with each user message and prepend up to this many relevant memories to it, so recall does not depend on the model choosing to call the recall tool. Each memory is injected at most once per assistant. 0 disables |
+| `autoRecallMaxDistance` | `number` | Cosine distance (0 = identical) a memory must be within to be auto-recalled. Keeps unrelated memories out of small-talk turns. Tune per embedding model — local models tend to score unrelated text closer than openai ones |
 
 ## Methods
 
@@ -66,7 +75,7 @@ Tool handler: store a memory with declared intent — observe, correct by id, or
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `args` | `{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; metadata?: Record<string, any> }` | ✓ | Parameter args |
+| `args` | `{ category: string; text: string; intent?: 'observation' | 'correction' | 'confirmation'; regarding?: number; valid_until?: string; metadata?: Record<string, any> }` | ✓ | Parameter args |
 
 **Returns:** `void`
 
@@ -74,13 +83,13 @@ Tool handler: store a memory with declared intent — observe, correct by id, or
 
 ### recall
 
-Tool handler: search memories by semantic similarity.
+Tool handler: search memories by semantic similarity, across all categories unless one is given.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `args` | `{ category: string; query: string; n_results?: number }` | ✓ | Parameter args |
+| `args` | `{ category?: string; query: string; n_results?: number }` | ✓ | Parameter args |
 
 **Returns:** `void`
 
@@ -138,7 +147,7 @@ Tool handler: list all categories with counts.
 
 ### setupToolsConsumer
 
-When an assistant uses memory, inject system prompt guidance.
+When an assistant uses memory: scope it to that assistant, inject system prompt guidance, and auto-recall relevant memories on every user message. Memory left on the 'default' namespace is re-scoped to the assistant's name, so two assistants never read each other's memories by accident. Pass an explicit namespace to share one memory set on purpose.
 
 **Parameters:**
 
@@ -161,6 +170,13 @@ Create a new memory in the given category.
 | `category` | `string` | ✓ | The category to store the memory in |
 | `text` | `string` | ✓ | The text content of the memory |
 | `metadata` | `Record<string, any>` |  | Optional metadata key-value pairs |
+| `options` | `{ validUntil?: string }` |  | Additional options |
+
+`{ validUntil?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `validUntil` | `any` | Last UTC date (YYYY-MM-DD, inclusive) this memory holds |
 
 **Returns:** `Promise<MemoryRecord>`
 
@@ -182,6 +198,13 @@ Append a raw observation to the episodic layer — no dedup, no judgment. This i
 | `category` | `string` | ✓ | The category to store the observation in |
 | `text` | `string` | ✓ | What was observed |
 | `metadata` | `Record<string, any>` |  | Optional metadata (e.g. provenance) |
+| `options` | `{ validUntil?: string }` |  | Additional options |
+
+`{ validUntil?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `validUntil` | `any` | Last UTC date (YYYY-MM-DD, inclusive) this memory holds |
 
 **Returns:** `Promise<MemoryRecord>`
 
@@ -204,6 +227,13 @@ Replace a memory with a corrected statement. The old row is kept but marked supe
 | `id` | `number` | ✓ | The id of the memory being corrected |
 | `newText` | `string` | ✓ | The corrected statement |
 | `metadata` | `Record<string, any>` |  | Optional metadata for the new row |
+| `options` | `{ validUntil?: string }` |  | Additional options |
+
+`{ validUntil?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `validUntil` | `any` | Last UTC date (YYYY-MM-DD, inclusive) the new row holds |
 
 **Returns:** `Promise<MemoryRecord | null>`
 
@@ -386,6 +416,14 @@ List all categories that have memories.
 
 
 
+### namespaces
+
+List every namespace stored in this database, not just the current one.
+
+**Returns:** `Promise<string[]>`
+
+
+
 ### search
 
 Search memories by semantic similarity.
@@ -394,7 +432,7 @@ Search memories by semantic similarity.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `category` | `string` | ✓ | The category to search in |
+| `category` | `string | null` | ✓ | The category to search in, or null to search every category in the namespace |
 | `query` | `string` | ✓ | The search query (will be embedded) |
 | `nResults` | `any` |  | Maximum number of results (default 5) |
 | `options` | `{ maxDistance?: number; filterMetadata?: Record<string, any>; includeInactive?: boolean; trackUsage?: boolean }` |  | Additional search options |
@@ -405,7 +443,7 @@ Search memories by semantic similarity.
 |----------|------|-------------|
 | `maxDistance` | `any` | Maximum cosine distance threshold (0-2, default none) |
 | `filterMetadata` | `any` | Filter by metadata key-value pairs |
-| `includeInactive` | `any` | Also return superseded/retracted/dormant/consolidated rows (default false) |
+| `includeInactive` | `any` | Also return superseded/retracted/dormant/consolidated/expired rows and rows past their valid_until (default false) |
 | `trackUsage` | `any` | Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls |
 
 **Returns:** `Promise<MemorySearchResult[]>`
@@ -480,7 +518,7 @@ Get events, optionally filtered by epoch.
 
 ### consolidate
 
-Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, and everything else is left alone. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.
+Run a consolidation pass over this namespace — the memory's sleep cycle. Embedding similarity is used only to propose clusters of rows that are about the same thing; an LLM judge (created at runtime, or injected via options.judge) then decides what each cluster means: duplicates merge into one belief with summed confirmations, contradictions resolve by superseding the outdated row, patterns across observations become generalized beliefs, memories whose time has passed expire, and everything else is left alone. Rows past their valid_until expire without a judge call. Old, never-used episodic rows decay to dormant. Nothing is ever deleted — every outcome is a status change with an audit trail (superseded_by, derived_from), so a wrong judgment is always reversible. Finishing a pass increments the epoch, so epoch counts sleep cycles and reviewed_epoch records when each row was last considered.
 
 **Parameters:**
 
@@ -495,6 +533,7 @@ Run a consolidation pass over this namespace — the memory's sleep cycle. Embed
 | `categories` | `string[]` | Restrict the pass to these categories (default: all categories in the namespace). |
 | `clusterThreshold` | `number` | Cosine similarity at or above which two rows join the same cluster for review (default 0.7 — loose on purpose, so corrections land next to the beliefs they contradict). |
 | `dormantAfterEpochs` | `number` | Move never-used, never-confirmed episodic rows to 'dormant' when they haven't been reviewed for this many epochs (default 3). Set to 0 to disable decay. |
+| `beliefReviewAfterEpochs` | `number` | Send a belief back to the judge once it has gone this many epochs without review (default 30). Set to 0 to disable re-review. |
 | `dryRun` | `boolean` | Report what would happen without changing anything. The epoch is not advanced. |
 | `judge` | `(prompt: string) => Promise<string>` | Override the LLM judge. Receives the cluster prompt, must return the model's raw text reply. Defaults to a conversation created at runtime. |
 | `model` | `string` | Model for the default judge conversation. |
@@ -507,6 +546,57 @@ const mem = container.feature('memory', { namespace: 'my-assistant' })
 const report = await mem.consolidate({ provider: 'claude-code' })
 console.log(`epoch ${report.epoch}: merged ${report.merged}, superseded ${report.superseded}`)
 ```
+
+
+
+### applyConsolidationAction
+
+Apply one action from a consolidate() report, such as a dry run a person has reviewed. Re-running consolidate() would ask the judge again and could decide differently, so this applies exactly what was reviewed. An action is refused if any of its rows is no longer active, because the plan is stale for that row. Call settleConsolidation() once the whole plan is done.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `action` | `MemoryConsolidateAction` | ✓ | The action to apply |
+
+`MemoryConsolidateAction` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `type` | `'merge' | 'supersede' | 'generalize' | 'expire' | 'keep'` |  |
+| `category` | `string` |  |
+| `ids` | `number[]` |  |
+| `text` | `string` |  |
+| `reason` | `string` |  |
+
+**Returns:** `Promise<{ applied: boolean; reason?: string }>`
+
+```ts
+const mem = container.feature('memory', { namespace: 'my-assistant' })
+const plan = await mem.consolidate({ dryRun: true })
+for (const action of plan.actions) await mem.applyConsolidationAction(action)
+await mem.settleConsolidation()
+```
+
+
+
+### settleConsolidation
+
+Finish a consolidation pass: decay old unused observations, record rows past their valid_until as expired, and advance the epoch. consolidate() calls this itself. Call it directly after applying a plan with applyConsolidationAction().
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ dormantAfterEpochs?: number }` |  | Settle options |
+
+`{ dormantAfterEpochs?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `dormantAfterEpochs` | `any` | Decay horizon (default: the feature option, then 3). 0 disables decay |
+
+**Returns:** `Promise<{ epoch: number; dormant: number; expired: number }>`
 
 
 
@@ -545,6 +635,12 @@ Import memories from a JSON export. Optionally replaces all existing memories.
 **Returns:** `Promise<number>`
 
 
+
+## Getters
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `dbPath` | `string` | Where this memory set is stored. Defaults to a file named after the working directory, which keeps separate projects and agentic loops from sharing memory even when their assistants have the same name. |
 
 ## Events (Zod v4 schema)
 
@@ -665,6 +761,17 @@ await mem.createUnique('facts', 'User prefers dark mode', {}, 0.9)
 const mem = container.feature('memory', { namespace: 'my-assistant' })
 const report = await mem.consolidate({ provider: 'claude-code' })
 console.log(`epoch ${report.epoch}: merged ${report.merged}, superseded ${report.superseded}`)
+```
+
+
+
+**applyConsolidationAction**
+
+```ts
+const mem = container.feature('memory', { namespace: 'my-assistant' })
+const plan = await mem.consolidate({ dryRun: true })
+for (const action of plan.actions) await mem.applyConsolidationAction(action)
+await mem.settleConsolidation()
 ```
 
 
