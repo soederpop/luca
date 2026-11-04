@@ -70,6 +70,25 @@ const VM_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
  * free from the realm, and luca injects console, timers, process, Buffer, fetch and
  * friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.
  *
+ * **Shared container model.** A snippet run through `evalCode` (or `run`) is a live
+ * handle on the container, not a sandbox. Shared: every feature, command, helper,
+ * server, endpoint, the event bus, container state and context, and every file on
+ * disk; every assistant instance in this process (every session, channel, scheduled
+ * run) shares that one container, so a write from one session is visible to the next.
+ * Reset: only the snippet's own scope (variables, closures, imports, `globalThis`),
+ * fresh on every call. Boundary: the container is per process; a `luca` CLI call is a
+ * different process that shares only the filesystem, and separate daemons are separate
+ * containers, so never assume cross-daemon sharing. Carrying state: write it to the
+ * container and name it (`container.addContext('name', value)` puts it in scope for
+ * every later snippet; feature state and `container.store()` outlive the snippet;
+ * files outlive the process).
+ *
+ * `evalCode` errors come back as `{ error }` with a `Hint:` line when the failure is a
+ * guessed method name, `.then`/`.catch` on a synchronous method, an unregistered
+ * feature id, or an options object passed to `proc.spawnAndCapture`. The hint is built
+ * from the helpers' own introspection data, so it names the real method and marks it
+ * sync or async.
+ *
  * @example
  * ```typescript
  * const vm = container.feature('vm')
@@ -104,7 +123,7 @@ export class VM<
 
   static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
     evalCode: {
-      description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` and every enabled feature in scope by bare name. Top-level await works; the final expression is the result; console output is captured and returned with it. Use it to inspect live state, call any container feature, or prototype code against the real runtime. Nothing is sandboxed away from the real process — side effects are real, and no state carries over to the next call.',
+      description: 'Execute a JavaScript/TypeScript snippet in THIS live process, with the luca container in scope as `container` and every enabled feature in scope by bare name. Top-level await works; the final expression is the result; console output is captured and returned with it. Use it to inspect live state, call any container feature, or prototype code against the real runtime. Nothing is sandboxed away from the real process: side effects are real, and the container (features, state, context, files) is shared with every other instance of this assistant in the process. Only the snippet\'s own variables are gone by the next call.',
       schema: z.object({
         code: z.string().describe('The snippet to run. `container` and every enabled feature (`fs`, `proc`, …) are in scope; TypeScript and `import { z } from "zod"` work. The last expression is returned — end with the value you want to see.'),
         purpose: z.string().optional().describe('Optional but encouraged: one sentence on why you are running this snippet — what question it answers or what step it performs.'),
@@ -1172,8 +1191,118 @@ export class VM<
       const { result, console: calls } = await this.runCaptured(code, scope)
       return { result: safeSerialize(result), console: calls.map((c) => ({ method: c.method, args: c.args.map((a) => safeSerialize(a)) })) }
     } catch (err: any) {
-      return { error: err?.message || String(err) }
+      const message = err?.message || String(err)
+      const hint = this.hintForEvalError(message, args.code, extraContext)
+      return { error: hint ? `${message}\n\nHint: ${hint}` : message }
     }
+  }
+
+  /**
+   * Turn the common classes of evalCode failure into a one-line hint that
+   * carries the answer, so the agent does not spend a second model turn on a
+   * guessed API. Field data from production loops showed 10-14% of snippets
+   * failing on exactly these shapes: a method name that does not exist on a
+   * helper, `.then`/`.catch` on a synchronous method, a feature id that is
+   * not registered, and an options object passed where `proc.spawnAndCapture`
+   * takes positional arguments. Everything here is derived from the helpers'
+   * own introspection data, so it never drifts from the real surface.
+   *
+   * @param message - The error message the snippet produced
+   * @param code - The snippet source, used to spot which helper was called
+   * @param extraContext - Extra scope entries given to evalCode (e.g. `assistant`)
+   * @returns A single-line hint, or undefined when the error is not a recognised shape
+   *
+   * @example
+   * ```typescript
+   * vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(".")')
+   * // => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'
+   * ```
+   */
+  hintForEvalError(message: string, code = '', extraContext: Record<string, any> = {}): string | undefined {
+    const features = this.container.features
+
+    // (d) proc.spawnAndCapture({ cmd, args }) — Node validates the `file` arg before we ever see it.
+    if (/"file" argument must be of type string/.test(message)) {
+      const used = (code.match(/\b(spawnAndCapture|execAndCapture|spawn)\s*\(/) || [])[1] || 'spawnAndCapture'
+      return `proc.${used}() takes positional arguments, not an options object: proc.${used}('cmd', ['arg1', 'arg2'], { cwd, env, ... }).`
+    }
+
+    // (c) container.feature('docs') with no such id.
+    const unregistered = message.match(/^(\w+) "([^"]+)" is not registered/)
+    if (unregistered) {
+      const [, registry, id] = unregistered
+      const pool: string[] = (this.container as any)[registry!]?.available ?? features.available
+      const near = nearestNames(id!, pool, 3)
+      return near.length
+        ? `No ${registry} named "${id}". Did you mean: ${near.join(', ')}? Full index: luca describe ${registry} (describe_registry in an assistant).`
+        : undefined
+    }
+
+    // (b) f.stat(...).catch is not a function — the method is synchronous.
+    const syncMisuse = message.match(/\.(\w+)\((?:[^()]*|\.\.\.)\)\.(then|catch|finally) is not a function/)
+    if (syncMisuse) {
+      const [, method, chained] = syncMisuse
+      const owner = this.findMethodOwner(method!, code, extraContext)
+      if (owner) {
+        const asyncName = ['Async', 'Sync'].map((suffix) => method!.replace(/(Async|Sync)$/, '') + suffix).find((n) => n !== method && owner.methods[n] && isAsyncMethod(owner.methods[n]))
+        const alt = asyncName ? ` Use ${owner.id}.${asyncName}() if you need a promise.` : ' It returns the value directly; do not await it.'
+        return `${owner.id}.${method}() is synchronous, so there is no .${chained}() on its result.${alt}`
+      }
+    }
+
+    // (a) fs.readDirectoryAsync is not a function — the method name is a guess.
+    const missing = message.match(/^(?:\(intermediate value\)|[\w$.]+?)\.(\w+) is not a function/) || message.match(/^(\w+)\.(\w+) is not a function/)
+    if (missing) {
+      const parts = message.match(/^([\w$]+)\.(\w+) is not a function/)
+      const receiver = parts?.[1]
+      const method = (parts?.[2] ?? missing[1])!
+      const candidates = this.helpersInScope(receiver, code, extraContext)
+      let best: { id: string; names: string[] } | undefined
+      for (const id of candidates) {
+        const methods = features.introspect(id)?.methods ?? {}
+        if (methods[method]) continue
+        const names = nearestNames(method, Object.keys(methods), 3)
+        if (names.length && (!best || nameDistance(method, names[0]!) < nameDistance(method, best.names[0]!))) best = { id, names }
+      }
+      if (best) {
+        const methods = features.introspect(best.id)!.methods
+        const listed = best.names.map((n) => `${n} (${isAsyncMethod(methods[n]) ? 'async' : 'sync'})`).join(', ')
+        return `${best.id} has no ${method}. Closest: ${listed}. Signature: luca describe ${best.id}.${best.names[0]} (describe_helper in an assistant).`
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * Feature ids worth searching for a method named in an error. A receiver
+   * that is itself a feature in scope wins; otherwise fall back to every
+   * feature the snippet mentions by name, then everything in scope. Aliases
+   * (`const f = fs`) are why the fallback exists.
+   */
+  private helpersInScope(receiver: string | undefined, code: string, extraContext: Record<string, any>): string[] {
+    const features = this.container.features
+    const scope: Record<string, any> = { ...this.container.context, ...extraContext }
+    const idOf = (value: any): string | undefined => {
+      const shortcut = value?.constructor?.shortcut
+      const id = typeof shortcut === 'string' ? shortcut.replace(/^features\./, '') : undefined
+      return id && features.available.includes(id) ? id : undefined
+    }
+    if (receiver && receiver !== 'container') {
+      const direct = idOf(scope[receiver]) ?? (features.available.includes(receiver) ? receiver : undefined)
+      if (direct) return [direct]
+    }
+    const inScope = Object.keys(scope).filter((k) => features.available.includes(k))
+    const mentioned = inScope.filter((id) => new RegExp(`\\b${id}\\b`).test(code))
+    return mentioned.length ? mentioned : inScope
+  }
+
+  /** The feature in scope that has a method of this exact name, preferring ones the snippet mentions. */
+  private findMethodOwner(method: string, code: string, extraContext: Record<string, any>): { id: string; methods: Record<string, any> } | undefined {
+    for (const id of this.helpersInScope(undefined, code, extraContext)) {
+      const methods = this.container.features.introspect(id)?.methods ?? {}
+      if (methods[method] && !isAsyncMethod(methods[method])) return { id, methods }
+    }
+    return undefined
   }
 
   /**
@@ -1197,30 +1326,79 @@ export class VM<
       consumer.addSystemPromptExtension('vm', [
         '## Live Eval (evalCode)',
         '',
-        '`evalCode` runs a snippet in THIS process. It is not a sandbox — real container, real filesystem, real side effects. Prefer it over shelling out to the luca CLI, which starts a separate process that shares none of this state.',
+        '`evalCode` is a live handle on a shared container, not a sandbox. It runs a snippet in THIS process: real container, real filesystem, real side effects.',
+        '',
+        '**What is shared:** every feature, command, helper, server, endpoint, the event bus, container state and context, and every file on disk. Every instance of this assistant in this process (every session, channel, scheduled run) shares the same container, so a write from one session is visible to the next, and state you find was often left by a sibling.',
+        '',
+        '**Your snippet\'s scope does not persist. The container does, and every instance of this assistant in this process shares it.** Each call gets fresh variables, closures, imports, and globalThis. Nothing else resets.',
+        '',
+        '**The boundary is the process.** A `luca` CLI call (`runLucaCommand`, or a shell) is a different process that shares only the filesystem. Separate loop daemons are separate containers. Never assume cross-daemon sharing; prefer evalCode over the CLI when you need live state.',
+        '',
+        '**Carry state by writing it to the container**, and name what you stash: `container.addContext(\'scratch\', value)` makes `scratch` a bare name in every later snippet (any instance), feature state and `container.store(name)` outlive the snippet, files outlive the process. Check for an existing value before re-deriving it.',
+        '',
+        '**Concurrency etiquette:** independent probes may go out together in one message. State writes across instances are unordered and last-write-wins, so dependent probes stay sequential, and a write another instance may also make should be idempotent.',
+        '',
+        '**Discover before guessing.** For any helper whose signature you are not sure of, read its docs first: `describe_helper(\'fs\')` for a helper, `describe_helper(\'fs.readFile\')` for one member, `describe_registry(\'features\')` for the index. From inside a snippet: `(await container.describer.describeHelper(\'fs\')).text`, or `container.features.introspect(\'fs\', \'methods\')` as JSON. A guessed method name costs a full turn; an error that comes back with a `Hint:` line names the real method, so read it before retrying.',
         '',
         '**In scope:** `container`, every enabled feature by bare name (`fs.readFile(...)`, `proc.execSync(...)`), `z` (zod), and `require`. Anything not enabled yet: `container.feature(\'x\')`.',
         '',
         '**The code is TypeScript.** Type annotations are fine, `import { x } from \'pkg\'` is rewritten to require, and top-level `await` works. `luca`, `zod`, `contentbase` and friends resolve with nothing installed.',
         '',
-        '**The result is the last expression** — end with the value you want back. A snippet ending in a declaration, assignment, or loop returns null.',
-        '',
-        '**Nothing persists between calls.** Every call gets a fresh context: your variables, and even writes to globalThis, are gone by the next one. To carry something forward, stash it on the container — `container.addContext(\'scratch\', value)` — and it is in scope by that name in every later snippet. For anything that must outlive the process, use a file or container state.',
-        '',
-        '**`console.*` is captured, not printed** — it comes back beside the result.',
+        '**The result is the last expression**, so end with the value you want back. A snippet ending in a declaration, assignment, or loop returns null. `console.*` is captured and returned beside the result, not printed.',
         '',
         '**Results are serialized shallowly**: past 4 levels deep collapses to `[object X]`, functions render as `[function name]`, cycles as `[circular]`, and arrays/objects stop at 100 entries. Return the specific values you need rather than a whole helper.',
         '',
-        '**Errors are returned, not thrown** — a failing snippet gives you `{ error }`. Read it and retry.',
-        '',
-        '**Discover APIs from inside:** the runtime documents itself — never guess a method name. `(await container.describer.describeHelper(\'fs\')).text` returns the full docs for a helper, `describeHelper(\'fs.readFile\')` for one member, `describeRegistry(\'features\')` for the index of everything available.',
-        '',
-        '**Introspection as JSON:** `container.features.introspect(\'fs\')` returns structured data (options, state, methods with parameters, getters, events) without creating an instance; pass a section to narrow it: `introspect(\'fs\', \'methods\')`. `container.features.introspectAll()` returns every helper keyed by id. Same on `container.clients` and `container.servers`. A live instance has `.introspect()` too.',
+        '**Errors are returned, not thrown.** A failing snippet gives you `{ error }`, often with a `Hint:` line that names the method, signature, or feature id you were after.',
         '',
         '**Say why and what you expect.** Fill `purpose` (why you are running it) and `expectation` (what you think comes back). When the result does not match the expectation, investigate before moving on.',
       ].join('\n'))
     }
   }
+}
+
+/** Introspection marks async methods by their return type; sync ones return the value itself. */
+function isAsyncMethod(meta: any): boolean {
+  return typeof meta?.returns === 'string' && /^Promise\b/.test(meta.returns)
+}
+
+/** Case-insensitive Levenshtein distance, the usual "did you mean" measure. */
+function nameDistance(a: string, b: string): number {
+  a = a.toLowerCase(); b = b.toLowerCase()
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0]!
+    prev[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j]!
+      prev[j] = Math.min(prev[j]! + 1, prev[j - 1]! + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1))
+      diag = tmp
+    }
+  }
+  return prev[b.length]!
+}
+
+/**
+ * The closest names to a guess, nearest first. Names are compared by their
+ * stem (`Async`/`Sync` stripped) with a one-point penalty when the suffix
+ * differs, so `readDirectoryAsync` lands on `readdirAsync` before `readdir`.
+ * A stem that contains the other counts as close regardless of edit distance,
+ * which is what catches `docs` → `docsReader`; very short names are exempt
+ * from that rule so `os` does not match everything with an "os" in it.
+ */
+function nearestNames(guess: string, names: string[], limit: number): string[] {
+  const split = (name: string) => {
+    const m = name.match(/^(.*?)(Async|Sync)?$/)!
+    return { stem: m[1]!.toLowerCase(), suffix: m[2] ?? '' }
+  }
+  const g = split(guess)
+  const scored = names.map((name) => {
+    const n = split(name)
+    const contains = n.stem.includes(g.stem) || (n.stem.length >= 4 && g.stem.includes(n.stem))
+    const stemScore = contains ? Math.min(nameDistance(g.stem, n.stem), 1) : nameDistance(g.stem, n.stem)
+    return { name, score: stemScore + (g.suffix === n.suffix ? 0 : 1) }
+  })
+  const threshold = Math.max(2, g.stem.length / 2)
+  return scored.filter((x) => x.score < threshold).sort((a, b) => a.score - b.score || a.name.length - b.name.length).slice(0, limit).map((x) => x.name)
 }
 
 /**

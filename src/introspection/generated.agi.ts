@@ -30136,7 +30136,7 @@ setBuildTimeData('features.vault', {
 
 setBuildTimeData('features.vm', {
   "id": "features.vm",
-  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
+  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper. **Shared container model.** A snippet run through `evalCode` (or `run`) is a live handle on the container, not a sandbox. Shared: every feature, command, helper, server, endpoint, the event bus, container state and context, and every file on disk; every assistant instance in this process (every session, channel, scheduled run) shares that one container, so a write from one session is visible to the next. Reset: only the snippet's own scope (variables, closures, imports, `globalThis`), fresh on every call. Boundary: the container is per process; a `luca` CLI call is a different process that shares only the filesystem, and separate daemons are separate containers, so never assume cross-daemon sharing. Carrying state: write it to the container and name it (`container.addContext('name', value)` puts it in scope for every later snippet; feature state and `container.store()` outlive the snippet; files outlive the process). `evalCode` errors come back as `{ error }` with a `Hint:` line when the failure is a guessed method name, `.then`/`.catch` on a synchronous method, an unregistered feature id, or an options object passed to `proc.spawnAndCapture`. The hint is built from the helpers' own introspection data, so it names the real method and marks it sync or async.",
   "shortcut": "features.vm",
   "className": "VM",
   "methods": {
@@ -30524,6 +30524,33 @@ setBuildTimeData('features.vm', {
         {
           "language": "ts",
           "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+        }
+      ]
+    },
+    "hintForEvalError": {
+      "description": "Turn the common classes of evalCode failure into a one-line hint that carries the answer, so the agent does not spend a second model turn on a guessed API. Field data from production loops showed 10-14% of snippets failing on exactly these shapes: a method name that does not exist on a helper, `.then`/`.catch` on a synchronous method, a feature id that is not registered, and an options object passed where `proc.spawnAndCapture` takes positional arguments. Everything here is derived from the helpers' own introspection data, so it never drifts from the real surface.",
+      "parameters": {
+        "message": {
+          "type": "string",
+          "description": "The error message the snippet produced"
+        },
+        "code": {
+          "type": "any",
+          "description": "The snippet source, used to spot which helper was called"
+        },
+        "extraContext": {
+          "type": "Record<string, any>",
+          "description": "Extra scope entries given to evalCode (e.g. `assistant`)"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "returns": "string | undefined",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(\".\")')\n// => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'"
         }
       ]
     },
@@ -62644,7 +62671,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.vm",
-    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper.",
+    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper. **Shared container model.** A snippet run through `evalCode` (or `run`) is a live handle on the container, not a sandbox. Shared: every feature, command, helper, server, endpoint, the event bus, container state and context, and every file on disk; every assistant instance in this process (every session, channel, scheduled run) shares that one container, so a write from one session is visible to the next. Reset: only the snippet's own scope (variables, closures, imports, `globalThis`), fresh on every call. Boundary: the container is per process; a `luca` CLI call is a different process that shares only the filesystem, and separate daemons are separate containers, so never assume cross-daemon sharing. Carrying state: write it to the container and name it (`container.addContext('name', value)` puts it in scope for every later snippet; feature state and `container.store()` outlive the snippet; files outlive the process). `evalCode` errors come back as `{ error }` with a `Hint:` line when the failure is a guessed method name, `.then`/`.catch` on a synchronous method, an unregistered feature id, or an options object passed to `proc.spawnAndCapture`. The hint is built from the helpers' own introspection data, so it names the real method and marks it sync or async.",
     "shortcut": "features.vm",
     "className": "VM",
     "methods": {
@@ -63032,6 +63059,33 @@ export const introspectionData: Record<string, any>[] = [
           {
             "language": "ts",
             "code": "await vm.evalCode({ code: 'container.features.enabled.length' })\n// => { result: 42, console: [] }"
+          }
+        ]
+      },
+      "hintForEvalError": {
+        "description": "Turn the common classes of evalCode failure into a one-line hint that carries the answer, so the agent does not spend a second model turn on a guessed API. Field data from production loops showed 10-14% of snippets failing on exactly these shapes: a method name that does not exist on a helper, `.then`/`.catch` on a synchronous method, a feature id that is not registered, and an options object passed where `proc.spawnAndCapture` takes positional arguments. Everything here is derived from the helpers' own introspection data, so it never drifts from the real surface.",
+        "parameters": {
+          "message": {
+            "type": "string",
+            "description": "The error message the snippet produced"
+          },
+          "code": {
+            "type": "any",
+            "description": "The snippet source, used to spot which helper was called"
+          },
+          "extraContext": {
+            "type": "Record<string, any>",
+            "description": "Extra scope entries given to evalCode (e.g. `assistant`)"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "returns": "string | undefined",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(\".\")')\n// => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'"
           }
         ]
       },

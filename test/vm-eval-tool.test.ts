@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'bun:test'
-import { NodeContainer } from '../src/node/container'
+// '../src/node' (not '../src/node/container') so the introspection data the
+// hints and the depth test read from is loaded, the same as the CLI does.
+import { NodeContainer } from '../src/node'
 
 /**
  * evalCode exists so an assistant can inspect and extend its OWN live process —
@@ -136,5 +138,80 @@ describe('vm evalCode tool', () => {
 		expect(parsed.purpose).toBe('check math')
 		const out = await bundle.handlers.evalCode!({ code: '1 + 1', purpose: 'check math', expectation: '2' })
 		expect(out.result).toBe(2)
+	})
+})
+
+/**
+ * Field data from production loops showed 10-14% of evalCode snippets failing
+ * on guessed API shapes, each costing a full model round trip before the agent
+ * reached for describe_helper. The error itself now carries the answer, built
+ * from the helpers' own introspection data so it cannot drift from the real
+ * surface. Nothing is renamed; the hint points at what already exists.
+ */
+describe('vm evalCode error hints', () => {
+	const run = async (code: string) => {
+		const container = new NodeContainer()
+		const out: any = await container.feature('vm').evalCode({ code })
+		return out.error as string
+	}
+
+	it('names the nearest real methods, marked sync/async, for a guessed method name', async () => {
+		const error = await run(`fs.readDirectoryAsync('.')`)
+		expect(error).toMatch(/readDirectoryAsync is not a function/)
+		expect(error).toMatch(/Hint: fs has no readDirectoryAsync/)
+		expect(error).toMatch(/readdirAsync \(async\)/)
+		expect(error).toMatch(/readdir \(async\)/)
+		expect(error).toMatch(/luca describe fs\.readdirAsync/)
+	})
+
+	it('resolves the helper through a local alias', async () => {
+		const error = await run(`const f = fs; f.readDirectoryAsync('.')`)
+		expect(error).toMatch(/Hint: fs has no readDirectoryAsync/)
+	})
+
+	it('says a method is synchronous when .catch/.then is chained on it, and names the async variant', async () => {
+		const error = await run(`fs.stat('package.json').catch((e) => e)`)
+		expect(error).toMatch(/Hint: fs\.stat\(\) is synchronous, so there is no \.catch\(\)/)
+		expect(error).toMatch(/fs\.statAsync\(\)/)
+
+		const then = await run(`fs.readdirSync('.').then((x) => x)`)
+		expect(then).toMatch(/fs\.readdirSync\(\) is synchronous/)
+		expect(then).toMatch(/fs\.readdirAsync\(\)/)
+	})
+
+	it('suggests the nearest registered feature id for an unregistered one', async () => {
+		const error = await run(`container.feature('procc')`)
+		expect(error).toMatch(/"procc" is not registered/)
+		expect(error).toMatch(/Hint: No features named "procc"\. Did you mean: proc\?/)
+
+		// Short ids must not match by being a substring of the guess.
+		const docs = await run(`container.feature('docs')`)
+		expect(docs).toMatch(/Did you mean: [^?]*Docs/)
+		expect(docs).not.toMatch(/Did you mean: [^?]*\bos\b/)
+	})
+
+	it('quotes the positional signature when proc.spawnAndCapture gets an options object', async () => {
+		const error = await run(`await proc.spawnAndCapture({ cmd: 'ls', args: [] })`)
+		expect(error).toMatch(/"file" argument must be of type string/)
+		expect(error).toMatch(/Hint: proc\.spawnAndCapture\(\) takes positional arguments/)
+		expect(error).toMatch(/proc\.spawnAndCapture\('cmd', \['arg1', 'arg2'\]/)
+
+		const spawn = await run(`proc.spawn({ cmd: 'ls' })`)
+		expect(spawn).toMatch(/Hint: proc\.spawn\(\) takes positional arguments/)
+	})
+
+	it('leaves unrecognised errors alone', async () => {
+		expect(await run('nope()')).toBe('nope is not defined')
+	})
+
+	it('tells the assistant the container is shared and only the snippet scope resets', () => {
+		const container = new NodeContainer()
+		const extensions: Record<string, string> = {}
+		container.feature('vm').setupToolsConsumer({ addSystemPromptExtension: (id: string, text: string) => { extensions[id] = text } })
+		expect(extensions.vm).toMatch(/Your snippet's scope does not persist\. The container does/)
+		expect(extensions.vm).not.toMatch(/Nothing persists between calls/)
+		expect(extensions.vm).toMatch(/runLucaCommand/)
+		expect(extensions.vm).toMatch(/describe_helper/)
+		expect(extensions.vm).toMatch(/last-write-wins/)
 	})
 })

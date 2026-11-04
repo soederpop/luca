@@ -68,7 +68,17 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 		ctx[name] = instance
 	}
 
-	const result = await vm.run(code, ctx)
+	let result: any
+	try {
+		result = await vm.run(code, ctx)
+	} catch (err: any) {
+		// Same hints evalCode gives an assistant: a guessed method name, .then on
+		// a sync method, an unregistered feature id, an options object passed to
+		// spawnAndCapture. The error itself should carry the answer.
+		const hint = err?.message ? vm.hintForEvalError(err.message, code) : undefined
+		if (hint && typeof err?.message === 'string') err.message = `${err.message}\n\nHint: ${hint}`
+		throw err
+	}
 
 	if (options.json) {
 		console.log(JSON.stringify(result, null, 2))

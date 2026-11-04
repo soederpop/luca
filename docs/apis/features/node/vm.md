@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.
+The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. TypeScript is accepted as-is. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, atob/btoa, plus every enabled container helper. **Shared container model.** A snippet run through `evalCode` (or `run`) is a live handle on the container, not a sandbox. Shared: every feature, command, helper, server, endpoint, the event bus, container state and context, and every file on disk; every assistant instance in this process (every session, channel, scheduled run) shares that one container, so a write from one session is visible to the next. Reset: only the snippet's own scope (variables, closures, imports, `globalThis`), fresh on every call. Boundary: the container is per process; a `luca` CLI call is a different process that shares only the filesystem, and separate daemons are separate containers, so never assume cross-daemon sharing. Carrying state: write it to the container and name it (`container.addContext('name', value)` puts it in scope for every later snippet; feature state and `container.store()` outlive the snippet; files outlive the process). `evalCode` errors come back as `{ error }` with a `Hint:` line when the failure is a guessed method name, `.then`/`.catch` on a synchronous method, an unregistered feature id, or an options object passed to `proc.spawnAndCapture`. The hint is built from the helpers' own introspection data, so it names the real method and marks it sync or async.
 
 ## Usage
 
@@ -81,6 +81,13 @@ Build a require function that resolves from the virtual modules map first, falli
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `filePath` | `string` | ✓ | The file path to scope native require resolution to |
+| `opts` | `VMRequireOptions` |  | Parameter opts |
+
+`VMRequireOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `chain` | `VMLoadChain` | When set, relative source imports are routed back through `loadModule` on this chain. |
 
 **Returns:** `((id: string) => any) & { resolve: RequireResolve }`
 
@@ -156,7 +163,7 @@ vm.runSync('counter', ctx) // 11
 
 ### wrapTopLevelAwait
 
-Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.
+Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.
 
 **Parameters:**
 
@@ -170,7 +177,7 @@ Wrap code containing top-level `await` in an async IIFE, injecting `return` befo
 
 ### run
 
-Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.
+Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. TypeScript is accepted too, with no flag: code that doesn't parse as JS is transpiled (type syntax stripped, `import` rewritten to `require`) and run. Valid JS is never rewritten. The same applies to `runSync`, `runCaptured`, `perform`, and `performSync`. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.
 
 **Parameters:**
 
@@ -343,6 +350,7 @@ Synchronously loads a JavaScript/TypeScript module from a file path, executing i
 |------|------|----------|-------------|
 | `filePath` | `string` | ✓ | Absolute path to the module file to load |
 | `ctx` | `any` |  | Additional context variables to inject into the module's execution environment |
+| `opts` | `{ chain?: VMLoadChain }` |  | Parameter opts |
 
 **Returns:** `Record<string, any>`
 
@@ -405,6 +413,27 @@ Tool-facing live eval: run a snippet in this process with the container in scope
 ```ts
 await vm.evalCode({ code: 'container.features.enabled.length' })
 // => { result: 42, console: [] }
+```
+
+
+
+### hintForEvalError
+
+Turn the common classes of evalCode failure into a one-line hint that carries the answer, so the agent does not spend a second model turn on a guessed API. Field data from production loops showed 10-14% of snippets failing on exactly these shapes: a method name that does not exist on a helper, `.then`/`.catch` on a synchronous method, a feature id that is not registered, and an options object passed where `proc.spawnAndCapture` takes positional arguments. Everything here is derived from the helpers' own introspection data, so it never drifts from the real surface.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `message` | `string` | ✓ | The error message the snippet produced |
+| `code` | `any` |  | The snippet source, used to spot which helper was called |
+| `extraContext` | `Record<string, any>` |  | Extra scope entries given to evalCode (e.g. `assistant`) |
+
+**Returns:** `string | undefined`
+
+```ts
+vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(".")')
+// => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'
 ```
 
 
@@ -623,5 +652,14 @@ if (optional) {
 ```ts
 await vm.evalCode({ code: 'container.features.enabled.length' })
 // => { result: 42, console: [] }
+```
+
+
+
+**hintForEvalError**
+
+```ts
+vm.hintForEvalError('fs.readDirectoryAsync is not a function', 'fs.readDirectoryAsync(".")')
+// => 'fs has no readDirectoryAsync. Closest: readdirAsync (async), readdir (async), readDir (async). Signature: luca describe fs.readdirAsync ...'
 ```
 
