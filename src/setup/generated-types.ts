@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.23.0"
+export const typesBundleVersion = "3.24.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -111,7 +111,7 @@ export { ClaudeController } from "./features/claude-controller";
 export type { ClaudeControllerState, ClaudeControllerOptions } from "./features/claude-controller";
 export { CodingTools } from "./features/coding-tools";
 export { ConversationHistory } from "./features/conversation-history";
-export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
+export type { TokenUsage, CostInfo, ConversationRecord, ConversationMeta, ConversationExport, SearchOptions, ConversationHistoryOptions, ConversationHistoryState } from "./features/conversation-history";
 export { Conversation } from "./features/conversation";
 export type { Message, ContentPart, ConversationTool, ConversationMCPServer, ConversationAbortError, ToolLoopLimitError, FailedTurnRecord, ConversationRouting, SetProviderOptions, ConversationOptions, ConversationState, ClearMessagesOptions, MessageEdit, MessageSelector, AskOptions, ForkOptions } from "./features/conversation";
 export { DocsReader } from "./features/docs-reader";
@@ -207,6 +207,8 @@ export declare const MemoryOptionsSchema: z.ZodObject<{
     model: z.ZodOptional<z.ZodString>;
     dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
     namespace: z.ZodDefault<z.ZodString>;
+    autoRecall: z.ZodDefault<z.ZodNumber>;
+    autoRecallMaxDistance: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>;
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>;
 export declare const MemoryEventsSchema: z.ZodObject<{
@@ -328,6 +330,8 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         model: z.ZodOptional<z.ZodString>;
         dormantAfterEpochs: z.ZodOptional<z.ZodNumber>;
         namespace: z.ZodDefault<z.ZodString>;
+        autoRecall: z.ZodDefault<z.ZodNumber>;
+        autoRecallMaxDistance: z.ZodDefault<z.ZodNumber>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -446,13 +450,14 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         confirmed?: undefined;
         confirmations?: undefined;
     }>;
-    /** Tool handler: search memories by semantic similarity. */
+    /** Tool handler: search memories by semantic similarity, across all categories unless one is given. */
     recall(args: {
-        category: string;
+        category?: string;
         query: string;
         n_results?: number;
     }): Promise<{
         id: number;
+        category: string;
         document: string;
         metadata: Record<string, any>;
         distance: number;
@@ -499,9 +504,20 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         categories: Record<string, number>;
     }>;
     /**
-     * When an assistant uses memory, inject system prompt guidance.
+     * When an assistant uses memory: scope it to that assistant, inject system
+     * prompt guidance, and auto-recall relevant memories on every user message.
+     *
+     * Memory left on the 'default' namespace is re-scoped to the assistant's
+     * name, so two assistants never read each other's memories by accident.
+     * Pass an explicit namespace to share one memory set on purpose.
      */
     setupToolsConsumer(consumer: Helper): void;
+    /**
+     * @internal Build the <recalled-memories> block for one user message, or
+     * null when nothing new is close enough. Failures return null: a broken
+     * embedder must never stop the assistant from answering.
+     */
+    private autoRecallBlock;
     /**
      * Create a new memory in the given category.
      *
@@ -665,7 +681,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
     /**
      * Search memories by semantic similarity.
      *
-     * @param {string} category - The category to search in
+     * @param {string | null} category - The category to search in, or null to search every category in the namespace
      * @param {string} query - The search query (will be embedded)
      * @param {number} nResults - Maximum number of results (default 5)
      * @param {object} options - Additional search options
@@ -675,7 +691,7 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
      * @param {boolean} options.trackUsage - Bump usage_count/last_used_at on the returned rows (default true). Internal comparisons pass false so bookkeeping reads don't count as recalls
      * @returns {Promise<MemorySearchResult[]>} Memories sorted by similarity (closest first)
      */
-    search(category: string, query: string, nResults?: number, options?: {
+    search(category: string | null, query: string, nResults?: number, options?: {
         maxDistance?: number;
         filterMetadata?: Record<string, any>;
         includeInactive?: boolean;
@@ -4434,6 +4450,14 @@ export interface ConversationRecord {
     metadata: Record<string, any>;
 }
 export type ConversationMeta = Omit<ConversationRecord, 'messages'>;
+export interface ConversationExport {
+    exportedAt: string;
+    namespace: string;
+    count: number;
+    conversations: ConversationRecord[];
+    /** IDs that have metadata but whose full record could not be loaded. */
+    missing: string[];
+}
 export interface SearchOptions {
     tag?: string;
     tags?: string[];
@@ -4653,6 +4677,19 @@ export declare class ConversationHistory extends Feature<ConversationHistoryStat
      * @returns {Promise<number>} Number of conversations deleted
      */
     deleteByThreadPrefix(prefix: string): Promise<number>;
+    /**
+     * Combine stored conversations, with their full messages, into one JSON-serializable object.
+     *
+     * @param {SearchOptions & { threadPrefix?: string }} [options] - Optional filters. \`threadPrefix\` keeps only threads that start with it.
+     * @returns {Promise<ConversationExport>} The conversations (newest first), plus the IDs of any records that could not be loaded
+     *
+     * @example
+     * const everything = await history.exportAll()
+     * const researcher = await history.exportAll({ threadPrefix: 'researcher:' })
+     */
+    exportAll(options?: SearchOptions & {
+        threadPrefix?: string;
+    }): Promise<ConversationExport>;
     /** @returns An OpenAI client from the container for LLM calls. */
     private get openai();
     /**
@@ -12787,6 +12824,7 @@ export declare const argsSchema: z.ZodObject<{
     }>>;
     offRecord: z.ZodOptional<z.ZodBoolean>;
     clear: z.ZodOptional<z.ZodBoolean>;
+    export: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodBoolean]>>;
     prependPrompt: z.ZodOptional<z.ZodString>;
     appendPrompt: z.ZodOptional<z.ZodString>;
     use: z.ZodOptional<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodString>]>>;
@@ -38129,7 +38167,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.22.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.23.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

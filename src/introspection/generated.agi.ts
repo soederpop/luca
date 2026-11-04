@@ -8489,6 +8489,23 @@ setBuildTimeData('features.conversationHistory', {
       ],
       "returns": "Promise<number>"
     },
+    "exportAll": {
+      "description": "Combine stored conversations, with their full messages, into one JSON-serializable object.",
+      "parameters": {
+        "options": {
+          "type": "SearchOptions & { threadPrefix?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ConversationExport>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const everything = await history.exportAll()\nconst researcher = await history.exportAll({ threadPrefix: 'researcher:' })"
+        }
+      ]
+    },
     "summarize": {
       "description": "Generate a concise summary of a stored conversation using the LLM. The summary is stored in `metadata.summary` and returned. No tool calls are made — this is a single completion request.",
       "parameters": {
@@ -8716,6 +8733,31 @@ setBuildTimeData('features.conversationHistory', {
           "type": "number",
           "description": "",
           "optional": true
+        }
+      }
+    },
+    "ConversationExport": {
+      "description": "",
+      "properties": {
+        "exportedAt": {
+          "type": "string",
+          "description": ""
+        },
+        "namespace": {
+          "type": "string",
+          "description": ""
+        },
+        "count": {
+          "type": "number",
+          "description": ""
+        },
+        "conversations": {
+          "type": "ConversationRecord[]",
+          "description": ""
+        },
+        "missing": {
+          "type": "string[]",
+          "description": "IDs that have metadata but whose full record could not be loaded."
         }
       }
     }
@@ -40895,6 +40937,23 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "Promise<number>"
       },
+      "exportAll": {
+        "description": "Combine stored conversations, with their full messages, into one JSON-serializable object.",
+        "parameters": {
+          "options": {
+            "type": "SearchOptions & { threadPrefix?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ConversationExport>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const everything = await history.exportAll()\nconst researcher = await history.exportAll({ threadPrefix: 'researcher:' })"
+          }
+        ]
+      },
       "summarize": {
         "description": "Generate a concise summary of a stored conversation using the LLM. The summary is stored in `metadata.summary` and returned. No tool calls are made — this is a single completion request.",
         "parameters": {
@@ -41122,6 +41181,31 @@ export const introspectionData: Record<string, any>[] = [
             "type": "number",
             "description": "",
             "optional": true
+          }
+        }
+      },
+      "ConversationExport": {
+        "description": "",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "description": ""
+          },
+          "namespace": {
+            "type": "string",
+            "description": ""
+          },
+          "count": {
+            "type": "number",
+            "description": ""
+          },
+          "conversations": {
+            "type": "ConversationRecord[]",
+            "description": ""
+          },
+          "missing": {
+            "type": "string[]",
+            "description": "IDs that have metadata but whose full record could not be loaded."
           }
         }
       }
