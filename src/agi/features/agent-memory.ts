@@ -59,7 +59,9 @@ const GARDENER_SYSTEM_PROMPT = [
   '- {"type": "merge", "ids": [keepId, ...absorbedIds], "text": "optional improved canonical wording"} — the memories say the same thing. The first id is kept (and becomes a belief); the rest are absorbed into it as confirmations. Use this for duplicates and rephrasings, and for a single episodic observation worth keeping as a belief (ids with just one element).',
   '- {"type": "supersede", "ids": [winnerId, ...loserIds]} — the memories CONTRADICT each other. The winner is the statement that is currently true (usually the newest); the losers are outdated. Never merge contradictions.',
   '- {"type": "generalize", "ids": [...sourceIds], "text": "the general rule"} — several specific memories reveal a pattern worth stating once. Sources are kept; a new belief is added.',
-  '- {"type": "expire", "ids": [...], "reason": "short note"} — the text itself shows these referred to a date, event, or temporary state that has now passed, compared to today\'s date (a meeting that has happened, a deadline that is gone, "as of" status that could only hold at that time). Expired memories stop being recalled. Age alone is NEVER a reason: an old fact with no time in it stays.',
+  '- {"type": "expire", "ids": [...], "reason": "short note"} — before choosing "keep", compare every date and time word in the text to today\'s date. If the main point of a memory is a schedule, plan, deadline, or "as of" status and those dates are before today, expire it, even when it also holds other details. Expired memories stop being recalled.',
+  '  Expire: today 2026-06-10, "As of 2026-05-01, the launch is set for 2026-05-15 and the page is not deployed yet."',
+  '  Keep: "Project X was completed and paid on 2026-05-01" is a lasting fact. "User prefers dark mode", written a year ago, has no time in it. Age alone is NEVER a reason to expire.',
   '- {"type": "keep", "ids": [...]} — leave these alone (distinct facts that merely share a topic, a current belief, or a lone observation not worth promoting yet).',
   '',
   'Rules: be conservative — when unsure, keep. Watch for negation and corrections: "X" and "no longer X" are near-identical to a similarity metric but are contradictions to you. Only reference ids you were shown. Every id you were shown should appear in exactly one action.',
@@ -1179,7 +1181,9 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
         id: `memory-consolidate-${this.container.utils.uuid()}`,
         model: options.model,
         provider: options.provider,
-        maxTokens: 1500,
+        // Reasoning models spend this budget before they answer, and a reply cut
+        // short is unparseable, which leaves the whole cluster unjudged.
+        maxTokens: 6000,
         temperature: 0,
         history: [{ role: 'system', content: GARDENER_SYSTEM_PROMPT }],
       })
