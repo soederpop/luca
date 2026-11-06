@@ -14,7 +14,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	port: z.number().default(3000).describe('Port to listen on'),
 	endpointsDir: z.string().optional().describe('Directory to load endpoints from'),
 	staticDir: z.string().optional().describe('Directory to serve static files from'),
-	setup: z.string().optional().describe('Path to a TS module with lifecycle exports: `middleware` (handlers mounted before endpoints), `create(app, server)`, `beforeStart(options, server)`, and a default export that receives the server after endpoints mount'),
+	setup: z.string().optional().describe('Path to a TS module with lifecycle exports: `before(app, server)` (runs ahead of cors/static), `middleware` (handlers mounted before endpoints), `create(app, server)`, `beforeStart(options, server)`, and a default export that receives the server after endpoints mount'),
 	cors: z.boolean().default(true).describe('Enable CORS'),
 	force: z.boolean().default(false).describe('Kill any process currently using the target port'),
 	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
@@ -22,7 +22,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	watch: z.boolean().default(false).describe('Watch endpoint files and hot-reload handlers on change'),
 	tailnet: z.boolean().default(false).describe('Also expose the server over HTTPS on your tailnet with tailscale serve'),
 	funnel: z.boolean().default(false).describe('Expose the server on the public internet with Tailscale Funnel'),
-	tailscaleAuth: z.boolean().default(false).describe('Reject requests that did not come over Tailscale and put the tailnet user on ctx.request.user (pairs well with --tailnet)'),
+	tailscaleAuth: z.boolean().default(false).describe('Reject requests that did not come over Tailscale, static files included, and put the tailnet user on ctx.request.user (pairs well with --tailnet)'),
 	tailnetPort: z.number().optional().describe('HTTPS port on the tailnet side for --tailnet/--funnel (default 443; funnel allows only 443, 8443, 10000)'),
 })
 
@@ -102,12 +102,12 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 			console.error(`\n--tailscale-auth needs tailscale, and it isn't installed. Get it from https://tailscale.com/download`)
 			process.exit(1)
 		}
-		// Auth goes in front of whatever the setup file mounts, so setup middleware
-		// can rely on req.user already being there.
-		const userCreate = setup.create
-		setup.create = (app: any, server: ExpressServer) => {
+		// The before hook runs ahead of express.static, so public/ is gated too, and
+		// ahead of anything the setup file mounts, so setup code can rely on req.user.
+		const userBefore = setup.before
+		setup.before = (app: any, server: ExpressServer) => {
 			app.use(tailscale.authMiddleware())
-			return userCreate ? userCreate(app, server) || app : app
+			return userBefore ? userBefore(app, server) || app : app
 		}
 	}
 
@@ -116,6 +116,7 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		cors: options.cors,
 		static: resolvedStaticDir,
 		historyFallback: resolvedStaticDir && !options.staticDir,
+		before: setup.before,
 		create: setup.create,
 		beforeStart: setup.beforeStart,
 	}) as ExpressServer
@@ -228,6 +229,7 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 }
 
 type SetupHooks = {
+	before?: (app: any, server: ExpressServer) => any
 	create?: (app: any, server: ExpressServer) => any
 	beforeStart?: (options: any, server: ExpressServer) => any
 	afterEndpoints?: (server: ExpressServer) => any
@@ -236,6 +238,8 @@ type SetupHooks = {
 /**
  * Resolve a `--setup` module into the three lifecycle slots serve knows about.
  *
+ * - `export function before(app, server)` runs first, ahead of cors, body parsing and
+ *   static. Use it for guards that must cover static files.
  * - `export const middleware = [...]` and `export function create(app, server)` both
  *   run when the express app is first built, before endpoints mount. Middleware is
  *   applied first, then `create`, so a file can mix the two.
@@ -265,6 +269,7 @@ function loadSetupModule(options: { setup?: string }, container: any): SetupHook
 			return userCreate ? userCreate(app, server) || app : app
 		}
 	}
+	if (typeof mod.before === 'function') hooks.before = mod.before
 	if (typeof mod.beforeStart === 'function') hooks.beforeStart = mod.beforeStart
 	if (typeof defaultFn === 'function') hooks.afterEndpoints = defaultFn
 	return hooks

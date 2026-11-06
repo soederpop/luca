@@ -16,12 +16,14 @@ export const ExpressServerOptionsSchema = ServerOptionsSchema.extend({
   cors: z.boolean().optional().describe('Whether to enable CORS middleware'),
   static: z.string().optional().describe('Path to serve static files from'),
   historyFallback: z.boolean().optional().describe('Serve index.html for unmatched routes (SPA history fallback)'),
-  create: z.any().optional().describe('(app: Express, server: Server) => Express'),
+  before: z.any().optional().describe('(app: Express, server: Server) => Express — runs first, before cors, body parsing and static. For guards that must gate static files too'),
+  create: z.any().optional().describe('(app: Express, server: Server) => Express — runs after cors, body parsing and static, before endpoints mount'),
   beforeStart: z.any().optional().describe('(options: StartOptions, server: Server) => Promise<any>'),
 })
 export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>
 
 const defaultCreate = (app: Express, server: Server) => app
+const defaultBefore = (app: Express, server: Server) => app
 
 /** Document-level overrides for the generated OpenAPI spec. */
 export interface OpenAPISpecOptions {
@@ -72,7 +74,9 @@ export interface OpenAPISpecOptions {
  *   GET routes, wired up during `start()`.
  *
  * For raw custom routes there are three doors: the `create: (app, server) => app`
- * option hook (runs when the app is first built, before endpoints mount),
+ * option hook (runs after cors, body parsing and static, before endpoints mount;
+ * a `before` hook with the same signature runs ahead of all of those, for auth
+ * guards that must cover static files too),
  * `server.app.use(...)` after creation, or `luca serve --setup setup.ts` from the
  * CLI. A setup file can export `middleware` (an array mounted before endpoints),
  * `create`, `beforeStart`, and a default function that receives the server after
@@ -154,11 +158,12 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this._listener
     }
 
-    /** The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops. */
-    get hooks(): { create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any } {
-      const { create = defaultCreate, beforeStart = () => {} } = this.options  
-      
+    /** The lifecycle hooks resolved from options: `before(app, server)` runs first, ahead of cors/body parsing/static (for guards that must cover static files); `create(app, server)` runs after those, before endpoints mount; `beforeStart(startOptions, server)` runs inside start() before listening. All default to no-ops. */
+    get hooks(): { before: (app: Express, server: Server) => Express; create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any } {
+      const { before = defaultBefore, create = defaultCreate, beforeStart = () => {} } = this.options
+
       return {
+        before,
         create,
         beforeStart
       }
@@ -188,8 +193,12 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
         return this._app
       }
       
-      const app = express()
-      
+      let app = express()
+
+      // @ts-ignore-next-line
+      const server : Server = this
+      app = this.hooks.before(app, server) || app
+
       if (this.options.cors !== false) {
         app.use(cors())
       }
@@ -201,11 +210,9 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
         app.use(express.static(this.options.static))
       }
       
-      // @ts-ignore-next-line
-      const server : Server = this
       this._app = this.hooks.create(app, server) || app
 
-      return app
+      return this._app
     }
   
     /**
