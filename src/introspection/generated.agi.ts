@@ -27682,6 +27682,33 @@ setBuildTimeData('features.tailscale', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    },
+    "authMiddleware": {
+      "description": "Express middleware that only lets tailnet traffic through and puts the caller on `req.user`. Two identity sources, checked in order: 1. Requests proxied by `tailscale serve` (what `luca serve --tailnet` does) arrive from loopback carrying `Tailscale-User-Login`/`-Name`/`-Profile-Pic` headers. Those headers are trusted only when the socket really is 127.0.0.1/::1, since anyone else could forge them. 2. Direct connections from a tailscale IP (100.64.0.0/10, fd7a:115c:a1e0::/48) are resolved with `whois`, cached per IP for `ttl` ms (20 minutes by default). Everything else gets a 401. Mount it before your routes: express runs handlers in registration order. Endpoint handlers see the user as `ctx.request.user`.",
+      "parameters": {
+        "options": {
+          "type": "TailscaleAuthOptions",
+          "description": "cache ttl and an optional `authorize(user, req)` allowlist hook",
+          "properties": {
+            "ttl": {
+              "type": "number",
+              "description": "How long a whois result stays cached per IP, in ms. Default 20 minutes"
+            },
+            "authorize": {
+              "type": "(user: TailscaleUser, req: any) => boolean | Promise<boolean>",
+              "description": "Called with the user once resolved; return false to reject (e.g. restrict to certain logins)"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ts = container.feature('tailscale')\nconst server = container.server('express', {\n create: (app) => { app.use(ts.authMiddleware()); return app },\n})\nserver.app.get('/whoami', (req, res) => res.json(req.user))"
+        }
+      ]
     }
   },
   "getters": {
@@ -27797,6 +27824,44 @@ setBuildTimeData('features.tailscale', {
           "type": "string",
           "description": "Mount the target under this path, e.g. /api.",
           "optional": true
+        }
+      }
+    },
+    "TailscaleAuthOptions": {
+      "description": "",
+      "properties": {
+        "ttl": {
+          "type": "number",
+          "description": "How long a whois result stays cached per IP, in ms. Default 20 minutes",
+          "optional": true
+        },
+        "authorize": {
+          "type": "(user: TailscaleUser, req: any) => boolean | Promise<boolean>",
+          "description": "Called with the user once resolved; return false to reject (e.g. restrict to certain logins)",
+          "optional": true
+        }
+      }
+    },
+    "TailscaleUser": {
+      "description": "",
+      "properties": {
+        "login": {
+          "type": "string",
+          "description": "The tailnet login, e.g. jon@example.com"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name, when tailscale knows one",
+          "optional": true
+        },
+        "profilePic": {
+          "type": "string",
+          "description": "Profile picture URL, when tailscale knows one",
+          "optional": true
+        },
+        "via": {
+          "type": "'serve-headers' | 'whois'",
+          "description": "How the identity was resolved: proxied `tailscale serve` headers, or a `whois` lookup on the peer IP"
         }
       }
     }
@@ -31433,8 +31498,8 @@ setBuildTimeData('servers.express', {
       "returns": "any"
     },
     "hooks": {
-      "description": "The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops.",
-      "returns": "{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
+      "description": "The lifecycle hooks resolved from options: `before(app, server)` runs first, ahead of cors/body parsing/static (for guards that must cover static files); `create(app, server)` runs after those, before endpoints mount; `beforeStart(startOptions, server)` runs inside start() before listening. All default to no-ops.",
+      "returns": "{ before: (app: Express, server: Server) => Express; create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
     },
     "app": {
       "description": "The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly.",
@@ -60226,6 +60291,33 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      },
+      "authMiddleware": {
+        "description": "Express middleware that only lets tailnet traffic through and puts the caller on `req.user`. Two identity sources, checked in order: 1. Requests proxied by `tailscale serve` (what `luca serve --tailnet` does) arrive from loopback carrying `Tailscale-User-Login`/`-Name`/`-Profile-Pic` headers. Those headers are trusted only when the socket really is 127.0.0.1/::1, since anyone else could forge them. 2. Direct connections from a tailscale IP (100.64.0.0/10, fd7a:115c:a1e0::/48) are resolved with `whois`, cached per IP for `ttl` ms (20 minutes by default). Everything else gets a 401. Mount it before your routes: express runs handlers in registration order. Endpoint handlers see the user as `ctx.request.user`.",
+        "parameters": {
+          "options": {
+            "type": "TailscaleAuthOptions",
+            "description": "cache ttl and an optional `authorize(user, req)` allowlist hook",
+            "properties": {
+              "ttl": {
+                "type": "number",
+                "description": "How long a whois result stays cached per IP, in ms. Default 20 minutes"
+              },
+              "authorize": {
+                "type": "(user: TailscaleUser, req: any) => boolean | Promise<boolean>",
+                "description": "Called with the user once resolved; return false to reject (e.g. restrict to certain logins)"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ts = container.feature('tailscale')\nconst server = container.server('express', {\n create: (app) => { app.use(ts.authMiddleware()); return app },\n})\nserver.app.get('/whoami', (req, res) => res.json(req.user))"
+          }
+        ]
       }
     },
     "getters": {
@@ -60341,6 +60433,44 @@ export const introspectionData: Record<string, any>[] = [
             "type": "string",
             "description": "Mount the target under this path, e.g. /api.",
             "optional": true
+          }
+        }
+      },
+      "TailscaleAuthOptions": {
+        "description": "",
+        "properties": {
+          "ttl": {
+            "type": "number",
+            "description": "How long a whois result stays cached per IP, in ms. Default 20 minutes",
+            "optional": true
+          },
+          "authorize": {
+            "type": "(user: TailscaleUser, req: any) => boolean | Promise<boolean>",
+            "description": "Called with the user once resolved; return false to reject (e.g. restrict to certain logins)",
+            "optional": true
+          }
+        }
+      },
+      "TailscaleUser": {
+        "description": "",
+        "properties": {
+          "login": {
+            "type": "string",
+            "description": "The tailnet login, e.g. jon@example.com"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name, when tailscale knows one",
+            "optional": true
+          },
+          "profilePic": {
+            "type": "string",
+            "description": "Profile picture URL, when tailscale knows one",
+            "optional": true
+          },
+          "via": {
+            "type": "'serve-headers' | 'whois'",
+            "description": "How the identity was resolved: proxied `tailscale serve` headers, or a `whois` lookup on the peer IP"
           }
         }
       }
@@ -63963,8 +64093,8 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "any"
       },
       "hooks": {
-        "description": "The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops.",
-        "returns": "{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
+        "description": "The lifecycle hooks resolved from options: `before(app, server)` runs first, ahead of cors/body parsing/static (for guards that must cover static files); `create(app, server)` runs after those, before endpoints mount; `beforeStart(startOptions, server)` runs inside start() before listening. All default to no-ops.",
+        "returns": "{ before: (app: Express, server: Server) => Express; create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
       },
       "app": {
         "description": "The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly.",

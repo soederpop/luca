@@ -13800,6 +13800,7 @@ export declare const argsSchema: z.ZodObject<{
     watch: z.ZodDefault<z.ZodBoolean>;
     tailnet: z.ZodDefault<z.ZodBoolean>;
     funnel: z.ZodDefault<z.ZodBoolean>;
+    tailscaleAuth: z.ZodDefault<z.ZodBoolean>;
     tailnetPort: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>;
 export default function serve(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
@@ -16310,7 +16311,7 @@ export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, S
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
 export type { StoreScope, StoreHandleOptions, StoreHandle, Store } from "./features/store";
-export type { TailscaleNode, TailscaleState, TailscaleOptions, TailscaleRunResult, TailscalePingResult, TailscaleServeOptions, Tailscale } from "./features/tailscale";
+export type { TailscaleNode, TailscaleState, TailscaleOptions, TailscaleRunResult, TailscalePingResult, TailscaleUser, TailscaleAuthOptions, TailscaleServeOptions, Tailscale } from "./features/tailscale";
 export type { TelegramState, TelegramOptions, Telegram } from "./features/telegram";
 export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxConnector } from "./features/telnyx-connector";
 export type { TmuxState, TmuxOptions, CaptureOptions, SessionInfo, TmuxPane, TmuxSession, Tmux } from "./features/tmux";
@@ -31431,6 +31432,22 @@ export interface TailscalePingResult {
     /** Raw CLI output, for anything the parse missed. */
     output: string;
 }
+export interface TailscaleUser {
+    /** The tailnet login, e.g. jon@example.com */
+    login: string;
+    /** Display name, when tailscale knows one */
+    name?: string;
+    /** Profile picture URL, when tailscale knows one */
+    profilePic?: string;
+    /** How the identity was resolved: proxied \`tailscale serve\` headers, or a \`whois\` lookup on the peer IP */
+    via: 'serve-headers' | 'whois';
+}
+export interface TailscaleAuthOptions {
+    /** How long a whois result stays cached per IP, in ms. Default 20 minutes */
+    ttl?: number;
+    /** Called with the user once resolved; return false to reject (e.g. restrict to certain logins) */
+    authorize?: (user: TailscaleUser, req: any) => boolean | Promise<boolean>;
+}
 export interface TailscaleServeOptions {
     /** HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000. */
     https?: number;
@@ -31756,6 +31773,31 @@ export declare class Tailscale extends Feature<TailscaleState, TailscaleOptions>
     }): () => void;
     /** Stop the polling started by \`watch()\`. */
     unwatch(): void;
+    /**
+     * Express middleware that only lets tailnet traffic through and puts the caller on \`req.user\`.
+     *
+     * Two identity sources, checked in order:
+     * 1. Requests proxied by \`tailscale serve\` (what \`luca serve --tailnet\` does) arrive from
+     *    loopback carrying \`Tailscale-User-Login\`/\`-Name\`/\`-Profile-Pic\` headers. Those headers
+     *    are trusted only when the socket really is 127.0.0.1/::1, since anyone else could forge them.
+     * 2. Direct connections from a tailscale IP (100.64.0.0/10, fd7a:115c:a1e0::/48) are resolved
+     *    with \`whois\`, cached per IP for \`ttl\` ms (20 minutes by default).
+     *
+     * Everything else gets a 401. Mount it before your routes: express runs handlers in
+     * registration order. Endpoint handlers see the user as \`ctx.request.user\`.
+     *
+     * @param options - cache ttl and an optional \`authorize(user, req)\` allowlist hook
+     *
+     * @example
+     * \`\`\`ts
+     * const ts = container.feature('tailscale')
+     * const server = container.server('express', {
+     *   create: (app) => { app.use(ts.authMiddleware()); return app },
+     * })
+     * server.app.get('/whoami', (req, res) => res.json(req.user))
+     * \`\`\`
+     */
+    authMiddleware(options?: TailscaleAuthOptions): (req: any, res: any, next: any) => Promise<any>;
     /**
      * Run serve/funnel, but fail fast instead of hanging when the tailnet hasn't enabled
      * the feature: kill the CLI at its enable prompt and throw with the link.
@@ -37307,6 +37349,7 @@ export declare const ExpressServerOptionsSchema: z.ZodObject<{
     cors: z.ZodOptional<z.ZodBoolean>;
     static: z.ZodOptional<z.ZodString>;
     historyFallback: z.ZodOptional<z.ZodBoolean>;
+    before: z.ZodOptional<z.ZodAny>;
     create: z.ZodOptional<z.ZodAny>;
     beforeStart: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
@@ -37362,7 +37405,9 @@ export interface OpenAPISpecOptions {
  *   GET routes, wired up during \`start()\`.
  *
  * For raw custom routes there are three doors: the \`create: (app, server) => app\`
- * option hook (runs when the app is first built, before endpoints mount),
+ * option hook (runs after cors, body parsing and static, before endpoints mount;
+ * a \`before\` hook with the same signature runs ahead of all of those, for auth
+ * guards that must cover static files too),
  * \`server.app.use(...)\` after creation, or \`luca serve --setup setup.ts\` from the
  * CLI. A setup file can export \`middleware\` (an array mounted before endpoints),
  * \`create\`, \`beforeStart\`, and a default function that receives the server after
@@ -37434,6 +37479,7 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
         cors: z.ZodOptional<z.ZodBoolean>;
         static: z.ZodOptional<z.ZodString>;
         historyFallback: z.ZodOptional<z.ZodBoolean>;
+        before: z.ZodOptional<z.ZodAny>;
         create: z.ZodOptional<z.ZodAny>;
         beforeStart: z.ZodOptional<z.ZodAny>;
     }, z.core.$strip>;
@@ -37449,8 +37495,9 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
      * same port via the Upgrade handshake.
      */
     get httpServer(): any;
-    /** The lifecycle hooks resolved from options: \`create(app, server)\` runs when the app is first built (before endpoints mount); \`beforeStart(startOptions, server)\` runs inside start() before listening. Both default to no-ops. */
+    /** The lifecycle hooks resolved from options: \`before(app, server)\` runs first, ahead of cors/body parsing/static (for guards that must cover static files); \`create(app, server)\` runs after those, before endpoints mount; \`beforeStart(startOptions, server)\` runs inside start() before listening. All default to no-ops. */
     get hooks(): {
+        before: (app: Express, server: Server) => Express;
         create: (app: Express, server: Server) => Express;
         beforeStart: (options: any, server: Server) => any;
     };
@@ -38299,7 +38346,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.24.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.25.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
