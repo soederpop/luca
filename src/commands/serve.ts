@@ -14,7 +14,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	port: z.number().default(3000).describe('Port to listen on'),
 	endpointsDir: z.string().optional().describe('Directory to load endpoints from'),
 	staticDir: z.string().optional().describe('Directory to serve static files from'),
-	setup: z.string().optional().describe('Path to a TS module whose default export receives the server instance'),
+	setup: z.string().optional().describe('Path to a TS module with lifecycle exports: `middleware` (handlers mounted before endpoints), `create(app, server)`, `beforeStart(options, server)`, and a default export that receives the server after endpoints mount'),
 	cors: z.boolean().default(true).describe('Enable CORS'),
 	force: z.boolean().default(false).describe('Kill any process currently using the target port'),
 	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
@@ -88,11 +88,20 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		process.exit(1)
 	}
 
+	// Load the setup module before the server exists so its `create`/`beforeStart`
+	// exports can become constructor options. `create` is the only hook that runs
+	// before endpoints mount, which is what auth-style middleware needs: express
+	// runs handlers in registration order, so anything added after mounting
+	// would never gate the endpoint routes.
+	const setup = loadSetupModule(options, container)
+
 	const expressServer = container.server('express', {
 		port,
 		cors: options.cors,
 		static: resolvedStaticDir,
 		historyFallback: resolvedStaticDir && !options.staticDir,
+		create: setup.create,
+		beforeStart: setup.beforeStart,
 	}) as ExpressServer
 
 	if (endpointsDir) {
@@ -120,18 +129,8 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		expressServer.serveOpenAPISpec(info)
 	}
 
-	if (options.setup) {
-		const setupPath = paths.resolve(options.setup)
-		if (!fs.exists(setupPath)) {
-			console.error(`Setup module not found: ${setupPath}`)
-			process.exit(1)
-		}
-		const vmFeature = container.feature('vm')
-		const mod = vmFeature.loadModule(setupPath, { server: expressServer })
-		const setupFn = mod.default || mod
-		if (typeof setupFn === 'function') {
-			await setupFn(expressServer)
-		}
+	if (setup.afterEndpoints) {
+		await setup.afterEndpoints(expressServer)
 	}
 
 	try {
@@ -207,6 +206,49 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 	}
 
 	console.log()
+}
+
+type SetupHooks = {
+	create?: (app: any, server: ExpressServer) => any
+	beforeStart?: (options: any, server: ExpressServer) => any
+	afterEndpoints?: (server: ExpressServer) => any
+}
+
+/**
+ * Resolve a `--setup` module into the three lifecycle slots serve knows about.
+ *
+ * - `export const middleware = [...]` and `export function create(app, server)` both
+ *   run when the express app is first built, before endpoints mount. Middleware is
+ *   applied first, then `create`, so a file can mix the two.
+ * - `export function beforeStart(options, server)` runs inside `start()`, right before listen.
+ * - `export default function (server)` keeps its original timing: after endpoints
+ *   mount, before start. Use it for routes that should sit alongside endpoints.
+ */
+function loadSetupModule(options: { setup?: string }, container: any): SetupHooks {
+	if (!options.setup) return {}
+	const { fs, paths } = container
+	const setupPath = paths.resolve(options.setup)
+	if (!fs.exists(setupPath)) {
+		console.error(`Setup module not found: ${setupPath}`)
+		process.exit(1)
+	}
+	const mod = container.feature('vm').loadModule(setupPath, { container })
+
+	// A bare function module (module.exports = fn) is the legacy default-export form
+	const defaultFn = typeof mod === 'function' ? mod : mod.default
+	const middleware: any[] = Array.isArray(mod.middleware) ? mod.middleware : mod.middleware ? [mod.middleware] : []
+	const userCreate = typeof mod.create === 'function' ? mod.create : undefined
+
+	const hooks: SetupHooks = {}
+	if (middleware.length || userCreate) {
+		hooks.create = (app: any, server: ExpressServer) => {
+			for (const handler of middleware) app.use(handler)
+			return userCreate ? userCreate(app, server) || app : app
+		}
+	}
+	if (typeof mod.beforeStart === 'function') hooks.beforeStart = mod.beforeStart
+	if (typeof defaultFn === 'function') hooks.afterEndpoints = defaultFn
+	return hooks
 }
 
 /**

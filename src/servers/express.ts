@@ -74,7 +74,9 @@ export interface OpenAPISpecOptions {
  * For raw custom routes there are three doors: the `create: (app, server) => app`
  * option hook (runs when the app is first built, before endpoints mount),
  * `server.app.use(...)` after creation, or `luca serve --setup setup.ts` from the
- * CLI (your setup file receives the app).
+ * CLI. A setup file can export `middleware` (an array mounted before endpoints),
+ * `create`, `beforeStart`, and a default function that receives the server after
+ * endpoints mount — see docs/examples/serve-setup-tailscale-auth.ts.
  *
  * @example
  * ```typescript
