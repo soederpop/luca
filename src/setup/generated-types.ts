@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.24.2"
+export const typesBundleVersion = "3.25.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -37364,7 +37364,9 @@ export interface OpenAPISpecOptions {
  * For raw custom routes there are three doors: the \`create: (app, server) => app\`
  * option hook (runs when the app is first built, before endpoints mount),
  * \`server.app.use(...)\` after creation, or \`luca serve --setup setup.ts\` from the
- * CLI (your setup file receives the app).
+ * CLI. A setup file can export \`middleware\` (an array mounted before endpoints),
+ * \`create\`, \`beforeStart\`, and a default function that receives the server after
+ * endpoints mount — see docs/examples/serve-setup-tailscale-auth.ts.
  *
  * @example
  * \`\`\`typescript
@@ -38297,7 +38299,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.24.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.24.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -38452,6 +38454,7 @@ import type { VM } from './features/vm.js';
 import type { Esbuild } from './features/esbuild.js';
 import type { Helpers } from './features/helpers.js';
 import type { ContainerLink } from './features/container-link.js';
+import type { Embeddings } from './features/embeddings.js';
 export { Client, RestClient, SocketClient };
 export interface WebFeatures extends AvailableFeatures {
     assetLoader: typeof AssetLoader;
@@ -38462,6 +38465,7 @@ export interface WebFeatures extends AvailableFeatures {
     esbuild: typeof Esbuild;
     helpers: typeof Helpers;
     containerLink: typeof ContainerLink;
+    embeddings: typeof Embeddings;
 }
 export interface WebContainer extends ClientsInterface {
     assetLoader?: AssetLoader;
@@ -38471,6 +38475,7 @@ export interface WebContainer extends ClientsInterface {
     vault?: WebVault;
     helpers?: Helpers;
     containerLink?: ContainerLink;
+    embeddings?: Embeddings;
 }
 export interface WebContainerState extends ContainerState {
 }
@@ -38708,6 +38713,224 @@ export declare class ContainerLink extends Feature<ContainerLinkState, Container
 }
 export default ContainerLink;
 //# sourceMappingURL=container-link.d.ts.map`,
+  "web/features/embeddings.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { type ContainerContext } from '../container.js';
+export type EmbeddingsDevice = 'auto' | 'webgpu' | 'wasm';
+export type EmbeddingsDtype = 'fp32' | 'fp16' | 'q8' | 'q4';
+/** The subset of a transformers.js feature-extraction pipeline that this feature calls. */
+export interface EmbeddingsPipeline {
+    (texts: string | string[], options?: {
+        pooling?: 'mean' | 'cls' | 'none';
+        normalize?: boolean;
+    }): Promise<{
+        dims: number[];
+        data: Float32Array | number[];
+        tolist?: () => number[][];
+    }>;
+    dispose?: () => Promise<void> | void;
+}
+/** The subset of the transformers.js module that this feature calls. */
+export interface TransformersModule {
+    pipeline(task: 'feature-extraction', model: string, options?: Record<string, unknown>): Promise<EmbeddingsPipeline>;
+    env?: {
+        allowLocalModels?: boolean;
+        useBrowserCache?: boolean;
+        backends?: {
+            onnx?: {
+                wasm?: {
+                    numThreads?: number;
+                    proxy?: boolean;
+                };
+            };
+        };
+    };
+}
+export declare const EmbeddingsOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    model: z.ZodDefault<z.ZodString>;
+    device: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    dtype: z.ZodOptional<z.ZodEnum<{
+        fp32: "fp32";
+        fp16: "fp16";
+        q8: "q8";
+        q4: "q4";
+    }>>;
+    moduleURL: z.ZodDefault<z.ZodString>;
+    transformers: z.ZodOptional<z.ZodAny>;
+}, z.core.$strip>;
+export declare const EmbeddingsStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    status: z.ZodDefault<z.ZodEnum<{
+        error: "error";
+        loading: "loading";
+        ready: "ready";
+        idle: "idle";
+    }>>;
+    model: z.ZodOptional<z.ZodString>;
+    device: z.ZodOptional<z.ZodEnum<{
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    dtype: z.ZodOptional<z.ZodString>;
+    dims: z.ZodOptional<z.ZodNumber>;
+    loadMs: z.ZodOptional<z.ZodNumber>;
+    error: z.ZodOptional<z.ZodString>;
+}, z.core.$loose>;
+export type EmbeddingsOptions = z.infer<typeof EmbeddingsOptionsSchema>;
+export type EmbeddingsState = z.infer<typeof EmbeddingsStateSchema>;
+/** One ranked hit returned by \`rank()\`. */
+export interface EmbeddingsRankResult {
+    /** Index into the documents array that was ranked. */
+    index: number;
+    /** The original document text. */
+    text: string;
+    /** Cosine similarity to the query, in [-1, 1]. */
+    score: number;
+}
+/** What \`benchmark()\` resolves to: timings for the device the feature was created with. */
+export interface EmbeddingsBenchmarkResult {
+    device: 'webgpu' | 'wasm';
+    dtype: string;
+    model: string;
+    /** Milliseconds for load() (cold if the model was not cached by the browser). */
+    loadMs: number;
+    /** Milliseconds for the first embed() after load — includes backend warm-up. */
+    firstEmbedMs: number;
+    /** Mean milliseconds per batch over the measured iterations, warm-up excluded. */
+    batchMs: number;
+    /** Texts embedded per second, derived from batchMs. */
+    textsPerSecond: number;
+    batchSize: number;
+    iterations: number;
+}
+/**
+ * Sentence embeddings computed in the browser with transformers.js (ONNX runtime,
+ * WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array
+ * of texts in, an array of float vectors out — so semantic search over something
+ * like the \`luca describe\` index can run with no server at all.
+ *
+ * The library is not bundled into luca: \`load()\` dynamically imports it from a
+ * CDN (override with \`moduleURL\`, or pass an already imported module via
+ * \`transformers\`). The first load downloads model weights; transformers.js
+ * stores them in the browser Cache API, so later loads are fast.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const embeddings = container.feature('embeddings')
+ * await embeddings.load()
+ * const [a, b] = await embeddings.embed(['a cat sat on the mat', 'a kitten on a rug'])
+ * embeddings.similarity(a, b) // ~0.8
+ * \`\`\`
+ *
+ * @example
+ * \`\`\`typescript
+ * // Semantic search over a list of docs, forced onto the WASM backend
+ * const embeddings = container.feature('embeddings', { device: 'wasm', dtype: 'q8' })
+ * const hits = await embeddings.rank('read a file', ['fs.readFile', 'ui.banner', 'proc.exec'])
+ * hits[0].text // 'fs.readFile'
+ * \`\`\`
+ */
+export declare class Embeddings<T extends EmbeddingsState = EmbeddingsState, K extends EmbeddingsOptions = EmbeddingsOptions> extends Feature<T, K> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        status: z.ZodDefault<z.ZodEnum<{
+            error: "error";
+            loading: "loading";
+            ready: "ready";
+            idle: "idle";
+        }>>;
+        model: z.ZodOptional<z.ZodString>;
+        device: z.ZodOptional<z.ZodEnum<{
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        dtype: z.ZodOptional<z.ZodString>;
+        dims: z.ZodOptional<z.ZodNumber>;
+        loadMs: z.ZodOptional<z.ZodNumber>;
+        error: z.ZodOptional<z.ZodString>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        model: z.ZodDefault<z.ZodString>;
+        device: z.ZodDefault<z.ZodEnum<{
+            auto: "auto";
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        dtype: z.ZodOptional<z.ZodEnum<{
+            fp32: "fp32";
+            fp16: "fp16";
+            q8: "q8";
+            q4: "q4";
+        }>>;
+        moduleURL: z.ZodDefault<z.ZodString>;
+        transformers: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>;
+    static shortcut: "features.embeddings";
+    static stability: "experimental";
+    static category: "content-nlp";
+    private pipe?;
+    private loading?;
+    constructor(options: K, context: ContainerContext);
+    /** True when the page can use the WebGPU backend (\`navigator.gpu\` exists). */
+    static get webgpuAvailable(): boolean;
+    /** True once load() finished and embed() can run. */
+    get ready(): boolean;
+    /** The backend this instance will use once loaded: resolves 'auto' against WebGPU availability. */
+    get device(): 'webgpu' | 'wasm';
+    /** The weight precision this instance will load: fp32 on WebGPU, q8 on WASM, unless \`dtype\` was given. */
+    get dtype(): EmbeddingsDtype;
+    /**
+     * Import transformers.js (from \`moduleURL\`, cached per URL) and build the
+     * feature-extraction pipeline. Safe to call many times: concurrent callers
+     * share one in-flight load. Throws if WebGPU was requested but is unavailable.
+     */
+    load(): Promise<this>;
+    private doLoad;
+    private loadModule;
+    private fail;
+    /**
+     * Embed one or more texts. Returns one L2-normalized vector per input, in
+     * input order, so a dot product is a cosine similarity. Calls load() if needed.
+     */
+    embed(texts: string | string[]): Promise<number[][]>;
+    /** Cosine similarity between two vectors. Does not assume they are normalized. */
+    similarity(a: ArrayLike<number>, b: ArrayLike<number>): number;
+    /**
+     * Rank documents by cosine similarity to a query, best first. Embeds the
+     * query and every document in one batch; for repeated queries over a fixed
+     * corpus, embed the corpus once and use similarity() yourself.
+     */
+    rank(query: string, documents: string[], options?: {
+        limit?: number;
+    }): Promise<EmbeddingsRankResult[]>;
+    /**
+     * Time this instance's backend: load, first embed (warm-up), then steady-state
+     * batches. Create one instance per device to compare WebGPU against WASM.
+     */
+    benchmark(options?: {
+        batchSize?: number;
+        iterations?: number;
+        texts?: string[];
+    }): Promise<EmbeddingsBenchmarkResult>;
+    /** Release the ONNX session and return to idle so a different device or model can be loaded. */
+    dispose(): Promise<void>;
+}
+export default Embeddings;
+//# sourceMappingURL=embeddings.d.ts.map`,
   "web/features/esbuild.d.ts": `import { z } from 'zod';
 import { Feature, type FeatureState } from "../feature.js";
 export type EsbuildLoader = 'base64' | 'binary' | 'copy' | 'css' | 'dataurl' | 'default' | 'empty' | 'file' | 'js' | 'json' | 'jsx' | 'text' | 'ts' | 'tsx';
