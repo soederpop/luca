@@ -15,6 +15,7 @@ import type { VM } from './features/vm.js'
 import type { Esbuild } from './features/esbuild.js'
 import type { Helpers } from './features/helpers.js'
 import type { ContainerLink } from './features/container-link.js'
+import type { Embeddings } from './features/embeddings.js'
 
 import * as WebContainerExtensions from './extension.js'
 
@@ -29,6 +30,7 @@ export interface WebFeatures extends AvailableFeatures {
   esbuild: typeof Esbuild
   helpers: typeof Helpers
   containerLink: typeof ContainerLink
+  embeddings: typeof Embeddings
 }
 
 export interface WebContainer extends ClientsInterface {
@@ -39,6 +41,7 @@ export interface WebContainer extends ClientsInterface {
   vault?: WebVault
   helpers?: Helpers
   containerLink?: ContainerLink
+  embeddings?: Embeddings
 }
 
 export interface WebContainerState extends ContainerState { }

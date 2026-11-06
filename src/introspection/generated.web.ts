@@ -163,6 +163,187 @@ setBuildTimeData('features.containerLink', {
   ]
 });
 
+setBuildTimeData('features.embeddings', {
+  "id": "features.embeddings",
+  "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
+  "shortcut": "features.embeddings",
+  "className": "Embeddings",
+  "methods": {
+    "load": {
+      "description": "Import transformers.js (from `moduleURL`, cached per URL) and build the feature-extraction pipeline. Safe to call many times: concurrent callers share one in-flight load. Throws if WebGPU was requested but is unavailable.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "embed": {
+      "description": "Embed one or more texts. Returns one L2-normalized vector per input, in input order, so a dot product is a cosine similarity. Calls load() if needed.",
+      "parameters": {
+        "texts": {
+          "type": "string | string[]",
+          "description": "Parameter texts"
+        }
+      },
+      "required": [
+        "texts"
+      ],
+      "returns": "Promise<number[][]>"
+    },
+    "similarity": {
+      "description": "Cosine similarity between two vectors. Does not assume they are normalized.",
+      "parameters": {
+        "a": {
+          "type": "ArrayLike<number>",
+          "description": "Parameter a"
+        },
+        "b": {
+          "type": "ArrayLike<number>",
+          "description": "Parameter b"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "returns": "number"
+    },
+    "rank": {
+      "description": "Rank documents by cosine similarity to a query, best first. Embeds the query and every document in one batch; for repeated queries over a fixed corpus, embed the corpus once and use similarity() yourself.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "documents": {
+          "type": "string[]",
+          "description": "Parameter documents"
+        },
+        "options": {
+          "type": "{ limit?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query",
+        "documents"
+      ],
+      "returns": "Promise<EmbeddingsRankResult[]>"
+    },
+    "benchmark": {
+      "description": "Time this instance's backend: load, first embed (warm-up), then steady-state batches. Create one instance per device to compare WebGPU against WASM.",
+      "parameters": {
+        "options": {
+          "type": "{ batchSize?: number; iterations?: number; texts?: string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<EmbeddingsBenchmarkResult>"
+    },
+    "dispose": {
+      "description": "Release the ONNX session and return to idle so a different device or model can be loaded.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "ready": {
+      "description": "True once load() finished and embed() can run.",
+      "returns": "boolean"
+    },
+    "device": {
+      "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+      "returns": "'webgpu' | 'wasm'"
+    },
+    "dtype": {
+      "description": "The weight precision this instance will load: fp32 on WebGPU, q8 on WASM, unless `dtype` was given.",
+      "returns": "EmbeddingsDtype"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by Embeddings",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "content-nlp",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const embeddings = container.feature('embeddings')\nawait embeddings.load()\nconst [a, b] = await embeddings.embed(['a cat sat on the mat', 'a kitten on a rug'])\nembeddings.similarity(a, b) // ~0.8"
+    },
+    {
+      "language": "ts",
+      "code": "// Semantic search over a list of docs, forced onto the WASM backend\nconst embeddings = container.feature('embeddings', { device: 'wasm', dtype: 'q8' })\nconst hits = await embeddings.rank('read a file', ['fs.readFile', 'ui.banner', 'proc.exec'])\nhits[0].text // 'fs.readFile'"
+    }
+  ],
+  "types": {
+    "EmbeddingsRankResult": {
+      "description": "One ranked hit returned by `rank()`.",
+      "properties": {
+        "index": {
+          "type": "number",
+          "description": "Index into the documents array that was ranked."
+        },
+        "text": {
+          "type": "string",
+          "description": "The original document text."
+        },
+        "score": {
+          "type": "number",
+          "description": "Cosine similarity to the query, in [-1, 1]."
+        }
+      }
+    },
+    "EmbeddingsBenchmarkResult": {
+      "description": "What `benchmark()` resolves to: timings for the device the feature was created with.",
+      "properties": {
+        "device": {
+          "type": "'webgpu' | 'wasm'",
+          "description": ""
+        },
+        "dtype": {
+          "type": "string",
+          "description": ""
+        },
+        "model": {
+          "type": "string",
+          "description": ""
+        },
+        "loadMs": {
+          "type": "number",
+          "description": "Milliseconds for load() (cold if the model was not cached by the browser)."
+        },
+        "firstEmbedMs": {
+          "type": "number",
+          "description": "Milliseconds for the first embed() after load — includes backend warm-up."
+        },
+        "batchMs": {
+          "type": "number",
+          "description": "Mean milliseconds per batch over the measured iterations, warm-up excluded."
+        },
+        "textsPerSecond": {
+          "type": "number",
+          "description": "Texts embedded per second, derived from batchMs."
+        },
+        "batchSize": {
+          "type": "number",
+          "description": ""
+        },
+        "iterations": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "Browser-side TypeScript/ESM compilation feature using esbuild-wasm. Loads esbuild's WebAssembly build via the AssetLoader, then provides `compile()` and `transform()` methods that work entirely in the browser. Useful for live playgrounds, in-browser REPLs, and client-side bundling.",
@@ -1811,6 +1992,186 @@ export const introspectionData: Record<string, any>[] = [
         "code": "const link = container.feature('containerLink', {\n enable: true,\n hostUrl: 'ws://localhost:8089',\n})\nawait link.connect()\n\n// Send events to the host\nlink.emitToHost('click', { x: 100, y: 200 })\n\n// Listen for eval requests before they execute\nlink.on('evalRequest', (code, requestId) => {\n console.log('Host is evaluating:', code)\n})"
       }
     ]
+  },
+  {
+    "id": "features.embeddings",
+    "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
+    "shortcut": "features.embeddings",
+    "className": "Embeddings",
+    "methods": {
+      "load": {
+        "description": "Import transformers.js (from `moduleURL`, cached per URL) and build the feature-extraction pipeline. Safe to call many times: concurrent callers share one in-flight load. Throws if WebGPU was requested but is unavailable.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "embed": {
+        "description": "Embed one or more texts. Returns one L2-normalized vector per input, in input order, so a dot product is a cosine similarity. Calls load() if needed.",
+        "parameters": {
+          "texts": {
+            "type": "string | string[]",
+            "description": "Parameter texts"
+          }
+        },
+        "required": [
+          "texts"
+        ],
+        "returns": "Promise<number[][]>"
+      },
+      "similarity": {
+        "description": "Cosine similarity between two vectors. Does not assume they are normalized.",
+        "parameters": {
+          "a": {
+            "type": "ArrayLike<number>",
+            "description": "Parameter a"
+          },
+          "b": {
+            "type": "ArrayLike<number>",
+            "description": "Parameter b"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "returns": "number"
+      },
+      "rank": {
+        "description": "Rank documents by cosine similarity to a query, best first. Embeds the query and every document in one batch; for repeated queries over a fixed corpus, embed the corpus once and use similarity() yourself.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "documents": {
+            "type": "string[]",
+            "description": "Parameter documents"
+          },
+          "options": {
+            "type": "{ limit?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query",
+          "documents"
+        ],
+        "returns": "Promise<EmbeddingsRankResult[]>"
+      },
+      "benchmark": {
+        "description": "Time this instance's backend: load, first embed (warm-up), then steady-state batches. Create one instance per device to compare WebGPU against WASM.",
+        "parameters": {
+          "options": {
+            "type": "{ batchSize?: number; iterations?: number; texts?: string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<EmbeddingsBenchmarkResult>"
+      },
+      "dispose": {
+        "description": "Release the ONNX session and return to idle so a different device or model can be loaded.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "ready": {
+        "description": "True once load() finished and embed() can run.",
+        "returns": "boolean"
+      },
+      "device": {
+        "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+        "returns": "'webgpu' | 'wasm'"
+      },
+      "dtype": {
+        "description": "The weight precision this instance will load: fp32 on WebGPU, q8 on WASM, unless `dtype` was given.",
+        "returns": "EmbeddingsDtype"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by Embeddings",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "content-nlp",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const embeddings = container.feature('embeddings')\nawait embeddings.load()\nconst [a, b] = await embeddings.embed(['a cat sat on the mat', 'a kitten on a rug'])\nembeddings.similarity(a, b) // ~0.8"
+      },
+      {
+        "language": "ts",
+        "code": "// Semantic search over a list of docs, forced onto the WASM backend\nconst embeddings = container.feature('embeddings', { device: 'wasm', dtype: 'q8' })\nconst hits = await embeddings.rank('read a file', ['fs.readFile', 'ui.banner', 'proc.exec'])\nhits[0].text // 'fs.readFile'"
+      }
+    ],
+    "types": {
+      "EmbeddingsRankResult": {
+        "description": "One ranked hit returned by `rank()`.",
+        "properties": {
+          "index": {
+            "type": "number",
+            "description": "Index into the documents array that was ranked."
+          },
+          "text": {
+            "type": "string",
+            "description": "The original document text."
+          },
+          "score": {
+            "type": "number",
+            "description": "Cosine similarity to the query, in [-1, 1]."
+          }
+        }
+      },
+      "EmbeddingsBenchmarkResult": {
+        "description": "What `benchmark()` resolves to: timings for the device the feature was created with.",
+        "properties": {
+          "device": {
+            "type": "'webgpu' | 'wasm'",
+            "description": ""
+          },
+          "dtype": {
+            "type": "string",
+            "description": ""
+          },
+          "model": {
+            "type": "string",
+            "description": ""
+          },
+          "loadMs": {
+            "type": "number",
+            "description": "Milliseconds for load() (cold if the model was not cached by the browser)."
+          },
+          "firstEmbedMs": {
+            "type": "number",
+            "description": "Milliseconds for the first embed() after load — includes backend warm-up."
+          },
+          "batchMs": {
+            "type": "number",
+            "description": "Mean milliseconds per batch over the measured iterations, warm-up excluded."
+          },
+          "textsPerSecond": {
+            "type": "number",
+            "description": "Texts embedded per second, derived from batchMs."
+          },
+          "batchSize": {
+            "type": "number",
+            "description": ""
+          },
+          "iterations": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.esbuild",

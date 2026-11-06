@@ -11,6 +11,7 @@ import { WebVault } from './features/vault.js'
 import { VM } from './features/vm.js'
 import { Esbuild } from './features/esbuild.js'
 import { ContainerLink } from './features/container-link.js'
+import { Embeddings } from './features/embeddings.js'
 
 export function attach<K extends Container & ClientsInterface>(container: K, options?: any) : Container & ClientsInterface {
   container
@@ -25,6 +26,7 @@ export function attach<K extends Container & ClientsInterface>(container: K, opt
     .use(WebVault)
     .use(Esbuild)
     .use(ContainerLink)
+    .use(Embeddings)
 
   return container
 }

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luca — browser embeddings benchmark (WebGPU vs WASM)</title>
+<!--
+  Experiment: the web container's `embeddings` feature (transformers.js, loaded
+  from a CDN at runtime). Loads the same model on WebGPU and on WASM, times
+  load / first embed / steady-state batches, then runs a semantic search demo.
+
+  Run from the repo root so /dist/browser.mjs is served next to this page:
+    bun run build:web && luca serve --static-dir .
+  then open http://localhost:<port>/public/experiments/embeddings-benchmark.html
+-->
+<script type="importmap">
+{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }
+</script>
+<style>
+  :root { --bg:#09090b; --surface:#131318; --border:rgba(255,255,255,.08); --text:#ececf1; --dim:#71717a; --cyan:#22d3ee; --purple:#c084fc; --amber:#fbbf24; --green:#4ade80; --red:#f87171; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,sans-serif; padding:32px; max-width:960px; margin-inline:auto }
+  h1 { font-size:22px; margin:0 0 4px } h2 { font-size:16px; margin:32px 0 8px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em }
+  p.sub { color:var(--dim); margin:0 0 24px }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:12px 0 }
+  button { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer }
+  button:hover { border-color:var(--cyan) } button:disabled { opacity:.5; cursor:default }
+  select, input { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font:inherit }
+  input[type=text] { flex:1; min-width:260px }
+  table { border-collapse:collapse; width:100%; margin-top:8px; font-variant-numeric:tabular-nums }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border) } th { color:var(--dim); font-weight:500 }
+  td.num { text-align:right } th.num { text-align:right }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border) }
+  .ok { color:var(--green) } .no { color:var(--red) } .warn { color:var(--amber) }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:13px; white-space:pre-wrap; max-height:260px; overflow:auto; color:var(--dim) }
+  .bar { height:6px; background:var(--cyan); border-radius:3px } .bar.purple { background:var(--purple) }
+  .hit { display:grid; grid-template-columns:60px 1fr; gap:12px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border) }
+  .hit .score { color:var(--cyan); font-variant-numeric:tabular-nums }
+</style>
+</head>
+<body>
+<h1>Browser embeddings: WebGPU vs WASM</h1>
+<p class="sub">transformers.js feature-extraction through <code>container.feature('embeddings')</code>. Nothing leaves the browser.</p>
+
+<div class="row">
+  <span class="badge">WebGPU: <span id="gpu">checking…</span></span>
+  <span class="badge">Model:
+    <select id="model">
+      <option value="Xenova/all-MiniLM-L6-v2">Xenova/all-MiniLM-L6-v2 (384d, ~23MB)</option>
+      <option value="Xenova/bge-small-en-v1.5">Xenova/bge-small-en-v1.5 (384d, ~33MB)</option>
+      <option value="Xenova/gte-small">Xenova/gte-small (384d, ~33MB)</option>
+    </select>
+  </span>
+  <span class="badge">Batch <input id="batch" type="number" value="16" min="1" max="256" style="width:70px"></span>
+  <span class="badge">Iterations <input id="iters" type="number" value="5" min="1" max="50" style="width:60px"></span>
+</div>
+<div class="row">
+  <button id="run-both">Run both backends</button>
+  <button id="run-webgpu">WebGPU only</button>
+  <button id="run-wasm">WASM only</button>
+  <span id="status" style="color:var(--dim)"></span>
+</div>
+
+<h2>Results</h2>
+<table id="results">
+  <thead><tr><th>device</th><th>dtype</th><th class="num">load ms</th><th class="num">first embed ms</th><th class="num">batch ms</th><th class="num">texts / s</th><th style="width:30%"></th></tr></thead>
+  <tbody></tbody>
+</table>
+<p class="sub" style="margin-top:8px">Load includes the model download on first run; reload the page to see the cached load time. First embed includes backend warm-up (WebGPU shader compilation shows up here).</p>
+
+<h2>Semantic search demo</h2>
+<div class="row">
+  <input id="query" type="text" value="read the contents of a file" placeholder="query">
+  <button id="search">Search</button>
+</div>
+<div id="hits"></div>
+
+<h2>Log</h2>
+<pre id="log"></pre>
+
+<script type="module">
+  import container from '/dist/browser.mjs'
+  const $ = (id) => document.getElementById(id)
+  const log = (msg) => { $('log').textContent += msg + '\n'; $('log').scrollTop = $('log').scrollHeight }
+  const Embeddings = container.features.lookup('embeddings')
+  const webgpu = Embeddings.webgpuAvailable
+  $('gpu').innerHTML = webgpu ? '<span class="ok">available</span>' : '<span class="no">not available (Chrome/Edge 113+, Safari 26+)</span>'
+  $('run-webgpu').disabled = !webgpu
+  window.luca = container
+
+  const results = new Map()
+  const instances = new Map()
+
+  function instance(device) {
+    const key = `${device}:${$('model').value}`
+    if (!instances.has(key)) {
+      instances.set(key, container.feature('embeddings', { device, model: $('model').value, cached: false }))
+    }
+    return instances.get(key)
+  }
+
+  function render() {
+    const rows = [...results.values()]
+    const max = Math.max(...rows.map(r => r.textsPerSecond), 1)
+    $('results').querySelector('tbody').innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.device}</td><td>${r.dtype}</td>
+        <td class="num">${r.loadMs}</td><td class="num">${r.firstEmbedMs}</td>
+        <td class="num">${r.batchMs}</td><td class="num"><b>${r.textsPerSecond}</b></td>
+        <td><div class="bar ${r.device === 'wasm' ? 'purple' : ''}" style="width:${(r.textsPerSecond / max) * 100}%"></div></td>
+      </tr>`).join('')
+  }
+
+  async function bench(device) {
+    const embeddings = instance(device)
+    $('status').textContent = `loading ${$('model').value} on ${device}…`
+    log(`[${device}] load start`)
+    try {
+      const t0 = performance.now()
+      await embeddings.load()
+      log(`[${device}] ready in ${Math.round(performance.now() - t0)}ms, dims=${embeddings.state.get('dims')}, dtype=${embeddings.state.get('dtype')}`)
+      $('status').textContent = `benchmarking ${device}…`
+      const r = await embeddings.benchmark({ batchSize: Number($('batch').value), iterations: Number($('iters').value) })
+      log(`[${device}] ${JSON.stringify(r)}`)
+      results.set(device, r)
+      render()
+    } catch (err) {
+      log(`[${device}] FAILED: ${err.message}`)
+      $('status').innerHTML = `<span class="no">${device} failed: ${err.message}</span>`
+      throw err
+    }
+    $('status').textContent = ''
+  }
+
+  const busy = async (fn) => {
+    document.querySelectorAll('button').forEach(b => b.disabled = true)
+    try { await fn() } catch {} finally {
+      document.querySelectorAll('button').forEach(b => b.disabled = false)
+      $('run-webgpu').disabled = !webgpu
+    }
+  }
+  $('run-both').onclick = () => busy(async () => { if (webgpu) await bench('webgpu'); await bench('wasm') })
+  $('run-webgpu').onclick = () => busy(() => bench('webgpu'))
+  $('run-wasm').onclick = () => busy(() => bench('wasm'))
+
+  // A tiny corpus shaped like `luca describe` entries so the demo feels like the real use case.
+  const corpus = [
+    'fs.readFile — read a file from disk and return its contents as a string',
+    'fs.writeFile — write a string or buffer to a file, creating it if needed',
+    'ui.banner — print a large figlet ascii-art banner to the terminal',
+    'proc.exec — run a shell command and capture its stdout',
+    'rest.get — perform an HTTP GET request and return parsed JSON',
+    'sqlite.query — run a parameterized SQL query against a local database',
+    'speech.say — speak text aloud using the browser speech synthesis API',
+    'scheduler.every — run a named task on a recurring interval',
+    'vault.get — read a secret from the encrypted vault',
+    'grep.search — search files for a pattern and return matching lines',
+  ]
+  $('search').onclick = () => busy(async () => {
+    const embeddings = instance(webgpu ? 'webgpu' : 'wasm')
+    $('status').textContent = 'searching…'
+    const t0 = performance.now()
+    const hits = await embeddings.rank($('query').value, corpus, { limit: 5 })
+    $('status').textContent = `${Math.round(performance.now() - t0)}ms on ${embeddings.state.get('device')}`
+    $('hits').innerHTML = hits.map(h => `<div class="hit"><span class="score">${h.score.toFixed(3)}</span><span>${h.text}</span></div>`).join('')
+  })
+  log(`luca web container ready; embeddings feature registered: ${!!Embeddings}`)
+</script>
+</body>
+</html>
