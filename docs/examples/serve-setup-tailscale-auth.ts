@@ -19,7 +19,8 @@
  *    Tailscale-User-Login / -Name / -Profile-Pic headers. Trusted only when the
  *    connection itself came from 127.0.0.1, otherwise anyone on the LAN could forge them.
  * 2. A direct tailnet connection (100.64.0.0/10 or fd7a:115c:a1e0::/48) is resolved
- *    with `tailscale whois`, cached per IP so we don't shell out on every request.
+ *    with `tailscale whois`, cached per IP for 20 minutes so we don't shell out on
+ *    every request but a reassigned IP can't keep a stale identity for long.
  *
  * Anything else gets 401. Note that static files (cors, body parsing, express.static)
  * are mounted before setup middleware, so this gates endpoints and the SPA fallback,
@@ -30,7 +31,8 @@ declare const container: any
 
 type TailscaleUser = { login: string; name?: string; profilePic?: string; via: 'serve-headers' | 'whois' }
 
-const whoisCache = new Map<string, Promise<TailscaleUser | null>>()
+const WHOIS_TTL_MS = 20 * 60 * 1000
+const whoisCache = new Map<string, { user: Promise<TailscaleUser | null>; expires: number }>()
 
 function stripIPv4Mapped(ip: string): string {
   return ip.startsWith('::ffff:') ? ip.slice(7) : ip
@@ -59,26 +61,28 @@ function fromServeHeaders(req: any): TailscaleUser | null {
 }
 
 function fromWhois(ip: string): Promise<TailscaleUser | null> {
-  if (!whoisCache.has(ip)) {
-    const lookup = container
-      .feature('tailscale')
-      .whois(ip)
-      .then((info: any) => {
-        const profile = info?.UserProfile
-        if (!profile?.LoginName) return null
-        return {
-          login: profile.LoginName,
-          name: profile.DisplayName,
-          profilePic: profile.ProfilePicURL,
-          via: 'whois' as const,
-        }
-      })
-      .catch(() => null)
-    whoisCache.set(ip, lookup)
-    // A failed lookup shouldn't poison the cache forever; the next request retries.
-    lookup.then((user: TailscaleUser | null) => { if (!user) whoisCache.delete(ip) })
-  }
-  return whoisCache.get(ip)!
+  const cached = whoisCache.get(ip)
+  if (cached && cached.expires > Date.now()) return cached.user
+
+  const lookup = container
+    .feature('tailscale')
+    .whois(ip)
+    .then((info: any) => {
+      const profile = info?.UserProfile
+      if (!profile?.LoginName) return null
+      return {
+        login: profile.LoginName,
+        name: profile.DisplayName,
+        profilePic: profile.ProfilePicURL,
+        via: 'whois' as const,
+      }
+    })
+    .catch(() => null)
+
+  whoisCache.set(ip, { user: lookup, expires: Date.now() + WHOIS_TTL_MS })
+  // A failed lookup shouldn't poison the cache; the next request retries.
+  lookup.then((user: TailscaleUser | null) => { if (!user) whoisCache.delete(ip) })
+  return lookup
 }
 
 async function tailscaleAuth(req: any, res: any, next: any) {
