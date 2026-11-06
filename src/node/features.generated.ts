@@ -173,7 +173,7 @@ export type { SemanticSearchOptions, SemanticSearchState, Chunk, SearchResult, S
 export type { SocketReplState, SocketReplOptions, SocketRepl } from "./features/socket-repl";
 export type { SqliteState, SqliteOptions, Sqlite } from "./features/sqlite";
 export type { StoreScope, StoreHandleOptions, StoreHandle, Store } from "./features/store";
-export type { TailscaleNode, TailscaleState, TailscaleOptions, TailscaleRunResult, TailscalePingResult, TailscaleServeOptions, Tailscale } from "./features/tailscale";
+export type { TailscaleNode, TailscaleState, TailscaleOptions, TailscaleRunResult, TailscalePingResult, TailscaleUser, TailscaleAuthOptions, TailscaleServeOptions, Tailscale } from "./features/tailscale";
 export type { TelegramState, TelegramOptions, Telegram } from "./features/telegram";
 export type { TelnyxConnectorState, TelnyxConnectorOptions, TelnyxConnector } from "./features/telnyx-connector";
 export type { TmuxState, TmuxOptions, CaptureOptions, SessionInfo, TmuxPane, TmuxSession, Tmux } from "./features/tmux";

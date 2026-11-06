@@ -62,6 +62,24 @@ export interface TailscalePingResult {
   output: string
 }
 
+export interface TailscaleUser {
+  /** The tailnet login, e.g. jon@example.com */
+  login: string
+  /** Display name, when tailscale knows one */
+  name?: string
+  /** Profile picture URL, when tailscale knows one */
+  profilePic?: string
+  /** How the identity was resolved: proxied `tailscale serve` headers, or a `whois` lookup on the peer IP */
+  via: 'serve-headers' | 'whois'
+}
+
+export interface TailscaleAuthOptions {
+  /** How long a whois result stays cached per IP, in ms. Default 20 minutes */
+  ttl?: number
+  /** Called with the user once resolved; return false to reject (e.g. restrict to certain logins) */
+  authorize?: (user: TailscaleUser, req: any) => boolean | Promise<boolean>
+}
+
 export interface TailscaleServeOptions {
   /** HTTPS port to expose on the tailnet side. Defaults to 443. Funnel only allows 443, 8443 and 10000. */
   https?: number
@@ -456,6 +474,71 @@ export class Tailscale extends Feature<TailscaleState, TailscaleOptions> {
   }
 
   /**
+   * Express middleware that only lets tailnet traffic through and puts the caller on `req.user`.
+   *
+   * Two identity sources, checked in order:
+   * 1. Requests proxied by `tailscale serve` (what `luca serve --tailnet` does) arrive from
+   *    loopback carrying `Tailscale-User-Login`/`-Name`/`-Profile-Pic` headers. Those headers
+   *    are trusted only when the socket really is 127.0.0.1/::1, since anyone else could forge them.
+   * 2. Direct connections from a tailscale IP (100.64.0.0/10, fd7a:115c:a1e0::/48) are resolved
+   *    with `whois`, cached per IP for `ttl` ms (20 minutes by default).
+   *
+   * Everything else gets a 401. Mount it before your routes: express runs handlers in
+   * registration order. Endpoint handlers see the user as `ctx.request.user`.
+   *
+   * @param options - cache ttl and an optional `authorize(user, req)` allowlist hook
+   *
+   * @example
+   * ```ts
+   * const ts = container.feature('tailscale')
+   * const server = container.server('express', {
+   *   create: (app) => { app.use(ts.authMiddleware()); return app },
+   * })
+   * server.app.get('/whoami', (req, res) => res.json(req.user))
+   * ```
+   */
+  authMiddleware(options: TailscaleAuthOptions = {}) {
+    const ttl = options.ttl ?? 20 * 60 * 1000
+    const cache = new Map<string, { user: Promise<TailscaleUser | undefined>; expires: number }>()
+
+    const fromWhois = (ip: string): Promise<TailscaleUser | undefined> => {
+      const hit = cache.get(ip)
+      if (hit && hit.expires > Date.now()) return hit.user
+      const lookup = this.whois(ip)
+        .then((info: any): TailscaleUser | undefined => {
+          const profile = info?.UserProfile
+          if (!profile?.LoginName) return undefined
+          return { login: profile.LoginName, name: profile.DisplayName, profilePic: profile.ProfilePicURL, via: 'whois' }
+        })
+        .catch(() => undefined)
+      cache.set(ip, { user: lookup, expires: Date.now() + ttl })
+      // Don't let a daemon hiccup pin an IP to "unknown" for the whole ttl
+      lookup.then(user => { if (!user) cache.delete(ip) })
+      return lookup
+    }
+
+    return async (req: any, res: any, next: any) => {
+      const raw: string = req.socket?.remoteAddress || ''
+      const ip = raw.startsWith('::ffff:') ? raw.slice(7) : raw
+
+      let user: TailscaleUser | undefined
+      if (ip === '127.0.0.1' || ip === '::1') {
+        const login = req.get?.('Tailscale-User-Login')
+        if (login) user = { login, name: req.get('Tailscale-User-Name'), profilePic: req.get('Tailscale-User-Profile-Pic'), via: 'serve-headers' }
+      } else if (isTailscaleIp(ip)) {
+        user = await fromWhois(ip)
+      }
+
+      if (!user) return res.status(401).json({ error: 'This server is only reachable through Tailscale' })
+      if (options.authorize && !(await options.authorize(user, req))) {
+        return res.status(403).json({ error: `${user.login} is not allowed here` })
+      }
+      req.user = user
+      next()
+    }
+  }
+
+  /**
    * Run serve/funnel, but fail fast instead of hanging when the tailnet hasn't enabled
    * the feature: kill the CLI at its enable prompt and throw with the link.
    * Homebrew's `tailscale` is a shell wrapper around the app binary, so killing only the
@@ -533,3 +616,10 @@ function portFlags(options: TailscaleServeOptions): string[] {
 }
 
 export default Tailscale
+
+/** Tailscale hands out 100.64.0.0/10 (CGNAT) for v4 and fd7a:115c:a1e0::/48 for v6. */
+function isTailscaleIp(ip: string): boolean {
+  if (ip.startsWith('fd7a:115c:a1e0:')) return true
+  const [a, b] = ip.split('.').map(Number)
+  return a === 100 && b !== undefined && b >= 64 && b <= 127
+}

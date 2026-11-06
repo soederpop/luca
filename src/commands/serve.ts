@@ -22,6 +22,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	watch: z.boolean().default(false).describe('Watch endpoint files and hot-reload handlers on change'),
 	tailnet: z.boolean().default(false).describe('Also expose the server over HTTPS on your tailnet with tailscale serve'),
 	funnel: z.boolean().default(false).describe('Expose the server on the public internet with Tailscale Funnel'),
+	tailscaleAuth: z.boolean().default(false).describe('Reject requests that did not come over Tailscale and put the tailnet user on ctx.request.user (pairs well with --tailnet)'),
 	tailnetPort: z.number().optional().describe('HTTPS port on the tailnet side for --tailnet/--funnel (default 443; funnel allows only 443, 8443, 10000)'),
 })
 
@@ -95,6 +96,21 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 	// would never gate the endpoint routes.
 	const setup = loadSetupModule(options, container)
 
+	if (options.tailscaleAuth) {
+		const tailscale = container.feature('tailscale')
+		if (!await tailscale.ensureAvailable()) {
+			console.error(`\n--tailscale-auth needs tailscale, and it isn't installed. Get it from https://tailscale.com/download`)
+			process.exit(1)
+		}
+		// Auth goes in front of whatever the setup file mounts, so setup middleware
+		// can rely on req.user already being there.
+		const userCreate = setup.create
+		setup.create = (app: any, server: ExpressServer) => {
+			app.use(tailscale.authMiddleware())
+			return userCreate ? userCreate(app, server) || app : app
+		}
+	}
+
 	const expressServer = container.server('express', {
 		port,
 		cors: options.cors,
@@ -146,6 +162,9 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 
 	const name = manifest.name || 'Server'
 	console.log(`\n${name} listening on http://localhost:${port}`)
+	if (options.tailscaleAuth) {
+		console.log(`Tailscale auth on: only tailnet traffic is accepted, caller is on ctx.request.user`)
+	}
 
 	if (endpointsDir) {
 		console.log(`OpenAPI spec at http://localhost:${port}/openapi.json`)
