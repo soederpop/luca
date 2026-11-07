@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { Embeddings, type TransformersModule, type EmbeddingsPipeline } from '../src/web/features/embeddings'
+import { Embeddings, type EmbeddingsPipeline } from '../src/web/features/embeddings'
+import { Transformers, type TransformersModule } from '../src/web/features/transformers'
 // Deliberately not the WebContainer: importing it registers the web vault/vm
 // features into the shared registry and shadows the node ones for every test
 // file that runs after this one. The feature only needs a container context.
@@ -22,6 +23,7 @@ function fakeTransformers(log: string[] = []): TransformersModule {
   }) as EmbeddingsPipeline
   return {
     env: {},
+    TextStreamer: class {},
     pipeline: async (_task, model, options) => {
       log.push(`${model}:${options?.device}:${options?.dtype}`)
       return pipe
@@ -31,6 +33,7 @@ function fakeTransformers(log: string[] = []): TransformersModule {
 
 function makeContainer() {
   const container = new NodeContainer({}) as any
+  container.use(Transformers)
   container.use(Embeddings)
   return container
 }

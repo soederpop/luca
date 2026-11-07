@@ -7,6 +7,12 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://luca-js.soederpop.com/local/</loc>
+    <lastmod>2026-11-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://luca-js.soederpop.com/llms.txt</loc>
     <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>

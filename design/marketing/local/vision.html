@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Zero-shot vision in your browser — Luca Local</title>
+    <meta name="description" content="CLIP scores any image against labels you type, in the page, through the Luca vision feature." />
+    <meta property="og:title" content="Zero-shot vision in your browser — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+    <style>
+      .drop { border: 1px dashed var(--steel); border-radius: 10px; min-height: 220px; display: grid; place-items: center; color: var(--muted); position: relative; overflow: hidden; background: var(--panel); }
+      .drop.over { border-color: var(--signal); }
+      .drop img, .drop video { max-width: 100%; max-height: 360px; display: block; }
+      .drop canvas { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>What is in this picture?</h1>
+        <p class="lead">CLIP compares an image against any labels you write, so <code>vision.classify(image, labels)</code> needs no training and no fixed categories. The sort of check an agent runs on a screenshot.</p>
+        <div class="row">
+          <label class="button">Choose image <input id="file" type="file" accept="image/*" style="display:none" /></label>
+          <button id="sample">Try the social card</button>
+          <button id="camera" data-keep>Use webcam</button>
+          <button id="snap" data-keep disabled>Snap</button>
+          <label class="field">Device
+            <select id="device"><option value="auto">auto</option><option value="webgpu">webgpu</option><option value="wasm">wasm</option></select>
+          </label>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="drop" id="drop"><span>Drop an image here</span><canvas id="canvas"></canvas></div>
+        <div class="row" style="margin-top:1rem">
+          <label class="field" style="flex:1">Labels, comma separated
+            <input id="labels" type="text" value="a person, a cat, a dog, a laptop, a terminal window, a chart, food, a car, a building, text on paper" />
+          </label>
+          <button id="classify" class="primary">Classify</button>
+        </div>
+        <div class="panel">
+          <h3>Scores</h3>
+          <div class="bars" id="scores"><p class="hint">Pick an image, edit the labels if you like, then classify. Labels can be anything: "a bug report", "a login screen", "my dog".</p></div>
+        </div>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      let vision = container.feature('vision')
+      const { status, log, busy, inspect } = mount({ features: [vision], inspectorNote: 'lastMs is one image + all labels through CLIP.' })
+      let image = null
+      let stream = null
+
+      function current() {
+        const key = $('device').value
+        if (vision._key !== key) {
+          if (vision._key) vision.dispose?.()
+          vision = container.feature('vision', { device: key, cached: false })
+          vision._key = key
+          inspect([vision])
+        }
+        return vision
+      }
+
+      function show(blob) {
+        stopCamera()
+        image = blob
+        const img = document.createElement('img')
+        img.src = URL.createObjectURL(blob)
+        $('drop').replaceChildren(img, $('canvas'))
+        status(`${Math.round(blob.size / 1024)} KB image ready`)
+      }
+
+      function stopCamera() {
+        stream?.getTracks().forEach(t => t.stop())
+        stream = null
+        $('snap').disabled = true
+      }
+
+      async function classify() {
+        if (!image) { status('pick an image first', true); return }
+        const v = current()
+        if (!v.ready) { status(`loading ${v.options.model} on ${v.device}…`); await v.load(); log(`ready on ${v.state.get('device')} in ${v.state.get('loadMs')}ms`) }
+        const labels = $('labels').value.split(',').map(s => s.trim()).filter(Boolean)
+        status('classifying…')
+        const r = await v.classify(image, labels)
+        status(`${r.ms}ms for ${labels.length} labels on ${v.state.get('device')}`)
+        const top = r.labels[0].score
+        $('scores').innerHTML = r.labels.map(l => `<div class="item"><span class="score">${(l.score * 100).toFixed(1)}%</span><div><div>${l.label}</div><div class="track"><div class="bar" style="width:${(l.score / top) * 100}%;background:${l === r.labels[0] ? 'var(--rose)' : 'var(--steel)'}"></div></div></div></div>`).join('')
+        log(`${r.labels[0].label} (${(top * 100).toFixed(1)}%) in ${r.ms}ms`)
+      }
+
+      $('file').onchange = (e) => { const f = e.target.files[0]; if (f) show(f) }
+      $('sample').onclick = () => busy(async () => { show(await (await fetch('og.png')).blob()); await classify() })
+      const drop = $('drop')
+      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over') })
+      drop.addEventListener('dragleave', () => drop.classList.remove('over'))
+      drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) show(f) })
+      $('camera').onclick = async () => {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640 } })
+          const video = document.createElement('video')
+          video.srcObject = stream
+          video.autoplay = true
+          video.muted = true
+          video.playsInline = true
+          $('drop').replaceChildren(video, $('canvas'))
+          $('snap').disabled = false
+          status('camera on; click Snap')
+        } catch (err) { status(`camera: ${err.message}`, true) }
+      }
+      $('snap').onclick = () => {
+        const video = $('drop').querySelector('video')
+        if (!video) return
+        const canvas = $('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        canvas.toBlob((blob) => { show(blob); busy(classify) }, 'image/jpeg', 0.9)
+      }
+      $('classify').onclick = () => busy(classify)
+    </script>
+  </body>
+</html>

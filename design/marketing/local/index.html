@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large" />
+    <link rel="canonical" href="https://luca-js.soederpop.com/local/" />
+    <title>Luca Local — AI that runs in the browser, no server</title>
+    <meta name="description" content="Six demos of local inference built on the Luca container: semantic search, a chat model, speech-to-text, zero-shot vision, a voice loop, and a WebGPU vs WASM benchmark. Models download once and run on your GPU. Nothing leaves the page." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Luca" />
+    <meta property="og:url" content="https://luca-js.soederpop.com/local/" />
+    <meta property="og:title" content="Luca Local — AI that runs in the browser, no server" />
+    <meta property="og:description" content="Search, chat, transcribe, see, and talk. Six local-inference demos built on one container. Models run on your GPU; nothing leaves the page." />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Luca Local: AI that runs in the browser. Search, chat, transcribe, vision, voice, benchmark." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Luca Local — AI that runs in the browser, no server" />
+    <meta name="twitter:description" content="Search, chat, transcribe, see, and talk. Six local-inference demos built on one container. Nothing leaves the page." />
+    <meta name="twitter:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Luca Local",
+        "url": "https://luca-js.soederpop.com/local/",
+        "applicationCategory": "DeveloperApplication",
+        "browserRequirements": "Requires a modern browser; WebGPU recommended",
+        "description": "Local inference demos built on the Luca container: semantic search, chat, speech-to-text, zero-shot vision, a voice loop, and a WebGPU vs WASM benchmark. Models run in the browser; no data leaves the page.",
+        "isPartOf": { "@type": "WebSite", "name": "Luca", "url": "https://luca-js.soederpop.com/" },
+        "author": { "@type": "Person", "name": "Jonathan Soeder", "url": "https://github.com/soederpop" }
+      }
+    </script>
+  </head>
+  <body>
+    <section class="hero">
+      <p class="mono" style="color:var(--muted)">luca-js.soederpop.com/local</p>
+      <h1>AI that runs in the browser. No server, no key, nothing leaves the page.</h1>
+      <p class="lead">Six demos built on the Luca web container. Each one is a feature: it loads a model through transformers.js, runs it on your GPU with WebGPU (or WASM), and reports what it is doing through container state and events. The inspector on every page shows that happening live.</p>
+      <div class="row">
+        <a class="button" href="search.html" style="background:var(--white);color:var(--bg);border-color:var(--white)">Start with search →</a>
+        <a class="button" href="https://github.com/soederpop/luca">Source on GitHub</a>
+        <span class="badge" id="gpu"><span class="dot"></span>checking WebGPU…</span>
+      </div>
+    </section>
+
+    <section class="cards">
+      <a class="card" href="search.html" style="--cat:var(--amber)">
+        <div class="k">container.feature('embeddings')</div>
+        <h3>Semantic search</h3>
+        <p>Embed the real <code>luca describe</code> index in your browser and search it by meaning. The same vectors the CLI uses, computed client-side.</p>
+        <div class="size">all-MiniLM-L6-v2 · 23 MB</div>
+      </a>
+      <a class="card" href="chat.html" style="--cat:var(--violet)">
+        <div class="k">container.feature('localLlm')</div>
+        <h3>Chat</h3>
+        <p>A small instruct model streaming tokens into the container event bus. Stop it mid-sentence. Swap models without reloading.</p>
+        <div class="size">SmolLM2-360M · 250 MB</div>
+      </a>
+      <a class="card" href="transcribe.html" style="--cat:var(--teal)">
+        <div class="k">container.feature('transcriber')</div>
+        <h3>Speech to text</h3>
+        <p>Whisper, in the page. Record from your microphone or drop an audio file; see how far above real time it runs.</p>
+        <div class="size">whisper-tiny.en · 40 MB</div>
+      </a>
+      <a class="card" href="vision.html" style="--cat:var(--rose)">
+        <div class="k">container.feature('vision')</div>
+        <h3>Zero-shot vision</h3>
+        <p>CLIP scores any image against labels you type. No training. Point your webcam at something and ask what it is.</p>
+        <div class="size">clip-vit-base-patch32 · 150 MB</div>
+      </a>
+      <a class="card" href="voice.html" style="--cat:var(--blue)">
+        <div class="k">transcriber → localLlm → speech</div>
+        <h3>Voice loop</h3>
+        <p>Three features composed: hear, think, speak. The whole conversation stays on your machine.</p>
+        <div class="size">whisper + SmolLM2 · 290 MB</div>
+      </a>
+      <a class="card" href="bench.html" style="--cat:var(--signal)">
+        <div class="k">embeddings.benchmark()</div>
+        <h3>WebGPU vs WASM</h3>
+        <p>The same model on both backends. Load time, warm-up, and texts per second, on your hardware.</p>
+        <div class="size">all-MiniLM-L6-v2 · 23 MB</div>
+      </a>
+    </section>
+
+    <section class="prose">
+      <h2>How it is built</h2>
+      <div class="steps">
+        <div class="step" style="--cat:var(--blue)"><b>One container</b><span>The same <code>container</code> object that runs luca on the server runs in the browser. Features, state, and an event bus.</span></div>
+        <div class="step" style="--cat:var(--amber)"><b>One loader</b><span><code>transformers</code> imports transformers.js from a CDN, picks WebGPU or WASM, and turns per-file download callbacks into state.</span></div>
+        <div class="step" style="--cat:var(--violet)"><b>One feature per task</b><span><code>embeddings</code>, <code>localLlm</code>, <code>transcriber</code>, <code>vision</code>. Each owns a pipeline and a small state schema.</span></div>
+        <div class="step" style="--cat:var(--teal)"><b>UI reads state</b><span>Pages subscribe to <code>feature.state.observe()</code> and <code>feature.on('*')</code>. No framework required; React works too.</span></div>
+      </div>
+      <p>Every demo is a few lines against the container. This is the chat page, minus the markup:</p>
+<pre><code><span class="c">// luca is the web container, same API as on the server</span>
+const llm = container.feature('localLlm', { model: 'HuggingFaceTB/SmolLM2-360M-Instruct' })
+llm.on('token', (piece) => output.textContent += piece)
+await llm.chat('What is a container?')
+llm.state.get('tokensPerSecond')   <span class="c">// decoding speed on your GPU</span></code></pre>
+      <p>Models come from the Hugging Face hub and are stored in the browser's Cache API, so the download happens once. After that, every page here works offline. Browser support: WebGPU in Chrome and Edge 113+, Safari 26+. Everything falls back to WASM.</p>
+      <p>Use it yourself: <code>bun add luca</code>, then <code>import container from 'luca/web'</code>. Run <code>luca describe localLlm</code> for the full API of any feature.</p>
+    </section>
+    <footer>Luca · Lightweight Universal Conversational Architecture · <a href="https://github.com/soederpop/luca">github.com/soederpop/luca</a></footer>
+    <script type="module">
+      import { webgpu } from './shell.js'
+      const badge = document.getElementById('gpu')
+      badge.className = `badge ${webgpu ? 'ok' : 'no'}`
+      badge.innerHTML = `<span class="dot"></span>${webgpu ? 'WebGPU available in this browser' : 'No WebGPU here; demos use WASM'}`
+    </script>
+  </body>
+</html>

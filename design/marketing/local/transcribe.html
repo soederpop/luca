@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Speech to text in your browser — Luca Local</title>
+    <meta name="description" content="Whisper running in the page through the Luca transcriber feature. Record from your microphone or drop an audio file." />
+    <meta property="og:title" content="Speech to text in your browser — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>Whisper, in the page</h1>
+        <p class="lead">Record a few seconds or drop an audio file. <code>transcriber.transcribe(blob)</code> decodes it with the Web Audio API, resamples to 16kHz, and runs Whisper on your GPU.</p>
+        <div class="row">
+          <label class="field">Model
+            <select id="model">
+              <option value="onnx-community/whisper-tiny.en">whisper-tiny.en (40 MB)</option>
+              <option value="onnx-community/whisper-base.en">whisper-base.en (75 MB, more accurate)</option>
+              <option value="onnx-community/whisper-small">whisper-small, multilingual (250 MB)</option>
+            </select>
+          </label>
+          <label class="field">Device
+            <select id="device"><option value="auto">auto</option><option value="webgpu">webgpu</option><option value="wasm">wasm</option></select>
+          </label>
+          <button id="load">Load model</button>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="row">
+          <button id="record" class="primary" data-keep>● Record</button>
+          <label class="button">Choose audio file <input id="file" type="file" accept="audio/*" style="display:none" /></label>
+          <button id="sample">Try a sample clip</button>
+          <span class="hint">Recording uses MediaRecorder; nothing is uploaded.</span>
+        </div>
+        <div class="panel">
+          <h3>Transcript</h3>
+          <p id="text" style="font-size:1.15rem;min-height:2.5rem;margin:0"></p>
+          <p class="hint" id="meta" style="margin:0.6rem 0 0"></p>
+        </div>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      let transcriber = container.feature('transcriber')
+      const { status, log, busy, inspect } = mount({ features: [transcriber], inspectorNote: 'realtimeFactor above 1 means faster than the audio is long.' })
+
+      function current() {
+        const key = `${$('model').value}|${$('device').value}`
+        if (transcriber._key !== key) {
+          if (transcriber._key) transcriber.dispose?.()
+          transcriber = container.feature('transcriber', { model: $('model').value, device: $('device').value, cached: false })
+          transcriber._key = key
+          inspect([transcriber])
+        }
+        return transcriber
+      }
+
+      async function load() {
+        const t = current()
+        status(`loading ${$('model').value} on ${t.device}…`)
+        await t.load()
+        log(`ready: ${t.state.get('model')} on ${t.state.get('device')} in ${t.state.get('loadMs')}ms`)
+        status('ready')
+      }
+
+      async function transcribe(input, label) {
+        const t = current()
+        if (!t.ready) await load()
+        status(`transcribing ${label}…`)
+        const r = await t.transcribe(input)
+        $('text').textContent = r.text || '(no speech detected)'
+        $('meta').textContent = `${r.audioSeconds}s of audio in ${r.ms}ms · ${r.realtimeFactor}× real time on ${t.state.get('device')}`
+        log(`${label}: "${r.text.slice(0, 80)}" (${r.realtimeFactor}× real time)`)
+        status('')
+      }
+
+      let recorder, chunks = []
+      $('record').onclick = async () => {
+        if (recorder && recorder.state === 'recording') {
+          recorder.stop()
+          return
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          chunks = []
+          recorder = new MediaRecorder(stream)
+          recorder.ondataavailable = (e) => chunks.push(e.data)
+          recorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop())
+            $('record').textContent = '● Record'
+            const blob = new Blob(chunks, { type: recorder.mimeType })
+            busy(() => transcribe(blob, `recording (${Math.round(blob.size / 1024)} KB)`))
+          }
+          recorder.start()
+          $('record').textContent = '■ Stop'
+          status('recording… click Stop when done')
+        } catch (err) {
+          status(`microphone: ${err.message}`, true)
+        }
+      }
+      $('file').onchange = (e) => { const f = e.target.files[0]; if (f) busy(() => transcribe(f, f.name)) }
+      $('sample').onclick = () => busy(async () => transcribe(await (await fetch('sample.m4a')).blob(), 'sample.m4a'))
+      $('load').onclick = () => busy(load)
+    </script>
+  </body>
+</html>

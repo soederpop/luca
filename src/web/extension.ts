@@ -12,6 +12,10 @@ import { VM } from './features/vm.js'
 import { Esbuild } from './features/esbuild.js'
 import { ContainerLink } from './features/container-link.js'
 import { Embeddings } from './features/embeddings.js'
+import { Transformers } from './features/transformers.js'
+import { LocalLlm } from './features/local-llm.js'
+import { Transcriber } from './features/transcriber.js'
+import { Vision } from './features/vision.js'
 
 export function attach<K extends Container & ClientsInterface>(container: K, options?: any) : Container & ClientsInterface {
   container
@@ -26,7 +30,11 @@ export function attach<K extends Container & ClientsInterface>(container: K, opt
     .use(WebVault)
     .use(Esbuild)
     .use(ContainerLink)
+    .use(Transformers)
     .use(Embeddings)
+    .use(LocalLlm)
+    .use(Transcriber)
+    .use(Vision)
 
   return container
 }

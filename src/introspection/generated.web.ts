@@ -165,7 +165,7 @@ setBuildTimeData('features.containerLink', {
 
 setBuildTimeData('features.embeddings', {
   "id": "features.embeddings",
-  "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
+  "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library itself comes from the `transformers` web feature (loaded from a CDN at runtime, override with `moduleURL`, or inject a module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
   "shortcut": "features.embeddings",
   "className": "Embeddings",
   "methods": {
@@ -247,6 +247,10 @@ setBuildTimeData('features.embeddings', {
     }
   },
   "getters": {
+    "transformers": {
+      "description": "The shared transformers.js loader this feature creates its pipeline through.",
+      "returns": "Transformers"
+    },
     "ready": {
       "description": "True once load() finished and embed() can run.",
       "returns": "boolean"
@@ -938,6 +942,238 @@ setBuildTimeData('features.helpers', {
   ]
 });
 
+setBuildTimeData('features.localLlm', {
+  "id": "features.localLlm",
+  "description": "A chat model that runs entirely in the browser through transformers.js. Keeps the conversation in state, streams decoded text through `onToken` and `token` events, and can be interrupted mid-generation. Small instruct models (SmolLM2-360M, Qwen2.5-0.5B) are usable on WebGPU; expect a 250MB-500MB first download that the browser then caches.",
+  "shortcut": "features.localLlm",
+  "className": "LocalLlm",
+  "methods": {
+    "load": {
+      "description": "Download (first time) and load the model. Safe to call many times: concurrent callers share one in-flight load.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "generate": {
+      "description": "Generate a reply to an explicit message list. The system prompt is added unless the list already starts with one. Does not touch the conversation in state; use chat() for that.",
+      "parameters": {
+        "messages": {
+          "type": "LocalLlmMessage[]",
+          "description": "Parameter messages",
+          "properties": {
+            "role": {
+              "type": "'system' | 'user' | 'assistant'",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        },
+        "options": {
+          "type": "LocalLlmGenerateOptions",
+          "description": "Parameter options",
+          "properties": {
+            "onToken": {
+              "type": "(text: string) => void",
+              "description": "Called with each new piece of text as it is decoded."
+            },
+            "maxNewTokens": {
+              "type": "number",
+              "description": ""
+            },
+            "temperature": {
+              "type": "number",
+              "description": "Sample instead of greedy decoding."
+            },
+            "topK": {
+              "type": "number",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "returns": "Promise<LocalLlmGenerateResult>"
+    },
+    "chat": {
+      "description": "Append a user turn to the conversation, generate the reply, and store both in state.",
+      "parameters": {
+        "content": {
+          "type": "string",
+          "description": "Parameter content"
+        },
+        "options": {
+          "type": "LocalLlmGenerateOptions",
+          "description": "Parameter options",
+          "properties": {
+            "onToken": {
+              "type": "(text: string) => void",
+              "description": "Called with each new piece of text as it is decoded."
+            },
+            "maxNewTokens": {
+              "type": "number",
+              "description": ""
+            },
+            "temperature": {
+              "type": "number",
+              "description": "Sample instead of greedy decoding."
+            },
+            "topK": {
+              "type": "number",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "returns": "Promise<LocalLlmGenerateResult>"
+    },
+    "stop": {
+      "description": "Interrupt the generation in progress; generate() resolves with what was decoded so far.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "reset": {
+      "description": "Forget the conversation. The model stays loaded.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "dispose": {
+      "description": "Release the model and return to idle.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "transformers": {
+      "description": "The shared transformers.js loader this feature creates its pipeline through.",
+      "returns": "Transformers"
+    },
+    "device": {
+      "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+      "returns": "'webgpu' | 'wasm'"
+    },
+    "dtype": {
+      "description": "The weight precision this instance will load: q4f16 on WebGPU, q4 on WASM, unless `dtype` was given.",
+      "returns": "string"
+    },
+    "ready": {
+      "description": "True once load() finished and generate() can run.",
+      "returns": "boolean"
+    },
+    "messages": {
+      "description": "The conversation so far, system prompt excluded.",
+      "returns": "LocalLlmMessage[]"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by LocalLlm",
+      "arguments": {}
+    },
+    "token": {
+      "name": "token",
+      "description": "Event emitted by LocalLlm",
+      "arguments": {}
+    },
+    "generated": {
+      "name": "generated",
+      "description": "Event emitted by LocalLlm",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const llm = container.feature('localLlm')\nawait llm.load()\nconst reply = await llm.chat('What is a container?', { onToken: (t) => process.stdout.write(t) })\nreply.tokensPerSecond // e.g. 40 on an M-series Mac"
+    },
+    {
+      "language": "ts",
+      "code": "// One-shot generation with explicit messages, no conversation state\nconst llm = container.feature('localLlm', { model: 'onnx-community/Qwen2.5-0.5B-Instruct' })\nconst { text } = await llm.generate([{ role: 'user', content: 'Say hi' }])"
+    }
+  ],
+  "types": {
+    "LocalLlmMessage": {
+      "description": "One chat turn, in the shape chat templates expect.",
+      "properties": {
+        "role": {
+          "type": "'system' | 'user' | 'assistant'",
+          "description": ""
+        },
+        "content": {
+          "type": "string",
+          "description": ""
+        }
+      }
+    },
+    "LocalLlmGenerateOptions": {
+      "description": "",
+      "properties": {
+        "onToken": {
+          "type": "(text: string) => void",
+          "description": "Called with each new piece of text as it is decoded.",
+          "optional": true
+        },
+        "maxNewTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Sample instead of greedy decoding.",
+          "optional": true
+        },
+        "topK": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "LocalLlmGenerateResult": {
+      "description": "What `generate()` resolves to.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "tokens": {
+          "type": "number",
+          "description": ""
+        },
+        "tokensPerSecond": {
+          "type": "number",
+          "description": "Decoding speed, warm-up excluded."
+        },
+        "ms": {
+          "type": "number",
+          "description": ""
+        },
+        "interrupted": {
+          "type": "boolean",
+          "description": "True when stop() cut the generation short."
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.network', {
   "id": "features.network",
   "description": "Tracks browser online/offline connectivity state. Listens for the browser's `online` and `offline` events and keeps the feature state in sync. Other features can observe the `offline` state value or listen for change events to react to connectivity changes.",
@@ -1081,6 +1317,282 @@ setBuildTimeData('features.speech', {
   }
 });
 
+setBuildTimeData('features.transcriber', {
+  "id": "features.transcriber",
+  "description": "Speech-to-text in the browser with Whisper through transformers.js. Accepts raw 16kHz samples, an encoded Blob (what MediaRecorder produces), or a URL, decoding with the Web Audio API as needed, and returns plain text with a speed measurement. Pair it with `localLlm` and the `speech` feature for a voice loop that never leaves the page.",
+  "shortcut": "features.transcriber",
+  "className": "Transcriber",
+  "methods": {
+    "load": {
+      "description": "Download (first time) and load the model. Concurrent callers share one in-flight load.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "toSamples": {
+      "description": "Decode any accepted input to 16kHz mono Float32 samples. Blobs and URLs go through an OfflineAudioContext so the browser does the resampling.",
+      "parameters": {
+        "input": {
+          "type": "TranscriberInput",
+          "description": "Parameter input"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<Float32Array>"
+    },
+    "transcribe": {
+      "description": "Transcribe audio to text. Calls load() if needed.",
+      "parameters": {
+        "input": {
+          "type": "TranscriberInput",
+          "description": "Parameter input"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<TranscriberResult>"
+    },
+    "dispose": {
+      "description": "Release the model and return to idle.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "transformers": {
+      "description": "The shared transformers.js loader this feature creates its pipeline through.",
+      "returns": "Transformers"
+    },
+    "device": {
+      "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+      "returns": "'webgpu' | 'wasm'"
+    },
+    "ready": {
+      "description": "True once load() finished and transcribe() can run.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by Transcriber",
+      "arguments": {}
+    },
+    "transcribed": {
+      "name": "transcribed",
+      "description": "Event emitted by Transcriber",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "media-browser",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const transcriber = container.feature('transcriber')\nawait transcriber.load()\nconst recorder = new MediaRecorder(await navigator.mediaDevices.getUserMedia({ audio: true }))\nrecorder.ondataavailable = async (e) => {\n const { text, realtimeFactor } = await transcriber.transcribe(e.data)\n}"
+    }
+  ],
+  "types": {
+    "TranscriberResult": {
+      "description": "What `transcribe()` resolves to.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": ""
+        },
+        "audioSeconds": {
+          "type": "number",
+          "description": "Seconds of audio that were transcribed."
+        },
+        "ms": {
+          "type": "number",
+          "description": ""
+        },
+        "realtimeFactor": {
+          "type": "number",
+          "description": "Seconds of audio processed per second of wall-clock; above 1 is faster than real time."
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('features.transformers', {
+  "id": "features.transformers",
+  "description": "Loads transformers.js (Hugging Face's ONNX inference library for the browser) and hands out pipelines to the other local-inference web features: `embeddings`, `localLlm`, `transcriber`, and `vision`. One instance owns the library import, picks the execution backend (WebGPU or WASM), and turns the library's per-file download callbacks into container state and events, so a UI can show one progress bar no matter which feature is downloading. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `module`). Model weights come from the Hugging Face hub and are kept in the browser Cache API, so a second visit loads in seconds.",
+  "shortcut": "features.transformers",
+  "className": "Transformers",
+  "methods": {
+    "load": {
+      "description": "Import the library (cached per URL across all instances). Safe to call many times: concurrent callers share one in-flight import.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<TransformersModule>"
+    },
+    "pipeline": {
+      "description": "Create a transformers.js pipeline for a task and model. Download progress for the model's files flows into `state.downloading` / `state.progress` and is emitted as `progress` events. Throws if WebGPU was requested but is unavailable.",
+      "parameters": {
+        "task": {
+          "type": "string",
+          "description": "Parameter task"
+        },
+        "model": {
+          "type": "string",
+          "description": "Parameter model"
+        },
+        "options": {
+          "type": "TransformersPipelineOptions",
+          "description": "Parameter options",
+          "properties": {
+            "device": {
+              "type": "'webgpu' | 'wasm'",
+              "description": ""
+            },
+            "dtype": {
+              "type": "string | Record<string, string>",
+              "description": "Weight precision, or a per-submodel map ({ encoder_model: 'fp32', decoder_model_merged: 'q4' })."
+            },
+            "onProgress": {
+              "type": "(event: TransformersProgressEvent) => void",
+              "description": "Receives every progress message in addition to the feature's `progress` event."
+            }
+          }
+        }
+      },
+      "required": [
+        "task",
+        "model"
+      ],
+      "returns": "Promise<P>"
+    }
+  },
+  "getters": {
+    "device": {
+      "description": "The backend pipelines get unless they ask for another: resolves 'auto' against WebGPU availability.",
+      "returns": "'webgpu' | 'wasm'"
+    },
+    "ready": {
+      "description": "True once the library module is imported.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by Transformers",
+      "arguments": {}
+    },
+    "progress": {
+      "name": "progress",
+      "description": "Event emitted by Transformers",
+      "arguments": {}
+    },
+    "pipelineReady": {
+      "name": "pipelineReady",
+      "description": "Event emitted by Transformers",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "content-nlp",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const transformers = container.feature('transformers')\ntransformers.on('progress', (e) => console.log(e.file, e.progress))\nconst classify = await transformers.pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english')\nawait classify('luca makes local inference easy') // [{ label: 'POSITIVE', score: 0.99 }]"
+    }
+  ],
+  "types": {
+    "TransformersModule": {
+      "description": "The subset of the transformers.js module that the web features call.",
+      "properties": {
+        "TextStreamer": {
+          "type": "new (tokenizer: any, options?: Record<string, unknown>) => any",
+          "description": ""
+        },
+        "InterruptableStoppingCriteria": {
+          "type": "new () => { interrupt(): void; reset(): void }",
+          "description": "",
+          "optional": true
+        },
+        "RawImage": {
+          "type": "{ fromBlob(blob: Blob): Promise<any>; fromURL(url: string): Promise<any> }",
+          "description": "",
+          "optional": true
+        },
+        "env": {
+          "type": "{\n    allowLocalModels?: boolean\n    useBrowserCache?: boolean\n    backends?: { onnx?: { wasm?: { numThreads?: number; proxy?: boolean } } }\n  }",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "TransformersPipelineOptions": {
+      "description": "Options every pipeline-creating method accepts.",
+      "properties": {
+        "device": {
+          "type": "'webgpu' | 'wasm'",
+          "description": "",
+          "optional": true
+        },
+        "dtype": {
+          "type": "string | Record<string, string>",
+          "description": "Weight precision, or a per-submodel map ({ encoder_model: 'fp32', decoder_model_merged: 'q4' }).",
+          "optional": true
+        },
+        "onProgress": {
+          "type": "(event: TransformersProgressEvent) => void",
+          "description": "Receives every progress message in addition to the feature's `progress` event.",
+          "optional": true
+        }
+      }
+    },
+    "TransformersProgressEvent": {
+      "description": "Progress messages transformers.js reports while downloading and loading a model.",
+      "properties": {
+        "status": {
+          "type": "'initiate' | 'download' | 'progress' | 'done' | 'ready' | string",
+          "description": ""
+        },
+        "name": {
+          "type": "string",
+          "description": "Model id the file belongs to.",
+          "optional": true
+        },
+        "file": {
+          "type": "string",
+          "description": "File within the model repo (onnx/model.onnx, tokenizer.json, ...).",
+          "optional": true
+        },
+        "progress": {
+          "type": "number",
+          "description": "Percent complete for this file, 0-100.",
+          "optional": true
+        },
+        "loaded": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "total": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "AES-256-GCM encryption for the browser, with a key the page can use but never read. Keys are WebCrypto `CryptoKey` objects created as non-extractable: page code can encrypt and decrypt with them, but cannot export the raw bytes. Script injected into the page can still decrypt while it runs there, but cannot steal the key. Every vault needs a `vaultId`. The browser already keeps each origin's storage apart; the ID keeps two apps on the same origin apart. There is no default key. Two ways to get a key: - **Device key** (default): created on first `encrypt()` and kept in IndexedDB under the vault ID. It stays on this browser. Good for local data at rest. - **Passphrase**: `unlock(passphrase)` derives the key with PBKDF2, so the same passphrase gives the same key on any device. It is never stored; `lock()` drops it. Payloads use the same single-line format as the node vault (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), so a payload from either side decrypts on the other with the same key. **Never send server secrets (API keys, database passwords) to the browser**, even encrypted. The page must decrypt them to use them, and then the user can read them.",
@@ -1203,6 +1715,110 @@ setBuildTimeData('features.vault', {
       "code": "const vault = container.feature('vault', { vaultId: 'notes-app' })\nconst encrypted = await vault.encrypt('draft text')   // creates the device key on first use\nawait vault.decrypt(encrypted)                         // 'draft text'\n\n// Same key on every device: derive it from a passphrase\nconst synced = container.feature('vault', { vaultId: 'notes-sync' })\nawait synced.unlock('correct horse battery staple')\nconst payload = await synced.encryptJson({ title: 'hello' })\nsynced.lock()"
     }
   ]
+});
+
+setBuildTimeData('features.vision', {
+  "id": "features.vision",
+  "description": "Zero-shot image classification in the browser with CLIP through transformers.js: give it an image and any list of labels, get a probability per label. No training, no server, and the labels can change per call, so it doubles as a cheap \"is this screenshot showing X\" check for agents.",
+  "shortcut": "features.vision",
+  "className": "Vision",
+  "methods": {
+    "load": {
+      "description": "Download (first time) and load the model. Concurrent callers share one in-flight load.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "classify": {
+      "description": "Score an image against candidate labels. Results are sorted best first. Calls load() if needed.",
+      "parameters": {
+        "image": {
+          "type": "VisionInput",
+          "description": "Parameter image"
+        },
+        "labels": {
+          "type": "string[]",
+          "description": "Parameter labels"
+        }
+      },
+      "required": [
+        "image",
+        "labels"
+      ],
+      "returns": "Promise<VisionResult>"
+    },
+    "dispose": {
+      "description": "Release the model and return to idle.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "transformers": {
+      "description": "The shared transformers.js loader this feature creates its pipeline through.",
+      "returns": "Transformers"
+    },
+    "device": {
+      "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+      "returns": "'webgpu' | 'wasm'"
+    },
+    "ready": {
+      "description": "True once load() finished and classify() can run.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by Vision",
+      "arguments": {}
+    },
+    "classified": {
+      "name": "classified",
+      "description": "Event emitted by Vision",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "media-browser",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vision = container.feature('vision')\nconst { labels } = await vision.classify(file, ['a cat', 'a dog', 'a terminal window'])\nlabels[0] // { label: 'a terminal window', score: 0.91 }"
+    }
+  ],
+  "types": {
+    "VisionResult": {
+      "description": "What `classify()` resolves to.",
+      "properties": {
+        "labels": {
+          "type": "VisionLabel[]",
+          "description": ""
+        },
+        "ms": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    },
+    "VisionLabel": {
+      "description": "One label with its probability, from `classify()`.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": ""
+        },
+        "score": {
+          "type": "number",
+          "description": "Probability in [0, 1]; the labels of one call sum to 1."
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.vm', {
@@ -1995,7 +2611,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.embeddings",
-    "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
+    "description": "Sentence embeddings computed in the browser with transformers.js (ONNX runtime, WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array of texts in, an array of float vectors out — so semantic search over something like the `luca describe` index can run with no server at all. The library itself comes from the `transformers` web feature (loaded from a CDN at runtime, override with `moduleURL`, or inject a module via `transformers`). The first load downloads model weights; transformers.js stores them in the browser Cache API, so later loads are fast.",
     "shortcut": "features.embeddings",
     "className": "Embeddings",
     "methods": {
@@ -2077,6 +2693,10 @@ export const introspectionData: Record<string, any>[] = [
       }
     },
     "getters": {
+      "transformers": {
+        "description": "The shared transformers.js loader this feature creates its pipeline through.",
+        "returns": "Transformers"
+      },
       "ready": {
         "description": "True once load() finished and embed() can run.",
         "returns": "boolean"
@@ -2766,6 +3386,237 @@ export const introspectionData: Record<string, any>[] = [
     ]
   },
   {
+    "id": "features.localLlm",
+    "description": "A chat model that runs entirely in the browser through transformers.js. Keeps the conversation in state, streams decoded text through `onToken` and `token` events, and can be interrupted mid-generation. Small instruct models (SmolLM2-360M, Qwen2.5-0.5B) are usable on WebGPU; expect a 250MB-500MB first download that the browser then caches.",
+    "shortcut": "features.localLlm",
+    "className": "LocalLlm",
+    "methods": {
+      "load": {
+        "description": "Download (first time) and load the model. Safe to call many times: concurrent callers share one in-flight load.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "generate": {
+        "description": "Generate a reply to an explicit message list. The system prompt is added unless the list already starts with one. Does not touch the conversation in state; use chat() for that.",
+        "parameters": {
+          "messages": {
+            "type": "LocalLlmMessage[]",
+            "description": "Parameter messages",
+            "properties": {
+              "role": {
+                "type": "'system' | 'user' | 'assistant'",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          },
+          "options": {
+            "type": "LocalLlmGenerateOptions",
+            "description": "Parameter options",
+            "properties": {
+              "onToken": {
+                "type": "(text: string) => void",
+                "description": "Called with each new piece of text as it is decoded."
+              },
+              "maxNewTokens": {
+                "type": "number",
+                "description": ""
+              },
+              "temperature": {
+                "type": "number",
+                "description": "Sample instead of greedy decoding."
+              },
+              "topK": {
+                "type": "number",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "returns": "Promise<LocalLlmGenerateResult>"
+      },
+      "chat": {
+        "description": "Append a user turn to the conversation, generate the reply, and store both in state.",
+        "parameters": {
+          "content": {
+            "type": "string",
+            "description": "Parameter content"
+          },
+          "options": {
+            "type": "LocalLlmGenerateOptions",
+            "description": "Parameter options",
+            "properties": {
+              "onToken": {
+                "type": "(text: string) => void",
+                "description": "Called with each new piece of text as it is decoded."
+              },
+              "maxNewTokens": {
+                "type": "number",
+                "description": ""
+              },
+              "temperature": {
+                "type": "number",
+                "description": "Sample instead of greedy decoding."
+              },
+              "topK": {
+                "type": "number",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "returns": "Promise<LocalLlmGenerateResult>"
+      },
+      "stop": {
+        "description": "Interrupt the generation in progress; generate() resolves with what was decoded so far.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "reset": {
+        "description": "Forget the conversation. The model stays loaded.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "dispose": {
+        "description": "Release the model and return to idle.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "transformers": {
+        "description": "The shared transformers.js loader this feature creates its pipeline through.",
+        "returns": "Transformers"
+      },
+      "device": {
+        "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+        "returns": "'webgpu' | 'wasm'"
+      },
+      "dtype": {
+        "description": "The weight precision this instance will load: q4f16 on WebGPU, q4 on WASM, unless `dtype` was given.",
+        "returns": "string"
+      },
+      "ready": {
+        "description": "True once load() finished and generate() can run.",
+        "returns": "boolean"
+      },
+      "messages": {
+        "description": "The conversation so far, system prompt excluded.",
+        "returns": "LocalLlmMessage[]"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by LocalLlm",
+        "arguments": {}
+      },
+      "token": {
+        "name": "token",
+        "description": "Event emitted by LocalLlm",
+        "arguments": {}
+      },
+      "generated": {
+        "name": "generated",
+        "description": "Event emitted by LocalLlm",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const llm = container.feature('localLlm')\nawait llm.load()\nconst reply = await llm.chat('What is a container?', { onToken: (t) => process.stdout.write(t) })\nreply.tokensPerSecond // e.g. 40 on an M-series Mac"
+      },
+      {
+        "language": "ts",
+        "code": "// One-shot generation with explicit messages, no conversation state\nconst llm = container.feature('localLlm', { model: 'onnx-community/Qwen2.5-0.5B-Instruct' })\nconst { text } = await llm.generate([{ role: 'user', content: 'Say hi' }])"
+      }
+    ],
+    "types": {
+      "LocalLlmMessage": {
+        "description": "One chat turn, in the shape chat templates expect.",
+        "properties": {
+          "role": {
+            "type": "'system' | 'user' | 'assistant'",
+            "description": ""
+          },
+          "content": {
+            "type": "string",
+            "description": ""
+          }
+        }
+      },
+      "LocalLlmGenerateOptions": {
+        "description": "",
+        "properties": {
+          "onToken": {
+            "type": "(text: string) => void",
+            "description": "Called with each new piece of text as it is decoded.",
+            "optional": true
+          },
+          "maxNewTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sample instead of greedy decoding.",
+            "optional": true
+          },
+          "topK": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "LocalLlmGenerateResult": {
+        "description": "What `generate()` resolves to.",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "tokens": {
+            "type": "number",
+            "description": ""
+          },
+          "tokensPerSecond": {
+            "type": "number",
+            "description": "Decoding speed, warm-up excluded."
+          },
+          "ms": {
+            "type": "number",
+            "description": ""
+          },
+          "interrupted": {
+            "type": "boolean",
+            "description": "True when stop() cut the generation short."
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.network",
     "description": "Tracks browser online/offline connectivity state. Listens for the browser's `online` and `offline` events and keeps the feature state in sync. Other features can observe the `offline` state value or listen for change events to react to connectivity changes.",
     "shortcut": "features.network",
@@ -2907,6 +3758,280 @@ export const introspectionData: Record<string, any>[] = [
     }
   },
   {
+    "id": "features.transcriber",
+    "description": "Speech-to-text in the browser with Whisper through transformers.js. Accepts raw 16kHz samples, an encoded Blob (what MediaRecorder produces), or a URL, decoding with the Web Audio API as needed, and returns plain text with a speed measurement. Pair it with `localLlm` and the `speech` feature for a voice loop that never leaves the page.",
+    "shortcut": "features.transcriber",
+    "className": "Transcriber",
+    "methods": {
+      "load": {
+        "description": "Download (first time) and load the model. Concurrent callers share one in-flight load.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "toSamples": {
+        "description": "Decode any accepted input to 16kHz mono Float32 samples. Blobs and URLs go through an OfflineAudioContext so the browser does the resampling.",
+        "parameters": {
+          "input": {
+            "type": "TranscriberInput",
+            "description": "Parameter input"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<Float32Array>"
+      },
+      "transcribe": {
+        "description": "Transcribe audio to text. Calls load() if needed.",
+        "parameters": {
+          "input": {
+            "type": "TranscriberInput",
+            "description": "Parameter input"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<TranscriberResult>"
+      },
+      "dispose": {
+        "description": "Release the model and return to idle.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "transformers": {
+        "description": "The shared transformers.js loader this feature creates its pipeline through.",
+        "returns": "Transformers"
+      },
+      "device": {
+        "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+        "returns": "'webgpu' | 'wasm'"
+      },
+      "ready": {
+        "description": "True once load() finished and transcribe() can run.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by Transcriber",
+        "arguments": {}
+      },
+      "transcribed": {
+        "name": "transcribed",
+        "description": "Event emitted by Transcriber",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "media-browser",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const transcriber = container.feature('transcriber')\nawait transcriber.load()\nconst recorder = new MediaRecorder(await navigator.mediaDevices.getUserMedia({ audio: true }))\nrecorder.ondataavailable = async (e) => {\n const { text, realtimeFactor } = await transcriber.transcribe(e.data)\n}"
+      }
+    ],
+    "types": {
+      "TranscriberResult": {
+        "description": "What `transcribe()` resolves to.",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": ""
+          },
+          "audioSeconds": {
+            "type": "number",
+            "description": "Seconds of audio that were transcribed."
+          },
+          "ms": {
+            "type": "number",
+            "description": ""
+          },
+          "realtimeFactor": {
+            "type": "number",
+            "description": "Seconds of audio processed per second of wall-clock; above 1 is faster than real time."
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.transformers",
+    "description": "Loads transformers.js (Hugging Face's ONNX inference library for the browser) and hands out pipelines to the other local-inference web features: `embeddings`, `localLlm`, `transcriber`, and `vision`. One instance owns the library import, picks the execution backend (WebGPU or WASM), and turns the library's per-file download callbacks into container state and events, so a UI can show one progress bar no matter which feature is downloading. The library is not bundled into luca: `load()` dynamically imports it from a CDN (override with `moduleURL`, or pass an already imported module via `module`). Model weights come from the Hugging Face hub and are kept in the browser Cache API, so a second visit loads in seconds.",
+    "shortcut": "features.transformers",
+    "className": "Transformers",
+    "methods": {
+      "load": {
+        "description": "Import the library (cached per URL across all instances). Safe to call many times: concurrent callers share one in-flight import.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<TransformersModule>"
+      },
+      "pipeline": {
+        "description": "Create a transformers.js pipeline for a task and model. Download progress for the model's files flows into `state.downloading` / `state.progress` and is emitted as `progress` events. Throws if WebGPU was requested but is unavailable.",
+        "parameters": {
+          "task": {
+            "type": "string",
+            "description": "Parameter task"
+          },
+          "model": {
+            "type": "string",
+            "description": "Parameter model"
+          },
+          "options": {
+            "type": "TransformersPipelineOptions",
+            "description": "Parameter options",
+            "properties": {
+              "device": {
+                "type": "'webgpu' | 'wasm'",
+                "description": ""
+              },
+              "dtype": {
+                "type": "string | Record<string, string>",
+                "description": "Weight precision, or a per-submodel map ({ encoder_model: 'fp32', decoder_model_merged: 'q4' })."
+              },
+              "onProgress": {
+                "type": "(event: TransformersProgressEvent) => void",
+                "description": "Receives every progress message in addition to the feature's `progress` event."
+              }
+            }
+          }
+        },
+        "required": [
+          "task",
+          "model"
+        ],
+        "returns": "Promise<P>"
+      }
+    },
+    "getters": {
+      "device": {
+        "description": "The backend pipelines get unless they ask for another: resolves 'auto' against WebGPU availability.",
+        "returns": "'webgpu' | 'wasm'"
+      },
+      "ready": {
+        "description": "True once the library module is imported.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by Transformers",
+        "arguments": {}
+      },
+      "progress": {
+        "name": "progress",
+        "description": "Event emitted by Transformers",
+        "arguments": {}
+      },
+      "pipelineReady": {
+        "name": "pipelineReady",
+        "description": "Event emitted by Transformers",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "content-nlp",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const transformers = container.feature('transformers')\ntransformers.on('progress', (e) => console.log(e.file, e.progress))\nconst classify = await transformers.pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english')\nawait classify('luca makes local inference easy') // [{ label: 'POSITIVE', score: 0.99 }]"
+      }
+    ],
+    "types": {
+      "TransformersModule": {
+        "description": "The subset of the transformers.js module that the web features call.",
+        "properties": {
+          "TextStreamer": {
+            "type": "new (tokenizer: any, options?: Record<string, unknown>) => any",
+            "description": ""
+          },
+          "InterruptableStoppingCriteria": {
+            "type": "new () => { interrupt(): void; reset(): void }",
+            "description": "",
+            "optional": true
+          },
+          "RawImage": {
+            "type": "{ fromBlob(blob: Blob): Promise<any>; fromURL(url: string): Promise<any> }",
+            "description": "",
+            "optional": true
+          },
+          "env": {
+            "type": "{\n    allowLocalModels?: boolean\n    useBrowserCache?: boolean\n    backends?: { onnx?: { wasm?: { numThreads?: number; proxy?: boolean } } }\n  }",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "TransformersPipelineOptions": {
+        "description": "Options every pipeline-creating method accepts.",
+        "properties": {
+          "device": {
+            "type": "'webgpu' | 'wasm'",
+            "description": "",
+            "optional": true
+          },
+          "dtype": {
+            "type": "string | Record<string, string>",
+            "description": "Weight precision, or a per-submodel map ({ encoder_model: 'fp32', decoder_model_merged: 'q4' }).",
+            "optional": true
+          },
+          "onProgress": {
+            "type": "(event: TransformersProgressEvent) => void",
+            "description": "Receives every progress message in addition to the feature's `progress` event.",
+            "optional": true
+          }
+        }
+      },
+      "TransformersProgressEvent": {
+        "description": "Progress messages transformers.js reports while downloading and loading a model.",
+        "properties": {
+          "status": {
+            "type": "'initiate' | 'download' | 'progress' | 'done' | 'ready' | string",
+            "description": ""
+          },
+          "name": {
+            "type": "string",
+            "description": "Model id the file belongs to.",
+            "optional": true
+          },
+          "file": {
+            "type": "string",
+            "description": "File within the model repo (onnx/model.onnx, tokenizer.json, ...).",
+            "optional": true
+          },
+          "progress": {
+            "type": "number",
+            "description": "Percent complete for this file, 0-100.",
+            "optional": true
+          },
+          "loaded": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "total": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.vault",
     "description": "AES-256-GCM encryption for the browser, with a key the page can use but never read. Keys are WebCrypto `CryptoKey` objects created as non-extractable: page code can encrypt and decrypt with them, but cannot export the raw bytes. Script injected into the page can still decrypt while it runs there, but cannot steal the key. Every vault needs a `vaultId`. The browser already keeps each origin's storage apart; the ID keeps two apps on the same origin apart. There is no default key. Two ways to get a key: - **Device key** (default): created on first `encrypt()` and kept in IndexedDB under the vault ID. It stays on this browser. Good for local data at rest. - **Passphrase**: `unlock(passphrase)` derives the key with PBKDF2, so the same passphrase gives the same key on any device. It is never stored; `lock()` drops it. Payloads use the same single-line format as the node vault (`v1:<fingerprint>:<iv>:<ciphertext>:<tag>`, base64url), so a payload from either side decrypts on the other with the same key. **Never send server secrets (API keys, database passwords) to the browser**, even encrypted. The page must decrypt them to use them, and then the user can read them.",
     "shortcut": "features.vault",
@@ -3028,6 +4153,109 @@ export const introspectionData: Record<string, any>[] = [
         "code": "const vault = container.feature('vault', { vaultId: 'notes-app' })\nconst encrypted = await vault.encrypt('draft text')   // creates the device key on first use\nawait vault.decrypt(encrypted)                         // 'draft text'\n\n// Same key on every device: derive it from a passphrase\nconst synced = container.feature('vault', { vaultId: 'notes-sync' })\nawait synced.unlock('correct horse battery staple')\nconst payload = await synced.encryptJson({ title: 'hello' })\nsynced.lock()"
       }
     ]
+  },
+  {
+    "id": "features.vision",
+    "description": "Zero-shot image classification in the browser with CLIP through transformers.js: give it an image and any list of labels, get a probability per label. No training, no server, and the labels can change per call, so it doubles as a cheap \"is this screenshot showing X\" check for agents.",
+    "shortcut": "features.vision",
+    "className": "Vision",
+    "methods": {
+      "load": {
+        "description": "Download (first time) and load the model. Concurrent callers share one in-flight load.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "classify": {
+        "description": "Score an image against candidate labels. Results are sorted best first. Calls load() if needed.",
+        "parameters": {
+          "image": {
+            "type": "VisionInput",
+            "description": "Parameter image"
+          },
+          "labels": {
+            "type": "string[]",
+            "description": "Parameter labels"
+          }
+        },
+        "required": [
+          "image",
+          "labels"
+        ],
+        "returns": "Promise<VisionResult>"
+      },
+      "dispose": {
+        "description": "Release the model and return to idle.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "transformers": {
+        "description": "The shared transformers.js loader this feature creates its pipeline through.",
+        "returns": "Transformers"
+      },
+      "device": {
+        "description": "The backend this instance will use once loaded: resolves 'auto' against WebGPU availability.",
+        "returns": "'webgpu' | 'wasm'"
+      },
+      "ready": {
+        "description": "True once load() finished and classify() can run.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by Vision",
+        "arguments": {}
+      },
+      "classified": {
+        "name": "classified",
+        "description": "Event emitted by Vision",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "media-browser",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vision = container.feature('vision')\nconst { labels } = await vision.classify(file, ['a cat', 'a dog', 'a terminal window'])\nlabels[0] // { label: 'a terminal window', score: 0.91 }"
+      }
+    ],
+    "types": {
+      "VisionResult": {
+        "description": "What `classify()` resolves to.",
+        "properties": {
+          "labels": {
+            "type": "VisionLabel[]",
+            "description": ""
+          },
+          "ms": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      },
+      "VisionLabel": {
+        "description": "One label with its probability, from `classify()`.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": ""
+          },
+          "score": {
+            "type": "number",
+            "description": "Probability in [0, 1]; the labels of one call sum to 1."
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.vm",

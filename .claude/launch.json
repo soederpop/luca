@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "luca-static",
+      "name": "marketing",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "src/cli/cli.ts", "serve", "--static-dir", ".", "--port", "3747", "--no-open"],
-      "port": 3747
+      "runtimeArgs": ["run", "design/marketing/preview.ts"],
+      "port": 4317,
+      "url": "http://127.0.0.1:4317"
     }
   ]
 }

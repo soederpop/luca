@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151719"/>
+      <stop offset="1" stop-color="#1c1f22"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7baeff"/>
+      <stop offset="0.25" stop-color="#b195ff"/>
+      <stop offset="0.5" stop-color="#f4c773"/>
+      <stop offset="0.75" stop-color="#60d9ca"/>
+      <stop offset="1" stop-color="#ef98c5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="url(#glow)"/>
+
+  <!-- wordmark -->
+  <text x="80" y="118" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" font-weight="500" fill="#f0f1ee">Luca</text>
+  <text x="152" y="118" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" fill="#444a50">/</text>
+  <text x="176" y="118" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="30" fill="#a4a9ad">local</text>
+
+  <!-- headline -->
+  <text font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="66" font-weight="500" fill="#f0f1ee" letter-spacing="-1">
+    <tspan x="80" y="230">AI that runs in the browser.</tspan>
+    <tspan x="80" y="306">No server. Nothing leaves the page.</tspan>
+  </text>
+
+  <text x="80" y="366" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="26" fill="#a4a9ad">Six local-inference demos built on one container. Models run on your GPU.</text>
+
+  <!-- feature chips -->
+  <g font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="21" fill="#f0f1ee">
+    <rect x="80" y="420" width="196" height="54" rx="27" fill="#1c1f22" stroke="#f4c773" stroke-width="2"/>
+    <text x="178" y="454" text-anchor="middle">embeddings</text>
+    <rect x="292" y="420" width="170" height="54" rx="27" fill="#1c1f22" stroke="#b195ff" stroke-width="2"/>
+    <text x="377" y="454" text-anchor="middle">localLlm</text>
+    <rect x="478" y="420" width="196" height="54" rx="27" fill="#1c1f22" stroke="#60d9ca" stroke-width="2"/>
+    <text x="576" y="454" text-anchor="middle">transcriber</text>
+    <rect x="690" y="420" width="140" height="54" rx="27" fill="#1c1f22" stroke="#ef98c5" stroke-width="2"/>
+    <text x="760" y="454" text-anchor="middle">vision</text>
+    <rect x="846" y="420" width="140" height="54" rx="27" fill="#1c1f22" stroke="#7baeff" stroke-width="2"/>
+    <text x="916" y="454" text-anchor="middle">speech</text>
+  </g>
+
+  <!-- footer -->
+  <text x="80" y="560" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#a4a9ad">container.feature('localLlm').chat('hello')</text>
+  <text x="1120" y="560" text-anchor="end" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="22" fill="#444a50">luca-js.soederpop.com/local</text>
+  <text x="1120" y="118" text-anchor="end" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="22" fill="#444a50">WebGPU · transformers.js · TypeScript</text>
+</svg>

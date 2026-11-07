@@ -3,12 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
 import { type ContainerContext } from '../container.js'
 
-/*
- * Local shape of the parts of @huggingface/transformers we touch. The real
- * module is never installed: load() pulls it from a CDN at runtime (same
- * approach as the esbuild web feature), so importing its types would break
- * typechecking on a clean install and in the types we ship to consumers.
- */
+import type { Transformers } from './transformers.js'
 
 export type EmbeddingsDevice = 'auto' | 'webgpu' | 'wasm'
 export type EmbeddingsDtype = 'fp32' | 'fp16' | 'q8' | 'q4'
@@ -23,21 +18,11 @@ export interface EmbeddingsPipeline {
   dispose?: () => Promise<void> | void
 }
 
-/** The subset of the transformers.js module that this feature calls. */
-export interface TransformersModule {
-  pipeline(task: 'feature-extraction', model: string, options?: Record<string, unknown>): Promise<EmbeddingsPipeline>
-  env?: {
-    allowLocalModels?: boolean
-    useBrowserCache?: boolean
-    backends?: { onnx?: { wasm?: { numThreads?: number; proxy?: boolean } } }
-  }
-}
-
 export const EmbeddingsOptionsSchema = FeatureOptionsSchema.extend({
   model: z.string().default('Xenova/all-MiniLM-L6-v2').describe('Hugging Face model id of an ONNX sentence-embedding model (~23MB for the default)'),
   device: z.enum(['auto', 'webgpu', 'wasm']).default('auto').describe("Execution backend. 'auto' picks WebGPU when navigator.gpu exists, else WASM"),
   dtype: z.enum(['fp32', 'fp16', 'q8', 'q4']).optional().describe('Weight precision. Defaults to fp32 on WebGPU and q8 on WASM'),
-  moduleURL: z.string().default('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2').describe('ESM URL the transformers.js module is dynamically imported from'),
+  moduleURL: z.string().optional().describe('Passed through to the transformers feature'),
   transformers: z.any().optional().describe('An already-loaded transformers.js module. Skips the CDN import (used by tests and by apps that bundle the library themselves)'),
 })
 
@@ -81,17 +66,14 @@ export interface EmbeddingsBenchmarkResult {
   iterations: number
 }
 
-/** The transformers module is loaded once per URL and shared by every feature instance. */
-const moduleCache = new Map<string, Promise<TransformersModule>>()
-
 /**
  * Sentence embeddings computed in the browser with transformers.js (ONNX runtime,
  * WebGPU or WASM). Mirrors the shape of the node-side embedding client — an array
  * of texts in, an array of float vectors out — so semantic search over something
  * like the `luca describe` index can run with no server at all.
  *
- * The library is not bundled into luca: `load()` dynamically imports it from a
- * CDN (override with `moduleURL`, or pass an already imported module via
+ * The library itself comes from the `transformers` web feature (loaded from a
+ * CDN at runtime, override with `moduleURL`, or inject a module via
  * `transformers`). The first load downloads model weights; transformers.js
  * stores them in the browser Cache API, so later loads are fast.
  *
@@ -138,6 +120,17 @@ export class Embeddings<
     return typeof navigator !== 'undefined' && !!(navigator as any).gpu
   }
 
+  /** The shared transformers.js loader this feature creates its pipeline through. */
+  get transformers(): Transformers {
+    const opts = this.options as EmbeddingsOptions
+    // Only pass keys that were set, so this resolves to the same cached
+    // instance as a bare container.feature('transformers') call elsewhere.
+    const loaderOptions: Record<string, unknown> = {}
+    if (opts.moduleURL) loaderOptions.moduleURL = opts.moduleURL
+    if (opts.transformers) loaderOptions.module = opts.transformers
+    return this.container.feature('transformers' as any, loaderOptions) as Transformers
+  }
+
   /** True once load() finished and embed() can run. */
   get ready(): boolean {
     return this.state.get('status') === 'ready'
@@ -176,14 +169,7 @@ export class Embeddings<
     this.state.set('status', 'loading')
     const started = now()
     try {
-      const transformers = await this.loadModule()
-      if (transformers.env) {
-        // Weights come from the Hugging Face hub, never a local path, and the
-        // browser Cache API keeps the download from repeating on reload.
-        transformers.env.allowLocalModels = false
-        transformers.env.useBrowserCache = true
-      }
-      this.pipe = await transformers.pipeline('feature-extraction', opts.model, {
+      this.pipe = await this.transformers.pipeline<EmbeddingsPipeline>('feature-extraction', opts.model, {
         device,
         dtype: this.dtype,
       })
@@ -203,21 +189,6 @@ export class Embeddings<
     } catch (error) {
       throw this.fail(error)
     }
-  }
-
-  private loadModule(): Promise<TransformersModule> {
-    const opts = this.options as EmbeddingsOptions
-    if (opts.transformers) return Promise.resolve(opts.transformers as TransformersModule)
-    const url = opts.moduleURL
-    if (!moduleCache.has(url)) {
-      // A non-literal specifier keeps bundlers from trying to resolve the CDN URL at build time.
-      const specifier = url
-      moduleCache.set(url, import(specifier).catch((error) => {
-        moduleCache.delete(url)
-        throw error
-      }))
-    }
-    return moduleCache.get(url)!
   }
 
   private fail(error: unknown): Error {

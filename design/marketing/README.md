@@ -6,7 +6,19 @@ Published at https://luca-js.soederpop.com via the `gh-pages` branch (copy this 
 bun run design/marketing/preview.ts
 ```
 
-Open http://127.0.0.1:4317. No build step, external assets, or rendering libraries are required.
+Open http://127.0.0.1:4317. The landing page needs no build step.
+
+## Local inference demo suite (`local/`)
+
+`local/` is a second URL, https://luca-js.soederpop.com/local/, with its own social card (`og.png`). Six pages show the web container running models in the browser through transformers.js: semantic search over the describe index, chat, Whisper transcription, CLIP zero-shot vision, a voice loop, and a WebGPU vs WASM benchmark. Each page drives one or more web features (`transformers`, `embeddings`, `localLlm`, `transcriber`, `vision`, `speech`) and shows their state and events live in an inspector.
+
+Before previewing or publishing, generate the built parts:
+
+```sh
+bun run design/marketing/local/build.ts
+```
+
+That writes `local/luca.mjs` (the browser bundle, gitignored; copy it to `gh-pages` with the rest of the folder), `local/describe-index.json` (the search corpus, from the same introspection data as `luca describe`), and `local/og.png` (rendered from `og.svg` with resvg). Models download from the Hugging Face hub on first use and stay in the browser's Cache API.
 
 ## Story and conversion
 

@@ -16,6 +16,10 @@ import type { Esbuild } from './features/esbuild.js'
 import type { Helpers } from './features/helpers.js'
 import type { ContainerLink } from './features/container-link.js'
 import type { Embeddings } from './features/embeddings.js'
+import type { Transformers } from './features/transformers.js'
+import type { LocalLlm } from './features/local-llm.js'
+import type { Transcriber } from './features/transcriber.js'
+import type { Vision } from './features/vision.js'
 
 import * as WebContainerExtensions from './extension.js'
 
@@ -31,6 +35,10 @@ export interface WebFeatures extends AvailableFeatures {
   helpers: typeof Helpers
   containerLink: typeof ContainerLink
   embeddings: typeof Embeddings
+  transformers: typeof Transformers
+  localLlm: typeof LocalLlm
+  transcriber: typeof Transcriber
+  vision: typeof Vision
 }
 
 export interface WebContainer extends ClientsInterface {
@@ -42,6 +50,10 @@ export interface WebContainer extends ClientsInterface {
   helpers?: Helpers
   containerLink?: ContainerLink
   embeddings?: Embeddings
+  transformers?: Transformers
+  localLlm?: LocalLlm
+  transcriber?: Transcriber
+  vision?: Vision
 }
 
 export interface WebContainerState extends ContainerState { }
