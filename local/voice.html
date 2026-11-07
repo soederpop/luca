@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>A voice assistant that never leaves your browser — Luca Local</title>
+    <meta name="description" content="Three Luca features composed: Whisper hears, a local model thinks, the speech feature talks. The whole loop runs in the page." />
+    <meta property="og:title" content="A voice assistant that never leaves your browser — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+    <style>
+      .talk { font-size: 1.1rem; padding: 1rem 1.6rem; border-radius: 999px; }
+      .talk.live { background: var(--rose); border-color: var(--rose); color: var(--bg); }
+      .stage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0; }
+      .stage .s { border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: var(--muted); }
+      .stage .s b { display: block; font-family: var(--mono); font-weight: 500; color: var(--white); font-size: 0.8rem; margin-bottom: 0.3rem; }
+      .stage .s.on { border-color: var(--amber); color: var(--white); }
+      .stage .s.done { border-color: var(--green); }
+      @media (max-width: 700px) { .stage { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>Hear. Think. Speak.</h1>
+        <p class="lead">Three features in a row: <code>transcriber</code> turns your voice into text, <code>localLlm</code> writes a reply, and the container's <code>speech</code> feature reads it out. No audio or text leaves this tab.</p>
+        <div class="row">
+          <button id="prepare">Load both models (~290 MB once)</button>
+          <label class="field">Voice <select id="voice"></select></label>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="stage">
+          <div class="s" id="s1"><b>1 · transcriber.transcribe(blob)</b><span id="heard">…</span></div>
+          <div class="s" id="s2"><b>2 · localLlm.chat(text)</b><span id="thought">…</span></div>
+          <div class="s" id="s3"><b>3 · speech.say(reply)</b><span id="spoken">…</span></div>
+        </div>
+        <div class="row" style="justify-content:center;margin:2rem 0">
+          <button id="talk" class="talk primary" data-keep>Hold to talk</button>
+        </div>
+        <p class="hint" style="text-align:center">Hold the button (or the space bar), say something short, release. Whisper tiny is English-only; keep it simple for the 360M model.</p>
+        <div class="messages" id="messages"></div>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      const transcriber = container.feature('transcriber')
+      const llm = container.feature('localLlm', { systemPrompt: 'You are a friendly voice assistant running inside a web browser. Reply in one or two short spoken sentences.', maxNewTokens: 80 })
+      const speech = container.feature('speech')
+      const { status, log, busy } = mount({ features: [transcriber, llm, speech], inspectorNote: 'speech is the browser SpeechSynthesis feature luca already had; the other two are new.' })
+
+      // Voices load async in most browsers.
+      const fillVoices = () => {
+        speech.loadVoices()
+        const voices = speech.voices.filter(v => v.lang.startsWith('en'))
+        $('voice').innerHTML = voices.map(v => `<option value="${v.name}" ${v.name === speech.state.get('defaultVoice') ? 'selected' : ''}>${v.name}</option>`).join('')
+      }
+      fillVoices()
+      speechSynthesis.onvoiceschanged = fillVoices
+      $('voice').onchange = () => speech.setDefaultVoice($('voice').value)
+
+      const stage = (n, state, text) => { const el = $(`s${n}`); el.className = `s ${state}`; if (text !== undefined) el.querySelector('span').textContent = text }
+
+      async function prepare() {
+        status('loading whisper…')
+        await transcriber.load()
+        status('loading language model…')
+        await llm.load()
+        status('both models ready')
+        log(`ready: ${transcriber.state.get('model')} + ${llm.state.get('model')} on ${llm.state.get('device')}`)
+      }
+
+      async function loop(blob) {
+        if (!transcriber.ready || !llm.ready) await prepare()
+        stage(1, 'on', 'listening…'); stage(2, '', '…'); stage(3, '', '…')
+        const heard = await transcriber.transcribe(blob)
+        stage(1, 'done', `"${heard.text}" (${heard.realtimeFactor}× real time)`)
+        if (!heard.text) { status('heard nothing; try again', true); stage(1, '', 'nothing heard'); return }
+        const user = document.createElement('div'); user.className = 'msg user'; user.textContent = heard.text; $('messages').appendChild(user)
+        stage(2, 'on', '')
+        const reply = document.createElement('div'); reply.className = 'msg assistant'; $('messages').appendChild(reply)
+        // Speak sentence by sentence as they stream, so the first words play before the last are decoded.
+        let pending = ''
+        let spokenCount = 0
+        const speak = (text) => { if (text.trim()) { speech.say(text.trim()); spokenCount++; stage(3, 'on', `${spokenCount} sentence${spokenCount > 1 ? 's' : ''} queued`) } }
+        const result = await llm.chat(heard.text, {
+          onToken: (piece) => {
+            reply.textContent += piece
+            pending += piece
+            const m = pending.match(/^(.+?[.!?])\s/)
+            if (m) { speak(m[1]); pending = pending.slice(m[0].length) }
+            stage(2, 'on', `${reply.textContent.length} chars, streaming`)
+          },
+        })
+        speak(pending)
+        reply.textContent = result.text
+        stage(2, 'done', `${result.tokens} tokens at ${result.tokensPerSecond} tok/s`)
+        stage(3, 'done')
+        log(`"${heard.text}" → "${result.text.slice(0, 60)}"`)
+        status('')
+      }
+
+      let recorder, chunks, stream
+      const start = async () => {
+        if (recorder) return
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          chunks = []
+          recorder = new MediaRecorder(stream)
+          recorder.ondataavailable = (e) => chunks.push(e.data)
+          recorder.start()
+          $('talk').classList.add('live'); $('talk').textContent = 'Listening… release to send'
+          speechSynthesis.cancel()
+        } catch (err) { status(`microphone: ${err.message}`, true) }
+      }
+      const stop = () => {
+        if (!recorder) return
+        const r = recorder; recorder = null
+        r.onstop = () => {
+          stream.getTracks().forEach(t => t.stop())
+          $('talk').classList.remove('live'); $('talk').textContent = 'Hold to talk'
+          busy(() => loop(new Blob(chunks, { type: r.mimeType })))
+        }
+        r.stop()
+      }
+      const talk = $('talk')
+      talk.addEventListener('pointerdown', start)
+      talk.addEventListener('pointerup', stop)
+      talk.addEventListener('pointerleave', stop)
+      window.addEventListener('keydown', (e) => { if (e.code === 'Space' && !e.repeat && e.target === document.body) { e.preventDefault(); start() } })
+      window.addEventListener('keyup', (e) => { if (e.code === 'Space') stop() })
+      $('prepare').onclick = () => busy(prepare)
+    </script>
+  </body>
+</html>

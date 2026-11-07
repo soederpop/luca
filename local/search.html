@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Semantic search in the browser — Luca Local</title>
+    <meta name="description" content="Search the luca describe index by meaning, with embeddings computed in your browser on WebGPU." />
+    <meta property="og:title" content="Semantic search in the browser — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>Semantic search over <code>luca describe</code></h1>
+        <p class="lead">Every feature, client, server, and method luca ships, embedded in your browser. Type what you want to do, not what it is called.</p>
+        <div class="row">
+          <input id="query" type="text" value="read a file and watch it for changes" placeholder="what do you want to do?" />
+          <button id="search" class="primary">Search</button>
+        </div>
+        <div class="row">
+          <label class="field">Model
+            <select id="model">
+              <option value="Xenova/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (23 MB)</option>
+              <option value="Xenova/bge-small-en-v1.5">bge-small-en-v1.5 (33 MB)</option>
+            </select>
+          </label>
+          <label class="field">Device
+            <select id="device"><option value="auto">auto</option><option value="webgpu">webgpu</option><option value="wasm">wasm</option></select>
+          </label>
+          <button id="index">Index the corpus</button>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="panel">
+          <h3>Results</h3>
+          <div class="bars" id="hits"><p class="hint">Index the corpus first (one-time embedding of every entry), then search. Searching re-embeds only the query.</p></div>
+        </div>
+        <div class="panel">
+          <h3>What happens</h3>
+          <p class="hint" style="margin:0">
+            <code>describe-index.json</code> is generated from the same introspection data that powers <code>luca describe</code>.
+            <code>embeddings.embed(texts)</code> runs them through MiniLM in batches; vectors stay in memory.
+            A search is one more <code>embed()</code> plus a dot product per entry, so it is instant after indexing.
+          </p>
+        </div>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      let embeddings = container.feature('embeddings')
+      const { status, log, busy, inspect } = mount({ features: [embeddings], inspectorNote: 'dims is the vector length; loadMs includes the first-visit download.' })
+
+      let corpus = []
+      let vectors = []
+      let indexedWith = ''
+
+      async function loadCorpus() {
+        if (corpus.length) return corpus
+        corpus = await (await fetch('describe-index.json')).json()
+        log(`corpus: ${corpus.length} entries from the describe index`)
+        return corpus
+      }
+
+      function current() {
+        const key = `${$('model').value}|${$('device').value}`
+        if (embeddings._key !== key) {
+          embeddings = container.feature('embeddings', { model: $('model').value, device: $('device').value, cached: false })
+          embeddings._key = key
+          inspect([embeddings])
+        }
+        return embeddings
+      }
+
+      async function index() {
+        const emb = current()
+        await loadCorpus()
+        status('loading model…')
+        await emb.load()
+        status(`embedding ${corpus.length} entries on ${emb.state.get('device')}…`)
+        const t0 = performance.now()
+        vectors = []
+        // Name plus description: the id carries most of the signal for short queries.
+        // Small batches keep padding down, since descriptions vary a lot in length.
+        const batch = 16
+        for (let i = 0; i < corpus.length; i += batch) {
+          const slice = corpus.slice(i, i + batch).map(e => `${e.id.replace(/\./g, ' ')}: ${e.text.slice(0, 240)}`)
+          vectors.push(...await emb.embed(slice))
+          status(`embedded ${Math.min(i + batch, corpus.length)} / ${corpus.length}`)
+        }
+        const ms = Math.round(performance.now() - t0)
+        indexedWith = emb._key
+        log(`indexed ${corpus.length} entries in ${ms}ms (${Math.round(corpus.length / ms * 1000)} texts/s) on ${emb.state.get('device')} ${emb.state.get('dtype')}`)
+        status(`indexed in ${ms}ms`)
+      }
+
+      async function search() {
+        const emb = current()
+        if (!vectors.length || indexedWith !== emb._key) await index()
+        const t0 = performance.now()
+        const [q] = await emb.embed($('query').value)
+        const hits = vectors.map((v, i) => ({ i, score: emb.similarity(q, v) })).sort((a, b) => b.score - a.score).slice(0, 8)
+        const ms = Math.round(performance.now() - t0)
+        status(`${ms}ms for query embedding + ${vectors.length} dot products`)
+        $('hits').innerHTML = hits.map(h => `<div class="item"><span class="score">${h.score.toFixed(3)}</span><div><div><code>${corpus[h.i].id}</code> <span class="hint">${corpus[h.i].text.slice(0, 140)}</span></div><div class="track"><div class="bar" style="width:${Math.max(0, h.score) * 100}%"></div></div></div></div>`).join('')
+      }
+
+      $('index').onclick = () => busy(index)
+      $('search').onclick = () => busy(search)
+      $('query').addEventListener('keydown', (e) => { if (e.key === 'Enter') busy(search) })
+      loadCorpus()
+    </script>
+  </body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chat with a model in your browser — Luca Local</title>
+    <meta name="description" content="A small instruct model streaming tokens through the Luca container event bus, on WebGPU, with no server." />
+    <meta property="og:title" content="Chat with a model in your browser — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>Chat, entirely in the page</h1>
+        <p class="lead">A small instruct model decoded on your GPU. Tokens stream through <code>localLlm.on('token')</code>; the conversation lives in <code>localLlm.state.messages</code>.</p>
+        <div class="row">
+          <label class="field">Model
+            <select id="model">
+              <option value="HuggingFaceTB/SmolLM2-360M-Instruct">SmolLM2-360M-Instruct (250 MB, fast)</option>
+              <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct (330 MB)</option>
+              <option value="onnx-community/Qwen2.5-1.5B-Instruct">Qwen2.5-1.5B-Instruct (1 GB, smarter)</option>
+            </select>
+          </label>
+          <label class="field">Device
+            <select id="device"><option value="auto">auto</option><option value="webgpu">webgpu</option><option value="wasm">wasm</option></select>
+          </label>
+          <label class="field">Max tokens <input id="max" type="number" value="256" min="16" max="1024" style="width:90px" /></label>
+          <button id="load">Load model</button>
+          <button id="reset">New conversation</button>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="row">
+          <input id="input" type="text" placeholder="Ask something…" value="Explain what a dependency injection container is, in two sentences." />
+          <button id="send" class="primary">Send</button>
+          <button id="stop" class="danger" data-keep disabled>Stop</button>
+        </div>
+        <p class="hint">Small models are small: expect confident nonsense sometimes. The point is the plumbing, not the IQ. The 1.5B model is noticeably better if you have the bandwidth.</p>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      let llm = container.feature('localLlm')
+      const { status, log, busy, inspect } = mount({ features: [llm], inspectorNote: 'tokensPerSecond is decoding speed after the first token.' })
+
+      function current() {
+        const key = `${$('model').value}|${$('device').value}`
+        if (llm._key !== key) {
+          if (llm._key) llm.dispose?.()
+          llm = container.feature('localLlm', { model: $('model').value, device: $('device').value, cached: false })
+          llm._key = key
+          $('messages').innerHTML = ''
+          inspect([llm])
+        }
+        return llm
+      }
+
+      function addMessage(role, text = '') {
+        const el = document.createElement('div')
+        el.className = `msg ${role}`
+        el.textContent = text
+        $('messages').appendChild(el)
+        el.scrollIntoView({ block: 'nearest' })
+        return el
+      }
+
+      async function load() {
+        const model = current()
+        status(`loading ${$('model').value} on ${model.device} (${model.dtype})…`)
+        const t0 = performance.now()
+        await model.load()
+        log(`ready: ${model.state.get('model')} on ${model.state.get('device')} ${model.state.get('dtype')} in ${Math.round(performance.now() - t0)}ms`)
+        status('ready')
+      }
+
+      async function send() {
+        const text = $('input').value.trim()
+        if (!text) return
+        const model = current()
+        if (!model.ready) await load()
+        $('input').value = ''
+        addMessage('user', text)
+        const el = addMessage('assistant')
+        $('stop').disabled = false
+        status('generating…')
+        const result = await model.chat(text, {
+          maxNewTokens: Number($('max').value),
+          onToken: (piece) => { el.textContent += piece; el.scrollIntoView({ block: 'nearest' }) },
+        })
+        $('stop').disabled = true
+        el.textContent = result.text
+        const meta = document.createElement('span')
+        meta.className = 'meta'
+        meta.textContent = `${result.tokens} tokens · ${result.tokensPerSecond} tok/s · ${result.ms}ms${result.interrupted ? ' · stopped' : ''}`
+        el.appendChild(meta)
+        log(`turn: ${result.tokens} tokens at ${result.tokensPerSecond} tok/s`)
+        status('')
+      }
+
+      $('load').onclick = () => busy(load)
+      $('send').onclick = () => busy(send)
+      $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') busy(send) })
+      $('stop').onclick = () => { current().stop(); log('stop requested') }
+      $('reset').onclick = () => { current().reset(); $('messages').innerHTML = ''; log('conversation reset') }
+    </script>
+  </body>
+</html>

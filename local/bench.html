@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WebGPU vs WASM, on your hardware — Luca Local</title>
+    <meta name="description" content="The same embedding model on both browser backends: load time, warm-up, and texts per second." />
+    <meta property="og:title" content="WebGPU vs WASM, on your hardware — Luca Local" />
+    <meta property="og:image" content="https://luca-js.soederpop.com/local/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="shared.css" />
+    <script type="importmap">{ "imports": { "react": "https://esm.sh/react@19", "react-dom": "https://esm.sh/react-dom@19" } }</script>
+    <style>
+      table.results { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+      .results th, .results td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+      .results th { color: var(--muted); font-weight: 500; }
+      .results .num { text-align: right; font-family: var(--mono); font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <main>
+        <h1>WebGPU vs WASM</h1>
+        <p class="lead">One instance of <code>embeddings</code> per backend, same model, same texts. <code>benchmark()</code> times the load, the first (warm-up) batch, then steady state.</p>
+        <div class="row">
+          <label class="field">Model
+            <select id="model">
+              <option value="Xenova/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (23 MB)</option>
+              <option value="Xenova/bge-small-en-v1.5">bge-small-en-v1.5 (33 MB)</option>
+            </select>
+          </label>
+          <label class="field">Batch <input id="batch" type="number" value="16" min="1" max="256" style="width:80px" /></label>
+          <label class="field">Iterations <input id="iters" type="number" value="5" min="1" max="50" style="width:70px" /></label>
+          <button id="run-both" class="primary">Run both</button>
+          <button id="run-webgpu">WebGPU only</button>
+          <button id="run-wasm">WASM only</button>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="panel">
+          <h3>Results</h3>
+          <table class="results">
+            <thead><tr><th>device</th><th>dtype</th><th class="num">load ms</th><th class="num">first batch ms</th><th class="num">batch ms</th><th class="num">texts / s</th><th style="width:28%"></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p class="hint" style="margin:0.8rem 0 0">Load includes the download on a first visit; reload to see the cached number. The first batch includes shader compilation on WebGPU. Batch ms is the mean over the iterations.</p>
+        </div>
+        <h2>Log</h2>
+        <pre class="log" id="log"></pre>
+      </main>
+      <aside class="inspector"></aside>
+    </div>
+    <script type="module">
+      import { container, mount, webgpu } from './shell.js'
+      const $ = (id) => document.getElementById(id)
+      const gpu = webgpu ? container.feature('embeddings', { device: 'webgpu' }) : null
+      const wasm = container.feature('embeddings', { device: 'wasm' })
+      const { status, log, busy } = mount({ features: [gpu, wasm].filter(Boolean), inspectorNote: 'Two embeddings instances, one per backend, sharing the transformers loader.' })
+      $('run-webgpu').disabled = !webgpu
+      const results = new Map()
+
+      function render() {
+        const rows = [...results.values()]
+        const max = Math.max(...rows.map(r => r.textsPerSecond), 1)
+        $('rows').innerHTML = rows.map(r => `<tr><td>${r.device}</td><td>${r.dtype}</td><td class="num">${r.loadMs}</td><td class="num">${r.firstEmbedMs}</td><td class="num">${r.batchMs}</td><td class="num"><b>${r.textsPerSecond}</b></td><td><div class="bar" style="width:${(r.textsPerSecond / max) * 100}%;background:${r.device === 'wasm' ? 'var(--violet)' : 'var(--blue)'}"></div></td></tr>`).join('')
+      }
+
+      async function bench(device) {
+        const emb = container.feature('embeddings', { device, model: $('model').value })
+        status(`loading ${$('model').value} on ${device}…`)
+        await emb.load()
+        status(`benchmarking ${device}…`)
+        const r = await emb.benchmark({ batchSize: Number($('batch').value), iterations: Number($('iters').value) })
+        results.set(device, r)
+        render()
+        log(`[${device}] ${JSON.stringify(r)}`)
+        status('')
+      }
+
+      $('run-both').onclick = () => busy(async () => { if (webgpu) await bench('webgpu'); await bench('wasm') })
+      $('run-webgpu').onclick = () => busy(() => bench('webgpu'))
+      $('run-wasm').onclick = () => busy(() => bench('wasm'))
+    </script>
+  </body>
+</html>
