@@ -13,7 +13,7 @@ export const TelnyxConnectorStateSchema = FeatureStateSchema.extend({
 export type TelnyxConnectorState = z.infer<typeof TelnyxConnectorStateSchema>
 
 export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
-  assistant: z.any().describe('The Luca assistant instance to bridge to Telnyx'),
+  assistant: z.any().optional().describe('The Luca assistant instance to bridge to Telnyx. Required before dial(); optional at construction so the feature can be configured lazily'),
   port: z.number().default(4567).describe('Port for the local express server'),
   model: z.string().default('meta-llama/Meta-Llama-3.1-70B-Instruct').describe('Telnyx model ID'),
   greeting: z.string().optional().describe('Greeting message for the Telnyx assistant'),

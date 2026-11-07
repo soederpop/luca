@@ -13,7 +13,7 @@ export type VMState = z.infer<typeof VMStateSchema>
 
 export const VMOptionsSchema = FeatureOptionsSchema.extend({
   /** Default context object to inject into the VM execution environment */
-  context: z.any().describe('Default context object to inject into the VM execution environment'),
+  context: z.any().optional().describe('Default context object to inject into the VM execution environment'),
 })
 export type VMOptions = z.infer<typeof VMOptionsSchema>
 

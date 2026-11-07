@@ -4,6 +4,9 @@ import { MCPServerStateSchema, MCPServerOptionsSchema, MCPServerEventsSchema } f
 import { Server } from '../server.js'
 import { Server as MCPProtocolServer } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+
+/** Same ceiling the SDK applies to bodies it reads itself (4 MiB). */
+const MCP_HTTP_MAX_BODY_BYTES = 4 * 1024 * 1024
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -667,7 +670,21 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     // "Server already initialized".
     const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>()
 
-    const httpServer = createServer(async (req, res) => {
+    const httpServer = createServer((req, res) => {
+      handle(req, res).catch((error: any) => {
+        // A rejected handler is an unhandled rejection that kills the process.
+        // Answer the client and keep serving everyone else.
+        console.error(`[mcp http] request failed: ${error?.message ?? error}`)
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
+          res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal error' }, id: null }))
+        } else {
+          res.end()
+        }
+      })
+    })
+
+    const handle = async (req: any, res: any) => {
       if (compat === 'codex') {
         this._normalizeCodexRequest(req)
         this._ensureJSONContentType(res)
@@ -685,13 +702,39 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
         return
       }
 
+      // We read the body ourselves and hand the parsed JSON to the SDK, so the
+      // SDK's own body limit never sees it. Cap it here to the SDK's default and
+      // turn parse failures into a 400: before this, one malformed or oversized
+      // POST threw out of the handler and took the whole process down.
       let body: any
       if (req.method === 'POST') {
         const chunks: Buffer[] = []
+        let size = 0
         for await (const chunk of req) {
+          size += (chunk as Buffer).length
+          if (size > MCP_HTTP_MAX_BODY_BYTES) {
+            res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8', Connection: 'close' })
+            res.end(JSON.stringify({
+              jsonrpc: '2.0',
+              error: { code: -32600, message: `Request body exceeds ${MCP_HTTP_MAX_BODY_BYTES} bytes` },
+              id: null,
+            }))
+            req.destroy()
+            return
+          }
           chunks.push(chunk as Buffer)
         }
-        body = JSON.parse(Buffer.concat(chunks).toString())
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString())
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+          res.end(JSON.stringify({
+            jsonrpc: '2.0',
+            error: { code: -32700, message: 'Parse error: body is not valid JSON' },
+            id: null,
+          }))
+          return
+        }
       }
 
       // Route to existing session if the client sent a session ID.
@@ -731,7 +774,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       const sessionServer = this._createSessionServer()
       await sessionServer.connect(transport)
       await transport.handleRequest(req, res, body)
-    })
+    }
 
     await new Promise<void>((resolve) => {
       httpServer.listen(port, () => resolve())

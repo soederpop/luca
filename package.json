@@ -170,7 +170,7 @@
     "ts-node": "11.0.0-beta.1"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.26.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@noble/ciphers": "^2.2.0",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
@@ -179,7 +179,7 @@
     "@supabase/supabase-js": "2.95.3",
     "@types/marked": "6.0.0",
     "@types/marked-terminal": "6.1.1",
-    "axios": "1.18.0",
+    "axios": "1.21.0",
     "busboy": "1.6.0",
     "cacache": "17.1.4",
     "chalk": "5.4.1",
@@ -194,8 +194,8 @@
     "endent": "2.1.0",
     "excalidraw-to-svg": "3.1.0",
     "express": "4.21.2",
-    "figlet": "1.11.0",
-    "glob": "11.1.0",
+    "figlet": "1.12.0",
+    "glob": "14.0.4",
     "googleapis": "171.4.0",
     "grammy": "1.40.0",
     "imapflow": "^2.0.0",
@@ -206,7 +206,7 @@
     "isomorphic-vm": "0.0.1",
     "isomorphic-ws": "5.0.0",
     "js-tiktoken": "1.0.21",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.2",
     "lodash-es": "4.18.0",
     "mailparser": "^3.9.23",
     "marked": "15.0.12",
@@ -239,7 +239,7 @@
     "wink-eng-lite-web-model": "1.8.1",
     "wink-nlp": "2.4.0",
     "ws": "8.21.0",
-    "zod": "4.3.6"
+    "zod": "4.6.7"
   },
   "optionalDependencies": {},
   "luca": {
