@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.25.0"
+export const typesBundleVersion = "3.25.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -6099,7 +6099,7 @@ export declare const FileToolsOptionsSchema: z.ZodObject<{
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     lockToFolder: z.ZodOptional<z.ZodString>;
-    forbid: z.ZodOptional<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodCustom<RegExp, RegExp>]>>>;
+    forbid: z.ZodOptional<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodInstanceOf<RegExp>]>>>;
 }, z.core.$strip>;
 /**
  * Curated file-system and code-search tools for AI assistants.
@@ -6131,7 +6131,7 @@ export declare class FileTools extends Feature {
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         lockToFolder: z.ZodOptional<z.ZodString>;
-        forbid: z.ZodOptional<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodCustom<RegExp, RegExp>]>>>;
+        forbid: z.ZodOptional<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodInstanceOf<RegExp>]>>>;
     }, z.core.$strip>;
     static tools: Record<string, {
         schema: z.ZodType;
@@ -15891,11 +15891,11 @@ export declare const vm: import("./node").VM<{
     [x: string]: unknown;
     enabled: boolean;
 }, {
-    context: any;
     name?: string | undefined;
     _cacheKey?: string | undefined;
     cached?: boolean | undefined;
     enable?: boolean | undefined;
+    context?: any;
 }>;
 export declare const proc: import("./node").ChildProcess;
 export { servers, features, clients };
@@ -16826,26 +16826,26 @@ import { Collection, Document, type ModelDefinition } from 'contentbase';
 import { z } from 'zod';
 import type { GrepOptions } from './grep.js';
 import type { Helper } from '../../helper.js';
-export declare const ContentDbStateSchema: contentbaseExports.z.ZodObject<{
-    enabled: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
-    tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-    modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-    modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
-}, contentbaseExports.z.core.$loose>;
-export declare const ContentDbOptionsSchema: contentbaseExports.z.ZodObject<{
-    name: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
-    _cacheKey: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
-    cached: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-    enable: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-    rootPath: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-}, contentbaseExports.z.core.$strip>;
+export declare const ContentDbStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    tableOfContents: z.ZodDefault<z.ZodString>;
+    modelSummary: z.ZodDefault<z.ZodString>;
+    modelLoadError: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+}, z.core.$loose>;
+export declare const ContentDbOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    rootPath: z.ZodDefault<z.ZodString>;
+}, z.core.$strip>;
 export type ContentDbState = z.infer<typeof ContentDbStateSchema>;
 export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>;
-export declare const ContentDbEventsSchema: contentbaseExports.z.ZodObject<{
-    stateChange: contentbaseExports.z.ZodTuple<[contentbaseExports.z.ZodAny], null>;
-    enabled: contentbaseExports.z.ZodTuple<[], null>;
-    reloaded: contentbaseExports.z.ZodTuple<[], null>;
-}, contentbaseExports.z.core.$strip>;
+export declare const ContentDbEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    reloaded: z.ZodTuple<[], null>;
+}, z.core.$strip>;
 /**
  * Provides access to a Contentbase Collection for a folder of structured markdown files.
  *
@@ -16865,24 +16865,24 @@ export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions>
     static shortcut: "features.contentDb";
     static stability: "core";
     static category: "data-storage";
-    static stateSchema: contentbaseExports.z.ZodObject<{
-        enabled: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
-        tableOfContents: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-        modelSummary: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-        modelLoadError: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodNullable<contentbaseExports.z.ZodString>>;
-    }, contentbaseExports.z.core.$loose>;
-    static optionsSchema: contentbaseExports.z.ZodObject<{
-        name: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
-        _cacheKey: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodString>;
-        cached: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-        enable: contentbaseExports.z.ZodOptional<contentbaseExports.z.ZodBoolean>;
-        rootPath: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodString>;
-    }, contentbaseExports.z.core.$strip>;
-    static eventsSchema: contentbaseExports.z.ZodObject<{
-        stateChange: contentbaseExports.z.ZodTuple<[contentbaseExports.z.ZodAny], null>;
-        enabled: contentbaseExports.z.ZodTuple<[], null>;
-        reloaded: contentbaseExports.z.ZodTuple<[], null>;
-    }, contentbaseExports.z.core.$strip>;
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        tableOfContents: z.ZodDefault<z.ZodString>;
+        modelSummary: z.ZodDefault<z.ZodString>;
+        modelLoadError: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        rootPath: z.ZodDefault<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        reloaded: z.ZodTuple<[], null>;
+    }, z.core.$strip>;
     /** Tools that any assistant can use to progressively explore this collection. */
     static tools: Record<string, {
         schema: z.ZodType;
@@ -32528,7 +32528,7 @@ export declare const TelnyxConnectorOptionsSchema: z.ZodObject<{
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
-    assistant: z.ZodAny;
+    assistant: z.ZodOptional<z.ZodAny>;
     port: z.ZodDefault<z.ZodNumber>;
     model: z.ZodDefault<z.ZodString>;
     greeting: z.ZodOptional<z.ZodString>;
@@ -32565,7 +32565,7 @@ export declare const TelnyxConnectorEventsSchema: z.ZodObject<{
         port: z.ZodNumber;
     }, z.core.$strip>], null>;
     toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+    toolError: z.ZodTuple<[z.ZodString, z.ZodInstanceOf<Error>], null>;
     toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
     callScreened: z.ZodTuple<[z.ZodString], null>;
     stopped: z.ZodTuple<[], null>;
@@ -32601,7 +32601,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
         _cacheKey: z.ZodOptional<z.ZodString>;
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
-        assistant: z.ZodAny;
+        assistant: z.ZodOptional<z.ZodAny>;
         port: z.ZodDefault<z.ZodNumber>;
         model: z.ZodDefault<z.ZodString>;
         greeting: z.ZodOptional<z.ZodString>;
@@ -32637,7 +32637,7 @@ export declare class TelnyxConnector extends Feature<TelnyxConnectorState, Telny
             port: z.ZodNumber;
         }, z.core.$strip>], null>;
         toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-        toolError: z.ZodTuple<[z.ZodString, z.ZodCustom<Error, Error>], null>;
+        toolError: z.ZodTuple<[z.ZodString, z.ZodInstanceOf<Error>], null>;
         toolDenied: z.ZodTuple<[z.ZodString, z.ZodString], null>;
         callScreened: z.ZodTuple<[z.ZodString], null>;
         stopped: z.ZodTuple<[], null>;
@@ -35383,7 +35383,7 @@ export declare const VMOptionsSchema: z.ZodObject<{
     _cacheKey: z.ZodOptional<z.ZodString>;
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
-    context: z.ZodAny;
+    context: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
 export type VMOptions = z.infer<typeof VMOptionsSchema>;
 /** Per-run options accepted by \`run\`, \`runSync\`, \`perform\`, \`performSync\`, and \`runCaptured\`. */
@@ -35485,7 +35485,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
         _cacheKey: z.ZodOptional<z.ZodString>;
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
-        context: z.ZodAny;
+        context: z.ZodOptional<z.ZodAny>;
     }, z.core.$strip>;
     static tools: Record<string, {
         schema: z.ZodType;
@@ -38502,6 +38502,10 @@ import type { Esbuild } from './features/esbuild.js';
 import type { Helpers } from './features/helpers.js';
 import type { ContainerLink } from './features/container-link.js';
 import type { Embeddings } from './features/embeddings.js';
+import type { Transformers } from './features/transformers.js';
+import type { LocalLlm } from './features/local-llm.js';
+import type { Transcriber } from './features/transcriber.js';
+import type { Vision } from './features/vision.js';
 export { Client, RestClient, SocketClient };
 export interface WebFeatures extends AvailableFeatures {
     assetLoader: typeof AssetLoader;
@@ -38513,6 +38517,10 @@ export interface WebFeatures extends AvailableFeatures {
     helpers: typeof Helpers;
     containerLink: typeof ContainerLink;
     embeddings: typeof Embeddings;
+    transformers: typeof Transformers;
+    localLlm: typeof LocalLlm;
+    transcriber: typeof Transcriber;
+    vision: typeof Vision;
 }
 export interface WebContainer extends ClientsInterface {
     assetLoader?: AssetLoader;
@@ -38523,6 +38531,10 @@ export interface WebContainer extends ClientsInterface {
     helpers?: Helpers;
     containerLink?: ContainerLink;
     embeddings?: Embeddings;
+    transformers?: Transformers;
+    localLlm?: LocalLlm;
+    transcriber?: Transcriber;
+    vision?: Vision;
 }
 export interface WebContainerState extends ContainerState {
 }
@@ -38763,6 +38775,7 @@ export default ContainerLink;
   "web/features/embeddings.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import { type ContainerContext } from '../container.js';
+import type { Transformers } from './transformers.js';
 export type EmbeddingsDevice = 'auto' | 'webgpu' | 'wasm';
 export type EmbeddingsDtype = 'fp32' | 'fp16' | 'q8' | 'q4';
 /** The subset of a transformers.js feature-extraction pipeline that this feature calls. */
@@ -38776,22 +38789,6 @@ export interface EmbeddingsPipeline {
         tolist?: () => number[][];
     }>;
     dispose?: () => Promise<void> | void;
-}
-/** The subset of the transformers.js module that this feature calls. */
-export interface TransformersModule {
-    pipeline(task: 'feature-extraction', model: string, options?: Record<string, unknown>): Promise<EmbeddingsPipeline>;
-    env?: {
-        allowLocalModels?: boolean;
-        useBrowserCache?: boolean;
-        backends?: {
-            onnx?: {
-                wasm?: {
-                    numThreads?: number;
-                    proxy?: boolean;
-                };
-            };
-        };
-    };
 }
 export declare const EmbeddingsOptionsSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -38810,7 +38807,7 @@ export declare const EmbeddingsOptionsSchema: z.ZodObject<{
         q8: "q8";
         q4: "q4";
     }>>;
-    moduleURL: z.ZodDefault<z.ZodString>;
+    moduleURL: z.ZodOptional<z.ZodString>;
     transformers: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
 export declare const EmbeddingsStateSchema: z.ZodObject<{
@@ -38864,8 +38861,8 @@ export interface EmbeddingsBenchmarkResult {
  * of texts in, an array of float vectors out — so semantic search over something
  * like the \`luca describe\` index can run with no server at all.
  *
- * The library is not bundled into luca: \`load()\` dynamically imports it from a
- * CDN (override with \`moduleURL\`, or pass an already imported module via
+ * The library itself comes from the \`transformers\` web feature (loaded from a
+ * CDN at runtime, override with \`moduleURL\`, or inject a module via
  * \`transformers\`). The first load downloads model weights; transformers.js
  * stores them in the browser Cache API, so later loads are fast.
  *
@@ -38923,7 +38920,7 @@ export declare class Embeddings<T extends EmbeddingsState = EmbeddingsState, K e
             q8: "q8";
             q4: "q4";
         }>>;
-        moduleURL: z.ZodDefault<z.ZodString>;
+        moduleURL: z.ZodOptional<z.ZodString>;
         transformers: z.ZodOptional<z.ZodAny>;
     }, z.core.$strip>;
     static shortcut: "features.embeddings";
@@ -38934,6 +38931,8 @@ export declare class Embeddings<T extends EmbeddingsState = EmbeddingsState, K e
     constructor(options: K, context: ContainerContext);
     /** True when the page can use the WebGPU backend (\`navigator.gpu\` exists). */
     static get webgpuAvailable(): boolean;
+    /** The shared transformers.js loader this feature creates its pipeline through. */
+    get transformers(): Transformers;
     /** True once load() finished and embed() can run. */
     get ready(): boolean;
     /** The backend this instance will use once loaded: resolves 'auto' against WebGPU availability. */
@@ -38947,7 +38946,6 @@ export declare class Embeddings<T extends EmbeddingsState = EmbeddingsState, K e
      */
     load(): Promise<this>;
     private doLoad;
-    private loadModule;
     private fail;
     /**
      * Embed one or more texts. Returns one L2-normalized vector per input, in
@@ -39297,6 +39295,189 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
 }
 export default Helpers;
 //# sourceMappingURL=helpers.d.ts.map`,
+  "web/features/local-llm.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { type ContainerContext } from '../container.js';
+import type { Transformers } from './transformers.js';
+/** One chat turn, in the shape chat templates expect. */
+export interface LocalLlmMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
+export interface LocalLlmGenerateOptions {
+    /** Called with each new piece of text as it is decoded. */
+    onToken?: (text: string) => void;
+    maxNewTokens?: number;
+    /** Sample instead of greedy decoding. */
+    temperature?: number;
+    topK?: number;
+}
+/** What \`generate()\` resolves to. */
+export interface LocalLlmGenerateResult {
+    text: string;
+    tokens: number;
+    /** Decoding speed, warm-up excluded. */
+    tokensPerSecond: number;
+    ms: number;
+    /** True when stop() cut the generation short. */
+    interrupted: boolean;
+}
+export declare const LocalLlmOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    model: z.ZodDefault<z.ZodString>;
+    device: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    dtype: z.ZodOptional<z.ZodString>;
+    systemPrompt: z.ZodDefault<z.ZodString>;
+    maxNewTokens: z.ZodDefault<z.ZodNumber>;
+    moduleURL: z.ZodOptional<z.ZodString>;
+    transformers: z.ZodOptional<z.ZodAny>;
+}, z.core.$strip>;
+export declare const LocalLlmStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    status: z.ZodDefault<z.ZodEnum<{
+        error: "error";
+        loading: "loading";
+        ready: "ready";
+        idle: "idle";
+        generating: "generating";
+    }>>;
+    model: z.ZodOptional<z.ZodString>;
+    device: z.ZodOptional<z.ZodEnum<{
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    dtype: z.ZodOptional<z.ZodString>;
+    loadMs: z.ZodOptional<z.ZodNumber>;
+    tokensPerSecond: z.ZodOptional<z.ZodNumber>;
+    messages: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        role: z.ZodEnum<{
+            system: "system";
+            assistant: "assistant";
+            user: "user";
+        }>;
+        content: z.ZodString;
+    }, z.core.$strip>>>;
+    error: z.ZodOptional<z.ZodString>;
+}, z.core.$loose>;
+export type LocalLlmOptions = z.infer<typeof LocalLlmOptionsSchema>;
+export type LocalLlmState = z.infer<typeof LocalLlmStateSchema>;
+/**
+ * A chat model that runs entirely in the browser through transformers.js.
+ * Keeps the conversation in state, streams decoded text through \`onToken\`
+ * and \`token\` events, and can be interrupted mid-generation. Small instruct
+ * models (SmolLM2-360M, Qwen2.5-0.5B) are usable on WebGPU; expect a
+ * 250MB-500MB first download that the browser then caches.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const llm = container.feature('localLlm')
+ * await llm.load()
+ * const reply = await llm.chat('What is a container?', { onToken: (t) => process.stdout.write(t) })
+ * reply.tokensPerSecond // e.g. 40 on an M-series Mac
+ * \`\`\`
+ *
+ * @example
+ * \`\`\`typescript
+ * // One-shot generation with explicit messages, no conversation state
+ * const llm = container.feature('localLlm', { model: 'onnx-community/Qwen2.5-0.5B-Instruct' })
+ * const { text } = await llm.generate([{ role: 'user', content: 'Say hi' }])
+ * \`\`\`
+ */
+export declare class LocalLlm<T extends LocalLlmState = LocalLlmState, K extends LocalLlmOptions = LocalLlmOptions> extends Feature<T, K> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        status: z.ZodDefault<z.ZodEnum<{
+            error: "error";
+            loading: "loading";
+            ready: "ready";
+            idle: "idle";
+            generating: "generating";
+        }>>;
+        model: z.ZodOptional<z.ZodString>;
+        device: z.ZodOptional<z.ZodEnum<{
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        dtype: z.ZodOptional<z.ZodString>;
+        loadMs: z.ZodOptional<z.ZodNumber>;
+        tokensPerSecond: z.ZodOptional<z.ZodNumber>;
+        messages: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            role: z.ZodEnum<{
+                system: "system";
+                assistant: "assistant";
+                user: "user";
+            }>;
+            content: z.ZodString;
+        }, z.core.$strip>>>;
+        error: z.ZodOptional<z.ZodString>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        model: z.ZodDefault<z.ZodString>;
+        device: z.ZodDefault<z.ZodEnum<{
+            auto: "auto";
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        dtype: z.ZodOptional<z.ZodString>;
+        systemPrompt: z.ZodDefault<z.ZodString>;
+        maxNewTokens: z.ZodDefault<z.ZodNumber>;
+        moduleURL: z.ZodOptional<z.ZodString>;
+        transformers: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>;
+    static shortcut: "features.localLlm";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    private pipe?;
+    private loading?;
+    private stopper?;
+    constructor(options: K, context: ContainerContext);
+    /** The shared transformers.js loader this feature creates its pipeline through. */
+    get transformers(): Transformers;
+    /** The backend this instance will use once loaded: resolves 'auto' against WebGPU availability. */
+    get device(): 'webgpu' | 'wasm';
+    /** The weight precision this instance will load: q4f16 on WebGPU, q4 on WASM, unless \`dtype\` was given. */
+    get dtype(): string;
+    /** True once load() finished and generate() can run. */
+    get ready(): boolean;
+    /** The conversation so far, system prompt excluded. */
+    get messages(): LocalLlmMessage[];
+    /**
+     * Download (first time) and load the model. Safe to call many times:
+     * concurrent callers share one in-flight load.
+     */
+    load(): Promise<this>;
+    private doLoad;
+    private fail;
+    /**
+     * Generate a reply to an explicit message list. The system prompt is added
+     * unless the list already starts with one. Does not touch the conversation
+     * in state; use chat() for that.
+     */
+    generate(messages: LocalLlmMessage[], options?: LocalLlmGenerateOptions): Promise<LocalLlmGenerateResult>;
+    /** Append a user turn to the conversation, generate the reply, and store both in state. */
+    chat(content: string, options?: LocalLlmGenerateOptions): Promise<LocalLlmGenerateResult>;
+    /** Interrupt the generation in progress; generate() resolves with what was decoded so far. */
+    stop(): void;
+    /** Forget the conversation. The model stays loaded. */
+    reset(): void;
+    /** Release the model and return to idle. */
+    dispose(): Promise<void>;
+}
+export default LocalLlm;
+//# sourceMappingURL=local-llm.d.ts.map`,
   "web/features/network.d.ts": `import { z } from 'zod';
 import { Feature } from "../feature.js";
 import type { ContainerContext } from "../container.js";
@@ -39441,6 +39622,312 @@ export declare class Speech<T extends SpeechState = SpeechState, K extends Speec
 }
 export default Speech;
 //# sourceMappingURL=speech.d.ts.map`,
+  "web/features/transcriber.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { type ContainerContext } from '../container.js';
+import type { Transformers } from './transformers.js';
+/** Audio the transcriber accepts: raw 16kHz mono samples, encoded audio, or a URL to fetch. */
+export type TranscriberInput = Float32Array | Blob | string;
+/** What \`transcribe()\` resolves to. */
+export interface TranscriberResult {
+    text: string;
+    /** Seconds of audio that were transcribed. */
+    audioSeconds: number;
+    ms: number;
+    /** Seconds of audio processed per second of wall-clock; above 1 is faster than real time. */
+    realtimeFactor: number;
+}
+export declare const TranscriberOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    model: z.ZodDefault<z.ZodString>;
+    device: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    language: z.ZodOptional<z.ZodString>;
+    moduleURL: z.ZodOptional<z.ZodString>;
+    transformers: z.ZodOptional<z.ZodAny>;
+}, z.core.$strip>;
+export declare const TranscriberStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    status: z.ZodDefault<z.ZodEnum<{
+        error: "error";
+        loading: "loading";
+        ready: "ready";
+        idle: "idle";
+        transcribing: "transcribing";
+    }>>;
+    model: z.ZodOptional<z.ZodString>;
+    device: z.ZodOptional<z.ZodEnum<{
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    loadMs: z.ZodOptional<z.ZodNumber>;
+    lastText: z.ZodOptional<z.ZodString>;
+    realtimeFactor: z.ZodOptional<z.ZodNumber>;
+    error: z.ZodOptional<z.ZodString>;
+}, z.core.$loose>;
+export type TranscriberOptions = z.infer<typeof TranscriberOptionsSchema>;
+export type TranscriberState = z.infer<typeof TranscriberStateSchema>;
+/** Whisper's expected input rate. */
+export declare const TRANSCRIBER_SAMPLE_RATE = 16000;
+/**
+ * Speech-to-text in the browser with Whisper through transformers.js. Accepts
+ * raw 16kHz samples, an encoded Blob (what MediaRecorder produces), or a URL,
+ * decoding with the Web Audio API as needed, and returns plain text with a
+ * speed measurement. Pair it with \`localLlm\` and the \`speech\` feature for a
+ * voice loop that never leaves the page.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const transcriber = container.feature('transcriber')
+ * await transcriber.load()
+ * const recorder = new MediaRecorder(await navigator.mediaDevices.getUserMedia({ audio: true }))
+ * recorder.ondataavailable = async (e) => {
+ *   const { text, realtimeFactor } = await transcriber.transcribe(e.data)
+ * }
+ * \`\`\`
+ */
+export declare class Transcriber<T extends TranscriberState = TranscriberState, K extends TranscriberOptions = TranscriberOptions> extends Feature<T, K> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        status: z.ZodDefault<z.ZodEnum<{
+            error: "error";
+            loading: "loading";
+            ready: "ready";
+            idle: "idle";
+            transcribing: "transcribing";
+        }>>;
+        model: z.ZodOptional<z.ZodString>;
+        device: z.ZodOptional<z.ZodEnum<{
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        loadMs: z.ZodOptional<z.ZodNumber>;
+        lastText: z.ZodOptional<z.ZodString>;
+        realtimeFactor: z.ZodOptional<z.ZodNumber>;
+        error: z.ZodOptional<z.ZodString>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        model: z.ZodDefault<z.ZodString>;
+        device: z.ZodDefault<z.ZodEnum<{
+            auto: "auto";
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        language: z.ZodOptional<z.ZodString>;
+        moduleURL: z.ZodOptional<z.ZodString>;
+        transformers: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>;
+    static shortcut: "features.transcriber";
+    static stability: "experimental";
+    static category: "media-browser";
+    private pipe?;
+    private loading?;
+    constructor(options: K, context: ContainerContext);
+    /** The shared transformers.js loader this feature creates its pipeline through. */
+    get transformers(): Transformers;
+    /** The backend this instance will use once loaded: resolves 'auto' against WebGPU availability. */
+    get device(): 'webgpu' | 'wasm';
+    /** True once load() finished and transcribe() can run. */
+    get ready(): boolean;
+    /** Download (first time) and load the model. Concurrent callers share one in-flight load. */
+    load(): Promise<this>;
+    private doLoad;
+    private fail;
+    /**
+     * Decode any accepted input to 16kHz mono Float32 samples. Blobs and URLs go
+     * through an OfflineAudioContext so the browser does the resampling.
+     */
+    toSamples(input: TranscriberInput): Promise<Float32Array>;
+    /** Transcribe audio to text. Calls load() if needed. */
+    transcribe(input: TranscriberInput): Promise<TranscriberResult>;
+    /** Release the model and return to idle. */
+    dispose(): Promise<void>;
+}
+export default Transcriber;
+//# sourceMappingURL=transcriber.d.ts.map`,
+  "web/features/transformers.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { type ContainerContext } from '../container.js';
+export type TransformersDevice = 'auto' | 'webgpu' | 'wasm';
+/** Progress messages transformers.js reports while downloading and loading a model. */
+export interface TransformersProgressEvent {
+    status: 'initiate' | 'download' | 'progress' | 'done' | 'ready' | string;
+    /** Model id the file belongs to. */
+    name?: string;
+    /** File within the model repo (onnx/model.onnx, tokenizer.json, ...). */
+    file?: string;
+    /** Percent complete for this file, 0-100. */
+    progress?: number;
+    loaded?: number;
+    total?: number;
+}
+/** The subset of the transformers.js module that the web features call. */
+export interface TransformersModule {
+    pipeline(task: string, model: string, options?: Record<string, unknown>): Promise<any>;
+    TextStreamer: new (tokenizer: any, options?: Record<string, unknown>) => any;
+    InterruptableStoppingCriteria?: new () => {
+        interrupt(): void;
+        reset(): void;
+    };
+    RawImage?: {
+        fromBlob(blob: Blob): Promise<any>;
+        fromURL(url: string): Promise<any>;
+    };
+    env?: {
+        allowLocalModels?: boolean;
+        useBrowserCache?: boolean;
+        backends?: {
+            onnx?: {
+                wasm?: {
+                    numThreads?: number;
+                    proxy?: boolean;
+                };
+            };
+        };
+    };
+}
+export declare const TransformersOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    moduleURL: z.ZodDefault<z.ZodString>;
+    module: z.ZodOptional<z.ZodAny>;
+    device: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+}, z.core.$strip>;
+export declare const TransformersStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    status: z.ZodDefault<z.ZodEnum<{
+        error: "error";
+        loading: "loading";
+        ready: "ready";
+        idle: "idle";
+    }>>;
+    version: z.ZodOptional<z.ZodString>;
+    device: z.ZodOptional<z.ZodEnum<{
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    downloading: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
+        loaded: z.ZodNumber;
+        total: z.ZodNumber;
+    }, z.core.$strip>>>;
+    progress: z.ZodDefault<z.ZodNumber>;
+    error: z.ZodOptional<z.ZodString>;
+}, z.core.$loose>;
+export type TransformersOptions = z.infer<typeof TransformersOptionsSchema>;
+export type TransformersState = z.infer<typeof TransformersStateSchema>;
+/** Options every pipeline-creating method accepts. */
+export interface TransformersPipelineOptions {
+    device?: 'webgpu' | 'wasm';
+    /** Weight precision, or a per-submodel map ({ encoder_model: 'fp32', decoder_model_merged: 'q4' }). */
+    dtype?: string | Record<string, string>;
+    /** Receives every progress message in addition to the feature's \`progress\` event. */
+    onProgress?: (event: TransformersProgressEvent) => void;
+    [key: string]: unknown;
+}
+/**
+ * Loads transformers.js (Hugging Face's ONNX inference library for the browser)
+ * and hands out pipelines to the other local-inference web features:
+ * \`embeddings\`, \`localLlm\`, \`transcriber\`, and \`vision\`. One instance owns the
+ * library import, picks the execution backend (WebGPU or WASM), and turns the
+ * library's per-file download callbacks into container state and events, so a
+ * UI can show one progress bar no matter which feature is downloading.
+ *
+ * The library is not bundled into luca: \`load()\` dynamically imports it from a
+ * CDN (override with \`moduleURL\`, or pass an already imported module via
+ * \`module\`). Model weights come from the Hugging Face hub and are kept in the
+ * browser Cache API, so a second visit loads in seconds.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const transformers = container.feature('transformers')
+ * transformers.on('progress', (e) => console.log(e.file, e.progress))
+ * const classify = await transformers.pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english')
+ * await classify('luca makes local inference easy') // [{ label: 'POSITIVE', score: 0.99 }]
+ * \`\`\`
+ */
+export declare class Transformers<T extends TransformersState = TransformersState, K extends TransformersOptions = TransformersOptions> extends Feature<T, K> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        status: z.ZodDefault<z.ZodEnum<{
+            error: "error";
+            loading: "loading";
+            ready: "ready";
+            idle: "idle";
+        }>>;
+        version: z.ZodOptional<z.ZodString>;
+        device: z.ZodOptional<z.ZodEnum<{
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        downloading: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
+            loaded: z.ZodNumber;
+            total: z.ZodNumber;
+        }, z.core.$strip>>>;
+        progress: z.ZodDefault<z.ZodNumber>;
+        error: z.ZodOptional<z.ZodString>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        moduleURL: z.ZodDefault<z.ZodString>;
+        module: z.ZodOptional<z.ZodAny>;
+        device: z.ZodDefault<z.ZodEnum<{
+            auto: "auto";
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+    }, z.core.$strip>;
+    static shortcut: "features.transformers";
+    static stability: "experimental";
+    static category: "content-nlp";
+    private module?;
+    private loading?;
+    constructor(options: K, context: ContainerContext);
+    /** True when the page can use the WebGPU backend (\`navigator.gpu\` exists). */
+    static get webgpuAvailable(): boolean;
+    /** The backend pipelines get unless they ask for another: resolves 'auto' against WebGPU availability. */
+    get device(): 'webgpu' | 'wasm';
+    /** True once the library module is imported. */
+    get ready(): boolean;
+    /**
+     * Import the library (cached per URL across all instances). Safe to call many
+     * times: concurrent callers share one in-flight import.
+     */
+    load(): Promise<TransformersModule>;
+    private doLoad;
+    /**
+     * Create a transformers.js pipeline for a task and model. Download progress
+     * for the model's files flows into \`state.downloading\` / \`state.progress\`
+     * and is emitted as \`progress\` events. Throws if WebGPU was requested but
+     * is unavailable.
+     */
+    pipeline<P = any>(task: string, model: string, options?: TransformersPipelineOptions): Promise<P>;
+    private trackProgress;
+}
+export default Transformers;
+//# sourceMappingURL=transformers.d.ts.map`,
   "web/features/vault.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 export declare const WebVaultStateSchema: z.ZodObject<{
@@ -39619,6 +40106,130 @@ export declare class WebVault extends Feature<WebVaultState, WebVaultOptions> {
 }
 export default WebVault;
 //# sourceMappingURL=vault.d.ts.map`,
+  "web/features/vision.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { type ContainerContext } from '../container.js';
+import type { Transformers } from './transformers.js';
+/** An image the vision feature accepts: a URL (http, blob, or data) or a Blob/File. */
+export type VisionInput = string | Blob;
+/** One label with its probability, from \`classify()\`. */
+export interface VisionLabel {
+    label: string;
+    /** Probability in [0, 1]; the labels of one call sum to 1. */
+    score: number;
+}
+/** What \`classify()\` resolves to. */
+export interface VisionResult {
+    labels: VisionLabel[];
+    ms: number;
+}
+export declare const VisionOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    model: z.ZodDefault<z.ZodString>;
+    device: z.ZodDefault<z.ZodEnum<{
+        auto: "auto";
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    template: z.ZodDefault<z.ZodString>;
+    moduleURL: z.ZodOptional<z.ZodString>;
+    transformers: z.ZodOptional<z.ZodAny>;
+}, z.core.$strip>;
+export declare const VisionStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    status: z.ZodDefault<z.ZodEnum<{
+        error: "error";
+        loading: "loading";
+        ready: "ready";
+        idle: "idle";
+        classifying: "classifying";
+    }>>;
+    model: z.ZodOptional<z.ZodString>;
+    device: z.ZodOptional<z.ZodEnum<{
+        webgpu: "webgpu";
+        wasm: "wasm";
+    }>>;
+    loadMs: z.ZodOptional<z.ZodNumber>;
+    lastMs: z.ZodOptional<z.ZodNumber>;
+    error: z.ZodOptional<z.ZodString>;
+}, z.core.$loose>;
+export type VisionOptions = z.infer<typeof VisionOptionsSchema>;
+export type VisionState = z.infer<typeof VisionStateSchema>;
+/**
+ * Zero-shot image classification in the browser with CLIP through
+ * transformers.js: give it an image and any list of labels, get a probability
+ * per label. No training, no server, and the labels can change per call, so
+ * it doubles as a cheap "is this screenshot showing X" check for agents.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * const vision = container.feature('vision')
+ * const { labels } = await vision.classify(file, ['a cat', 'a dog', 'a terminal window'])
+ * labels[0] // { label: 'a terminal window', score: 0.91 }
+ * \`\`\`
+ */
+export declare class Vision<T extends VisionState = VisionState, K extends VisionOptions = VisionOptions> extends Feature<T, K> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        status: z.ZodDefault<z.ZodEnum<{
+            error: "error";
+            loading: "loading";
+            ready: "ready";
+            idle: "idle";
+            classifying: "classifying";
+        }>>;
+        model: z.ZodOptional<z.ZodString>;
+        device: z.ZodOptional<z.ZodEnum<{
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        loadMs: z.ZodOptional<z.ZodNumber>;
+        lastMs: z.ZodOptional<z.ZodNumber>;
+        error: z.ZodOptional<z.ZodString>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        model: z.ZodDefault<z.ZodString>;
+        device: z.ZodDefault<z.ZodEnum<{
+            auto: "auto";
+            webgpu: "webgpu";
+            wasm: "wasm";
+        }>>;
+        template: z.ZodDefault<z.ZodString>;
+        moduleURL: z.ZodOptional<z.ZodString>;
+        transformers: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>;
+    static shortcut: "features.vision";
+    static stability: "experimental";
+    static category: "media-browser";
+    private pipe?;
+    private loading?;
+    constructor(options: K, context: ContainerContext);
+    /** The shared transformers.js loader this feature creates its pipeline through. */
+    get transformers(): Transformers;
+    /** The backend this instance will use once loaded: resolves 'auto' against WebGPU availability. */
+    get device(): 'webgpu' | 'wasm';
+    /** True once load() finished and classify() can run. */
+    get ready(): boolean;
+    /** Download (first time) and load the model. Concurrent callers share one in-flight load. */
+    load(): Promise<this>;
+    private doLoad;
+    private fail;
+    /** Score an image against candidate labels. Results are sorted best first. Calls load() if needed. */
+    classify(image: VisionInput, labels: string[]): Promise<VisionResult>;
+    /** Release the model and return to idle. */
+    dispose(): Promise<void>;
+}
+export default Vision;
+//# sourceMappingURL=vision.d.ts.map`,
   "web/features/vm.d.ts": `import { z } from 'zod';
 import { Feature } from "../feature.js";
 export declare const VMStateSchema: z.ZodObject<{
@@ -39789,10 +40400,11 @@ export declare const shim: VM;
 declare const _default: VM;
 export default _default;
 //# sourceMappingURL=isomorphic-vm.d.ts.map`,
+  "deps/zod/compile.d.ts": `export {};
+`,
   "deps/zod/index.d.ts": `import * as z from "./v4/classic/external.js";
 export * from "./v4/classic/external.js";
-export { z };
-export default z;
+export { z, z as default };
 `,
   "deps/zod/locales/index.d.ts": `export * from "../v4/locales/index.js";
 `,
@@ -39812,13 +40424,13 @@ export type typeToFlattenedError<T, U = string> = {
     };
 };
 export declare const ZodIssueCode: {
-    custom: "custom";
     invalid_type: "invalid_type";
     too_big: "too_big";
     too_small: "too_small";
     not_multiple_of: "not_multiple_of";
     unrecognized_keys: "unrecognized_keys";
     invalid_union: "invalid_union";
+    custom: "custom";
     invalid_literal: "invalid_literal";
     invalid_union_discriminator: "invalid_union_discriminator";
     invalid_enum_value: "invalid_enum_value";
@@ -41325,7 +41937,7 @@ export declare const NEVER: never;
 export * from "../v4/mini/external.js";
 export { z };
 `,
-  "deps/zod/v4/classic/checks.d.ts": `export { _lt as lt, _lte as lte, _gt as gt, _gte as gte, _positive as positive, _negative as negative, _nonpositive as nonpositive, _nonnegative as nonnegative, _multipleOf as multipleOf, _maxSize as maxSize, _minSize as minSize, _size as size, _maxLength as maxLength, _minLength as minLength, _length as length, _regex as regex, _lowercase as lowercase, _uppercase as uppercase, _includes as includes, _startsWith as startsWith, _endsWith as endsWith, _property as property, _mime as mime, _overwrite as overwrite, _normalize as normalize, _trim as trim, _toLowerCase as toLowerCase, _toUpperCase as toUpperCase, _slugify as slugify, type $RefinementCtx as RefinementCtx, } from "../core/index.js";
+  "deps/zod/v4/classic/checks.d.ts": `export { _lt as lt, _lte as lte, _gt as gt, _gte as gte, _positive as positive, _negative as negative, _nonpositive as nonpositive, _nonnegative as nonnegative, _multipleOf as multipleOf, _maxSize as maxSize, _minSize as minSize, _size as size, _maxLength as maxLength, _minLength as minLength, _length as length, _regex as regex, _lowercase as lowercase, _uppercase as uppercase, _includes as includes, _startsWith as startsWith, _endsWith as endsWith, _property as property, _properties as properties, _mime as mime, _overwrite as overwrite, _normalize as normalize, _trim as trim, _toLowerCase as toLowerCase, _toUpperCase as toUpperCase, _slugify as slugify, type $RefinementCtx as RefinementCtx, } from "../core/index.js";
 `,
   "deps/zod/v4/classic/coerce.d.ts": `import * as core from "../core/index.js";
 import * as schemas from "./schemas.js";
@@ -41347,13 +41959,12 @@ export declare function date<T = unknown>(params?: string | core.$ZodDateParams)
 `,
   "deps/zod/v4/classic/compat.d.ts": `import * as core from "../core/index.js";
 import type { ZodType } from "./schemas.js";
-export type { 
 /** @deprecated Use \`z.output<T>\` instead. */
-output as TypeOf, 
+export type TypeOf<T> = core.output<T>;
 /** @deprecated Use \`z.output<T>\` instead. */
-output as Infer, 
-/** @deprecated Use \`z.core.$$ZodFirstPartyTypes\` instead */
-$ZodTypes as ZodFirstPartySchemaTypes, } from "../core/index.js";
+export type Infer<T> = core.output<T>;
+/** @deprecated Use \`z.core.$ZodTypes\` instead */
+export type ZodFirstPartySchemaTypes = core.$ZodTypes;
 /** @deprecated Use the raw string literal codes instead, e.g. "invalid_type". */
 export declare const ZodIssueCode: {
     readonly invalid_type: "invalid_type";
@@ -41368,9 +41979,9 @@ export declare const ZodIssueCode: {
     readonly invalid_value: "invalid_value";
     readonly custom: "custom";
 };
-/** @deprecated Use \`z.$ZodFlattenedError\` */
+/** @deprecated Use \`z.core.$ZodFlattenedError<z.output<T>>\` instead; it takes an inferred type, not a schema. */
 export type inferFlattenedErrors<T extends core.$ZodType, U = string> = core.$ZodFlattenedError<core.output<T>, U>;
-/** @deprecated Use \`z.$ZodFormattedError\` */
+/** @deprecated Use \`z.core.$ZodFormattedError<z.output<T>>\` instead; it takes an inferred type, not a schema. */
 export type inferFormattedError<T extends core.$ZodType<any, any>, U = string> = core.$ZodFormattedError<core.output<T>, U>;
 /** Use \`z.$brand\` instead */
 export type BRAND<T extends string | number | symbol = string | number | symbol> = {
@@ -41383,18 +41994,32 @@ export { $brand, config } from "../core/index.js";
 export declare function setErrorMap(map: core.$ZodErrorMap): void;
 /** @deprecated Use \`z.config()\` instead. */
 export declare function getErrorMap(): core.$ZodErrorMap<core.$ZodIssue> | undefined;
-export type { 
 /** @deprecated Use z.ZodType (without generics) instead. */
-ZodType as ZodTypeAny, 
+export type ZodTypeAny<Output = unknown, Input = unknown, Internals extends core.$ZodTypeInternals<Output, Input> = core.$ZodTypeInternals<Output, Input>> = ZodType<Output, Input, Internals>;
 /** @deprecated Use \`z.ZodType\` */
-ZodType as ZodSchema, 
+export type ZodSchema<Output = unknown, Input = unknown, Internals extends core.$ZodTypeInternals<Output, Input> = core.$ZodTypeInternals<Output, Input>> = ZodType<Output, Input, Internals>;
 /** @deprecated Use \`z.ZodType\` */
-ZodType as Schema, };
+export type Schema<Output = unknown, Input = unknown, Internals extends core.$ZodTypeInternals<Output, Input> = core.$ZodTypeInternals<Output, Input>> = ZodType<Output, Input, Internals>;
 /** Included for Zod 3 compatibility */
 export type ZodRawShape = core.$ZodShape;
 /** @deprecated Do not use. Stub definition, only included for zod-to-json-schema compatibility. */
 export declare enum ZodFirstPartyTypeKind {
 }
+`,
+  "deps/zod/v4/classic/deep-partial.d.ts": `import type * as core from "../core/index.js";
+import * as schemas from "./schemas.js";
+/** Distributes \`.partial()\` through every object in a schema type, preserving the wrappers around them. */
+export type DeepPartial<T extends core.SomeType> = T extends schemas.ZodObject<infer Shape, infer Config> ? schemas.ZodObject<{
+    -readonly [K in keyof Shape]: schemas.ZodOptional<DeepPartial<Shape[K]>>;
+}, Config> : T extends schemas.ZodDiscriminatedUnion<infer Options, any> ? schemas.ZodUnion<{
+    -readonly [I in keyof Options]: Options[I] extends core.SomeType ? DeepPartial<Options[I]> : Options[I];
+}> : T extends schemas.ZodUnion<infer Options> ? schemas.ZodUnion<{
+    -readonly [I in keyof Options]: Options[I] extends core.SomeType ? DeepPartial<Options[I]> : Options[I];
+}> : T extends schemas.ZodArray<infer El> ? schemas.ZodArray<DeepPartial<El>> : T extends schemas.ZodTuple<infer Items, infer Rest> ? schemas.ZodTuple<{
+    -readonly [K in keyof Items]: Items[K] extends core.SomeType ? DeepPartial<Items[K]> : Items[K];
+}, Rest extends core.SomeType ? DeepPartial<Rest> : Rest> : T extends schemas.ZodIntersection<infer A, infer B> ? schemas.ZodIntersection<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodRecord<infer K, infer V> ? schemas.ZodRecord<K, DeepPartial<V>> : T extends schemas.ZodMap<infer K, infer V> ? schemas.ZodMap<K, DeepPartial<V>> : T extends schemas.ZodSet<infer El> ? schemas.ZodSet<DeepPartial<El>> : T extends schemas.ZodOptional<infer Inner> ? schemas.ZodOptional<DeepPartial<Inner>> : T extends schemas.ZodNullable<infer Inner> ? schemas.ZodNullable<DeepPartial<Inner>> : T extends schemas.ZodDefault<infer Inner> ? schemas.ZodDefault<DeepPartial<Inner>> : T extends schemas.ZodPrefault<infer Inner> ? schemas.ZodPrefault<DeepPartial<Inner>> : T extends schemas.ZodNonOptional<infer Inner> ? schemas.ZodNonOptional<DeepPartial<Inner>> : T extends schemas.ZodCatch<infer Inner> ? schemas.ZodCatch<DeepPartial<Inner>> : T extends schemas.ZodReadonly<infer Inner> ? schemas.ZodReadonly<DeepPartial<Inner>> : T extends schemas.ZodSuccess<infer Inner> ? schemas.ZodSuccess<DeepPartial<Inner>> : T extends schemas.ZodPromise<infer Inner> ? schemas.ZodPromise<DeepPartial<Inner>> : T extends schemas.ZodCodec<infer A, infer B> ? schemas.ZodCodec<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodPreprocess<infer B> ? schemas.ZodPreprocess<DeepPartial<B>> : T extends schemas.ZodPipe<infer A, infer B> ? schemas.ZodPipe<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodLazy<infer Inner> ? schemas.ZodLazy<DeepPartial<Inner>> : T;
+/** Returns a copy of the schema with every nested object's properties made optional. */
+export declare function deepPartial<T extends core.SomeType>(schema: T): DeepPartial<T>;
 `,
   "deps/zod/v4/classic/errors.d.ts": `import * as core from "../core/index.js";
 import { $ZodError } from "../core/index.js";
@@ -41417,13 +42042,12 @@ export interface ZodError<T = unknown> extends $ZodError<T> {
 }
 export declare const ZodError: core.$constructor<ZodError>;
 export declare const ZodRealError: core.$constructor<ZodError>;
-export type { 
 /** @deprecated Use \`z.core.$ZodFlattenedError\` instead. */
-$ZodFlattenedError as ZodFlattenedError, 
+export type ZodFlattenedError<T, U = string> = core.$ZodFlattenedError<T, U>;
 /** @deprecated Use \`z.core.$ZodFormattedError\` instead. */
-$ZodFormattedError as ZodFormattedError, 
+export type ZodFormattedError<T, U = string> = core.$ZodFormattedError<T, U>;
 /** @deprecated Use \`z.core.$ZodErrorMap\` instead. */
-$ZodErrorMap as ZodErrorMap, } from "../core/index.js";
+export type ZodErrorMap<T extends core.$ZodIssueBase = core.$ZodIssue> = core.$ZodErrorMap<T>;
 /** @deprecated Use \`z.core.$ZodRawIssue\` instead. */
 export type IssueData = core.$ZodRawIssue;
 `,
@@ -41433,10 +42057,14 @@ export * from "./checks.js";
 export * from "./errors.js";
 export * from "./parse.js";
 export * from "./compat.js";
-export type { infer, output, input } from "../core/index.js";
-export { globalRegistry, type GlobalMeta, registry, config, $output, $input, $brand, clone, regexes, treeifyError, prettifyError, formatError, flattenError, TimePrecision, util, NEVER, } from "../core/index.js";
+export type { infer } from "../core/index.js";
+export type { JSONType } from "../core/util.js";
+export type { CompileOptions } from "../core/index.js";
+export { globalRegistry, type GlobalMeta, registry, config, memoizer, $output, $input, $brand, clone, regexes, treeifyError, prettifyError, formatError, flattenError, TimePrecision, util, NEVER, INVALID, toZod, compile, withParser, ZodCompileAsyncError, ZodCompileUnsupportedError, getDiscriminatedOption, } from "../core/index.js";
 export { toJSONSchema } from "../core/json-schema-processors.js";
 export { fromJSONSchema } from "./from-json-schema.js";
+export { deepPartial } from "./deep-partial.js";
+export { input, output } from "./in-out.js";
 export * as locales from "../locales/index.js";
 export { ZodISODateTime, ZodISODate, ZodISOTime, ZodISODuration } from "./iso.js";
 export * as iso from "./iso.js";
@@ -41456,32 +42084,25 @@ interface FromJSONSchemaParams {
 export declare function fromJSONSchema(schema: JSONSchema.JSONSchema | boolean, params?: FromJSONSchemaParams): ZodType;
 export {};
 `,
+  "deps/zod/v4/classic/in-out.d.ts": `import type * as core from "../core/index.js";
+import * as schemas from "./schemas.js";
+export type input<T> = core.input<T>;
+export type output<T> = core.output<T>;
+/** Returns a copy of the schema with every pipe replaced by its input side. A codec's checks are dropped: they constrain the decoded value the input side never produces. */
+export declare function input<T extends core.$ZodType>(schema: T): schemas.ZodType<core.input<T>, core.input<T>>;
+/** Returns a copy of the schema with every pipe replaced by its output side, carrying over the pipe's own checks. */
+export declare function output<T extends core.$ZodType>(schema: T): schemas.ZodType<core.output<T>, core.output<T>>;
+`,
   "deps/zod/v4/classic/index.d.ts": `import * as z from "./external.js";
-export { z };
 export * from "./external.js";
-export default z;
+export { z, z as default };
 `,
   "deps/zod/v4/classic/iso.d.ts": `import * as core from "../core/index.js";
-import * as schemas from "./schemas.js";
-export interface ZodISODateTime extends schemas.ZodStringFormat {
-    _zod: core.$ZodISODateTimeInternals;
-}
-export declare const ZodISODateTime: core.$constructor<ZodISODateTime>;
+import { ZodISODate, ZodISODateTime, ZodISODuration, ZodISOTime } from "./schemas.js";
+export { ZodISODate, ZodISODateTime, ZodISODuration, ZodISOTime } from "./schemas.js";
 export declare function datetime(params?: string | core.$ZodISODateTimeParams): ZodISODateTime;
-export interface ZodISODate extends schemas.ZodStringFormat {
-    _zod: core.$ZodISODateInternals;
-}
-export declare const ZodISODate: core.$constructor<ZodISODate>;
 export declare function date(params?: string | core.$ZodISODateParams): ZodISODate;
-export interface ZodISOTime extends schemas.ZodStringFormat {
-    _zod: core.$ZodISOTimeInternals;
-}
-export declare const ZodISOTime: core.$constructor<ZodISOTime>;
 export declare function time(params?: string | core.$ZodISOTimeParams): ZodISOTime;
-export interface ZodISODuration extends schemas.ZodStringFormat {
-    _zod: core.$ZodISODurationInternals;
-}
-export declare const ZodISODuration: core.$constructor<ZodISODuration>;
 export declare function duration(params?: string | core.$ZodISODurationParams): ZodISODuration;
 `,
   "deps/zod/v4/classic/parse.d.ts": `import * as core from "../core/index.js";
@@ -41507,17 +42128,31 @@ export declare const parseAsync: <T extends core.$ZodType>(schema: T, value: unk
 }) => Promise<core.output<T>>;
 export declare const safeParse: <T extends core.$ZodType>(schema: T, value: unknown, _ctx?: core.ParseContext<core.$ZodIssue>) => ZodSafeParseResult<core.output<T>>;
 export declare const safeParseAsync: <T extends core.$ZodType>(schema: T, value: unknown, _ctx?: core.ParseContext<core.$ZodIssue>) => Promise<ZodSafeParseResult<core.output<T>>>;
-export declare const encode: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => core.input<T>;
-export declare const decode: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => core.output<T>;
-export declare const encodeAsync: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => Promise<core.input<T>>;
-export declare const decodeAsync: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => Promise<core.output<T>>;
+export { validate, validateAsync } from "../core/index.js";
+export declare const encode: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>, _params?: {
+    callee?: core.util.AnyFunc;
+    Err?: core.$ZodErrorClass;
+}) => core.input<T>;
+export declare const decode: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>, _params?: {
+    callee?: core.util.AnyFunc;
+    Err?: core.$ZodErrorClass;
+}) => core.output<T>;
+export declare const encodeAsync: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>, _params?: {
+    callee?: core.util.AnyFunc;
+    Err?: core.$ZodErrorClass;
+}) => Promise<core.input<T>>;
+export declare const decodeAsync: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>, _params?: {
+    callee?: core.util.AnyFunc;
+    Err?: core.$ZodErrorClass;
+}) => Promise<core.output<T>>;
 export declare const safeEncode: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => ZodSafeParseResult<core.input<T>>;
 export declare const safeDecode: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => ZodSafeParseResult<core.output<T>>;
 export declare const safeEncodeAsync: <T extends core.$ZodType>(schema: T, value: core.output<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => Promise<ZodSafeParseResult<core.input<T>>>;
 export declare const safeDecodeAsync: <T extends core.$ZodType>(schema: T, value: core.input<T>, _ctx?: core.ParseContext<core.$ZodIssue>) => Promise<ZodSafeParseResult<core.output<T>>>;
 `,
-  "deps/zod/v4/classic/schemas.d.ts": `import * as core from "../core/index.js";
-import { util } from "../core/index.js";
+  "deps/zod/v4/classic/schemas.d.ts": `import type { $ZodBigIntFormats } from "../core/checks.js";
+import * as core from "../core/index.js";
+import { util, type $ZodNumberFormats } from "../core/index.js";
 import type { StandardSchemaWithJSONProps } from "../core/standard-schema.js";
 import * as parse from "./parse.js";
 export type ZodStandardSchemaWithJSON<T> = StandardSchemaWithJSONProps<core.input<T>, core.output<T>>;
@@ -41545,6 +42180,8 @@ export interface ZodType<out Output = unknown, out Input = unknown, out Internal
     parseAsync(data: unknown, params?: core.ParseContext<core.$ZodIssue>): Promise<core.output<this>>;
     safeParseAsync(data: unknown, params?: core.ParseContext<core.$ZodIssue>): Promise<parse.ZodSafeParseResult<core.output<this>>>;
     spa: (data: unknown, params?: core.ParseContext<core.$ZodIssue>) => Promise<parse.ZodSafeParseResult<core.output<this>>>;
+    validate(data: unknown, params?: core.ParseContext<core.$ZodIssue>): data is core.input<this>;
+    validateAsync(data: unknown, params?: core.ParseContext<core.$ZodIssue>): Promise<boolean>;
     encode(data: core.output<this>, params?: core.ParseContext<core.$ZodIssue>): core.input<this>;
     decode(data: core.input<this>, params?: core.ParseContext<core.$ZodIssue>): core.output<this>;
     encodeAsync(data: core.output<this>, params?: core.ParseContext<core.$ZodIssue>): Promise<core.input<this>>;
@@ -41554,7 +42191,7 @@ export interface ZodType<out Output = unknown, out Input = unknown, out Internal
     safeEncodeAsync(data: core.output<this>, params?: core.ParseContext<core.$ZodIssue>): Promise<parse.ZodSafeParseResult<core.input<this>>>;
     safeDecodeAsync(data: core.input<this>, params?: core.ParseContext<core.$ZodIssue>): Promise<parse.ZodSafeParseResult<core.output<this>>>;
     refine<Ch extends (arg: core.output<this>) => unknown | Promise<unknown>>(check: Ch, params?: string | core.$ZodCustomParams): Ch extends (arg: any) => arg is infer R ? this & ZodType<R, core.input<this>> : this;
-    superRefine(refinement: (arg: core.output<this>, ctx: core.$RefinementCtx<core.output<this>>) => void | Promise<void>): this;
+    superRefine(refinement: (arg: core.output<this>, ctx: core.$RefinementCtx<core.output<this>>) => void | Promise<void>, params?: core.$ZodSuperRefineParams): this;
     overwrite(fn: (x: core.output<this>) => core.output<this>): this;
     optional(): ZodOptional<this>;
     exactOptional(): ZodExactOptional<this>;
@@ -41597,7 +42234,7 @@ export interface ZodType<out Output = unknown, out Input = unknown, out Internal
      * \`\`\`
      */
     isNullable(): boolean;
-    apply<T>(fn: (schema: this) => T): T;
+    apply<T, TArgs extends unknown[] = []>(fn: (schema: this, ...args: TArgs) => T, ...args: TArgs): T;
 }
 export interface _ZodType<out Internals extends core.$ZodTypeInternals = core.$ZodTypeInternals> extends ZodType<any, any, Internals> {
 }
@@ -41647,7 +42284,11 @@ export interface ZodString extends _ZodString<core.$ZodStringInternals<string>> 
     nanoid(params?: string | core.$ZodCheckNanoIDParams): this;
     /** @deprecated Use \`z.guid()\` instead. */
     guid(params?: string | core.$ZodCheckGUIDParams): this;
-    /** @deprecated Use \`z.cuid()\` instead. */
+    /**
+     * @deprecated CUID v1 is deprecated by its authors due to information leakage
+     * (timestamps embedded in the id). Use \`z.cuid2()\` instead.
+     * See https://github.com/paralleldrive/cuid.
+     */
     cuid(params?: string | core.$ZodCheckCUIDParams): this;
     /** @deprecated Use \`z.cuid2()\` instead. */
     cuid2(params?: string | core.$ZodCheckCUID2Params): this;
@@ -41686,6 +42327,22 @@ export declare function string<T extends string>(params?: string | core.$ZodStri
 export interface ZodStringFormat<Format extends string = string> extends _ZodString<core.$ZodStringFormatInternals<Format>> {
 }
 export declare const ZodStringFormat: core.$constructor<ZodStringFormat>;
+export interface ZodISODateTime extends ZodStringFormat {
+    _zod: core.$ZodISODateTimeInternals;
+}
+export declare const ZodISODateTime: core.$constructor<ZodISODateTime>;
+export interface ZodISODate extends ZodStringFormat {
+    _zod: core.$ZodISODateInternals;
+}
+export declare const ZodISODate: core.$constructor<ZodISODate>;
+export interface ZodISOTime extends ZodStringFormat {
+    _zod: core.$ZodISOTimeInternals;
+}
+export declare const ZodISOTime: core.$constructor<ZodISOTime>;
+export interface ZodISODuration extends ZodStringFormat {
+    _zod: core.$ZodISODurationInternals;
+}
+export declare const ZodISODuration: core.$constructor<ZodISODuration>;
 export interface ZodEmail extends ZodStringFormat<"email"> {
     _zod: core.$ZodEmailInternals;
 }
@@ -41720,10 +42377,27 @@ export interface ZodNanoID extends ZodStringFormat<"nanoid"> {
 }
 export declare const ZodNanoID: core.$constructor<ZodNanoID>;
 export declare function nanoid(params?: string | core.$ZodNanoIDParams): ZodNanoID;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export interface ZodCUID extends ZodStringFormat<"cuid"> {
     _zod: core.$ZodCUIDInternals;
 }
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare const ZodCUID: core.$constructor<ZodCUID>;
+/**
+ * Validates a CUID v1 string.
+ *
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link cuid2 | \`z.cuid2()\`} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare function cuid(params?: string | core.$ZodCUIDParams): ZodCUID;
 export interface ZodCUID2 extends ZodStringFormat<"cuid2"> {
     _zod: core.$ZodCUID2Internals;
@@ -41785,6 +42459,16 @@ export interface ZodE164 extends ZodStringFormat<"e164"> {
 }
 export declare const ZodE164: core.$constructor<ZodE164>;
 export declare function e164(params?: string | core.$ZodE164Params): ZodE164;
+export interface ZodCreditCard extends ZodStringFormat<"credit_card"> {
+    _zod: core.$ZodCreditCardInternals;
+}
+export declare const ZodCreditCard: core.$constructor<ZodCreditCard>;
+export declare function creditCard(params?: string | core.$ZodCreditCardParams): ZodCreditCard;
+export interface ZodIBAN extends ZodStringFormat<"iban"> {
+    _zod: core.$ZodIBANInternals;
+}
+export declare const ZodIBAN: core.$constructor<ZodIBAN>;
+export declare function iban(params?: string | core.$ZodIBANParams): ZodIBAN;
 export interface ZodJWT extends ZodStringFormat<"jwt"> {
     _zod: core.$ZodJWTInternals;
 }
@@ -41798,6 +42482,7 @@ export declare const ZodCustomStringFormat: core.$constructor<ZodCustomStringFor
 export declare function stringFormat<Format extends string>(format: Format, fnOrRegex: ((arg: string) => util.MaybeAsync<unknown>) | RegExp, _params?: string | core.$ZodStringFormatParams): ZodCustomStringFormat<Format>;
 export declare function hostname(_params?: string | core.$ZodStringFormatParams): ZodCustomStringFormat<"hostname">;
 export declare function hex(_params?: string | core.$ZodStringFormatParams): ZodCustomStringFormat<"hex">;
+export declare function currencyCode(_params?: string | core.$ZodStringFormatParams): ZodCustomStringFormat<"currency_code">;
 export declare function hash<Alg extends util.HashAlgorithm, Enc extends util.HashEncoding = "hex">(alg: Alg, params?: {
     enc?: Enc;
 } & core.$ZodStringFormatParams): ZodCustomStringFormat<\`\${Alg}_\${Enc}\`>;
@@ -41835,23 +42520,23 @@ export interface ZodNumber extends _ZodNumber<core.$ZodNumberInternals<number>> 
 }
 export declare const ZodNumber: core.$constructor<ZodNumber>;
 export declare function number(params?: string | core.$ZodNumberParams): ZodNumber;
-export interface ZodNumberFormat extends ZodNumber {
-    _zod: core.$ZodNumberFormatInternals;
+export interface ZodNumberFormat<Format extends $ZodNumberFormats = $ZodNumberFormats> extends ZodNumber {
+    _zod: core.$ZodNumberFormatInternals<Format>;
 }
 export declare const ZodNumberFormat: core.$constructor<ZodNumberFormat>;
-export interface ZodInt extends ZodNumberFormat {
+export interface ZodInt extends ZodNumberFormat<"safeint"> {
 }
 export declare function int(params?: string | core.$ZodCheckNumberFormatParams): ZodInt;
-export interface ZodFloat32 extends ZodNumberFormat {
+export interface ZodFloat32 extends ZodNumberFormat<"float32"> {
 }
 export declare function float32(params?: string | core.$ZodCheckNumberFormatParams): ZodFloat32;
-export interface ZodFloat64 extends ZodNumberFormat {
+export interface ZodFloat64 extends ZodNumberFormat<"float64"> {
 }
 export declare function float64(params?: string | core.$ZodCheckNumberFormatParams): ZodFloat64;
-export interface ZodInt32 extends ZodNumberFormat {
+export interface ZodInt32 extends ZodNumberFormat<"int32"> {
 }
 export declare function int32(params?: string | core.$ZodCheckNumberFormatParams): ZodInt32;
-export interface ZodUInt32 extends ZodNumberFormat {
+export interface ZodUInt32 extends ZodNumberFormat<"uint32"> {
 }
 export declare function uint32(params?: string | core.$ZodCheckNumberFormatParams): ZodUInt32;
 export interface _ZodBoolean<T extends core.$ZodBooleanInternals = core.$ZodBooleanInternals> extends _ZodType<T> {
@@ -41882,12 +42567,16 @@ export interface ZodBigInt extends _ZodBigInt<core.$ZodBigIntInternals<bigint>> 
 }
 export declare const ZodBigInt: core.$constructor<ZodBigInt>;
 export declare function bigint(params?: string | core.$ZodBigIntParams): ZodBigInt;
-export interface ZodBigIntFormat extends ZodBigInt {
-    _zod: core.$ZodBigIntFormatInternals;
+export interface ZodBigIntFormat<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends ZodBigInt {
+    _zod: core.$ZodBigIntFormatInternals<Format>;
 }
 export declare const ZodBigIntFormat: core.$constructor<ZodBigIntFormat>;
-export declare function int64(params?: string | core.$ZodBigIntFormatParams): ZodBigIntFormat;
-export declare function uint64(params?: string | core.$ZodBigIntFormatParams): ZodBigIntFormat;
+export interface ZodInt64 extends ZodBigIntFormat<"int64"> {
+}
+export declare function int64(params?: string | core.$ZodBigIntFormatParams): ZodInt64;
+export interface ZodUInt64 extends ZodBigIntFormat<"uint64"> {
+}
+export declare function uint64(params?: string | core.$ZodBigIntFormatParams): ZodUInt64;
 export interface ZodSymbol extends _ZodType<core.$ZodSymbolInternals> {
 }
 export declare const ZodSymbol: core.$constructor<ZodSymbol>;
@@ -41962,8 +42651,8 @@ out Shape extends core.$ZodShape = core.$ZodLooseShape, out Config extends core.
     strict(): ZodObject<Shape, core.$strict>;
     /** This is the default behavior. This method call is likely unnecessary. */
     strip(): ZodObject<Shape, core.$strip>;
-    extend<U extends core.$ZodLooseShape>(shape: U): ZodObject<util.Extend<Shape, U>, Config>;
-    safeExtend<U extends core.$ZodLooseShape>(shape: SafeExtendShape<Shape, U> & Partial<Record<keyof Shape, core.SomeType>>): ZodObject<util.Extend<Shape, U>, Config>;
+    extend<U extends core.$ZodLooseShape>(shape: U): ZodObject<util.Extend<Shape, util.Writeable<U>>, Config>;
+    safeExtend<U extends core.$ZodLooseShape>(shape: SafeExtendShape<Shape, U> & Partial<Record<keyof Shape, core.SomeType>>): ZodObject<util.Extend<Shape, util.Writeable<U>>, Config>;
     /**
      * @deprecated Use [\`A.extend(B.shape)\`](https://zod.dev/api?id=extend) instead.
      */
@@ -41971,22 +42660,28 @@ out Shape extends core.$ZodShape = core.$ZodLooseShape, out Config extends core.
     pick<M extends util.Mask<keyof Shape>>(mask: M & Record<Exclude<keyof M, keyof Shape>, never>): ZodObject<util.Flatten<Pick<Shape, Extract<keyof Shape, keyof M>>>, Config>;
     omit<M extends util.Mask<keyof Shape>>(mask: M & Record<Exclude<keyof M, keyof Shape>, never>): ZodObject<util.Flatten<Omit<Shape, Extract<keyof Shape, keyof M>>>, Config>;
     partial(): ZodObject<{
-        [k in keyof Shape]: ZodOptional<Shape[k]>;
+        -readonly [k in keyof Shape]: ZodOptional<Shape[k]>;
     }, Config>;
     partial<M extends util.Mask<keyof Shape>>(mask: M & Record<Exclude<keyof M, keyof Shape>, never>): ZodObject<{
-        [k in keyof Shape]: k extends keyof M ? ZodOptional<Shape[k]> : Shape[k];
+        -readonly [k in keyof Shape]: k extends keyof M ? ZodOptional<Shape[k]> : Shape[k];
+    }, Config>;
+    exactPartial(): ZodObject<{
+        -readonly [k in keyof Shape]: ZodExactOptional<Shape[k]>;
+    }, Config>;
+    exactPartial<M extends util.Mask<keyof Shape>>(mask: M & Record<Exclude<keyof M, keyof Shape>, never>): ZodObject<{
+        -readonly [k in keyof Shape]: k extends keyof M ? ZodExactOptional<Shape[k]> : Shape[k];
     }, Config>;
     required(): ZodObject<{
-        [k in keyof Shape]: ZodNonOptional<Shape[k]>;
+        -readonly [k in keyof Shape]: ZodNonOptional<Shape[k]>;
     }, Config>;
     required<M extends util.Mask<keyof Shape>>(mask: M & Record<Exclude<keyof M, keyof Shape>, never>): ZodObject<{
-        [k in keyof Shape]: k extends keyof M ? ZodNonOptional<Shape[k]> : Shape[k];
+        -readonly [k in keyof Shape]: k extends keyof M ? ZodNonOptional<Shape[k]> : Shape[k];
     }, Config>;
 }
 export declare const ZodObject: core.$constructor<ZodObject>;
 export declare function object<T extends core.$ZodLooseShape = Partial<Record<never, core.SomeType>>>(shape?: T, params?: string | core.$ZodObjectParams): ZodObject<util.Writeable<T>, core.$strip>;
-export declare function strictObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodObject<T, core.$strict>;
-export declare function looseObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodObject<T, core.$loose>;
+export declare function strictObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodObject<util.Writeable<T>, core.$strict>;
+export declare function looseObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodObject<util.Writeable<T>, core.$loose>;
 export interface ZodUnion<T extends readonly core.SomeType[] = readonly core.$ZodType[]> extends _ZodType<core.$ZodUnionInternals<T>>, core.$ZodUnion<T> {
     "~standard": ZodStandardSchemaWithJSON<this>;
     options: T;
@@ -42017,6 +42712,9 @@ export declare function intersection<T extends core.SomeType, U extends core.Som
 export interface ZodTuple<T extends util.TupleItems = readonly core.$ZodType[], Rest extends core.SomeType | null = core.$ZodType | null> extends _ZodType<core.$ZodTupleInternals<T, Rest>>, core.$ZodTuple<T, Rest> {
     "~standard": ZodStandardSchemaWithJSON<this>;
     rest<Rest extends core.SomeType = core.$ZodType>(rest: Rest): ZodTuple<T, Rest>;
+    partial(): ZodTuple<{
+        -readonly [k in keyof T]: ZodOptional<T[k]>;
+    }, Rest>;
 }
 export declare const ZodTuple: core.$constructor<ZodTuple>;
 export declare function tuple<T extends readonly [core.SomeType, ...core.SomeType[]]>(items: T, params?: string | core.$ZodTupleParams): ZodTuple<T, null>;
@@ -42093,7 +42791,7 @@ export interface ZodTransform<O = unknown, I = unknown> extends _ZodType<core.$Z
     "~standard": ZodStandardSchemaWithJSON<this>;
 }
 export declare const ZodTransform: core.$constructor<ZodTransform>;
-export declare function transform<I = unknown, O = I>(fn: (input: I, ctx: core.ParsePayload) => O): ZodTransform<Awaited<O>, I>;
+export declare function transform<I = unknown, O = I>(fn: (input: I, ctx: core.$RefinementCtx) => O): ZodTransform<Awaited<O>, I>;
 export interface ZodOptional<T extends core.SomeType = core.$ZodType> extends _ZodType<core.$ZodOptionalInternals<T>>, core.$ZodOptional<T> {
     "~standard": ZodStandardSchemaWithJSON<this>;
     unwrap(): T;
@@ -42170,6 +42868,13 @@ export declare function codec<const A extends core.SomeType, B extends core.Some
     decode: (value: core.output<A>, payload: core.ParsePayload<core.output<A>>) => core.util.MaybeAsync<core.input<B>>;
     encode: (value: core.input<B>, payload: core.ParsePayload<core.input<B>>) => core.util.MaybeAsync<core.output<A>>;
 }): ZodCodec<A, B>;
+export declare function invertCodec<A extends core.SomeType, B extends core.SomeType>(codec: ZodCodec<A, B>): ZodCodec<B, A>;
+export interface ZodPreprocess<B extends core.SomeType = core.$ZodType, I = unknown> extends ZodPipe<core.$ZodTransform<unknown, I>, B>, core.$ZodPreprocess<B, I> {
+    "~standard": ZodStandardSchemaWithJSON<this>;
+    _zod: core.$ZodPreprocessInternals<B, I>;
+    def: core.$ZodPreprocessDef<B, I>;
+}
+export declare const ZodPreprocess: core.$constructor<ZodPreprocess>;
 export interface ZodReadonly<T extends core.SomeType = core.$ZodType> extends _ZodType<core.$ZodReadonlyInternals<T>>, core.$ZodReadonly<T> {
     "~standard": ZodStandardSchemaWithJSON<this>;
     unwrap(): T;
@@ -42230,11 +42935,17 @@ export declare const ZodCustom: core.$constructor<ZodCustom>;
 export declare function check<O = unknown>(fn: core.CheckFn<O>): core.$ZodCheck<O>;
 export declare function custom<O>(fn?: (data: unknown) => unknown, _params?: string | core.$ZodCustomParams | undefined): ZodCustom<O, O>;
 export declare function refine<T>(fn: (arg: NoInfer<T>) => util.MaybeAsync<unknown>, _params?: string | core.$ZodCustomParams): core.$ZodCheck<T>;
-export declare function superRefine<T>(fn: (arg: T, payload: core.$RefinementCtx<T>) => void | Promise<void>): core.$ZodCheck<T>;
+export declare function superRefine<T>(fn: (arg: T, payload: core.$RefinementCtx<T>) => void | Promise<void>, params?: core.$ZodSuperRefineParams): core.$ZodCheck<T>;
 export declare const describe: typeof core.describe;
 export declare const meta: typeof core.meta;
 type ZodInstanceOfParams = core.Params<ZodCustom, core.$ZodIssueCustom, "type" | "check" | "checks" | "fn" | "abort" | "error" | "params" | "path">;
-declare function _instanceof<T extends typeof util.Class>(cls: T, params?: ZodInstanceOfParams): ZodCustom<InstanceType<T>, InstanceType<T>>;
+export interface ZodInstanceOf<T = unknown> extends ZodCustom<T, T> {
+    properties<Shape extends {
+        [k in keyof T as T[k] extends Function ? never : k]?: core.$ZodType<unknown, T[k]>;
+    }>(shape: Shape, params?: string | core.$ZodCheckPropertiesParams): ZodInstanceOf<T & core.$InferObjectInput<Shape, {}>>;
+}
+export declare const ZodInstanceOf: core.$constructor<ZodInstanceOf>;
+declare function _instanceof<T extends typeof util.Class>(cls: T, params?: ZodInstanceOfParams): ZodInstanceOf<InstanceType<T>>;
 export { _instanceof as instanceof };
 export declare const stringbool: (_params?: string | core.$ZodStringBoolParams) => ZodCodec<ZodString, ZodBoolean>;
 type _ZodJSONSchema = ZodUnion<[
@@ -42254,7 +42965,7 @@ export interface ZodJSONSchema extends _ZodJSONSchema {
     _zod: ZodJSONSchemaInternals;
 }
 export declare function json(params?: string | core.$ZodCustomParams): ZodJSONSchema;
-export declare function preprocess<A, U extends core.SomeType, B = unknown>(fn: (arg: B, ctx: core.$RefinementCtx) => A, schema: U): ZodPipe<ZodTransform<A, B>, U>;
+export declare function preprocess<A, U extends core.SomeType, B = unknown>(fn: (arg: B, ctx: core.$RefinementCtx) => A, schema: U): ZodPreprocess<U, B>;
 `,
   "deps/zod/v4/core/api.d.ts": `import * as checks from "./checks.js";
 import type * as core from "./core.js";
@@ -42275,7 +42986,9 @@ AlsoOmit extends Exclude<keyof T["_zod"]["def"], "check" | "error"> = never> = P
 export type StringFormatParams<T extends schemas.$ZodStringFormat = schemas.$ZodStringFormat, AlsoOmit extends Exclude<keyof T["_zod"]["def"], "type" | "coerce" | "checks" | "error" | "check" | "format"> = never> = Params<T, NonNullable<T["_zod"]["isst"] | T["_zod"]["issc"]>, "type" | "coerce" | "checks" | "error" | "check" | "format" | AlsoOmit>;
 export type CheckStringFormatParams<T extends schemas.$ZodStringFormat = schemas.$ZodStringFormat, AlsoOmit extends Exclude<keyof T["_zod"]["def"], "type" | "coerce" | "checks" | "error" | "check" | "format"> = never> = Params<T, NonNullable<T["_zod"]["issc"]>, "type" | "coerce" | "checks" | "error" | "check" | "format" | AlsoOmit>;
 export type CheckTypeParams<T extends schemas.$ZodType & checks.$ZodCheck = schemas.$ZodType & checks.$ZodCheck, AlsoOmit extends Exclude<keyof T["_zod"]["def"], "type" | "checks" | "error" | "check"> = never> = Params<T, NonNullable<T["_zod"]["isst"] | T["_zod"]["issc"]>, "type" | "checks" | "error" | "check" | AlsoOmit>;
-export type $ZodStringParams = TypeParams<schemas.$ZodString<string>, "coerce">;
+export type $ZodStringParams = TypeParams<schemas.$ZodString<string>, "coerce"> & {
+    checks?: readonly checks.$ZodCheck<string>[];
+};
 export declare function _string<T extends schemas.$ZodString>(Class: util.SchemaClass<T>, params?: string | $ZodStringParams): T;
 export declare function _coercedString<T extends schemas.$ZodString>(Class: util.SchemaClass<T>, params?: string | $ZodStringParams): T;
 export type $ZodStringFormatParams = CheckTypeParams<schemas.$ZodStringFormat, "format" | "coerce" | "when" | "pattern">;
@@ -42304,11 +43017,26 @@ export declare function _url<T extends schemas.$ZodURL>(Class: util.SchemaClass<
 export type $ZodEmojiParams = StringFormatParams<schemas.$ZodEmoji, "when">;
 export type $ZodCheckEmojiParams = CheckStringFormatParams<schemas.$ZodEmoji, "when">;
 export declare function _emoji<T extends schemas.$ZodEmoji>(Class: util.SchemaClass<T>, params?: string | $ZodEmojiParams | $ZodCheckEmojiParams): T;
-export type $ZodNanoIDParams = StringFormatParams<schemas.$ZodNanoID, "when">;
-export type $ZodCheckNanoIDParams = CheckStringFormatParams<schemas.$ZodNanoID, "when">;
+export type $ZodNanoIDParams = StringFormatParams<schemas.$ZodNanoID, "when" | "pattern">;
+export type $ZodCheckNanoIDParams = CheckStringFormatParams<schemas.$ZodNanoID, "when" | "pattern">;
 export declare function _nanoid<T extends schemas.$ZodNanoID>(Class: util.SchemaClass<T>, params?: string | $ZodNanoIDParams | $ZodCheckNanoIDParams): T;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link _cuid2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export type $ZodCUIDParams = StringFormatParams<schemas.$ZodCUID, "when">;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link _cuid2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export type $ZodCheckCUIDParams = CheckStringFormatParams<schemas.$ZodCUID, "when">;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link _cuid2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare function _cuid<T extends schemas.$ZodCUID>(Class: util.SchemaClass<T>, params?: string | $ZodCUIDParams | $ZodCheckCUIDParams): T;
 export type $ZodCUID2Params = StringFormatParams<schemas.$ZodCUID2, "when">;
 export type $ZodCheckCUID2Params = CheckStringFormatParams<schemas.$ZodCUID2, "when">;
@@ -42346,6 +43074,12 @@ export declare function _base64url<T extends schemas.$ZodBase64URL>(Class: util.
 export type $ZodE164Params = StringFormatParams<schemas.$ZodE164, "when">;
 export type $ZodCheckE164Params = CheckStringFormatParams<schemas.$ZodE164, "when">;
 export declare function _e164<T extends schemas.$ZodE164>(Class: util.SchemaClass<T>, params?: string | $ZodE164Params | $ZodCheckE164Params): T;
+export type $ZodCreditCardParams = StringFormatParams<schemas.$ZodCreditCard, "pattern" | "when">;
+export type $ZodCheckCreditCardParams = CheckStringFormatParams<schemas.$ZodCreditCard, "pattern" | "when">;
+export declare function _creditCard<T extends schemas.$ZodCreditCard>(Class: util.SchemaClass<T>, params?: string | $ZodCreditCardParams | $ZodCheckCreditCardParams): T;
+export type $ZodIBANParams = StringFormatParams<schemas.$ZodIBAN, "pattern" | "when">;
+export type $ZodCheckIBANParams = CheckStringFormatParams<schemas.$ZodIBAN, "pattern" | "when">;
+export declare function _iban<T extends schemas.$ZodIBAN>(Class: util.SchemaClass<T>, params?: string | $ZodIBANParams | $ZodCheckIBANParams): T;
 export type $ZodJWTParams = StringFormatParams<schemas.$ZodJWT, "pattern" | "when">;
 export type $ZodCheckJWTParams = CheckStringFormatParams<schemas.$ZodJWT, "pattern" | "when">;
 export declare function _jwt<T extends schemas.$ZodJWT>(Class: util.SchemaClass<T>, params?: string | $ZodJWTParams | $ZodCheckJWTParams): T;
@@ -42368,7 +43102,9 @@ export declare function _isoTime<T extends schemas.$ZodISOTime>(Class: util.Sche
 export type $ZodISODurationParams = StringFormatParams<schemas.$ZodISODuration, "when">;
 export type $ZodCheckISODurationParams = CheckStringFormatParams<schemas.$ZodISODuration, "when">;
 export declare function _isoDuration<T extends schemas.$ZodISODuration>(Class: util.SchemaClass<T>, params?: string | $ZodISODurationParams | $ZodCheckISODurationParams): T;
-export type $ZodNumberParams = TypeParams<schemas.$ZodNumber<number>, "coerce">;
+export type $ZodNumberParams = TypeParams<schemas.$ZodNumber<number>, "coerce"> & {
+    checks?: readonly checks.$ZodCheck<number>[];
+};
 export type $ZodNumberFormatParams = CheckTypeParams<schemas.$ZodNumberFormat, "format" | "coerce">;
 export type $ZodCheckNumberFormatParams = CheckParams<checks.$ZodCheckNumberFormat, "format" | "when">;
 export declare function _number<T extends schemas.$ZodNumber>(Class: util.SchemaClass<T>, params?: string | $ZodNumberParams): T;
@@ -42451,8 +43187,10 @@ export type $ZodCheckEndsWithParams = CheckParams<checks.$ZodCheckEndsWith, "suf
 export declare function _endsWith(suffix: string, params?: string | $ZodCheckEndsWithParams): checks.$ZodCheckEndsWith;
 export type $ZodCheckPropertyParams = CheckParams<checks.$ZodCheckProperty, "property" | "schema" | "when">;
 export declare function _property<K extends string, T extends schemas.$ZodType>(property: K, schema: T, params?: string | $ZodCheckPropertyParams): checks.$ZodCheckProperty<{
-    [k in K]: core.output<T>;
+    [k in K]: util.Widen<core.input<T>>;
 }>;
+export type $ZodCheckPropertiesParams = CheckParams<checks.$ZodCheckProperties, "shape" | "when">;
+export declare function _properties<Shape extends schemas.$ZodShape>(shape: Shape, params?: string | $ZodCheckPropertiesParams): checks.$ZodCheckProperties<Shape>;
 export type $ZodCheckMimeTypeParams = CheckParams<checks.$ZodCheckMimeType, "mime" | "when">;
 export declare function _mime(types: util.MimeTypes[], params?: string | $ZodCheckMimeTypeParams): checks.$ZodCheckMimeType;
 export declare function _overwrite<T>(tx: (input: T) => T): checks.$ZodCheckOverwrite<T>;
@@ -42468,10 +43206,10 @@ export type $ZodUnionParams = TypeParams<schemas.$ZodUnion, "options">;
 export declare function _union<const T extends readonly schemas.$ZodObject[]>(Class: util.SchemaClass<schemas.$ZodUnion>, options: T, params?: string | $ZodUnionParams): schemas.$ZodUnion<T>;
 export type $ZodXorParams = TypeParams<schemas.$ZodXor, "options">;
 export declare function _xor<const T extends readonly schemas.$ZodObject[]>(Class: util.SchemaClass<schemas.$ZodXor>, options: T, params?: string | $ZodXorParams): schemas.$ZodXor<T>;
-export interface $ZodTypeDiscriminableInternals extends schemas.$ZodTypeInternals {
+export interface $ZodTypeDiscriminableInternals<_Disc extends string = string> extends schemas._$ZodTypeInternals {
     propValues: util.PropValues;
 }
-export interface $ZodTypeDiscriminable extends schemas.$ZodType {
+export interface $ZodTypeDiscriminable<_Disc extends string = string> extends schemas.SomeType {
     _zod: $ZodTypeDiscriminableInternals;
 }
 export type $ZodDiscriminatedUnionParams = TypeParams<schemas.$ZodDiscriminatedUnion, "options" | "discriminator">;
@@ -42481,7 +43219,7 @@ export declare function _intersection<T extends schemas.$ZodObject, U extends sc
 export type $ZodTupleParams = TypeParams<schemas.$ZodTuple, "items" | "rest">;
 export declare function _tuple<T extends readonly [schemas.$ZodType, ...schemas.$ZodType[]]>(Class: util.SchemaClass<schemas.$ZodTuple>, items: T, params?: string | $ZodTupleParams): schemas.$ZodTuple<T, null>;
 export declare function _tuple<T extends readonly [schemas.$ZodType, ...schemas.$ZodType[]], Rest extends schemas.$ZodType>(Class: util.SchemaClass<schemas.$ZodTuple>, items: T, rest: Rest, params?: string | $ZodTupleParams): schemas.$ZodTuple<T, Rest>;
-export type $ZodRecordParams = TypeParams<schemas.$ZodRecord, "keyType" | "valueType">;
+export type $ZodRecordParams = TypeParams<schemas.$ZodRecord, "keyType" | "valueType" | "partial">;
 export declare function _record<Key extends schemas.$ZodRecordKey, Value extends schemas.$ZodObject>(Class: util.SchemaClass<schemas.$ZodRecord>, keyType: Key, valueType: Value, params?: string | $ZodRecordParams): schemas.$ZodRecord<Key, Value>;
 export type $ZodMapParams = TypeParams<schemas.$ZodMap, "keyType" | "valueType">;
 export declare function _map<Key extends schemas.$ZodObject, Value extends schemas.$ZodObject>(Class: util.SchemaClass<schemas.$ZodMap>, keyType: Key, valueType: Value, params?: string | $ZodMapParams): schemas.$ZodMap<Key, Value>;
@@ -42540,7 +43278,11 @@ type RawIssue<T extends errors.$ZodIssueBase> = T extends any ? util.Flatten<uti
 export interface $RefinementCtx<T = unknown> extends schemas.ParsePayload<T> {
     addIssue(arg: string | $ZodSuperRefineIssue): void;
 }
-export declare function _superRefine<T>(fn: (arg: T, payload: $RefinementCtx<T>) => void | Promise<void>): checks.$ZodCheck<T>;
+export interface $ZodSuperRefineParams {
+    /** If provided, the refinement runs only when this returns \`true\`. By default, it is skipped if prior parsing produced aborting issues. */
+    when?: ((payload: schemas.ParsePayload) => boolean) | undefined;
+}
+export declare function _superRefine<T>(fn: (arg: T, payload: $RefinementCtx<T>) => void | Promise<void>, params?: $ZodSuperRefineParams): checks.$ZodCheck<T>;
 export declare function _check<O = unknown>(fn: schemas.CheckFn<O>, params?: string | $ZodCustomParams): checks.$ZodCheck<O>;
 export declare function describe<T>(description: string): checks.$ZodCheck<T>;
 export declare function meta<T>(metadata: registries.GlobalMeta): checks.$ZodCheck<T>;
@@ -42570,7 +43312,7 @@ export interface $ZodCheckDef {
     error?: errors.$ZodErrorMap<never> | undefined;
     /** If true, no later checks will be executed if this check fails. Default \`false\`. */
     abort?: boolean | undefined;
-    /** If provided, this check will only be executed if the function returns \`true\`. Defaults to \`payload => z.util.isAborted(payload)\`. */
+    /** If provided, the check runs only when this returns \`true\`. By default, it is skipped if prior parsing produced aborting issues. */
     when?: ((payload: schemas.ParsePayload) => boolean) | undefined;
 }
 export interface $ZodCheckInternals<T> {
@@ -42623,29 +43365,29 @@ export interface $ZodCheckMultipleOf<T extends number | bigint = number | bigint
 }
 export declare const $ZodCheckMultipleOf: core.$constructor<$ZodCheckMultipleOf<number | bigint>>;
 export type $ZodNumberFormats = "int32" | "uint32" | "float32" | "float64" | "safeint";
-export interface $ZodCheckNumberFormatDef extends $ZodCheckDef {
+export interface $ZodCheckNumberFormatDef<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodCheckDef {
     check: "number_format";
-    format: $ZodNumberFormats;
+    format: Format;
 }
-export interface $ZodCheckNumberFormatInternals extends $ZodCheckInternals<number> {
-    def: $ZodCheckNumberFormatDef;
+export interface $ZodCheckNumberFormatInternals<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodCheckInternals<number> {
+    def: $ZodCheckNumberFormatDef<Format>;
     issc: errors.$ZodIssueInvalidType | errors.$ZodIssueTooBig<"number"> | errors.$ZodIssueTooSmall<"number">;
 }
-export interface $ZodCheckNumberFormat extends $ZodCheck<number> {
-    _zod: $ZodCheckNumberFormatInternals;
+export interface $ZodCheckNumberFormat<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodCheck<number> {
+    _zod: $ZodCheckNumberFormatInternals<Format>;
 }
 export declare const $ZodCheckNumberFormat: core.$constructor<$ZodCheckNumberFormat>;
 export type $ZodBigIntFormats = "int64" | "uint64";
-export interface $ZodCheckBigIntFormatDef extends $ZodCheckDef {
+export interface $ZodCheckBigIntFormatDef<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodCheckDef {
     check: "bigint_format";
-    format: $ZodBigIntFormats | undefined;
+    format: Format;
 }
-export interface $ZodCheckBigIntFormatInternals extends $ZodCheckInternals<bigint> {
-    def: $ZodCheckBigIntFormatDef;
+export interface $ZodCheckBigIntFormatInternals<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodCheckInternals<bigint> {
+    def: $ZodCheckBigIntFormatDef<Format>;
     issc: errors.$ZodIssueTooBig<"bigint"> | errors.$ZodIssueTooSmall<"bigint">;
 }
-export interface $ZodCheckBigIntFormat extends $ZodCheck<bigint> {
-    _zod: $ZodCheckBigIntFormatInternals;
+export interface $ZodCheckBigIntFormat<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodCheck<bigint> {
+    _zod: $ZodCheckBigIntFormatInternals<Format>;
 }
 export declare const $ZodCheckBigIntFormat: core.$constructor<$ZodCheckBigIntFormat>;
 export interface $ZodCheckMaxSizeDef extends $ZodCheckDef {
@@ -42720,7 +43462,7 @@ export interface $ZodCheckLengthEquals<T extends util.HasLength = util.HasLength
     _zod: $ZodCheckLengthEqualsInternals<T>;
 }
 export declare const $ZodCheckLengthEquals: core.$constructor<$ZodCheckLengthEquals>;
-export type $ZodStringFormats = "email" | "url" | "emoji" | "uuid" | "guid" | "nanoid" | "cuid" | "cuid2" | "ulid" | "xid" | "ksuid" | "datetime" | "date" | "time" | "duration" | "ipv4" | "ipv6" | "cidrv4" | "cidrv6" | "base64" | "base64url" | "json_string" | "e164" | "lowercase" | "uppercase" | "regex" | "jwt" | "starts_with" | "ends_with" | "includes";
+export type $ZodStringFormats = "email" | "url" | "emoji" | "uuid" | "guid" | "nanoid" | "cuid" | "cuid2" | "ulid" | "xid" | "ksuid" | "datetime" | "date" | "time" | "duration" | "ipv4" | "ipv6" | "cidrv4" | "cidrv6" | "base64" | "base64url" | "json_string" | "e164" | "credit_card" | "iban" | "lowercase" | "uppercase" | "regex" | "jwt" | "starts_with" | "ends_with" | "includes";
 export interface $ZodCheckStringFormatDef<Format extends string = string> extends $ZodCheckDef {
     check: "string_format";
     format: Format;
@@ -42813,6 +43555,22 @@ export interface $ZodCheckProperty<T extends object = object> extends $ZodCheck<
     _zod: $ZodCheckPropertyInternals<T>;
 }
 export declare const $ZodCheckProperty: core.$constructor<$ZodCheckProperty>;
+export interface $ZodCheckPropertiesDef<Shape extends schemas.$ZodShape = schemas.$ZodShape> extends $ZodCheckDef {
+    check: "properties";
+    shape: Shape;
+}
+export type $ZodCheckPropertiesInput<Shape extends schemas.$ZodShape = schemas.$ZodShape> = {
+    -readonly [k in keyof Shape]: util.Widen<core.input<Shape[k]>>;
+};
+export interface $ZodCheckPropertiesInternals<Shape extends schemas.$ZodShape = schemas.$ZodShape> extends $ZodCheckInternals<$ZodCheckPropertiesInput<Shape>> {
+    def: $ZodCheckPropertiesDef<Shape>;
+    issc: errors.$ZodIssue;
+}
+export interface $ZodCheckProperties<Shape extends schemas.$ZodShape = schemas.$ZodShape> extends $ZodCheck<$ZodCheckPropertiesInput<Shape>> {
+    _zod: $ZodCheckPropertiesInternals<Shape>;
+    [Symbol.iterator](): Iterator<this>;
+}
+export declare const $ZodCheckProperties: core.$constructor<$ZodCheckProperties>;
 export interface $ZodCheckMimeTypeDef extends $ZodCheckDef {
     check: "mime_type";
     mime: util.MimeTypes[];
@@ -42840,9 +43598,75 @@ export declare const $ZodCheckOverwrite: core.$constructor<$ZodCheckOverwrite>;
 export type $ZodChecks = $ZodCheckLessThan | $ZodCheckGreaterThan | $ZodCheckMultipleOf | $ZodCheckNumberFormat | $ZodCheckBigIntFormat | $ZodCheckMaxSize | $ZodCheckMinSize | $ZodCheckSizeEquals | $ZodCheckMaxLength | $ZodCheckMinLength | $ZodCheckLengthEquals | $ZodCheckStringFormat | $ZodCheckProperty | $ZodCheckMimeType | $ZodCheckOverwrite;
 export type $ZodStringFormatChecks = $ZodCheckRegex | $ZodCheckLowerCase | $ZodCheckUpperCase | $ZodCheckIncludes | $ZodCheckStartsWith | $ZodCheckEndsWith | schemas.$ZodStringFormatTypes;
 `,
+  "deps/zod/v4/core/compile.d.ts": `import type * as core from "./core.js";
+import type { SomeType } from "./schemas.js";
+/** @internal Sentinel the compiled fast path returns when validation fails. */
+export declare const INVALID: unique symbol;
+/** @internal */
+export type INVALID = typeof INVALID;
+interface CompileFnOptions {
+    debug?: boolean | undefined;
+    /** Emit a validator instead of a parser: skip building the output value where nothing reads it. */
+    assertOnly?: boolean | undefined;
+}
+type CompiledFn<T> = ((input: unknown) => T | INVALID) & {
+    code?: string | undefined;
+    /** False when this function's INVALID does not strictly mean "the runtime would reject". */
+    definite?: boolean | undefined;
+};
+/** Raised when the schema contains async refinements or transforms. Surfaces only under \`compile(schema, { strict: true })\`. */
+export declare class ZodCompileAsyncError extends Error {
+    constructor(message?: string);
+}
+/**
+ * Raised when the schema contains a feature whose semantics the fast path
+ * can't fully model. Both the shim in \`zod/compile\` and the default
+ * \`compile()\` fall back to the runtime parser for that schema; only
+ * \`compile(schema, { strict: true })\` lets it surface.
+ */
+export declare class ZodCompileUnsupportedError extends Error {
+    /** Whether a container may absorb this refusal by running the child through the runtime (see \`compileChild\`). False when running only that node on the runtime is not equivalent to running the whole parse there — a runtime island gets no parse context, so a node that *consumes* issues rather than propagating them would finalize them against the wrong error map and still succeed. */
+    readonly islandable: boolean;
+    constructor(feature: string, islandable?: boolean);
+}
+export interface CompileOptions {
+    /** Throw the refusal instead of returning the schema uncompiled. */
+    strict?: boolean | undefined;
+}
+/**
+ * AOT-compile a Zod schema. Returns a clone whose \`_zod.run\` calls a generated
+ * fast path first and falls back to the original runtime parser on failure.
+ *
+ * - Forward direction only. Backward (encode), async, and \`skipChecks\` paths
+ *   bypass the fast path and use the runtime directly.
+ * - Never throws. A schema the fast path can't model is returned unchanged and
+ *   keeps using the runtime parser. Pass \`{ strict: true }\` to get the refusal
+ *   as a thrown \`ZodCompileUnsupportedError\` / \`ZodCompileAsyncError\` instead.
+ * - The original schema is unchanged. The clone shares children by reference.
+ */
+export declare function compile<T extends SomeType>(schema: T, options?: CompileOptions): T;
+/**
+ * Install an already-generated parser as a schema's fast path. Returns a clone; the original is
+ * unchanged.
+ *
+ * The parser takes the input and returns the parsed value, or \`INVALID\` to hand the parse to the
+ * runtime. It must be synchronous and forward-direction, and it must build fresh output rather than
+ * return its input — Zod cannot check either, and a wrong *success* is returned to the caller as-is.
+ *
+ * \`compile()\` is the ordinary entry point. This is for a build-time or native compiler that produces
+ * a parser where \`new Function\` is unavailable.
+ */
+export declare function withParser<T extends SomeType>(schema: T, parser: (input: unknown) => core.output<T> | INVALID): T;
+/**
+ * @internal Generate the standalone compiled function: a parser by default, a validator under
+ * \`assertOnly\`. Returns the parsed value, \`true\` where nothing reads the output, or \`INVALID\`. Consumers use \`compile()\`.
+ */
+export declare function compileFn<T extends SomeType>(schema: T, options?: CompileFnOptions): CompiledFn<core.output<T>>;
+export {};
+`,
   "deps/zod/v4/core/core.d.ts": `import type * as errors from "./errors.js";
 import type * as schemas from "./schemas.js";
-import type { Class } from "./util.js";
+import type { Class, ProtoOf } from "./util.js";
 type ZodTrait = {
     _zod: {
         def: any;
@@ -42853,11 +43677,14 @@ export interface $constructor<T extends ZodTrait, D = T["_zod"]["def"]> {
     new (def: D): T;
     init(inst: T, def: D): asserts inst is T;
 }
+export interface $constructorParams {
+    Parent?: typeof Class;
+}
 /** A special constant with type \`never\` */
 export declare const NEVER: never;
-export declare function $constructor<T extends ZodTrait, D = T["_zod"]["def"]>(name: string, initializer: (inst: T, def: D) => void, params?: {
-    Parent?: typeof Class;
-}): $constructor<T, D>;
+export declare function $constructor<T extends ZodTrait, D = T["_zod"]["def"]>(name: string, initializer: (inst: T, def: D) => void, 
+/** This trait's members, installed once on every prototype that composes it. They cannot be declared in the initializer above: that runs per instance, and the prototype is shared. */
+proto?: ProtoOf<T>, params?: $constructorParams): $constructor<T, D>;
 export declare const $brand: unique symbol;
 export type $brand<T extends string | number | symbol = string | number | symbol> = {
     [$brand]: {
@@ -42907,6 +43734,15 @@ export interface $ZodConfig {
     localeError?: errors.$ZodErrorMap | undefined;
     /** Disable JIT schema compilation. Useful in environments that disallow \`eval\`. */
     jitless?: boolean | undefined;
+    /** Enables parsing input that contains reference cycles. Read when a schema is constructed. */
+    memoizer?: schemas.$ZodMemoizer | undefined;
+    /**
+     * Internal: post-processor invoked on every freshly-constructed schema
+     * instance, after init and deferred fns run. Set by \`import "zod/compile"\`
+     * to install AOT compilation. Not part of the public API.
+     * @internal
+     */
+    postProcessor?: ((inst: any) => void) | undefined;
 }
 export declare const globalConfig: $ZodConfig;
 export declare function config(newConfig?: Partial<$ZodConfig>): $ZodConfig;
@@ -42916,9 +43752,11 @@ export declare function config(newConfig?: Partial<$ZodConfig>): $ZodConfig;
 }) => void;
 export declare class Doc {
     args: string[];
+    /** Bindings the compiled function closes over, by name. */
+    closed: Record<string, unknown>;
     content: string[];
     indent: number;
-    constructor(args?: string[]);
+    constructor(args?: string[], closed?: Record<string, unknown>);
     indented(fn: (doc: Doc) => void): void;
     write(fn: ModeWriter): void;
     write(line: string): void;
@@ -42982,6 +43820,7 @@ interface $ZodIssueInvalidUnionNoMatch extends $ZodIssueBase {
     readonly errors: $ZodIssue[][];
     readonly input?: unknown;
     readonly discriminator?: string | undefined;
+    readonly options?: util.Primitive[];
     readonly inclusive?: true;
 }
 interface $ZodIssueInvalidUnionMultipleMatch extends $ZodIssueBase {
@@ -42990,6 +43829,8 @@ interface $ZodIssueInvalidUnionMultipleMatch extends $ZodIssueBase {
     readonly input?: unknown;
     readonly discriminator?: string | undefined;
     readonly inclusive: false;
+    /** Indices of the options that matched */
+    readonly matches: number[];
 }
 export type $ZodIssueInvalidUnion = $ZodIssueInvalidUnionNoMatch | $ZodIssueInvalidUnionMultipleMatch;
 export interface $ZodIssueInvalidKey<Input = unknown> extends $ZodIssueBase {
@@ -43047,6 +43888,8 @@ type RawIssue<T extends $ZodIssueBase> = T extends any ? util.Flatten<util.MakeP
     readonly input: unknown;
     /** The schema or check that originated this issue. */
     readonly inst?: $ZodType | $ZodCheck;
+    /** The schema that owns the issue. Equal to \`inst\` when a schema originated the issue, and the schema the check was attached to when a check did. */
+    readonly schema?: $ZodType | undefined;
     /** If \`true\`, Zod will continue executing checks/refinements after this issue. */
     readonly continue?: boolean | undefined;
 } & Record<string, unknown>> : never;
@@ -43151,13 +43994,16 @@ export {};
 export * from "./parse.js";
 export * from "./errors.js";
 export * from "./schemas.js";
+export * from "./memoizer.js";
 export * from "./checks.js";
 export * from "./versions.js";
 export * as util from "./util.js";
+export { toZod } from "./util.js";
 export * as regexes from "./regexes.js";
 export * as locales from "../locales/index.js";
 export * from "./registries.js";
 export * from "./doc.js";
+export * from "./compile.js";
 export * from "./api.js";
 export * from "./to-json-schema.js";
 export { toJSONSchema } from "./json-schema-processors.js";
@@ -43167,7 +44013,7 @@ export * as JSONSchema from "./json-schema.js";
   "deps/zod/v4/core/json-schema-generator.d.ts": `import type * as JSONSchema from "./json-schema.js";
 import type { $ZodRegistry } from "./registries.js";
 import type * as schemas from "./schemas.js";
-import { type JSONSchemaGeneratorParams, type ProcessParams, type Seen } from "./to-json-schema.js";
+import { type JSONSchemaGeneratorParams, type ProcessParams, type Seen, type ToJSONSchemaContext } from "./to-json-schema.js";
 /**
  * Parameters for the emit method of JSONSchemaGenerator.
  * @deprecated Use toJSONSchema function instead
@@ -43202,7 +44048,7 @@ export declare class JSONSchemaGenerator {
     /** @deprecated Access via ctx instead */
     get target(): ({} & string) | "draft-2020-12" | "draft-07" | "openapi-3.0" | "draft-04";
     /** @deprecated Access via ctx instead */
-    get unrepresentable(): "any" | "throw";
+    get unrepresentable(): ToJSONSchemaContext["unrepresentable"];
     /** @deprecated Access via ctx instead */
     get override(): (ctx: {
         zodSchema: schemas.$ZodType;
@@ -43233,6 +44079,21 @@ export {};
   "deps/zod/v4/core/json-schema-processors.d.ts": `import type { $ZodRegistry } from "./registries.js";
 import type * as schemas from "./schemas.js";
 import { type Processor, type RegistryToJSONSchemaParams, type ToJSONSchemaParams, type ZodStandardJSONSchemaPayload } from "./to-json-schema.js";
+type Bound = number | bigint | Date;
+interface CheckAggregate<N extends Bound = Bound> {
+    minimum?: N;
+    maximum?: N;
+    exclusiveMinimum?: N;
+    exclusiveMaximum?: N;
+    multipleOf?: number[];
+    format?: string;
+    isInt?: boolean;
+    patterns?: Set<RegExp>;
+    mime?: string[];
+    contentEncoding?: string;
+    laxFormat?: boolean;
+}
+export declare function aggregateChecks<N extends Bound = Bound>(schema: schemas.$ZodType): CheckAggregate<N>;
 export declare const stringProcessor: Processor<schemas.$ZodString>;
 export declare const numberProcessor: Processor<schemas.$ZodNumber>;
 export declare const booleanProcessor: Processor<schemas.$ZodBoolean>;
@@ -43279,9 +44140,11 @@ export declare function toJSONSchema(registry: $ZodRegistry<{
 }>, params?: RegistryToJSONSchemaParams): {
     schemas: Record<string, ZodStandardJSONSchemaPayload<schemas.$ZodType>>;
 };
+export {};
 `,
   "deps/zod/v4/core/json-schema.d.ts": `export type Schema = ObjectSchema | ArraySchema | StringSchema | NumberSchema | IntegerSchema | BooleanSchema | NullSchema;
 export type _JSONSchema = boolean | JSONSchema;
+export type SchemaType = "object" | "array" | "string" | "number" | "boolean" | "null" | "integer";
 export type JSONSchema = {
     [k: string]: unknown;
     $schema?: "https://json-schema.org/draft/2020-12/schema" | "http://json-schema.org/draft-07/schema#" | "http://json-schema.org/draft-04/schema#";
@@ -43293,7 +44156,7 @@ export type JSONSchema = {
     $vocabulary?: Record<string, boolean>;
     $comment?: string;
     $defs?: Record<string, JSONSchema>;
-    type?: "object" | "array" | "string" | "number" | "boolean" | "null" | "integer";
+    type?: SchemaType | SchemaType[];
     additionalItems?: _JSONSchema;
     unevaluatedItems?: _JSONSchema;
     prefixItems?: _JSONSchema[];
@@ -43369,6 +44232,22 @@ export interface NullSchema extends JSONSchema {
     type: "null";
 }
 `,
+  "deps/zod/v4/core/memoizer.d.ts": `import type { $ZodMemoizer, $ZodType } from "./schemas.js";
+export declare class $ZodCyclicError extends Error {
+    constructor();
+}
+/**
+ * Whether one parse can re-enter this schema, i.e. its subtree contains a cycle.
+ * Exported for \`z.compile\`, which refuses to compile such a schema: cycle
+ * breaking is driven from here off state keyed on the parse context, and a
+ * generated fast path has no context to key on.
+ */
+export declare function isRecursiveSchema(inst: $ZodType): boolean;
+/** The memoizer that gives containers cycle support. \`zod\` installs it by default; \`zod/mini\` opts in with \`config({ memoizer: memoizer() })\`. */
+export declare function memoizer(): $ZodMemoizer;
+/** Whether this value is a node a back-edge resolved to before it finished. */
+export declare function isBackEdge(ctx: object, value: unknown): boolean;
+`,
   "deps/zod/v4/core/parse.d.ts": `import * as core from "./core.js";
 import * as errors from "./errors.js";
 import type * as schemas from "./schemas.js";
@@ -43376,16 +44255,14 @@ import * as util from "./util.js";
 export type $ZodErrorClass = {
     new (issues: errors.$ZodIssue[]): errors.$ZodError;
 };
-export type $Parse = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: {
+type $ParseParams = {
     callee?: util.AnyFunc;
-    Err?: $ZodErrorClass;
-}) => core.output<T>;
+    Err?: $ZodErrorClass | undefined;
+};
+export type $Parse = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => core.output<T>;
 export declare const _parse: (_Err: $ZodErrorClass) => $Parse;
 export declare const parse: $Parse;
-export type $ParseAsync = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: {
-    callee?: util.AnyFunc;
-    Err?: $ZodErrorClass;
-}) => Promise<core.output<T>>;
+export type $ParseAsync = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => Promise<core.output<T>>;
 export declare const _parseAsync: (_Err: $ZodErrorClass) => $ParseAsync;
 export declare const parseAsync: $ParseAsync;
 export type $SafeParse = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => util.SafeParseResult<core.output<T>>;
@@ -43394,16 +44271,20 @@ export declare const safeParse: $SafeParse;
 export type $SafeParseAsync = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => Promise<util.SafeParseResult<core.output<T>>>;
 export declare const _safeParseAsync: (_Err: $ZodErrorClass) => $SafeParseAsync;
 export declare const safeParseAsync: $SafeParseAsync;
-export type $Encode = <T extends schemas.$ZodType>(schema: T, value: core.output<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => core.input<T>;
+export type $Validate = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => value is core.input<T>;
+export declare const validate: $Validate;
+export type $ValidateAsync = <T extends schemas.$ZodType>(schema: T, value: unknown, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => Promise<boolean>;
+export declare const validateAsync: $ValidateAsync;
+export type $Encode = <T extends schemas.$ZodType>(schema: T, value: core.output<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => core.input<T>;
 export declare const _encode: (_Err: $ZodErrorClass) => $Encode;
 export declare const encode: $Encode;
-export type $Decode = <T extends schemas.$ZodType>(schema: T, value: core.input<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => core.output<T>;
+export type $Decode = <T extends schemas.$ZodType>(schema: T, value: core.input<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => core.output<T>;
 export declare const _decode: (_Err: $ZodErrorClass) => $Decode;
 export declare const decode: $Decode;
-export type $EncodeAsync = <T extends schemas.$ZodType>(schema: T, value: core.output<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => Promise<core.input<T>>;
+export type $EncodeAsync = <T extends schemas.$ZodType>(schema: T, value: core.output<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => Promise<core.input<T>>;
 export declare const _encodeAsync: (_Err: $ZodErrorClass) => $EncodeAsync;
 export declare const encodeAsync: $EncodeAsync;
-export type $DecodeAsync = <T extends schemas.$ZodType>(schema: T, value: core.input<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => Promise<core.output<T>>;
+export type $DecodeAsync = <T extends schemas.$ZodType>(schema: T, value: core.input<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>, _params?: $ParseParams) => Promise<core.output<T>>;
 export declare const _decodeAsync: (_Err: $ZodErrorClass) => $DecodeAsync;
 export declare const decodeAsync: $DecodeAsync;
 export type $SafeEncode = <T extends schemas.$ZodType>(schema: T, value: core.output<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => util.SafeParseResult<core.input<T>>;
@@ -43418,13 +44299,20 @@ export declare const safeEncodeAsync: $SafeEncodeAsync;
 export type $SafeDecodeAsync = <T extends schemas.$ZodType>(schema: T, value: core.input<T>, _ctx?: schemas.ParseContext<errors.$ZodIssue>) => Promise<util.SafeParseResult<core.output<T>>>;
 export declare const _safeDecodeAsync: (_Err: $ZodErrorClass) => $SafeDecodeAsync;
 export declare const safeDecodeAsync: $SafeDecodeAsync;
+export {};
 `,
-  "deps/zod/v4/core/regexes.d.ts": `export declare const cuid: RegExp;
+  "deps/zod/v4/core/regexes.d.ts": `/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link cuid2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
+export declare const cuid: RegExp;
 export declare const cuid2: RegExp;
 export declare const ulid: RegExp;
 export declare const xid: RegExp;
 export declare const ksuid: RegExp;
 export declare const nanoid: RegExp;
+export declare function nanoidOfLength(length: number): RegExp;
 /** ISO 8601-1 duration regex. Does not support the 8601-2 extensions like negative durations or fractional/negative components. */
 export declare const duration: RegExp;
 /** Implements ISO 8601-2 extensions like explicit +- prefixes, mixing weeks with other units, and fractional/negative components. */
@@ -43458,7 +44346,11 @@ export declare const base64: RegExp;
 export declare const base64url: RegExp;
 export declare const hostname: RegExp;
 export declare const domain: RegExp;
+export declare const httpProtocol: RegExp;
 export declare const e164: RegExp;
+export declare const creditCard: RegExp;
+export declare const currencyCode: RegExp;
+export declare const iban: RegExp;
 export declare const date: RegExp;
 export declare function time(args: {
     precision?: number | null;
@@ -43468,6 +44360,7 @@ export declare function datetime(args: {
     offset?: boolean;
     local?: boolean;
 }): RegExp;
+export declare const anyString: RegExp;
 export declare const string: (params?: {
     minimum?: number | undefined;
     maximum?: number | undefined;
@@ -43536,6 +44429,8 @@ export declare const globalRegistry: $ZodRegistry<GlobalMeta>;
 export {};
 `,
   "deps/zod/v4/core/schemas.d.ts": `import * as checks from "./checks.js";
+import type { $ZodNumberFormats } from "./checks.js";
+import type { $ZodBigIntFormats } from "./checks.js";
 import * as core from "./core.js";
 import type * as errors from "./errors.js";
 import type * as JSONSchema from "./json-schema.js";
@@ -43556,12 +44451,23 @@ export interface ParseContextInternal<T extends errors.$ZodIssueBase = never> ex
     readonly async?: boolean | undefined;
     readonly direction?: "forward" | "backward";
     readonly skipChecks?: boolean;
+    /** Set only by \`validate\`/\`validateAsync\`. A container may stop before its next child, never inside one, so a map entry and a tuple's fixed items parse whole. */
+    readonly abortEarly?: boolean;
+}
+/** Gives a container cycle support: \`attach\` wraps its parse, and \`alloc\` registers the object it builds into before any child is parsed so a reference back to the same input resolves to it. */
+export interface $ZodMemoizer {
+    attach(inst: $ZodType): void;
+    guard(inst: $ZodType): void;
+    alloc<T extends object>(inst: $ZodType, payload: ParsePayload, empty: T, ctx: ParseContextInternal): T;
 }
 export interface ParsePayload<T = unknown> {
     value: T;
     issues: errors.$ZodRawIssue[];
-    /** A may to mark a whole payload as aborted. Used in codecs/pipes. */
+    /** A way to mark a whole payload as aborted. Used in codecs/pipes. */
     aborted?: boolean;
+    /** @internal Set when the value came from a repeat visit to a node still being
+     * parsed. Its checks run on the node itself, against the finished value. */
+    memo?: boolean | undefined;
 }
 export type CheckFn<T> = (input: ParsePayload<T>) => util.MaybeAsync<void>;
 export interface $ZodTypeDef {
@@ -43586,8 +44492,13 @@ export interface _$ZodTypeInternals {
     /** @internal Indicates that a schema output type should be considered optional inside objects.
      * @default Required
      */
-    /** @internal */
-    optin?: "optional" | undefined;
+    /** @internal Three rungs, each strictly stronger than the last:
+     *   undefined    — required; the container may not omit this slot
+     *   "optional"   — the container may omit it; nothing is supplied in its place
+     *   "defaulted"  — the container may omit it AND this schema substitutes a value
+     * Consumers asking "may the slot be absent?" test \`!== undefined\`.
+     * $ZodOptional asks the stronger question and tests \`=== "defaulted"\`. */
+    optin?: "optional" | "defaulted" | undefined;
     /** @internal */
     optout?: "optional" | undefined;
     /** @internal The set of literal values that will pass validation. Must be an exhaustive set. Used to determine optionality in z.record().
@@ -43633,6 +44544,7 @@ export interface $ZodType<O = unknown, I = unknown, Internals extends $ZodTypeIn
 export interface _$ZodType<T extends $ZodTypeInternals = $ZodTypeInternals> extends $ZodType<T["output"], T["input"], T> {
 }
 export declare const $ZodType: core.$constructor<$ZodType>;
+export declare function standardProps(inst: $ZodType): StandardSchemaV1.Props<any, any>;
 export { clone } from "./util.js";
 export interface $ZodStringDef extends $ZodTypeDef {
     type: "string";
@@ -43651,6 +44563,8 @@ export interface $ZodStringInternals<Input> extends $ZodTypeInternals<string, In
         patterns: Set<RegExp>;
         format: string;
         contentEncoding: string;
+        /** the pattern admits strings its \`format\` keyword forbids, so \`toJSONSchema\` must not emit it */
+        laxFormat: boolean;
     }>;
 }
 export interface $ZodString<Input = unknown> extends _$ZodType<$ZodStringInternals<Input>> {
@@ -43702,6 +44616,18 @@ export interface $ZodURLInternals extends $ZodStringFormatInternals<"url"> {
 export interface $ZodURL extends $ZodType {
     _zod: $ZodURLInternals;
 }
+/** The \`://\` guard rejected the input before the URL constructor saw it. */
+export declare const URL_BAD_FORMAT = 1;
+/** The URL parser rejected the input. */
+export declare const URL_UNPARSEABLE = 2;
+export declare function canParseURL(input: string): boolean;
+export declare function validateURL(trimmed: string, def: Pick<$ZodURLDef, "protocol" | "hostname" | "normalize">): URL | true | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE;
+/** Parses a URL while preserving the non-normalizing HTTP guard. */
+export declare function parseURLObject(trimmed: string, def: Pick<$ZodURLDef, "protocol" | "normalize">): URL | typeof URL_BAD_FORMAT | typeof URL_UNPARSEABLE;
+/** The URL parser deletes every ASCII tab, LF and CR from its input before it parses, so \`new URL("https://exa\\nmple.com")\` reports on \`example.com\`. Applying the same deletion to the returned value closes the half of that divergence which can move the host; the parser's other rewrite, stripping C0 controls at the edges, cannot. */
+export declare function stripTabAndNewline(value: string): string;
+export declare function urlHostnameOk(url: URL, hostname: RegExp): boolean;
+export declare function urlProtocolOk(url: URL, protocol: RegExp): boolean;
 export declare const $ZodURL: core.$constructor<$ZodURL>;
 export interface $ZodEmojiDef extends $ZodStringFormatDef<"emoji"> {
 }
@@ -43712,20 +44638,42 @@ export interface $ZodEmoji extends $ZodType {
 }
 export declare const $ZodEmoji: core.$constructor<$ZodEmoji>;
 export interface $ZodNanoIDDef extends $ZodStringFormatDef<"nanoid"> {
+    length?: number | undefined;
 }
 export interface $ZodNanoIDInternals extends $ZodStringFormatInternals<"nanoid"> {
+    def: $ZodNanoIDDef;
 }
 export interface $ZodNanoID extends $ZodType {
     _zod: $ZodNanoIDInternals;
 }
 export declare const $ZodNanoID: core.$constructor<$ZodNanoID>;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link $ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export interface $ZodCUIDDef extends $ZodStringFormatDef<"cuid"> {
 }
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link $ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export interface $ZodCUIDInternals extends $ZodStringFormatInternals<"cuid"> {
 }
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link $ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export interface $ZodCUID extends $ZodType {
     _zod: $ZodCUIDInternals;
 }
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link $ZodCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare const $ZodCUID: core.$constructor<$ZodCUID>;
 export interface $ZodCUID2Def extends $ZodStringFormatDef<"cuid2"> {
 }
@@ -43816,6 +44764,7 @@ export interface $ZodIPv6Internals extends $ZodStringFormatInternals<"ipv6"> {
 export interface $ZodIPv6 extends $ZodType {
     _zod: $ZodIPv6Internals;
 }
+export declare function isValidIPv6(value: string): boolean;
 export declare const $ZodIPv6: core.$constructor<$ZodIPv6>;
 export interface $ZodMACDef extends $ZodStringFormatDef<"mac"> {
     delimiter?: string;
@@ -43846,6 +44795,7 @@ export interface $ZodCIDRv6Internals extends $ZodStringFormatInternals<"cidrv6">
 export interface $ZodCIDRv6 extends $ZodType {
     _zod: $ZodCIDRv6Internals;
 }
+export declare function isValidCIDRv6(value: string): boolean;
 export declare const $ZodCIDRv6: core.$constructor<$ZodCIDRv6>;
 export declare function isValidBase64(data: string): boolean;
 export interface $ZodBase64Def extends $ZodStringFormatDef<"base64"> {
@@ -43855,7 +44805,9 @@ export interface $ZodBase64Internals extends $ZodStringFormatInternals<"base64">
 export interface $ZodBase64 extends $ZodType {
     _zod: $ZodBase64Internals;
 }
+export declare const base64Charset: RegExp;
 export declare const $ZodBase64: core.$constructor<$ZodBase64>;
+export declare const base64urlCharset: RegExp;
 export declare function isValidBase64URL(data: string): boolean;
 export interface $ZodBase64URLDef extends $ZodStringFormatDef<"base64url"> {
 }
@@ -43873,6 +44825,26 @@ export interface $ZodE164 extends $ZodType {
     _zod: $ZodE164Internals;
 }
 export declare const $ZodE164: core.$constructor<$ZodE164>;
+export declare function isValidCreditCard(input: string): boolean;
+export interface $ZodCreditCardDef extends $ZodStringFormatDef<"credit_card"> {
+}
+export interface $ZodCreditCardInternals extends $ZodStringFormatInternals<"credit_card"> {
+    def: $ZodCreditCardDef;
+}
+export interface $ZodCreditCard extends $ZodType {
+    _zod: $ZodCreditCardInternals;
+}
+export declare const $ZodCreditCard: core.$constructor<$ZodCreditCard>;
+export declare function isValidIBAN(input: string): boolean;
+export interface $ZodIBANDef extends $ZodStringFormatDef<"iban"> {
+}
+export interface $ZodIBANInternals extends $ZodStringFormatInternals<"iban"> {
+    def: $ZodIBANDef;
+}
+export interface $ZodIBAN extends $ZodType {
+    _zod: $ZodIBANInternals;
+}
+export declare const $ZodIBAN: core.$constructor<$ZodIBAN>;
 export declare function isValidJWT(token: string, algorithm?: util.JWTAlgorithm | null): boolean;
 export interface $ZodJWTDef extends $ZodStringFormatDef<"jwt"> {
     alg?: util.JWTAlgorithm | undefined;
@@ -43917,14 +44889,14 @@ export interface $ZodNumber<Input = unknown> extends $ZodType {
     _zod: $ZodNumberInternals<Input>;
 }
 export declare const $ZodNumber: core.$constructor<$ZodNumber>;
-export interface $ZodNumberFormatDef extends $ZodNumberDef, checks.$ZodCheckNumberFormatDef {
+export interface $ZodNumberFormatDef<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodNumberDef, checks.$ZodCheckNumberFormatDef<Format> {
 }
-export interface $ZodNumberFormatInternals extends $ZodNumberInternals<number>, checks.$ZodCheckNumberFormatInternals {
-    def: $ZodNumberFormatDef;
+export interface $ZodNumberFormatInternals<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodNumberInternals<number>, checks.$ZodCheckNumberFormatInternals<Format> {
+    def: $ZodNumberFormatDef<Format>;
     isst: errors.$ZodIssueInvalidType;
 }
-export interface $ZodNumberFormat extends $ZodType {
-    _zod: $ZodNumberFormatInternals;
+export interface $ZodNumberFormat<Format extends $ZodNumberFormats = $ZodNumberFormats> extends $ZodType {
+    _zod: $ZodNumberFormatInternals<Format>;
 }
 export declare const $ZodNumberFormat: core.$constructor<$ZodNumberFormat>;
 export interface $ZodBooleanDef extends $ZodTypeDef {
@@ -43960,14 +44932,14 @@ export interface $ZodBigInt<T = unknown> extends $ZodType {
     _zod: $ZodBigIntInternals<T>;
 }
 export declare const $ZodBigInt: core.$constructor<$ZodBigInt>;
-export interface $ZodBigIntFormatDef extends $ZodBigIntDef, checks.$ZodCheckBigIntFormatDef {
+export interface $ZodBigIntFormatDef<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodBigIntDef, checks.$ZodCheckBigIntFormatDef<Format> {
     check: "bigint_format";
 }
-export interface $ZodBigIntFormatInternals extends $ZodBigIntInternals<bigint>, checks.$ZodCheckBigIntFormatInternals {
-    def: $ZodBigIntFormatDef;
+export interface $ZodBigIntFormatInternals<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodBigIntInternals<bigint>, checks.$ZodCheckBigIntFormatInternals<Format> {
+    def: $ZodBigIntFormatDef<Format>;
 }
-export interface $ZodBigIntFormat extends $ZodType {
-    _zod: $ZodBigIntFormatInternals;
+export interface $ZodBigIntFormat<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends $ZodType {
+    _zod: $ZodBigIntFormatInternals<Format>;
 }
 export declare const $ZodBigIntFormat: core.$constructor<$ZodBigIntFormat>;
 export interface $ZodSymbolDef extends $ZodTypeDef {
@@ -44088,15 +45060,19 @@ type OptionalOutSchema = {
 };
 type OptionalInSchema = {
     _zod: {
-        optin: "optional";
+        optin: "optional" | "defaulted";
     };
 };
-export type $InferObjectOutput<T extends $ZodLooseShape, Extra extends Record<string, unknown>> = string extends keyof T ? util.IsAny<T[keyof T]> extends true ? Record<string, unknown> : Record<string, core.output<T[keyof T]>> : keyof (T & Extra) extends never ? Record<string, never> : util.Prettify<{
+export type $InferObjectOutput<T extends $ZodLooseShape, Extra extends Record<string, unknown>> = string extends keyof T ? util.IsAny<T[keyof T]> extends true ? Record<string, unknown> : {
+    [k in string]: core.output<T[keyof T]>;
+} : keyof (T & Extra) extends never ? Record<string, never> : util.Prettify<{
     -readonly [k in keyof T as T[k] extends OptionalOutSchema ? never : k]: T[k]["_zod"]["output"];
 } & {
     -readonly [k in keyof T as T[k] extends OptionalOutSchema ? k : never]?: T[k]["_zod"]["output"];
 } & Extra>;
-export type $InferObjectInput<T extends $ZodLooseShape, Extra extends Record<string, unknown>> = string extends keyof T ? util.IsAny<T[keyof T]> extends true ? Record<string, unknown> : Record<string, core.input<T[keyof T]>> : keyof (T & Extra) extends never ? Record<string, never> : util.Prettify<{
+export type $InferObjectInput<T extends $ZodLooseShape, Extra extends Record<string, unknown>> = string extends keyof T ? util.IsAny<T[keyof T]> extends true ? Record<string, unknown> : {
+    [k in string]: core.input<T[keyof T]>;
+} : keyof (T & Extra) extends never ? Record<string, never> : util.Prettify<{
     -readonly [k in keyof T as T[k] extends OptionalInSchema ? never : k]: T[k]["_zod"]["input"];
 } & {
     -readonly [k in keyof T as T[k] extends OptionalInSchema ? k : never]?: T[k]["_zod"]["input"];
@@ -44168,7 +45144,7 @@ export interface $ZodUnionInternals<T extends readonly SomeType[] = readonly $Zo
     values: T[number]["_zod"]["values"];
     output: $InferUnionOutput<T[number]>;
     input: $InferUnionInput<T[number]>;
-    optin: IsOptionalIn<T[number]> extends false ? "optional" | undefined : "optional";
+    optin: IsOptionalIn<T[number]> extends false ? "optional" | "defaulted" | undefined : "optional" | "defaulted";
     optout: IsOptionalOut<T[number]> extends false ? "optional" | undefined : "optional";
 }
 export interface $ZodUnion<T extends readonly SomeType[] = readonly $ZodType[]> extends $ZodType<any, any, $ZodUnionInternals<T>> {
@@ -44188,7 +45164,28 @@ export interface $ZodDiscriminatedUnionDef<Options extends readonly SomeType[] =
 export interface $ZodDiscriminatedUnionInternals<Options extends readonly SomeType[] = readonly $ZodType[], Disc extends string = string> extends $ZodUnionInternals<Options> {
     def: $ZodDiscriminatedUnionDef<Options, Disc>;
     propValues: util.PropValues;
+    bag: util.LoosePartial<{
+        optionsMap: Map<util.Primitive, $ZodType | null>;
+    }>;
 }
+/** The discriminator values a member of \`Options\` can declare. An omittable discriminator contributes \`undefined\`, matching what \`propValues\` claims for it. */
+export type $DiscriminatorValue<Options extends readonly SomeType[], Disc extends string> = {
+    [I in keyof Options]: Options[I] extends {
+        _zod: {
+            output: infer Out;
+        };
+    } ? Disc extends keyof Out ? Out[Disc] : never : never;
+}[number];
+/** The member of \`Options\` that declares \`V\`. */
+export type $DiscriminatedOption<Options extends readonly SomeType[], Disc extends string, V> = {
+    [I in keyof Options]: Options[I] extends {
+        _zod: {
+            output: infer Out;
+        };
+    } ? Disc extends keyof Out ? V extends Out[Disc] ? Options[I] : never : never : never;
+}[number];
+/** Returns the option whose discriminator claims \`value\`, or throws if ambiguous. */
+export declare function getDiscriminatedOption<Options extends readonly SomeType[], Disc extends string, const V extends $DiscriminatorValue<Options, Disc>>(union: $ZodDiscriminatedUnion<Options, Disc>, value: V): $DiscriminatedOption<Options, Disc, V>;
 export interface $ZodDiscriminatedUnion<Options extends readonly SomeType[] = readonly $ZodType[], Disc extends string = string> extends $ZodType {
     _zod: $ZodDiscriminatedUnionInternals<Options, Disc>;
 }
@@ -44210,6 +45207,13 @@ export interface $ZodIntersection<A extends SomeType = $ZodType, B extends SomeT
     _zod: $ZodIntersectionInternals<A, B>;
 }
 export declare const $ZodIntersection: core.$constructor<$ZodIntersection>;
+export declare function mergeValues(a: any, b: any): {
+    valid: true;
+    data: any;
+} | {
+    valid: false;
+    mergeErrorPath: (string | number)[];
+};
 export interface $ZodTupleDef<T extends util.TupleItems = readonly $ZodType[], Rest extends SomeType | null = $ZodType | null> extends $ZodTypeDef {
     type: "tuple";
     items: T;
@@ -44225,7 +45229,7 @@ type TupleInputTypeNoOptionals<T extends util.TupleItems> = {
 type TupleInputTypeWithOptionals<T extends util.TupleItems> = T extends readonly [
     ...infer Prefix extends SomeType[],
     infer Tail extends SomeType
-] ? Tail["_zod"]["optin"] extends "optional" ? [...TupleInputTypeWithOptionals<Prefix>, core.input<Tail>?] : TupleInputTypeNoOptionals<T> : [];
+] ? Tail["_zod"]["optin"] extends "optional" | "defaulted" ? [...TupleInputTypeWithOptionals<Prefix>, core.input<Tail>?] : TupleInputTypeNoOptionals<T> : [];
 export type $InferTupleOutputType<T extends util.TupleItems, Rest extends SomeType | null> = [
     ...TupleOutputTypeWithOptionals<T>,
     ...(Rest extends SomeType ? core.output<Rest>[] : [])
@@ -44254,11 +45258,16 @@ export interface $ZodRecordDef<Key extends $ZodRecordKey = $ZodRecordKey, Value 
     valueType: Value;
     /** @default "strict" - errors on keys not matching keyType. "loose" passes through non-matching keys unchanged. */
     mode?: "strict" | "loose";
+    partial?: boolean;
 }
 export type $InferZodRecordOutput<Key extends $ZodRecordKey = $ZodRecordKey, Value extends SomeType = $ZodType> = Key extends $partial ? Partial<Record<core.output<Key>, core.output<Value>>> : Record<core.output<Key>, core.output<Value>>;
-export type $InferZodRecordInput<Key extends $ZodRecordKey = $ZodRecordKey, Value extends SomeType = $ZodType> = Key extends $partial ? Partial<Record<core.input<Key> & PropertyKey, core.input<Value>>> : Record<core.input<Key> & PropertyKey, core.input<Value>>;
-export interface $ZodRecordInternals<Key extends $ZodRecordKey = $ZodRecordKey, Value extends SomeType = $ZodType> extends $ZodTypeInternals<$InferZodRecordOutput<Key, Value>, $InferZodRecordInput<Key, Value>> {
+export type $InferZodRecordInput<Key extends $ZodRecordKey = $ZodRecordKey, Value extends SomeType = $ZodType> = Key extends $partial ? Partial<Record<core.input<Key> & PropertyKey, core.input<Value>>> : [
+    Value
+] extends [OptionalInSchema] ? Partial<Record<core.input<Key> & PropertyKey, core.input<Value>>> : Record<core.input<Key> & PropertyKey, core.input<Value>>;
+export interface $ZodRecordInternals<Key extends $ZodRecordKey = $ZodRecordKey, Value extends SomeType = $ZodType> extends $ZodTypeInternals {
     def: $ZodRecordDef<Key, Value>;
+    output: $InferZodRecordOutput<Key, Value>;
+    input: $InferZodRecordInput<Key, Value>;
     isst: errors.$ZodIssueInvalidType | errors.$ZodIssueInvalidKey<Record<PropertyKey, unknown>>;
     optin?: "optional" | undefined;
     optout?: "optional" | undefined;
@@ -44375,7 +45384,7 @@ export interface $ZodOptionalDef<T extends SomeType = $ZodType> extends $ZodType
 }
 export interface $ZodOptionalInternals<T extends SomeType = $ZodType> extends $ZodTypeInternals<core.output<T> | undefined, core.input<T> | undefined> {
     def: $ZodOptionalDef<T>;
-    optin: "optional";
+    optin: "optional" | "defaulted";
     optout: "optional";
     isst: never;
     values: T["_zod"]["values"];
@@ -44420,7 +45429,7 @@ export interface $ZodDefaultDef<T extends SomeType = $ZodType> extends $ZodTypeD
 }
 export interface $ZodDefaultInternals<T extends SomeType = $ZodType> extends $ZodTypeInternals<util.NoUndefined<core.output<T>>, core.input<T> | undefined> {
     def: $ZodDefaultDef<T>;
-    optin: "optional";
+    optin: "defaulted";
     optout?: "optional" | undefined;
     isst: never;
     values: T["_zod"]["values"];
@@ -44435,9 +45444,9 @@ export interface $ZodPrefaultDef<T extends SomeType = $ZodType> extends $ZodType
     /** The default value. May be a getter. */
     defaultValue: core.input<T>;
 }
-export interface $ZodPrefaultInternals<T extends SomeType = $ZodType> extends $ZodTypeInternals<util.NoUndefined<core.output<T>>, core.input<T> | undefined> {
+export interface $ZodPrefaultInternals<T extends SomeType = $ZodType> extends $ZodTypeInternals<core.output<T>, core.input<T> | undefined> {
     def: $ZodPrefaultDef<T>;
-    optin: "optional";
+    optin: "defaulted";
     optout?: "optional" | undefined;
     isst: never;
     values: T["_zod"]["values"];
@@ -44547,6 +45556,19 @@ export interface $ZodCodec<A extends SomeType = $ZodType, B extends SomeType = $
     _zod: $ZodCodecInternals<A, B>;
 }
 export declare const $ZodCodec: core.$constructor<$ZodCodec>;
+export interface $ZodPreprocessDef<B extends SomeType = $ZodType, I = unknown> extends $ZodPipeDef<$ZodTransform<unknown, I>, B> {
+    in: $ZodTransform<unknown, I>;
+    out: B;
+}
+export interface $ZodPreprocessInternals<B extends SomeType = $ZodType, I = unknown> extends $ZodPipeInternals<$ZodTransform<unknown, I>, B> {
+    def: $ZodPreprocessDef<B, I>;
+    optin: B["_zod"]["optin"];
+    optout: B["_zod"]["optout"];
+}
+export interface $ZodPreprocess<B extends SomeType = $ZodType, I = unknown> extends $ZodPipe<$ZodTransform<unknown, I>, B> {
+    _zod: $ZodPreprocessInternals<B, I>;
+}
+export declare const $ZodPreprocess: core.$constructor<$ZodPreprocess>;
 export interface $ZodReadonlyDef<T extends SomeType = $ZodType> extends $ZodTypeDef {
     type: "readonly";
     innerType: T;
@@ -44680,7 +45702,7 @@ export interface $ZodCustom<O = unknown, I = unknown> extends $ZodType {
 }
 export declare const $ZodCustom: core.$constructor<$ZodCustom>;
 export type $ZodTypes = $ZodString | $ZodNumber | $ZodBigInt | $ZodBoolean | $ZodDate | $ZodSymbol | $ZodUndefined | $ZodNullable | $ZodNull | $ZodAny | $ZodUnknown | $ZodNever | $ZodVoid | $ZodArray | $ZodObject | $ZodUnion | $ZodIntersection | $ZodTuple | $ZodRecord | $ZodMap | $ZodSet | $ZodLiteral | $ZodEnum | $ZodFunction | $ZodPromise | $ZodLazy | $ZodOptional | $ZodDefault | $ZodPrefault | $ZodTemplateLiteral | $ZodCustom | $ZodTransform | $ZodNonOptional | $ZodReadonly | $ZodNaN | $ZodPipe | $ZodSuccess | $ZodCatch | $ZodFile;
-export type $ZodStringFormatTypes = $ZodGUID | $ZodUUID | $ZodEmail | $ZodURL | $ZodEmoji | $ZodNanoID | $ZodCUID | $ZodCUID2 | $ZodULID | $ZodXID | $ZodKSUID | $ZodISODateTime | $ZodISODate | $ZodISOTime | $ZodISODuration | $ZodIPv4 | $ZodIPv6 | $ZodMAC | $ZodCIDRv4 | $ZodCIDRv6 | $ZodBase64 | $ZodBase64URL | $ZodE164 | $ZodJWT | $ZodCustomStringFormat<"hex"> | $ZodCustomStringFormat<util.HashFormat> | $ZodCustomStringFormat<"hostname">;
+export type $ZodStringFormatTypes = $ZodGUID | $ZodUUID | $ZodEmail | $ZodURL | $ZodEmoji | $ZodNanoID | $ZodCUID | $ZodCUID2 | $ZodULID | $ZodXID | $ZodKSUID | $ZodISODateTime | $ZodISODate | $ZodISOTime | $ZodISODuration | $ZodIPv4 | $ZodIPv6 | $ZodMAC | $ZodCIDRv4 | $ZodCIDRv6 | $ZodBase64 | $ZodBase64URL | $ZodE164 | $ZodCreditCard | $ZodIBAN | $ZodJWT | $ZodCustomStringFormat<"hex"> | $ZodCustomStringFormat<util.HashFormat> | $ZodCustomStringFormat<"hostname"> | $ZodCustomStringFormat<"currency_code">;
 `,
   "deps/zod/v4/core/standard-schema.d.ts": `/** The Standard interface. */
 export interface StandardTypedV1<Input = unknown, Output = Input> {
@@ -44815,6 +45837,18 @@ import { type $ZodRegistry } from "./registries.js";
 import type * as schemas from "./schemas.js";
 import type { StandardJSONSchemaV1, StandardSchemaWithJSONProps } from "./standard-schema.js";
 export type Processor<T extends schemas.$ZodType = schemas.$ZodType> = (schema: T, ctx: ToJSONSchemaContext, json: JSONSchema.BaseSchema, params: ProcessParams) => void;
+/**
+ * Called for each schema that has no JSON Schema equivalent. Return a JSON Schema to use in its
+ * place, \`"any"\` to fall back to the \`unrepresentable: "any"\` behavior, or \`"throw"\`/\`undefined\` to
+ * throw the default error. Throwing from the handler propagates, so custom errors work too.
+ */
+export type UnrepresentableHandler<T extends schemas.$ZodType = schemas.$ZodType> = (ctx: {
+    zodSchema: T;
+    path: (string | number)[];
+    /** The error Zod would throw. Distinguishes sites that share a \`zodSchema\`, e.g. an \`undefined\`
+     *  vs a \`bigint\` member of the same literal. */
+    message: string;
+}) => JSONSchema.BaseSchema | "throw" | "any" | undefined;
 export interface JSONSchemaGeneratorParams {
     processors: Record<string, Processor>;
     /** A registry used to look up metadata for each schema. Any schema with an \`id\` property will be extracted as a $def.
@@ -44828,8 +45862,9 @@ export interface JSONSchemaGeneratorParams {
     target?: "draft-04" | "draft-07" | "draft-2020-12" | "openapi-3.0" | ({} & string) | undefined;
     /** How to handle unrepresentable types.
      * - \`"throw"\` — Default. Unrepresentable types throw an error
-     * - \`"any"\` — Unrepresentable types become \`{}\` */
-    unrepresentable?: "throw" | "any";
+     * - \`"any"\` — Unrepresentable types become \`{}\`
+     * - A function — called once per unrepresentable schema; see {@link UnrepresentableHandler}. */
+    unrepresentable?: "throw" | "any" | UnrepresentableHandler<schemas.$ZodTypes>;
     /** Arbitrary custom logic that can be used to modify the generated JSON Schema. */
     override?: (ctx: {
         zodSchema: schemas.$ZodTypes;
@@ -44884,7 +45919,7 @@ export interface ToJSONSchemaContext {
     processors: Record<string, Processor>;
     metadataRegistry: $ZodRegistry<Record<string, any>>;
     target: "draft-04" | "draft-07" | "draft-2020-12" | "openapi-3.0" | ({} & string);
-    unrepresentable: "throw" | "any";
+    unrepresentable: "throw" | "any" | UnrepresentableHandler;
     override: (ctx: {
         zodSchema: schemas.$ZodType;
         jsonSchema: JSONSchema.BaseSchema;
@@ -44893,8 +45928,28 @@ export interface ToJSONSchemaContext {
     io: "input" | "output";
     counter: number;
     seen: Map<schemas.$ZodType, Seen>;
+    /** Registry conversions share one \`seen\` map across every emitted schema. These hold the
+     * \`external\` the whole-map passes below last ran for, so the passes are not repeated once per
+     * schema — and still re-run if the map grows or \`external\` is swapped. \`sharedEmitDoneFor\`
+     * covers both passes in \`finalize\`: the ref flattening and the \`$defs\` build.
+     *
+     * The passes are valid only while nothing they read has changed, so both are cleared in
+     * \`processSchema()\` when the map grows, and in \`JSONSchemaGenerator.emit()\`, which can also change
+     * the \`cycles\` and \`reused\` they branch on.
+     *
+     * One case is deliberately not covered: an \`override\` callback that writes to
+     * \`metadataRegistry\` mid-conversion. It runs inside \`finalize\`, so a registry conversion has
+     * nowhere left to clear the guards, and later schemas keep the ids the first pass saw. That
+     * output was never coherent — before this, whether a shared subschema was inlined or extracted
+     * depended on which registry entry happened to be emitted when the callback fired. */
+    sharedDefsExtractedFor?: ToJSONSchemaContext["external"];
+    sharedEmitDoneFor?: ToJSONSchemaContext["external"];
     cycles: "ref" | "throw";
     reused: "ref" | "inline";
+    /** The \`allOf\` array of each intersection encountered during traversal, innermost first. \`finalize\` folds every emitted object holding one; see \`foldIntersection\`. */
+    intersections: JSONSchema.BaseSchema[][];
+    /** Rewrites a processor deferred to \`finalize\`, where the flatten has resolved every ref and the union branches are in place. */
+    deferred: (() => void)[];
     external?: {
         registry: $ZodRegistry<{
             id?: string | undefined;
@@ -44904,7 +45959,15 @@ export interface ToJSONSchemaContext {
     } | undefined;
 }
 export declare function initializeContext(params: JSONSchemaGeneratorParams): ToJSONSchemaContext;
-export declare function process<T extends schemas.$ZodType>(schema: T, ctx: ToJSONSchemaContext, _params?: ProcessParams): JSONSchema.BaseSchema;
+/**
+ * Applies the \`unrepresentable\` setting at a site that has no JSON Schema equivalent. Throws
+ * \`message\` unless the setting (or the handler's return value) says otherwise. Returns \`true\` if a
+ * custom JSON Schema was written into \`json\`, in which case the caller must not write its own.
+ */
+export declare function handleUnrepresentable(schema: schemas.$ZodType, ctx: ToJSONSchemaContext, json: JSONSchema.BaseSchema, params: ProcessParams, message: string): boolean;
+export declare function processSchema<T extends schemas.$ZodType>(schema: T, ctx: ToJSONSchemaContext, _params?: ProcessParams): JSONSchema.BaseSchema;
+/** @deprecated Renamed to \`processSchema\`. An export alias declares no binding, so it is safe to keep. */
+export { processSchema as process };
 export declare function extractDefs<T extends schemas.$ZodType>(ctx: ToJSONSchemaContext, schema: T): void;
 export declare function finalize<T extends schemas.$ZodType>(ctx: ToJSONSchemaContext, schema: T): ZodStandardJSONSchemaPayload<T>;
 export type ZodStandardSchemaWithJSON<T> = StandardSchemaWithJSONProps<core.input<T>, core.output<T>>;
@@ -44922,7 +45985,6 @@ export declare const createToJSONSchemaMethod: <T extends schemas.$ZodType>(sche
  */
 type StandardJSONSchemaMethodParams = Parameters<StandardJSONSchemaV1["~standard"]["jsonSchema"]["input"]>[0];
 export declare const createStandardJSONSchemaMethod: <T extends schemas.$ZodType>(schema: T, io: "input" | "output", processors?: Record<string, Processor>) => (params?: StandardJSONSchemaMethodParams) => JSONSchema.BaseSchema;
-export {};
 `,
   "deps/zod/v4/core/util.d.ts": `import type * as checks from "./checks.js";
 import type { $ZodConfig } from "./core.js";
@@ -44941,6 +46003,32 @@ export type ParsedTypes = "string" | "number" | "bigint" | "boolean" | "symbol" 
 export type AssertEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U ? 1 : 2 ? true : false;
 export type AssertNotEqual<T, U> = (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U ? 1 : 2 ? false : true;
 export type AssertExtends<T, U> = T extends U ? T : never;
+type ToZodMismatch<T, S extends schemas.$ZodType> = {
+    "types do not match": {
+        expected: T;
+        received: S["_zod"]["output"];
+    };
+};
+type ToZodKeyMismatch<Expected, Received> = schemas.$ZodType & {
+    "types do not match": {
+        expected: Expected;
+        received: Received;
+    };
+};
+declare const toZodDummy: unique symbol;
+type ToZodNormalize<T> = [T] extends [(...args: any[]) => any] ? T : [T] extends [object] ? {
+    [K in keyof T]: ToZodNormalize<T[K]>;
+} : T | typeof toZodDummy;
+type ToZodEqual<Output, T> = AssertEqual<Output, T> extends true ? true : IsAny<Output> extends true ? false : IsAny<T> extends true ? false : AssertEqual<ToZodNormalize<Output>, ToZodNormalize<T>>;
+type ToZodShape<Shape, T> = {
+    [K in keyof Shape]: Shape[K] extends schemas.$ZodType ? K extends keyof T ? ToZodEqual<Shape[K]["_zod"]["output"], T[K]> extends true ? Shape[K] : ToZodKeyMismatch<T[K], Shape[K]["_zod"]["output"]> : ToZodKeyMismatch<never, Shape[K]["_zod"]["output"]> : Shape[K];
+} & {
+    [K in Exclude<keyof T, keyof Shape>]: ToZodKeyMismatch<T[K], never>;
+};
+type ToZodExpand<X> = {
+    [K in keyof X]: X[K];
+} & {};
+type ToZodTarget<S extends schemas.$ZodType, T> = S extends schemas.$ZodObject<infer Shape, infer Config> ? T extends object ? AssertEqual<ToZodExpand<ToZodShape<Shape, T>>, ToZodExpand<Shape>> extends true ? S & ToZodMismatch<T, S> : schemas.$ZodObject<ToZodExpand<ToZodShape<Shape, T>>, Config> : S & ToZodMismatch<T, S> : S & ToZodMismatch<T, S>;
 export type IsAny<T> = 0 extends 1 & T ? true : false;
 export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 export type OmitKeys<T, K extends string> = Pick<T, Exclude<keyof T, K>>;
@@ -44949,6 +46037,7 @@ export type MakeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K
 export type Exactly<T, X> = T & Record<Exclude<keyof X, keyof T>, never>;
 export type NoUndefined<T> = T extends undefined ? never : T;
 export type Whatever = {} | undefined | null;
+export type Widen<T> = T extends string ? string : T extends number ? number : T extends boolean ? boolean : T extends bigint ? bigint : T;
 export type LoosePartial<T extends object> = InexactPartial<T> & {
     [k: string]: unknown;
 };
@@ -45036,6 +46125,7 @@ export type PropValues = Record<string, Set<Primitive>>;
 export type PrimitiveSet = Set<Primitive>;
 export declare function assertEqual<A, B>(val: AssertEqual<A, B>): AssertEqual<A, B>;
 export declare function assertNotEqual<A, B>(val: AssertNotEqual<A, B>): AssertNotEqual<A, B>;
+export declare function toZod<T>(): <S extends schemas.$ZodType>(schema: ToZodEqual<S["_zod"]["output"], T> extends true ? S : ToZodTarget<S, T>) => S;
 export declare function assertIs<T>(_arg: T): void;
 export declare function assertNever(_x: never): never;
 export declare function assert<T>(_: any): asserts _ is T;
@@ -45051,6 +46141,17 @@ export declare function floatSafeRemainder(val: number, step: number): number;
 export declare function defineLazy<T, K extends keyof T>(object: T, key: K, getter: () => T[K]): void;
 export declare function objectClone(obj: object): any;
 export declare function assignProp<T extends object, K extends PropertyKey>(target: T, prop: K, value: K extends keyof T ? T[K] : any): void;
+/** A def's \`shape\` accessor, carrying whichever object it currently answers from. */
+export interface ShapeGetter {
+    (): Record<PropertyKey, any>;
+    raw: Record<PropertyKey, any>;
+}
+/**
+ * Whichever object a def's \`shape\` currently answers from: the one the caller passed until the first read, the frozen copy after it.
+ *
+ * Its keys and descriptors read without invoking anything, which is what lets a discriminated union check its discriminator, and the cycle walk read a shape, without resolving a getter that references the schema being constructed. A def that answers \`shape\` from an accessor of its own has none.
+ */
+export declare function rawShape(def: any): Record<PropertyKey, any> | undefined;
 export declare function mergeDefs(...defs: Record<string, any>[]): any;
 export declare function cloneDef(schema: schemas.$ZodType): any;
 export declare function getElementAtPath(obj: any, path: (string | number)[] | null | undefined): any;
@@ -45099,16 +46200,21 @@ export declare function omit(schema: schemas.$ZodObject, mask: object): any;
 export declare function extend(schema: schemas.$ZodObject, shape: schemas.$ZodShape): any;
 export declare function safeExtend(schema: schemas.$ZodObject, shape: schemas.$ZodShape): any;
 export declare function merge(a: schemas.$ZodObject, b: schemas.$ZodObject): any;
-export declare function partial(Class: SchemaClass<schemas.$ZodOptional> | null, schema: schemas.$ZodObject, mask: object | undefined): any;
+export declare function partial(Class: SchemaClass<schemas.$ZodOptional> | null, schema: schemas.$ZodObject, mask: object | undefined, name?: string): any;
 export declare function required(Class: SchemaClass<schemas.$ZodNonOptional>, schema: schemas.$ZodObject, mask: object | undefined): any;
 export type Constructor<T, Def extends any[] = any[]> = new (...args: Def) => T;
 export declare function aborted(x: schemas.ParsePayload, startIndex?: number): boolean;
+export declare function explicitlyAborted(x: schemas.ParsePayload, startIndex?: number): boolean;
 export declare function prefixIssues(path: PropertyKey, issues: errors.$ZodRawIssue[]): errors.$ZodRawIssue[];
 export declare function unwrapMessage(message: string | {
     message: string;
 } | undefined | null): string | undefined;
+/** The leading size checks of \`defChecks\` that set an upper bound, each paired with it. */
+export declare function sizeCaps(defChecks: checks.$ZodCheck<never>[] | undefined): [number, checks.$ZodCheck<never>][];
+export declare function attachSchema(issues: errors.$ZodRawIssue[], start: number, inst: schemas.$ZodType): void;
 export declare function finalizeIssue(iss: errors.$ZodRawIssue, ctx: schemas.ParseContextInternal | undefined, config: $ZodConfig): errors.$ZodIssue;
 export declare function getSizableOrigin(input: any): "set" | "map" | "file" | "unknown";
+export declare function codePointLength(str: string): number;
 export declare function getLengthableOrigin(input: any): "array" | "string" | "unknown";
 export declare function parsedType(data: unknown): errors.$ZodInvalidTypeExpected;
 export declare function issue(_iss: string, input: any, inst: any): errors.$ZodRawIssue;
@@ -45123,16 +46229,84 @@ export declare function uint8ArrayToHex(bytes: Uint8Array): string;
 export declare abstract class Class {
     constructor(..._args: any[]);
 }
+/**
+ * Installs a trait's members on its prototype. Each value builds that member for the instance on first read; the built value shadows the accessor as an own property, so a detached \`const { parse } = schema\` keeps working.
+ *
+ * Call this from a \`proto\` initializer, which runs once per prototype — never per instance.
+ */
+export declare function members(proto: object, table: object): void;
+/** Shadows a prototype member with an own value, so a getter that builds from the instance runs once. */
+export declare function own<T>(inst: object, key: PropertyKey, value: T, enumerable?: boolean): T;
+/** Like {@link own}, for a member that was never an own data property and has to stay out of \`Object.keys\`. */
+export declare function hide<T>(inst: object, key: PropertyKey, value: T): T;
+/** Adds members a table derives from the instance: each builds on first read and shadows as own data, and assignment shadows the same way, as when these were own properties. */
+export declare function derived<T>(computes: {
+    [K in keyof T]?: (inst: T) => T[K];
+}, table: ProtoOf<T>): ProtoOf<T>;
+/** A trait's prototype members: a partial view of its own interface, with \`this\` typed as the instance. */
+export type ProtoOf<T> = {
+    [K in keyof T]?: (T[K] extends (...args: infer A) => infer R ? (...args: A) => R : T[K]) | undefined;
+} & ThisType<T>;
+/**
+ * Installs a lazily-derived internal on the \`_zod\` prototype of \`inst\`'s
+ * constructor, computed from the internals object itself and cached there on
+ * first read. One accessor per constructor rather than one per instance.
+ */
+export declare function defineLazyInternal<T extends {
+    _zod: any;
+}>(inst: T, key: string, compute: (zod: T["_zod"]) => unknown): void;
+/**
+ * Installs \`key\` on \`inst\`'s prototype, computed by \`make\` on first read and cached there as an own
+ * data property. One accessor per constructor rather than one per instance, because an own accessor
+ * puts every instance after the first into v8 dictionary mode. The key doubles as the sentinel.
+ */
+export declare function installLazyProp(inst: object, key: string, make: (self: any) => unknown, enumerable: boolean): void;
+/** Marks the thunk \`_catch\` synthesises for a constant catch value. \`Function.length\` cannot tell that thunk from a user callback — rest and defaulted parameters both report arity 0 — and a user callback reads \`ctx.error\`, whose issues only finalize correctly against the caller's per-parse error map. Provenance can say what arity cannot. A plain string key rather than \`Symbol.for\`, whose call at module scope no bundler can prove pure — the same shape that anchored \`urlCanParse\` into every build. */
+export declare const CONSTANT_CATCH = "~constantCatch";
+/** Wraps a constant catch value in a thunk tagged with {@link CONSTANT_CATCH}. */
+export declare function constantCatch<T>(value: T): () => T;
+export {};
 `,
   "deps/zod/v4/core/versions.d.ts": `export declare const version: {
     readonly major: 4;
-    readonly minor: 3;
+    readonly minor: 6;
     readonly patch: number;
 };
 `,
-  "deps/zod/v4/index.d.ts": `import z4 from "./classic/index.js";
+  "deps/zod/v4/core/visit.d.ts": `import * as schemas from "./schemas.js";
+type AnyZod = schemas.$ZodType;
+type Kind = schemas.$ZodTypeDef["type"];
+/** The concrete schema class for a \`def.type\`, or \`$ZodType\` for kinds with no dedicated class. */
+type SchemaOfKind<K extends Kind> = [Extract<schemas.$ZodTypes, {
+    _zod: {
+        def: {
+            type: K;
+        };
+    };
+}>] extends [never] ? AnyZod : Extract<schemas.$ZodTypes, {
+    _zod: {
+        def: {
+            type: K;
+        };
+    };
+}>;
+export type VisitFn = (node: AnyZod, rewritten: boolean) => AnyZod;
+export type VisitHandlers = {
+    [K in Kind]?: (node: SchemaOfKind<K>, rewritten: boolean) => AnyZod;
+};
+/**
+ * @internal Bottom-up rewrite of a schema tree. Unhandled kinds and unchanged branches keep their
+ * identity. Returns \`$ZodType\`: a visitor can swap in a schema of any type, so callers declare
+ * their own return type. \`rewritten\` tells a handler whether the traversal replaced anything
+ * below the node it is looking at.
+ */
+export declare function visit(schema: schemas.SomeType, fn: VisitFn): AnyZod;
+export declare function visit(schema: schemas.SomeType, handlers: VisitHandlers): AnyZod;
+export {};
+`,
+  "deps/zod/v4/index.d.ts": `import * as z4 from "./classic/external.js";
 export * from "./classic/index.js";
-export default z4;
+export { z4 as default };
 `,
   "deps/zod/v4/locales/ar.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
@@ -45154,7 +46328,17 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/bn.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/ca.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/ckb.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45170,6 +46354,11 @@ export default function (): {
 };
 `,
   "deps/zod/v4/locales/de.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/el.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45209,7 +46398,22 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/gu.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/he.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/hi.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/hr.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45233,10 +46437,13 @@ export default function (): {
 export { default as az } from "./az.js";
 export { default as be } from "./be.js";
 export { default as bg } from "./bg.js";
+export { default as bn } from "./bn.js";
 export { default as ca } from "./ca.js";
+export { default as ckb } from "./ckb.js";
 export { default as cs } from "./cs.js";
 export { default as da } from "./da.js";
 export { default as de } from "./de.js";
+export { default as el } from "./el.js";
 export { default as en } from "./en.js";
 export { default as eo } from "./eo.js";
 export { default as es } from "./es.js";
@@ -45244,7 +46451,10 @@ export { default as fa } from "./fa.js";
 export { default as fi } from "./fi.js";
 export { default as fr } from "./fr.js";
 export { default as frCA } from "./fr-CA.js";
+export { default as gu } from "./gu.js";
 export { default as he } from "./he.js";
+export { default as hi } from "./hi.js";
+export { default as hr } from "./hr.js";
 export { default as hu } from "./hu.js";
 export { default as hy } from "./hy.js";
 export { default as id } from "./id.js";
@@ -45254,21 +46464,29 @@ export { default as ja } from "./ja.js";
 export { default as ka } from "./ka.js";
 export { default as kh } from "./kh.js";
 export { default as km } from "./km.js";
+export { default as kn } from "./kn.js";
 export { default as ko } from "./ko.js";
 export { default as lt } from "./lt.js";
 export { default as mk } from "./mk.js";
 export { default as ms } from "./ms.js";
+export { default as ne } from "./ne.js";
 export { default as nl } from "./nl.js";
+export { default as nn } from "./nn.js";
 export { default as no } from "./no.js";
 export { default as ota } from "./ota.js";
 export { default as ps } from "./ps.js";
 export { default as pl } from "./pl.js";
 export { default as pt } from "./pt.js";
+export { default as ptBR } from "./pt-BR.js";
+export { default as ro } from "./ro.js";
 export { default as ru } from "./ru.js";
+export { default as sk } from "./sk.js";
 export { default as sl } from "./sl.js";
 export { default as sv } from "./sv.js";
 export { default as ta } from "./ta.js";
+export { default as tg } from "./tg.js";
 export { default as th } from "./th.js";
+export { default as tk } from "./tk.js";
 export { default as tr } from "./tr.js";
 export { default as ua } from "./ua.js";
 export { default as uk } from "./uk.js";
@@ -45310,6 +46528,11 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/kn.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/ko.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
@@ -45330,7 +46553,17 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/ne.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/nl.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/nn.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45355,12 +46588,27 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/pt-BR.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/pt.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/ro.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/ru.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/sk.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45380,7 +46628,17 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
+  "deps/zod/v4/locales/tg.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
   "deps/zod/v4/locales/th.d.ts": `import type * as errors from "../core/errors.js";
+export default function (): {
+    localeError: errors.$ZodErrorMap;
+};
+`,
+  "deps/zod/v4/locales/tk.d.ts": `import type * as errors from "../core/errors.js";
 export default function (): {
     localeError: errors.$ZodErrorMap;
 };
@@ -45431,7 +46689,7 @@ export default function (): {
     localeError: errors.$ZodErrorMap;
 };
 `,
-  "deps/zod/v4/mini/checks.d.ts": `export { _lt as lt, _lte as lte, _lte as maximum, _gt as gt, _gte as gte, _gte as minimum, _positive as positive, _negative as negative, _nonpositive as nonpositive, _nonnegative as nonnegative, _multipleOf as multipleOf, _maxSize as maxSize, _minSize as minSize, _size as size, _maxLength as maxLength, _minLength as minLength, _length as length, _regex as regex, _lowercase as lowercase, _uppercase as uppercase, _includes as includes, _startsWith as startsWith, _endsWith as endsWith, _property as property, _mime as mime, _overwrite as overwrite, _normalize as normalize, _trim as trim, _toLowerCase as toLowerCase, _toUpperCase as toUpperCase, } from "../core/index.js";
+  "deps/zod/v4/mini/checks.d.ts": `export { _lt as lt, _lte as lte, _lte as maximum, _gt as gt, _gte as gte, _gte as minimum, _positive as positive, _negative as negative, _nonpositive as nonpositive, _nonnegative as nonnegative, _multipleOf as multipleOf, _maxSize as maxSize, _minSize as minSize, _size as size, _maxLength as maxLength, _minLength as minLength, _length as length, _regex as regex, _lowercase as lowercase, _uppercase as uppercase, _includes as includes, _startsWith as startsWith, _endsWith as endsWith, _property as property, _properties as properties, _mime as mime, _overwrite as overwrite, _normalize as normalize, _trim as trim, _toLowerCase as toLowerCase, _toUpperCase as toUpperCase, } from "../core/index.js";
 `,
   "deps/zod/v4/mini/coerce.d.ts": `import * as core from "../core/index.js";
 import * as schemas from "./schemas.js";
@@ -45441,18 +46699,46 @@ export declare function boolean<T = unknown>(params?: string | core.$ZodBooleanP
 export declare function bigint<T = unknown>(params?: string | core.$ZodBigIntParams): schemas.ZodMiniBigInt<T>;
 export declare function date<T = unknown>(params?: string | core.$ZodDateParams): schemas.ZodMiniDate<T>;
 `,
+  "deps/zod/v4/mini/deep-partial.d.ts": `import type * as core from "../core/index.js";
+import * as schemas from "./schemas.js";
+/** Mini counterpart of \`classic/deep-partial.ts\`'s \`DeepPartial\`. */
+export type DeepPartial<T extends core.SomeType> = T extends schemas.ZodMiniObject<infer Shape, infer Config> ? schemas.ZodMiniObject<{
+    -readonly [K in keyof Shape]: schemas.ZodMiniOptional<DeepPartial<Shape[K]>>;
+}, Config> : T extends schemas.ZodMiniDiscriminatedUnion<infer Options, any> ? schemas.ZodMiniUnion<{
+    -readonly [I in keyof Options]: Options[I] extends core.SomeType ? DeepPartial<Options[I]> : Options[I];
+}> : T extends schemas.ZodMiniUnion<infer Options> ? schemas.ZodMiniUnion<{
+    -readonly [I in keyof Options]: Options[I] extends core.SomeType ? DeepPartial<Options[I]> : Options[I];
+}> : T extends schemas.ZodMiniArray<infer El> ? schemas.ZodMiniArray<DeepPartial<El>> : T extends schemas.ZodMiniTuple<infer Items, infer Rest> ? schemas.ZodMiniTuple<{
+    -readonly [K in keyof Items]: Items[K] extends core.SomeType ? DeepPartial<Items[K]> : Items[K];
+}, Rest extends core.SomeType ? DeepPartial<Rest> : Rest> : T extends schemas.ZodMiniIntersection<infer A, infer B> ? schemas.ZodMiniIntersection<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodMiniRecord<infer K, infer V> ? schemas.ZodMiniRecord<K, DeepPartial<V>> : T extends schemas.ZodMiniMap<infer K, infer V> ? schemas.ZodMiniMap<K, DeepPartial<V>> : T extends schemas.ZodMiniSet<infer El> ? schemas.ZodMiniSet<DeepPartial<El>> : T extends schemas.ZodMiniOptional<infer Inner> ? schemas.ZodMiniOptional<DeepPartial<Inner>> : T extends schemas.ZodMiniNullable<infer Inner> ? schemas.ZodMiniNullable<DeepPartial<Inner>> : T extends schemas.ZodMiniDefault<infer Inner> ? schemas.ZodMiniDefault<DeepPartial<Inner>> : T extends schemas.ZodMiniPrefault<infer Inner> ? schemas.ZodMiniPrefault<DeepPartial<Inner>> : T extends schemas.ZodMiniNonOptional<infer Inner> ? schemas.ZodMiniNonOptional<DeepPartial<Inner>> : T extends schemas.ZodMiniCatch<infer Inner> ? schemas.ZodMiniCatch<DeepPartial<Inner>> : T extends schemas.ZodMiniReadonly<infer Inner> ? schemas.ZodMiniReadonly<DeepPartial<Inner>> : T extends schemas.ZodMiniSuccess<infer Inner> ? schemas.ZodMiniSuccess<DeepPartial<Inner>> : T extends schemas.ZodMiniPromise<infer Inner> ? schemas.ZodMiniPromise<DeepPartial<Inner>> : T extends schemas.ZodMiniCodec<infer A, infer B> ? schemas.ZodMiniCodec<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodMiniPipe<infer A, infer B> ? schemas.ZodMiniPipe<DeepPartial<A>, DeepPartial<B>> : T extends schemas.ZodMiniLazy<infer Inner> ? schemas.ZodMiniLazy<DeepPartial<Inner>> : T;
+/** See \`classic/deep-partial.ts\`. Mini variant uses \`mini.partial(...)\`. */
+export declare function deepPartial<T extends core.SomeType>(schema: T): DeepPartial<T>;
+`,
   "deps/zod/v4/mini/external.d.ts": `export * as core from "../core/index.js";
 export * from "./parse.js";
 export * from "./schemas.js";
 export * from "./checks.js";
-export type { infer, output, input } from "../core/index.js";
-export { globalRegistry, registry, config, $output, $input, $brand, clone, regexes, treeifyError, prettifyError, formatError, flattenError, TimePrecision, util, NEVER, } from "../core/index.js";
+export { deepPartial } from "./deep-partial.js";
+export { input, output } from "./in-out.js";
+export type { infer } from "../core/index.js";
+export type { JSONType } from "../core/util.js";
+export type { CompileOptions } from "../core/index.js";
+export { globalRegistry, registry, config, memoizer, $output, $input, $brand, clone, regexes, treeifyError, prettifyError, formatError, flattenError, TimePrecision, util, NEVER, INVALID, toZod, compile, withParser, ZodCompileAsyncError, ZodCompileUnsupportedError, getDiscriminatedOption, } from "../core/index.js";
 export { toJSONSchema } from "../core/json-schema-processors.js";
 export * as locales from "../locales/index.js";
 /** A special constant with type \`never\` */
 export * as iso from "./iso.js";
 export { ZodMiniISODateTime, ZodMiniISODate, ZodMiniISOTime, ZodMiniISODuration, } from "./iso.js";
 export * as coerce from "./coerce.js";
+`,
+  "deps/zod/v4/mini/in-out.d.ts": `import type * as core from "../core/index.js";
+import * as schemas from "./schemas.js";
+export type input<T> = core.input<T>;
+export type output<T> = core.output<T>;
+/** See \`classic/in-out.ts\`. */
+export declare function input<T extends core.$ZodType>(schema: T): schemas.ZodMiniType<core.input<T>, core.input<T>>;
+/** See \`classic/in-out.ts\`. */
+export declare function output<T extends core.$ZodType>(schema: T): schemas.ZodMiniType<core.output<T>, core.output<T>>;
 `,
   "deps/zod/v4/mini/index.d.ts": `import * as z from "./external.js";
 export * from "./external.js";
@@ -45481,9 +46767,10 @@ export interface ZodMiniISODuration extends schemas.ZodMiniStringFormat<"duratio
 export declare const ZodMiniISODuration: core.$constructor<ZodMiniISODuration>;
 export declare function duration(params?: string | core.$ZodISODurationParams): ZodMiniISODuration;
 `,
-  "deps/zod/v4/mini/parse.d.ts": `export { parse, safeParse, parseAsync, safeParseAsync, encode, decode, encodeAsync, decodeAsync, safeEncode, safeDecode, safeEncodeAsync, safeDecodeAsync, } from "../core/index.js";
+  "deps/zod/v4/mini/parse.d.ts": `export { validate, validateAsync, parse, safeParse, parseAsync, safeParseAsync, encode, decode, encodeAsync, decodeAsync, safeEncode, safeDecode, safeEncodeAsync, safeDecodeAsync, } from "../core/index.js";
 `,
   "deps/zod/v4/mini/schemas.d.ts": `import * as core from "../core/index.js";
+import type { $ZodBigIntFormats } from "../core/index.js";
 import * as util from "../core/util.js";
 type SomeType = core.SomeType;
 export interface ZodMiniType<out Output = unknown, out Input = unknown, out Internals extends core.$ZodTypeInternals<Output, Input> = core.$ZodTypeInternals<Output, Input>> extends core.$ZodType<Output, Input, Internals> {
@@ -45500,7 +46787,7 @@ export interface ZodMiniType<out Output = unknown, out Input = unknown, out Inte
     safeParse(data: unknown, params?: core.ParseContext<core.$ZodIssue>): util.SafeParseResult<core.output<this>>;
     parseAsync(data: unknown, params?: core.ParseContext<core.$ZodIssue>): Promise<core.output<this>>;
     safeParseAsync(data: unknown, params?: core.ParseContext<core.$ZodIssue>): Promise<util.SafeParseResult<core.output<this>>>;
-    apply<T>(fn: (schema: this) => T): T;
+    apply<T, TArgs extends unknown[] = []>(fn: (schema: this, ...args: TArgs) => T, ...args: TArgs): T;
 }
 interface _ZodMiniType<out Internals extends core.$ZodTypeInternals = core.$ZodTypeInternals> extends ZodMiniType<any, any, Internals> {
 }
@@ -45543,9 +46830,26 @@ export interface ZodMiniNanoID extends _ZodMiniString<core.$ZodNanoIDInternals> 
 }
 export declare const ZodMiniNanoID: core.$constructor<ZodMiniNanoID>;
 export declare function nanoid(params?: string | core.$ZodNanoIDParams): ZodMiniNanoID;
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link ZodMiniCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export interface ZodMiniCUID extends _ZodMiniString<core.$ZodCUIDInternals> {
 }
+/**
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link ZodMiniCUID2} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare const ZodMiniCUID: core.$constructor<ZodMiniCUID>;
+/**
+ * Validates a CUID v1 string.
+ *
+ * @deprecated CUID v1 is deprecated by its authors due to information leakage
+ * (timestamps embedded in the id). Use {@link cuid2 | \`z.cuid2()\`} instead.
+ * See https://github.com/paralleldrive/cuid.
+ */
 export declare function cuid(params?: string | core.$ZodCUIDParams): ZodMiniCUID;
 export interface ZodMiniCUID2 extends _ZodMiniString<core.$ZodCUID2Internals> {
 }
@@ -45595,6 +46899,14 @@ export interface ZodMiniE164 extends _ZodMiniString<core.$ZodE164Internals> {
 }
 export declare const ZodMiniE164: core.$constructor<ZodMiniE164>;
 export declare function e164(params?: string | core.$ZodE164Params): ZodMiniE164;
+export interface ZodMiniCreditCard extends _ZodMiniString<core.$ZodCreditCardInternals> {
+}
+export declare const ZodMiniCreditCard: core.$constructor<ZodMiniCreditCard>;
+export declare function creditCard(params?: string | core.$ZodCreditCardParams): ZodMiniCreditCard;
+export interface ZodMiniIBAN extends _ZodMiniString<core.$ZodIBANInternals> {
+}
+export declare const ZodMiniIBAN: core.$constructor<ZodMiniIBAN>;
+export declare function iban(params?: string | core.$ZodIBANParams): ZodMiniIBAN;
 export interface ZodMiniJWT extends _ZodMiniString<core.$ZodJWTInternals> {
 }
 export declare const ZodMiniJWT: core.$constructor<ZodMiniJWT>;
@@ -45606,6 +46918,7 @@ export declare const ZodMiniCustomStringFormat: core.$constructor<ZodMiniCustomS
 export declare function stringFormat<Format extends string>(format: Format, fnOrRegex: ((arg: string) => util.MaybeAsync<unknown>) | RegExp, _params?: string | core.$ZodStringFormatParams): ZodMiniCustomStringFormat<Format>;
 export declare function hostname(_params?: string | core.$ZodStringFormatParams): ZodMiniCustomStringFormat<"hostname">;
 export declare function hex(_params?: string | core.$ZodStringFormatParams): ZodMiniCustomStringFormat<"hex">;
+export declare function currencyCode(_params?: string | core.$ZodStringFormatParams): ZodMiniCustomStringFormat<"currency_code">;
 export declare function hash<Alg extends util.HashAlgorithm, Enc extends util.HashEncoding = "hex">(alg: Alg, params?: {
     enc?: Enc;
 } & core.$ZodStringFormatParams): ZodMiniCustomStringFormat<\`\${Alg}_\${Enc}\`>;
@@ -45616,14 +46929,24 @@ export interface ZodMiniNumber<Input = unknown> extends _ZodMiniNumber<core.$Zod
 }
 export declare const ZodMiniNumber: core.$constructor<ZodMiniNumber>;
 export declare function number(params?: string | core.$ZodNumberParams): ZodMiniNumber<number>;
-export interface ZodMiniNumberFormat extends _ZodMiniNumber<core.$ZodNumberFormatInternals>, core.$ZodNumberFormat {
+export interface ZodMiniNumberFormat<Format extends core.$ZodNumberFormats = core.$ZodNumberFormats> extends _ZodMiniNumber<core.$ZodNumberFormatInternals<Format>>, core.$ZodNumberFormat<Format> {
 }
 export declare const ZodMiniNumberFormat: core.$constructor<ZodMiniNumberFormat>;
-export declare function int(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniNumberFormat;
-export declare function float32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniNumberFormat;
-export declare function float64(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniNumberFormat;
-export declare function int32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniNumberFormat;
-export declare function uint32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniNumberFormat;
+export interface ZodMiniInt extends ZodMiniNumberFormat<"safeint"> {
+}
+export declare function int(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniInt;
+export interface ZodMiniFloat32 extends ZodMiniNumberFormat<"float32"> {
+}
+export declare function float32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniFloat32;
+export interface ZodMiniFloat64 extends ZodMiniNumberFormat<"float64"> {
+}
+export declare function float64(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniFloat64;
+export interface ZodMiniInt32 extends ZodMiniNumberFormat<"int32"> {
+}
+export declare function int32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniInt32;
+export interface ZodMiniUInt32 extends ZodMiniNumberFormat<"uint32"> {
+}
+export declare function uint32(params?: string | core.$ZodCheckNumberFormatParams): ZodMiniUInt32;
 export interface ZodMiniBoolean<T = unknown> extends _ZodMiniType<core.$ZodBooleanInternals<T>> {
 }
 export declare const ZodMiniBoolean: core.$constructor<ZodMiniBoolean>;
@@ -45632,11 +46955,15 @@ export interface ZodMiniBigInt<T = unknown> extends _ZodMiniType<core.$ZodBigInt
 }
 export declare const ZodMiniBigInt: core.$constructor<ZodMiniBigInt>;
 export declare function bigint(params?: string | core.$ZodBigIntParams): ZodMiniBigInt<bigint>;
-export interface ZodMiniBigIntFormat extends _ZodMiniType<core.$ZodBigIntFormatInternals> {
+export interface ZodMiniBigIntFormat<Format extends $ZodBigIntFormats = $ZodBigIntFormats> extends _ZodMiniType<core.$ZodBigIntFormatInternals<Format>> {
 }
 export declare const ZodMiniBigIntFormat: core.$constructor<ZodMiniBigIntFormat>;
-export declare function int64(params?: string | core.$ZodBigIntFormatParams): ZodMiniBigIntFormat;
-export declare function uint64(params?: string | core.$ZodBigIntFormatParams): ZodMiniBigIntFormat;
+export interface ZodMiniInt64 extends ZodMiniBigIntFormat<"int64"> {
+}
+export declare function int64(params?: string | core.$ZodBigIntFormatParams): ZodMiniInt64;
+export interface ZodMiniUInt64 extends ZodMiniBigIntFormat<"uint64"> {
+}
+export declare function uint64(params?: string | core.$ZodBigIntFormatParams): ZodMiniUInt64;
 export interface ZodMiniSymbol extends _ZodMiniType<core.$ZodSymbolInternals> {
 }
 export declare const ZodMiniSymbol: core.$constructor<ZodMiniSymbol>;
@@ -45683,23 +47010,34 @@ out Shape extends core.$ZodShape = core.$ZodShape, out Config extends core.$ZodO
     shape: Shape;
 }
 export declare const ZodMiniObject: core.$constructor<ZodMiniObject>;
-export declare function object<T extends core.$ZodLooseShape = Record<never, SomeType>>(shape?: T, params?: string | core.$ZodObjectParams): ZodMiniObject<T, core.$strip>;
-export declare function strictObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodMiniObject<T, core.$strict>;
-export declare function looseObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodMiniObject<T, core.$loose>;
-export declare function extend<T extends ZodMiniObject, U extends core.$ZodLooseShape>(schema: T, shape: U): ZodMiniObject<util.Extend<T["shape"], U>, T["_zod"]["config"]>;
+export declare function object<T extends core.$ZodLooseShape = Record<never, SomeType>>(shape?: T, params?: string | core.$ZodObjectParams): ZodMiniObject<util.Writeable<T>, core.$strip>;
+export declare function strictObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodMiniObject<util.Writeable<T>, core.$strict>;
+export declare function looseObject<T extends core.$ZodLooseShape>(shape: T, params?: string | core.$ZodObjectParams): ZodMiniObject<util.Writeable<T>, core.$loose>;
+export declare function extend<T extends ZodMiniObject, U extends core.$ZodLooseShape>(schema: T, shape: U): ZodMiniObject<util.Extend<T["shape"], util.Writeable<U>>, T["_zod"]["config"]>;
 export type SafeExtendShape<Base extends core.$ZodShape, Ext extends core.$ZodLooseShape> = {
     [K in keyof Ext]: K extends keyof Base ? core.output<Ext[K]> extends core.output<Base[K]> ? core.input<Ext[K]> extends core.input<Base[K]> ? Ext[K] : never : never : Ext[K];
 };
-export declare function safeExtend<T extends ZodMiniObject, U extends core.$ZodLooseShape>(schema: T, shape: SafeExtendShape<T["shape"], U>): ZodMiniObject<util.Extend<T["shape"], U>, T["_zod"]["config"]>;
-/** @deprecated Identical to \`z.extend(A, B)\` */
-export declare function merge<T extends ZodMiniObject, U extends ZodMiniObject>(a: T, b: U): ZodMiniObject<util.Extend<T["shape"], U["shape"]>, T["_zod"]["config"]>;
+export declare function safeExtend<T extends ZodMiniObject, U extends core.$ZodLooseShape>(schema: T, shape: SafeExtendShape<T["shape"], U>): ZodMiniObject<util.Extend<T["shape"], util.Writeable<U>>, T["_zod"]["config"]>;
+/**
+ * @deprecated Use [\`z.extend(A, B.shape)\`](https://zod.dev/api?id=extend) instead.
+ */
+export declare function merge<T extends ZodMiniObject, U extends ZodMiniObject>(a: T, b: U): ZodMiniObject<util.Extend<T["shape"], U["shape"]>, U["_zod"]["config"]>;
 export declare function pick<T extends ZodMiniObject, M extends util.Mask<keyof T["shape"]>>(schema: T, mask: M & Record<Exclude<keyof M, keyof T["shape"]>, never>): ZodMiniObject<util.Flatten<Pick<T["shape"], keyof T["shape"] & keyof M>>, T["_zod"]["config"]>;
 export declare function omit<T extends ZodMiniObject, M extends util.Mask<keyof T["shape"]>>(schema: T, mask: M & Record<Exclude<keyof M, keyof T["shape"]>, never>): ZodMiniObject<util.Flatten<Omit<T["shape"], keyof M>>, T["_zod"]["config"]>;
 export declare function partial<T extends ZodMiniObject>(schema: T): ZodMiniObject<{
-    [k in keyof T["shape"]]: ZodMiniOptional<T["shape"][k]>;
+    -readonly [k in keyof T["shape"]]: ZodMiniOptional<T["shape"][k]>;
 }, T["_zod"]["config"]>;
 export declare function partial<T extends ZodMiniObject, M extends util.Mask<keyof T["shape"]>>(schema: T, mask: M & Record<Exclude<keyof M, keyof T["shape"]>, never>): ZodMiniObject<{
-    [k in keyof T["shape"]]: k extends keyof M ? ZodMiniOptional<T["shape"][k]> : T["shape"][k];
+    -readonly [k in keyof T["shape"]]: k extends keyof M ? ZodMiniOptional<T["shape"][k]> : T["shape"][k];
+}, T["_zod"]["config"]>;
+export declare function partial<T extends util.TupleItems, Rest extends SomeType | null>(schema: ZodMiniTuple<T, Rest>): ZodMiniTuple<{
+    -readonly [k in keyof T]: ZodMiniOptional<T[k]>;
+}, Rest>;
+export declare function exactPartial<T extends ZodMiniObject>(schema: T): ZodMiniObject<{
+    -readonly [k in keyof T["shape"]]: ZodMiniExactOptional<T["shape"][k]>;
+}, T["_zod"]["config"]>;
+export declare function exactPartial<T extends ZodMiniObject, M extends util.Mask<keyof T["shape"]>>(schema: T, mask: M & Record<Exclude<keyof M, keyof T["shape"]>, never>): ZodMiniObject<{
+    -readonly [k in keyof T["shape"]]: k extends keyof M ? ZodMiniExactOptional<T["shape"][k]> : T["shape"][k];
 }, T["_zod"]["config"]>;
 export type RequiredInterfaceShape<Shape extends core.$ZodLooseShape, Keys extends PropertyKey = keyof Shape> = util.Identity<{
     [k in keyof Shape as k extends Keys ? k : never]: ZodMiniNonOptional<Shape[k]>;
@@ -45707,7 +47045,7 @@ export type RequiredInterfaceShape<Shape extends core.$ZodLooseShape, Keys exten
     [k in keyof Shape as k extends Keys ? never : k]: Shape[k];
 }>;
 export declare function required<T extends ZodMiniObject>(schema: T): ZodMiniObject<{
-    [k in keyof T["shape"]]: ZodMiniNonOptional<T["shape"][k]>;
+    -readonly [k in keyof T["shape"]]: ZodMiniNonOptional<T["shape"][k]>;
 }, T["_zod"]["config"]>;
 export declare function required<T extends ZodMiniObject, M extends util.Mask<keyof T["shape"]>>(schema: T, mask: M & Record<Exclude<keyof M, keyof T["shape"]>, never>): ZodMiniObject<util.Extend<T["shape"], {
     [k in keyof M & keyof T["shape"]]: ZodMiniNonOptional<T["shape"][k]>;
@@ -45801,7 +47139,7 @@ export declare function _default<T extends SomeType>(innerType: T, defaultValue:
 export interface ZodMiniPrefault<T extends SomeType = core.$ZodType> extends _ZodMiniType<core.$ZodPrefaultInternals<T>> {
 }
 export declare const ZodMiniPrefault: core.$constructor<ZodMiniPrefault>;
-export declare function prefault<T extends SomeType>(innerType: T, defaultValue: util.NoUndefined<core.input<T>> | (() => util.NoUndefined<core.input<T>>)): ZodMiniPrefault<T>;
+export declare function prefault<T extends SomeType>(innerType: T, defaultValue: core.input<T> | (() => core.input<T>)): ZodMiniPrefault<T>;
 export interface ZodMiniNonOptional<T extends SomeType = core.$ZodType> extends _ZodMiniType<core.$ZodNonOptionalInternals<T>> {
 }
 export declare const ZodMiniNonOptional: core.$constructor<ZodMiniNonOptional>;
@@ -45832,6 +47170,7 @@ export declare function codec<const A extends SomeType, B extends core.SomeType 
     decode: (value: core.output<A>, payload: core.ParsePayload<core.output<A>>) => core.util.MaybeAsync<core.input<B>>;
     encode: (value: core.input<B>, payload: core.ParsePayload<core.input<B>>) => core.util.MaybeAsync<core.output<A>>;
 }): ZodMiniCodec<A, B>;
+export declare function invertCodec<A extends SomeType, B extends SomeType>(codec: ZodMiniCodec<A, B>): ZodMiniCodec<B, A>;
 export interface ZodMiniReadonly<T extends SomeType = core.$ZodType> extends _ZodMiniType<core.$ZodReadonlyInternals<T>> {
 }
 export declare const ZodMiniReadonly: core.$constructor<ZodMiniReadonly>;
@@ -45855,7 +47194,7 @@ export declare const ZodMiniCustom: core.$constructor<ZodMiniCustom>;
 export declare function check<O = unknown>(fn: core.CheckFn<O>, params?: string | core.$ZodCustomParams): core.$ZodCheck<O>;
 export declare function custom<O = unknown, I = O>(fn?: (data: O) => unknown, _params?: string | core.$ZodCustomParams | undefined): ZodMiniCustom<O, I>;
 export declare function refine<T>(fn: (arg: NoInfer<T>) => util.MaybeAsync<unknown>, _params?: string | core.$ZodCustomParams): core.$ZodCheck<T>;
-export declare function superRefine<T>(fn: (arg: T, payload: core.$RefinementCtx<T>) => void | Promise<void>): core.$ZodCheck<T>;
+export declare function superRefine<T>(fn: (arg: T, payload: core.$RefinementCtx<T>) => void | Promise<void>, params?: core.$ZodSuperRefineParams): core.$ZodCheck<T>;
 export declare const describe: typeof core.describe;
 export declare const meta: typeof core.meta;
 declare abstract class Class {
@@ -45913,7 +47252,7 @@ export { _function as function };
 `,
   "deps/zod/package.json": `{
   "name": "zod",
-  "version": "4.3.6",
+  "version": "4.6.7",
   "type": "module",
   "license": "MIT",
   "author": "Colin McDonnell <zod@colinhacks.com>",
@@ -45923,7 +47262,11 @@ export { _function as function };
   "llmsFull": "https://zod.dev/llms-full.txt",
   "mcpServer": "https://mcp.inkeep.com/zod/mcp",
   "funding": "https://github.com/sponsors/colinhacks",
-  "sideEffects": false,
+  "sideEffects": [
+    "./compile.js",
+    "./compile.cjs",
+    "./src/compile.ts"
+  ],
   "files": [
     "src",
     "**/*.js",
@@ -45949,6 +47292,7 @@ export { _function as function };
       "./package.json": "./package.json",
       ".": "./src/index.ts",
       "./mini": "./src/mini/index.ts",
+      "./compile": "./src/compile.ts",
       "./locales": "./src/locales/index.ts",
       "./v3": "./src/v3/index.ts",
       "./v4": "./src/v4/index.ts",
@@ -45960,7 +47304,8 @@ export { _function as function };
     },
     "conditions": {
       "@zod/source": "src"
-    }
+    },
+    "sealCjsExports": true
   },
   "exports": {
     "./package.json": "./package.json",
@@ -45975,6 +47320,12 @@ export { _function as function };
       "types": "./mini/index.d.cts",
       "import": "./mini/index.js",
       "require": "./mini/index.cjs"
+    },
+    "./compile": {
+      "@zod/source": "./src/compile.ts",
+      "types": "./compile.d.cts",
+      "import": "./compile.js",
+      "require": "./compile.cjs"
     },
     "./locales": {
       "@zod/source": "./src/locales/index.ts",
@@ -46039,11 +47390,11 @@ export { _function as function };
   },
   "scripts": {
     "clean": "git clean -xdf . -e node_modules",
-    "build": "zshy --project tsconfig.build.json",
-    "postbuild": "tsx ../../scripts/write-stub-package-jsons.ts && pnpm biome check --write .",
-    "test:watch": "pnpm vitest",
-    "test": "pnpm vitest run",
-    "prepublishOnly": "tsx ../../scripts/check-versions.ts"
+    "build": "nub exec --node zshy --project tsconfig.build.json",
+    "postbuild": "nub ../../scripts/write-stub-package-jsons.ts && nub exec --node biome check --write .",
+    "test:watch": "nub exec --node vitest",
+    "test": "nub exec --node vitest run",
+    "prepublishOnly": "nub ../../scripts/check-versions.ts"
   }
 }
 `,
