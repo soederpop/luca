@@ -75,6 +75,13 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		}).then(r => r.data)
 	}
 
+	/** Run a query against RunPod's GraphQL API, which has data the REST API lacks (GPU pricing). */
+	private graphql<R = any>(query: string): Promise<R> {
+		const gql = this.container.client('graph', { baseURL: 'https://api.runpod.io' })
+		gql.axios.defaults.headers.common.Authorization = `Bearer ${this.apiKey}`
+		return gql.query<R>(query)
+	}
+
 	/**
 	 * List available pod templates.
 	 *
@@ -592,11 +599,68 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	}
 
 	/**
-	 * List available secure GPU types with pricing.
+	 * List RunPod GPU types with Secure and Community Cloud pricing, from the RunPod GraphQL API.
 	 *
-	 * Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.
+	 * Prices are USD per GPU per hour. A spot price is null when RunPod offers no spot
+	 * (interruptible) price. RunPod can report a price for a cloud that does not offer the
+	 * GPU, so the `cloudType` filter uses the `secureCloud` / `communityCloud` flags and a
+	 * price above zero, not the price alone.
 	 *
-	 * @returns Array of GPU info with type, memory, CPU count, and pricing
+	 * @param options - Filter options
+	 * @param options.cloudType - 'SECURE' or 'COMMUNITY' keeps only GPUs offered and priced in that cloud; 'ALL' keeps every GPU type (default: 'ALL')
+	 * @returns Array of GPU types. `id` is the value `createPod({ gpuTypeId })` accepts.
+	 *
+	 * @example
+	 * ```typescript
+	 * const gpus = await runpod.listGPUTypes({ cloudType: 'COMMUNITY' })
+	 * gpus.forEach(g => console.log(`${g.id}: $${g.communityPrice}/hr`))
+	 * ```
+	 */
+	async listGPUTypes(options: { cloudType?: 'SECURE' | 'COMMUNITY' | 'ALL' } = {}): Promise<GPUTypeInfo[]> {
+		const data = await this.graphql<{ gpuTypes?: RawGPUType[] }>(`{
+			gpuTypes {
+				id displayName memoryInGb secureCloud communityCloud
+				securePrice communityPrice secureSpotPrice communitySpotPrice
+				lowestPrice(input: { gpuCount: 1, secureCloud: true }) { minVcpu }
+			}
+		}`)
+
+		if (!Array.isArray(data?.gpuTypes)) {
+			throw new Error('RunPod GraphQL API returned no gpuTypes. Check RUNPOD_API_KEY.')
+		}
+
+		const gpus = data.gpuTypes.map((g): GPUTypeInfo => ({
+			id: g.id,
+			displayName: g.displayName,
+			memoryInGb: g.memoryInGb,
+			secureCloud: Boolean(g.secureCloud),
+			communityCloud: Boolean(g.communityCloud),
+			securePrice: g.securePrice ?? null,
+			communityPrice: g.communityPrice ?? null,
+			secureSpotPrice: g.secureSpotPrice ?? null,
+			communitySpotPrice: g.communitySpotPrice ?? null,
+			secureMinVcpu: g.lowestPrice?.minVcpu ?? null,
+		}))
+
+		const cloudType = options.cloudType || 'ALL'
+		if (cloudType === 'SECURE') return gpus.filter(g => g.secureCloud && (g.securePrice ?? 0) > 0)
+		if (cloudType === 'COMMUNITY') return gpus.filter(g => g.communityCloud && (g.communityPrice ?? 0) > 0)
+		return gpus
+	}
+
+	/**
+	 * List GPU types offered in RunPod's Secure Cloud, with Secure Cloud pricing.
+	 *
+	 * A shorthand for `listGPUTypes({ cloudType: 'SECURE' })` in the older return shape.
+	 * GPUs with no Secure Cloud price are left out. For Community prices or the
+	 * `createPod` GPU type id, use `listGPUTypes()`.
+	 *
+	 * `gpuType` is the RunPod GPU type id. `memory` is GPU memory in GB. `cpuCount` is the
+	 * minimum vCPUs on a 1-GPU Secure Cloud pod (GraphQL `lowestPrice.minVcpu`), null when
+	 * RunPod reports no available machine. `spotPrice` and `ondemandPrice` are Secure Cloud
+	 * prices in USD per hour; `spotPrice` is null when RunPod offers no spot price.
+	 *
+	 * @returns Array of Secure Cloud GPU info with type, memory, CPU count, and pricing
 	 *
 	 * @example
 	 * ```typescript
@@ -604,23 +668,15 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	 * gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 	 * ```
 	 */
-	async listSecureGPUs() {
-		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'cloud', '--secure'])
-
-		return output
-			.split(/\r?\n/)
-			.filter((line) => !line.includes("Reserved"))
-			.map(line => line.trim().split("\t"))
-			.filter(list => list.length > 3)
-			.map((fields) => fields.map(f => f.trim()))
-			.map((fields) => ({
-				gpuType: fields[0],
-				memory: parseInt(fields[1]!),
-				cpuCount: parseInt(fields[2]!),
-				spotPrice: parseFloat(fields[3]!),
-				ondemandPrice: parseFloat(fields[4]!),
-			}))
-			
+	async listSecureGPUs(): Promise<SecureGPUInfo[]> {
+		const gpus = await this.listGPUTypes({ cloudType: 'SECURE' })
+		return gpus.map((g) => ({
+			gpuType: g.id,
+			memory: g.memoryInGb,
+			cpuCount: g.secureMinVcpu,
+			spotPrice: g.secureSpotPrice,
+			ondemandPrice: g.securePrice!,
+		}))
 	}
 
 }
@@ -733,6 +789,50 @@ type PodInfo = {
 	volumeDisk: string
 	spotPrice: string
 	ports: PortInfo[]
+}
+
+type RawGPUType = {
+	id: string
+	displayName: string
+	memoryInGb: number
+	secureCloud: boolean | null
+	communityCloud: boolean | null
+	securePrice: number | null
+	communityPrice: number | null
+	secureSpotPrice: number | null
+	communitySpotPrice: number | null
+	lowestPrice: { minVcpu: number | null } | null
+}
+
+export type GPUTypeInfo = {
+	/** RunPod GPU type id, the value createPod accepts as gpuTypeId */
+	id: string
+	/** Short display name, e.g. 'RTX PRO 6000' */
+	displayName: string
+	/** GPU memory in GB */
+	memoryInGb: number
+	/** Whether Secure Cloud offers this GPU */
+	secureCloud: boolean
+	/** Whether Community Cloud offers this GPU */
+	communityCloud: boolean
+	/** Secure Cloud on-demand price, USD per GPU per hour */
+	securePrice: number | null
+	/** Community Cloud on-demand price, USD per GPU per hour */
+	communityPrice: number | null
+	/** Secure Cloud spot price, null when RunPod offers none */
+	secureSpotPrice: number | null
+	/** Community Cloud spot price, null when RunPod offers none */
+	communitySpotPrice: number | null
+	/** Minimum vCPUs on a 1-GPU Secure Cloud pod, null when RunPod reports no available machine */
+	secureMinVcpu: number | null
+}
+
+export type SecureGPUInfo = {
+	gpuType: string
+	memory: number
+	cpuCount: number | null
+	spotPrice: number | null
+	ondemandPrice: number
 }
 
 type TemplateInfo = {

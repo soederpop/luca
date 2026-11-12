@@ -24545,11 +24545,34 @@ setBuildTimeData('features.runpod', {
         }
       ]
     },
+    "listGPUTypes": {
+      "description": "List RunPod GPU types with Secure and Community Cloud pricing, from the RunPod GraphQL API. Prices are USD per GPU per hour. A spot price is null when RunPod offers no spot (interruptible) price. RunPod can report a price for a cloud that does not offer the GPU, so the `cloudType` filter uses the `secureCloud` / `communityCloud` flags and a price above zero, not the price alone.",
+      "parameters": {
+        "options": {
+          "type": "{ cloudType?: 'SECURE' | 'COMMUNITY' | 'ALL' }",
+          "description": "Filter options",
+          "properties": {
+            "cloudType": {
+              "type": "any",
+              "description": "'SECURE' or 'COMMUNITY' keeps only GPUs offered and priced in that cloud; 'ALL' keeps every GPU type (default: 'ALL')"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<GPUTypeInfo[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const gpus = await runpod.listGPUTypes({ cloudType: 'COMMUNITY' })\ngpus.forEach(g => console.log(`${g.id}: $${g.communityPrice}/hr`))"
+        }
+      ]
+    },
     "listSecureGPUs": {
-      "description": "List available secure GPU types with pricing. Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.",
+      "description": "List GPU types offered in RunPod's Secure Cloud, with Secure Cloud pricing. A shorthand for `listGPUTypes({ cloudType: 'SECURE' })` in the older return shape. GPUs with no Secure Cloud price are left out. For Community prices or the `createPod` GPU type id, use `listGPUTypes()`. `gpuType` is the RunPod GPU type id. `memory` is GPU memory in GB. `cpuCount` is the minimum vCPUs on a 1-GPU Secure Cloud pod (GraphQL `lowestPrice.minVcpu`), null when RunPod reports no available machine. `spotPrice` and `ondemandPrice` are Secure Cloud prices in USD per hour; `spotPrice` is null when RunPod offers no spot price.",
       "parameters": {},
       "required": [],
-      "returns": "void",
+      "returns": "Promise<SecureGPUInfo[]>",
       "examples": [
         {
           "language": "ts",
@@ -24899,6 +24922,76 @@ setBuildTimeData('features.runpod', {
           "type": "string",
           "description": "Data center to create in (defaults to feature's dataCenterId)",
           "optional": true
+        }
+      }
+    },
+    "GPUTypeInfo": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "RunPod GPU type id, the value createPod accepts as gpuTypeId"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Short display name, e.g. 'RTX PRO 6000'"
+        },
+        "memoryInGb": {
+          "type": "number",
+          "description": "GPU memory in GB"
+        },
+        "secureCloud": {
+          "type": "boolean",
+          "description": "Whether Secure Cloud offers this GPU"
+        },
+        "communityCloud": {
+          "type": "boolean",
+          "description": "Whether Community Cloud offers this GPU"
+        },
+        "securePrice": {
+          "type": "number | null",
+          "description": "Secure Cloud on-demand price, USD per GPU per hour"
+        },
+        "communityPrice": {
+          "type": "number | null",
+          "description": "Community Cloud on-demand price, USD per GPU per hour"
+        },
+        "secureSpotPrice": {
+          "type": "number | null",
+          "description": "Secure Cloud spot price, null when RunPod offers none"
+        },
+        "communitySpotPrice": {
+          "type": "number | null",
+          "description": "Community Cloud spot price, null when RunPod offers none"
+        },
+        "secureMinVcpu": {
+          "type": "number | null",
+          "description": "Minimum vCPUs on a 1-GPU Secure Cloud pod, null when RunPod reports no available machine"
+        }
+      }
+    },
+    "SecureGPUInfo": {
+      "description": "",
+      "properties": {
+        "gpuType": {
+          "type": "string",
+          "description": ""
+        },
+        "memory": {
+          "type": "number",
+          "description": ""
+        },
+        "cpuCount": {
+          "type": "number | null",
+          "description": ""
+        },
+        "spotPrice": {
+          "type": "number | null",
+          "description": ""
+        },
+        "ondemandPrice": {
+          "type": "number",
+          "description": ""
         }
       }
     }
@@ -57163,11 +57256,34 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "listGPUTypes": {
+        "description": "List RunPod GPU types with Secure and Community Cloud pricing, from the RunPod GraphQL API. Prices are USD per GPU per hour. A spot price is null when RunPod offers no spot (interruptible) price. RunPod can report a price for a cloud that does not offer the GPU, so the `cloudType` filter uses the `secureCloud` / `communityCloud` flags and a price above zero, not the price alone.",
+        "parameters": {
+          "options": {
+            "type": "{ cloudType?: 'SECURE' | 'COMMUNITY' | 'ALL' }",
+            "description": "Filter options",
+            "properties": {
+              "cloudType": {
+                "type": "any",
+                "description": "'SECURE' or 'COMMUNITY' keeps only GPUs offered and priced in that cloud; 'ALL' keeps every GPU type (default: 'ALL')"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<GPUTypeInfo[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const gpus = await runpod.listGPUTypes({ cloudType: 'COMMUNITY' })\ngpus.forEach(g => console.log(`${g.id}: $${g.communityPrice}/hr`))"
+          }
+        ]
+      },
       "listSecureGPUs": {
-        "description": "List available secure GPU types with pricing. Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.",
+        "description": "List GPU types offered in RunPod's Secure Cloud, with Secure Cloud pricing. A shorthand for `listGPUTypes({ cloudType: 'SECURE' })` in the older return shape. GPUs with no Secure Cloud price are left out. For Community prices or the `createPod` GPU type id, use `listGPUTypes()`. `gpuType` is the RunPod GPU type id. `memory` is GPU memory in GB. `cpuCount` is the minimum vCPUs on a 1-GPU Secure Cloud pod (GraphQL `lowestPrice.minVcpu`), null when RunPod reports no available machine. `spotPrice` and `ondemandPrice` are Secure Cloud prices in USD per hour; `spotPrice` is null when RunPod offers no spot price.",
         "parameters": {},
         "required": [],
-        "returns": "void",
+        "returns": "Promise<SecureGPUInfo[]>",
         "examples": [
           {
             "language": "ts",
@@ -57517,6 +57633,76 @@ export const introspectionData: Record<string, any>[] = [
             "type": "string",
             "description": "Data center to create in (defaults to feature's dataCenterId)",
             "optional": true
+          }
+        }
+      },
+      "GPUTypeInfo": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "RunPod GPU type id, the value createPod accepts as gpuTypeId"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Short display name, e.g. 'RTX PRO 6000'"
+          },
+          "memoryInGb": {
+            "type": "number",
+            "description": "GPU memory in GB"
+          },
+          "secureCloud": {
+            "type": "boolean",
+            "description": "Whether Secure Cloud offers this GPU"
+          },
+          "communityCloud": {
+            "type": "boolean",
+            "description": "Whether Community Cloud offers this GPU"
+          },
+          "securePrice": {
+            "type": "number | null",
+            "description": "Secure Cloud on-demand price, USD per GPU per hour"
+          },
+          "communityPrice": {
+            "type": "number | null",
+            "description": "Community Cloud on-demand price, USD per GPU per hour"
+          },
+          "secureSpotPrice": {
+            "type": "number | null",
+            "description": "Secure Cloud spot price, null when RunPod offers none"
+          },
+          "communitySpotPrice": {
+            "type": "number | null",
+            "description": "Community Cloud spot price, null when RunPod offers none"
+          },
+          "secureMinVcpu": {
+            "type": "number | null",
+            "description": "Minimum vCPUs on a 1-GPU Secure Cloud pod, null when RunPod reports no available machine"
+          }
+        }
+      },
+      "SecureGPUInfo": {
+        "description": "",
+        "properties": {
+          "gpuType": {
+            "type": "string",
+            "description": ""
+          },
+          "memory": {
+            "type": "number",
+            "description": ""
+          },
+          "cpuCount": {
+            "type": "number | null",
+            "description": ""
+          },
+          "spotPrice": {
+            "type": "number | null",
+            "description": ""
+          },
+          "ondemandPrice": {
+            "type": "number",
+            "description": ""
           }
         }
       }

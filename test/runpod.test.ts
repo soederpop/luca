@@ -81,9 +81,41 @@ describe('Runpod orchestration', () => {
     spawn.mockResolvedValue(result('HEADER\n' + row()))
     await expect(pod.createRemoteShell('id')).rejects.toThrow('No SSH service found')
   })
-  it('parses GPU pricing and ignores headers and reserved capacity', async () => {
-    spawn.mockResolvedValue(result('Reserved\nA100\t80 GB\t16\t1.25\t2.50\n\n'))
-    expect(await pod.listSecureGPUs()).toEqual([{ gpuType: 'A100', memory: 80, cpuCount: 16, spotPrice: 1.25, ondemandPrice: 2.5 }])
+  describe('GPU pricing', () => {
+    const gpu = (id: string, extra: Record<string, any> = {}) => ({ id, displayName: id, memoryInGb: 96, secureCloud: true, communityCloud: true, securePrice: 2.49, communityPrice: 1.69, secureSpotPrice: null, communitySpotPrice: null, lowestPrice: { minVcpu: 16 }, ...extra })
+    const gpuTypes = [
+      gpu('NVIDIA RTX PRO 6000 Blackwell Server Edition'),
+      // RunPod reports a securePrice even where secureCloud is false; the flag must win.
+      gpu('MaxQ', { secureCloud: false, securePrice: 0.5, communityPrice: 1.64, lowestPrice: { minVcpu: null } }),
+      gpu('MIG', { communityCloud: false, securePrice: 0.69, communityPrice: 0.5, secureSpotPrice: 0.4, lowestPrice: null }),
+      gpu('Unpriced', { securePrice: 0, communityPrice: null }),
+    ]
+    let graphql: Mock<(query: string) => Promise<any>>
+    beforeEach(() => { graphql = spyOn(pod as unknown as { graphql: (query: string) => Promise<any> }, 'graphql').mockResolvedValue({ gpuTypes }) })
+    afterEach(() => graphql.mockRestore())
+
+    it('lists every GPU type with both clouds, spot prices and secure vCPUs', async () => {
+      const all = await pod.listGPUTypes()
+      expect(all).toHaveLength(4)
+      expect(all[0]).toEqual({ id: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', displayName: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', memoryInGb: 96, secureCloud: true, communityCloud: true, securePrice: 2.49, communityPrice: 1.69, secureSpotPrice: null, communitySpotPrice: null, secureMinVcpu: 16 })
+      expect(all[2]).toMatchObject({ secureSpotPrice: 0.4, secureMinVcpu: null })
+      expect(graphql.mock.calls[0]![0]).toContain('lowestPrice(input: { gpuCount: 1, secureCloud: true })')
+    })
+    it('filters by cloud type using the offered flag and a positive price', async () => {
+      expect((await pod.listGPUTypes({ cloudType: 'SECURE' })).map(g => g.id)).toEqual(['NVIDIA RTX PRO 6000 Blackwell Server Edition', 'MIG'])
+      expect((await pod.listGPUTypes({ cloudType: 'COMMUNITY' })).map(g => g.id)).toEqual(['NVIDIA RTX PRO 6000 Blackwell Server Edition', 'MaxQ'])
+    })
+    it('keeps the listSecureGPUs shape without calling runpodctl', async () => {
+      expect(await pod.listSecureGPUs()).toEqual([
+        { gpuType: 'NVIDIA RTX PRO 6000 Blackwell Server Edition', memory: 96, cpuCount: 16, spotPrice: null, ondemandPrice: 2.49 },
+        { gpuType: 'MIG', memory: 96, cpuCount: null, spotPrice: 0.4, ondemandPrice: 0.69 },
+      ])
+      expect(spawn).not.toHaveBeenCalled()
+    })
+    it('throws when the API returns no gpuTypes', async () => {
+      graphql.mockResolvedValue(undefined)
+      await expect(pod.listGPUTypes()).rejects.toThrow('returned no gpuTypes')
+    })
   })
   it('does not download remote files that already exist', async () => {
     const shell = c.feature('secureShell', { host: '192.0.2.1' })
