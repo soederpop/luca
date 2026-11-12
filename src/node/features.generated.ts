@@ -165,7 +165,7 @@ export type { ProcessManagerState, ProcessManagerOptions, SpawnOptions, SpawnHan
 export type { PythonState, PythonOptions, RunResult, Python } from "./features/python";
 export type { RedisState, RedisOptions, RedisFeature, Redis } from "./features/redis";
 export type { ReplState, ReplOptions, Repl } from "./features/repl";
-export type { RunpodState, RunpodOptions, Runpod } from "./features/runpod";
+export type { RunpodState, RunpodOptions, Runpod, GPUTypeInfo, SecureGPUInfo } from "./features/runpod";
 export type { SchedulerState, SchedulerOptions, ScheduledTaskInfo, TaskHandle, ScheduleTaskOptions, EveryTaskOptions, SchedulerRunOptions, Scheduler } from "./features/scheduler";
 export type { CaptureWindowInfo, CaptureRect, CaptureImageOptions, CaptureRecordOptions, CaptureRecording, ScreenCaptureOptions, ScreenCapture } from "./features/screen-capture";
 export type { SecureShellState, SecureShellOptions, SshConfigHost, SecureShell } from "./features/secure-shell";

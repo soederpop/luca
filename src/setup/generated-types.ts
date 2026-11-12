@@ -16303,7 +16303,7 @@ export type { ProcessManagerState, ProcessManagerOptions, SpawnOptions, SpawnHan
 export type { PythonState, PythonOptions, RunResult, Python } from "./features/python";
 export type { RedisState, RedisOptions, RedisFeature, Redis } from "./features/redis";
 export type { ReplState, ReplOptions, Repl } from "./features/repl";
-export type { RunpodState, RunpodOptions, Runpod } from "./features/runpod";
+export type { RunpodState, RunpodOptions, Runpod, GPUTypeInfo, SecureGPUInfo } from "./features/runpod";
 export type { SchedulerState, SchedulerOptions, ScheduledTaskInfo, TaskHandle, ScheduleTaskOptions, EveryTaskOptions, SchedulerRunOptions, Scheduler } from "./features/scheduler";
 export type { CaptureWindowInfo, CaptureRect, CaptureImageOptions, CaptureRecordOptions, CaptureRecording, ScreenCaptureOptions, ScreenCapture } from "./features/screen-capture";
 export type { SecureShellState, SecureShellOptions, SshConfigHost, SecureShell } from "./features/secure-shell";
@@ -29000,6 +29000,8 @@ export declare class Runpod extends Feature<RunpodState, RunpodOptions> {
     /** Preferred data center ID, defaults to 'US-TX-3'. */
     get dataCenterId(): string;
     private api;
+    /** Run a query against RunPod's GraphQL API, which has data the REST API lacks (GPU pricing). */
+    private graphql;
     /**
      * List available pod templates.
      *
@@ -29302,11 +29304,39 @@ export declare class Runpod extends Feature<RunpodState, RunpodOptions> {
      */
     getPodInfo(podId: string): Promise<PodInfo>;
     /**
-     * List available secure GPU types with pricing.
+     * List RunPod GPU types with Secure and Community Cloud pricing, from the RunPod GraphQL API.
      *
-     * Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.
+     * Prices are USD per GPU per hour. A spot price is null when RunPod offers no spot
+     * (interruptible) price. RunPod can report a price for a cloud that does not offer the
+     * GPU, so the \`cloudType\` filter uses the \`secureCloud\` / \`communityCloud\` flags and a
+     * price above zero, not the price alone.
      *
-     * @returns Array of GPU info with type, memory, CPU count, and pricing
+     * @param options - Filter options
+     * @param options.cloudType - 'SECURE' or 'COMMUNITY' keeps only GPUs offered and priced in that cloud; 'ALL' keeps every GPU type (default: 'ALL')
+     * @returns Array of GPU types. \`id\` is the value \`createPod({ gpuTypeId })\` accepts.
+     *
+     * @example
+     * \`\`\`typescript
+     * const gpus = await runpod.listGPUTypes({ cloudType: 'COMMUNITY' })
+     * gpus.forEach(g => console.log(\`\${g.id}: $\${g.communityPrice}/hr\`))
+     * \`\`\`
+     */
+    listGPUTypes(options?: {
+        cloudType?: 'SECURE' | 'COMMUNITY' | 'ALL';
+    }): Promise<GPUTypeInfo[]>;
+    /**
+     * List GPU types offered in RunPod's Secure Cloud, with Secure Cloud pricing.
+     *
+     * A shorthand for \`listGPUTypes({ cloudType: 'SECURE' })\` in the older return shape.
+     * GPUs with no Secure Cloud price are left out. For Community prices or the
+     * \`createPod\` GPU type id, use \`listGPUTypes()\`.
+     *
+     * \`gpuType\` is the RunPod GPU type id. \`memory\` is GPU memory in GB. \`cpuCount\` is the
+     * minimum vCPUs on a 1-GPU Secure Cloud pod (GraphQL \`lowestPrice.minVcpu\`), null when
+     * RunPod reports no available machine. \`spotPrice\` and \`ondemandPrice\` are Secure Cloud
+     * prices in USD per hour; \`spotPrice\` is null when RunPod offers no spot price.
+     *
+     * @returns Array of Secure Cloud GPU info with type, memory, CPU count, and pricing
      *
      * @example
      * \`\`\`typescript
@@ -29314,13 +29344,7 @@ export declare class Runpod extends Feature<RunpodState, RunpodOptions> {
      * gpus.forEach(g => console.log(\`\${g.gpuType}: $\${g.ondemandPrice}/hr\`))
      * \`\`\`
      */
-    listSecureGPUs(): Promise<{
-        gpuType: string | undefined;
-        memory: number;
-        cpuCount: number;
-        spotPrice: number;
-        ondemandPrice: number;
-    }[]>;
+    listSecureGPUs(): Promise<SecureGPUInfo[]>;
 }
 export default Runpod;
 type PortInfo = {
@@ -29388,6 +29412,35 @@ type PodInfo = {
     volumeDisk: string;
     spotPrice: string;
     ports: PortInfo[];
+};
+export type GPUTypeInfo = {
+    /** RunPod GPU type id, the value createPod accepts as gpuTypeId */
+    id: string;
+    /** Short display name, e.g. 'RTX PRO 6000' */
+    displayName: string;
+    /** GPU memory in GB */
+    memoryInGb: number;
+    /** Whether Secure Cloud offers this GPU */
+    secureCloud: boolean;
+    /** Whether Community Cloud offers this GPU */
+    communityCloud: boolean;
+    /** Secure Cloud on-demand price, USD per GPU per hour */
+    securePrice: number | null;
+    /** Community Cloud on-demand price, USD per GPU per hour */
+    communityPrice: number | null;
+    /** Secure Cloud spot price, null when RunPod offers none */
+    secureSpotPrice: number | null;
+    /** Community Cloud spot price, null when RunPod offers none */
+    communitySpotPrice: number | null;
+    /** Minimum vCPUs on a 1-GPU Secure Cloud pod, null when RunPod reports no available machine */
+    secureMinVcpu: number | null;
+};
+export type SecureGPUInfo = {
+    gpuType: string;
+    memory: number;
+    cpuCount: number | null;
+    spotPrice: number | null;
+    ondemandPrice: number;
 };
 type TemplateInfo = {
     id: string;
@@ -38346,7 +38399,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.25.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.25.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
