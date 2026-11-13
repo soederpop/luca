@@ -106,7 +106,8 @@ describe('container.utils timing helpers', () => {
         runs++
         throw new Error(`boom ${runs}`)
       }, { onError: (e) => errors.push(e) })
-      await container.utils.sleep(45)
+      // Wide margin: slow CI runners fired only once in 45ms.
+      await container.utils.sleep(120)
       stop()
       expect(runs).toBeGreaterThanOrEqual(2)
       expect(errors.length).toBe(runs)

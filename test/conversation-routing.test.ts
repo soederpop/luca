@@ -110,8 +110,11 @@ describe('Conversation routing', () => {
 
 		it('falls back to the container default when passed null', () => {
 			const conv = makeConversation({ provider: 'box-a' })
+			// Pin the default: unpinned, it depends on the machine (openai with an
+			// OPENAI_API_KEY, else the first custom profile, which is box-a itself).
+			;(conv as any).container.feature('modelProviders').setDefault('box-b')
 			conv.setProvider(null)
-			expect(conv.routing.provider).not.toBe('box-a')
+			expect(conv.routing.provider).toBe('box-b')
 		})
 	})
 })

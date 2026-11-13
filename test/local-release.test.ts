@@ -3,7 +3,7 @@ import { NodeContainer } from '../src/node/container'
 import { publishRelease } from '../scripts/lib/local-release'
 import releaseCommand, { argsSchema } from '../commands/release'
 
-function fixture(overrides: { version?: string; workflow?: string; remoteSha?: string; published?: string; fail?: string; assets?: boolean; corruptPublish?: boolean } = {}) {
+function fixture(overrides: { version?: string; workflow?: string; remoteSha?: string; published?: string; fail?: string; assets?: boolean; corruptPublish?: boolean; packFiles?: string[]; scripts?: Record<string, string> } = {}) {
   const version = overrides.version ?? '3.12.1'
   const calls: Array<{ command: string; args: string[]; options: any }> = []
   let removed = false
@@ -24,7 +24,7 @@ function fixture(overrides: { version?: string; workflow?: string; remoteSha?: s
         }
       }
       if (command === 'npm') {
-        if (args[0] === 'pack') value = [{ name: 'luca', version, filename: 'luca.tgz', integrity: 'sha512-match', files: [{ path: 'dist/node.d.ts' }] }]
+        if (args[0] === 'pack') value = [{ name: 'luca', version, filename: 'luca.tgz', integrity: 'sha512-match', files: (overrides.packFiles ?? ['dist/node.d.ts', 'src/introspection/generated.node.ts']).map(path => ({ path })) }]
         if (args[0] === 'publish') published = overrides.corruptPublish ? 'sha512-wrong' : 'sha512-match'
         if (args[0] === 'view') {
           if (!published) return { exitCode: 1, stdout: JSON.stringify({ error: { code: 'E404' } }), stderr: '' }
@@ -36,7 +36,7 @@ function fixture(overrides: { version?: string; workflow?: string; remoteSha?: s
   }
   const fs = {
     ensureFolder() {}, writeFile() {},
-    readJson() { return { name: 'luca', version } },
+    readJson() { return { name: 'luca', version, scripts: overrides.scripts ?? { 'build:generated': 'bun run scripts/build-generated.ts' } } },
     async remove() { removed = true },
   }
   return {
@@ -72,6 +72,25 @@ describe('local release publishing', () => {
     expect(f.calls[publish]!.args).toContain('/tmp/luca-release-test/luca.tgz')
     expect(f.calls.some(c => c.command === 'bun' && c.args[1] === 'test')).toBe(true)
     expect(f.removed).toBe(true)
+  })
+
+  it('builds the git-ignored generated sources after install and before tests', async () => {
+    const f = fixture()
+    await publishRelease(f.container, 'v3.12.1', true)
+    const steps = f.calls.filter(c => c.command === 'bun').map(c => c.args.join(' '))
+    expect(steps.indexOf('run build:generated')).toBeGreaterThan(steps.indexOf('install --frozen-lockfile'))
+    expect(steps.indexOf('run build:generated')).toBeLessThan(steps.indexOf('run test'))
+  })
+
+  it('skips the generated build for tags older than build:generated', async () => {
+    const f = fixture({ scripts: {} })
+    await publishRelease(f.container, 'v3.12.1', true)
+    expect(f.calls.some(c => c.command === 'bun' && c.args[1] === 'build:generated')).toBe(false)
+  })
+
+  it('refuses a tarball without the generated sources that src/ imports', async () => {
+    const f = fixture({ packFiles: ['dist/node.d.ts'] })
+    await expect(publishRelease(f.container, 'v3.12.1', true)).rejects.toThrow('Invalid npm package output')
   })
 
   it('builds and validates in dry-run mode without external writes', async () => {
