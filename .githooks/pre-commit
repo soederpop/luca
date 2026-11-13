@@ -1,0 +1,16 @@
+#!/bin/sh
+# Fast commit gate (~20s). The full test suite runs in CI (.github/workflows/ci.yaml).
+# Installed by `bun install` via the prepare script (core.hooksPath=.githooks).
+# Skip once with: git commit --no-verify
+set -e
+
+# The feature barrels are the only generated files kept in git. Regenerate them
+# and stop if they drifted, so a new feature never ships unregistered.
+bun run build:feature-barrel >/dev/null
+if ! git diff --quiet -- src/node/features.generated.ts src/agi/features.generated.ts; then
+  echo "pre-commit: the feature barrels changed. Review and stage them:" >&2
+  echo "  git add src/node/features.generated.ts src/agi/features.generated.ts" >&2
+  exit 1
+fi
+
+bun run typecheck

@@ -1,8 +1,9 @@
 import container from 'luca/agi'
 import { ContentDb } from 'luca/node/features/content-db'
-import { defineModel, section } from 'contentbase'
+// z must come from contentbase: it bundles its own zod, and a schema built with
+// the root zod copy fails defineModel's type check.
+import { defineModel, section, z } from 'contentbase'
 import { toString } from 'mdast-util-to-string'
-import { z } from 'zod'
 
 container.features.register('contentDb', ContentDb as any)
 

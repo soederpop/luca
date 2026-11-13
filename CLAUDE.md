@@ -76,7 +76,7 @@ When creating a new feature (e.g. `gws`), there are two steps:
 
 2. **Regenerate the barrel** — `bun run build:feature-barrel`
    - Rewrites `src/node/features.generated.ts`: side-effect imports, type re-exports, and the `GeneratedNodeFeatures` interface (which `NodeFeatures` extends). Commit the regenerated file.
-   - The pre-commit hook regenerates it too (via `build:introspection`), so it can't silently drift.
+   - The pre-commit hook (`.githooks/pre-commit`) regenerates both barrels and blocks the commit if they changed, so they can't silently drift.
    - Files in `src/node/features/` with no `Feature.register` call are skipped (support modules).
    - Every exported type name across feature modules must be unique — the generator fails loudly on collisions. Rename with a feature-specific prefix (e.g. `DriveSearchOptions`, not `SearchOptions`).
 
@@ -87,12 +87,16 @@ If the feature has a test, it goes in `test/gws.test.ts`.
 ## Type Safety and Introspection
 
 - Zod does a lot of the heavy lifting for us with its type inference
-- For more descriptive things like class descriptions, method descriptions, we rely on jsdoc blocks.  These are parsed and used to generate modules we commit to source.  We shouldn't let these drift, so for this reason we have a pre-commit hook which ensures they're up to date
+- For more descriptive things like class descriptions, method descriptions, we rely on jsdoc blocks.  These are parsed into generated modules that are git-ignored and rebuilt on every `bun install`, in CI, and before packing, so they can't drift in git.
 - We rely on module augmentation a lot to make sure `container.feature()` can provide type signatures for everything that gets added to it by extension modules down the road.  ( kind of like we did with AGIContainer extending NodeContainer )
 
 ## Generated Files — Build Artifacts
 
 **Files matching `generated.ts` or `.generated*.ts` are BUILD ARTIFACTS, not source of truth.** They are produced by the introspection system (which parses JSDoc blocks, Zod schemas, etc.) and bundled into the binary at compile time. **Never edit these files directly** — your changes will be overwritten on the next build.
+
+They are git-ignored, except the two feature barrels (`src/node/features.generated.ts`, `src/agi/features.generated.ts`), which stay tracked because the barrel generator boots `NodeContainer` and needs them. `bun run build:generated` (~20s) rebuilds the rest; the `prepare` script runs it on every `bun install`, and it writes stubs first so a fresh clone can bootstrap. If `luca describe` output looks stale after editing JSDoc, run it.
+
+**Commit gate:** `bun install` sets `core.hooksPath=.githooks`. The pre-commit hook checks the barrels and runs `typecheck` (~15s). The full test suite runs in CI (`.github/workflows/ci.yaml`) on every push to main.
 
 The source of truth for scaffolds and templates is the markdown files and the actual source code with their JSDoc annotations. If scaffold output is wrong, fix the markdown source or the JSDoc blocks on the real classes, then rebuild.
 
@@ -111,6 +115,7 @@ This means **JSDoc blocks on helpers (features, clients, servers) must be valid 
 - See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers
 - See [docs/examples](./docs/examples/) for **composition patterns** — runnable docs that combine multiple helpers (custom feature authoring, full-stack slices, daemons, pipelines). Run one with `luca run docs/examples/full-stack-slice.md`, or all of them with `luca test-examples`. For single-feature usage, use `luca describe <name>` — every helper carries per-method @example blocks (doctest them with `luca doctest-jsdoc`).
 - See [docs/tutorials](./docs/tutorials/) for longer form tutorials on various subjects and best practices
+- Working notes (ideas, plans, reports, audit prompts) live in [notes/](./notes/), not `docs/`. Nothing in `notes/` ships.
 
 ## Git Strategy
 

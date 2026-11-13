@@ -91,13 +91,20 @@ export async function publishRelease(container: NodeContainer, tag: string, dryR
     const buildOptions = { cwd: source, environment: { NPM_TOKEN: '', NODE_AUTH_TOKEN: '' } }
     console.log(`→ Installing, testing, and building ${tag} in an isolated directory`)
     await run('bun', ['install', '--frozen-lockfile'], buildOptions)
+    // Generated sources are git-ignored, so `git archive` leaves them out. prepare
+    // usually builds them during install; run it explicitly so packing never
+    // depends on lifecycle scripts. Tags older than this change track the files
+    // in git and have no such script.
+    if (pkg.scripts?.['build:generated']) await run('bun', ['run', 'build:generated'], buildOptions)
     await run('bun', ['run', 'test'], buildOptions)
     await run('bun', ['run', 'typecheck'], buildOptions)
     await run('bun', ['run', 'build:types'], buildOptions)
     const packs = JSON.parse(await run('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', scratch], buildOptions))
     const pack = packs[0]
     if (packs.length !== 1 || pack.name !== pkg.name || pack.version !== pkg.version || !pack.integrity
-      || !pack.files.some((file: any) => file.path === 'dist/node.d.ts')) throw new Error('Invalid npm package output')
+      || !pack.files.some((file: any) => file.path === 'dist/node.d.ts')
+      // main points at src/, which imports this file at startup; without it the package cannot load.
+      || !pack.files.some((file: any) => file.path === 'src/introspection/generated.node.ts')) throw new Error('Invalid npm package output')
     const tarball = container.paths.resolve(scratch, pack.filename)
     // Only a placeholder is written; the token stays in the npm child environment.
     const npmOptions: any = { cwd: scratch, environment: {} }
