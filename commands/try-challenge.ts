@@ -62,7 +62,7 @@ export async function tryChallenge(options: z.infer<typeof argsSchema>, context:
   const promptCommandArgs = [
     'prompt', 'claude', `docs/${challenge.id}`,
     '--exclude-sections', 'Internal Notes',
-    '--out-file', `docs/sessions/${challenge.id.split('/').pop()}/attempt-log-${attemptNumber}.md`,
+    '--out-file', `notes/sessions/${challenge.id.split('/').pop()}/attempt-log-${attemptNumber}.md`,
     '--in-folder', attemptFolder, '--dont-touch-file'
   ]
 

@@ -15,14 +15,6 @@ export const Tutorial = defineModel("Tutorial", {
 	}),
 })
 
-export const Report = defineModel("Report", {
-	description: 'Used for e.g. documentation audits, usability audits for agents, or anything else long form project related',
-	prefix: "reports",
-	meta: z.object({
-		tags: z.array(z.string()).default([]).describe("Arbitrary tags for categorizing the report"),
-	}),
-})
-
 export const Example = defineModel("Example", {
 	description: 'Runnable composition patterns that combine multiple luca helpers (single-feature usage lives in JSDoc @example blocks, surfaced by `luca describe`)',
 	prefix: "examples",

@@ -69,4 +69,4 @@ Add a task with a neutral prompt and reference implementation in `suite.ts`, the
 
 These are cooperative local coding evaluations, not a security sandbox: an agent can access the repository and grader if it violates the prompt. Container-use instructions are not statically enforced. No LLM judge, token-cost estimate, or tool-use classification is fabricated. Add provider trace adapters before claiming discovery efficiency, API-guess counts, or token savings. Keep agent LESSONS files as hypotheses requiring reproduction.
 
-Next coverage priorities: intent-search ranking, project-helper registration and introspection, command/schema errors, server lifecycle and port conflicts, browser state subscriptions, compiled-binary import parity, and larger held-out transfer tasks. See the assessment in `docs/reports/agent-dx-evaluation-2026-09.md`.
+Next coverage priorities: intent-search ranking, project-helper registration and introspection, command/schema errors, server lifecycle and port conflicts, browser state subscriptions, compiled-binary import parity, and larger held-out transfer tasks. See the assessment in `notes/reports/agent-dx-evaluation-2026-09.md`.

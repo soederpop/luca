@@ -14,7 +14,7 @@
 
 Read these first:
 
-- `docs/ideas/cwd-oriented-consumer-binary-bundler.md` — alignment spec for the desired model.
+- `notes/ideas/cwd-oriented-consumer-binary-bundler.md` — alignment spec for the desired model.
 - `src/cli/cli.ts` — current Luca CLI entrypoint and dispatch behavior.
 - `src/commands/index.ts` — current baked Luca command side-effect imports.
 - `src/commands/help.ts` — current help formatting and command source grouping.
@@ -1257,7 +1257,7 @@ Use Hermes `search_files` instead of shell `rg` if implementing through Hermes t
 
 At minimum update:
 
-- `docs/ideas/cwd-oriented-consumer-binary-bundler.md`
+- `notes/ideas/cwd-oriented-consumer-binary-bundler.md`
 - any tutorial or idea doc that names `bundle-consumer-project`
 
 **Step 4: Run tests**

@@ -20,7 +20,7 @@ This command will accept diskCache, disk-cache.  Generally you want to go with t
 
 Your job is to take what you learn from that command, and build an idea of 3-4 example usecases of that feature.
 
-Compile all of this into a document in docs/reports/introspection-audit-tasks.md.
+Compile all of this into a document in notes/reports/introspection-audit-tasks.md.
 
 I'd like the following format
 

@@ -13,7 +13,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	timeout: z.number().default(20).describe('Per-example timeout in seconds'),
 	concurrency: z.number().default(6).describe('How many example blocks to run at once'),
 	includeSkipped: z.boolean().default(false).describe('Also run helpers on the default skip list (credentialed/external/interactive)'),
-	report: z.string().default('docs/reports/jsdoc-doctest-report.md').describe('Where to write the markdown report'),
+	report: z.string().default('notes/reports/jsdoc-doctest-report.md').describe('Where to write the markdown report'),
 	json: z.boolean().default(false).describe('Print results as JSON instead of a summary'),
 })
 

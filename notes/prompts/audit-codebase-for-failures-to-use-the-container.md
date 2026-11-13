@@ -27,7 +27,7 @@ Look for instances of the following, but don't fix them yet.
 - reinventing the wheel in general instead of using functionality already provided by the container
 - anything that would break compatibility with node.js instead of Bun.  make sure you wrap it in a guard (if this.container.isBun)
 
-Save the results of your audit in docs/reports/code-audit-results.md
+Save the results of your audit in notes/reports/code-audit-results.md
 
 If this file already exists, read it first, and note cases where items persist.
 

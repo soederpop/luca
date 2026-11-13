@@ -4,7 +4,7 @@ tags: [usability, agents, claude-md, skill, evaluation]
 
 # Framework Struggle Analysis — July 2026
 
-Where AI assistants struggle with the Luca framework, mined from 26 Claude Code session transcripts (luca repo, @agentic-loop, mydesigner) plus the 8 substantive challenge attempt logs in `docs/sessions/`. This report drove the proposals in `docs/bootstrap/CLAUDE-v2.md` and `docs/bootstrap/skill-v2/`.
+Where AI assistants struggle with the Luca framework, mined from 26 Claude Code session transcripts (luca repo, @agentic-loop, mydesigner) plus the 8 substantive challenge attempt logs in `notes/sessions/`. This report drove the proposals in `docs/bootstrap/CLAUDE-v2.md` and `docs/bootstrap/skill-v2/`.
 
 ## The ranked failure patterns
 
