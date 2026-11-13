@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
-import { tmpdir } from 'os';
 import { bridgeScript } from '../../python/generated.js';
 import type { ChildProcess } from 'child_process';
 
@@ -414,7 +413,7 @@ export class Python<
 		const { projectDir, pythonPath } = this
 
     // Create temporary script in system temp dir (not inside the project)
-    const tempDir = `${tmpdir()}/luca-python-temp`
+    const tempDir = `${this.container.feature('os').tmpdir}/luca-python-temp`
     await fs.ensureFolder(tempDir)
     const scriptPath = this.container.paths.resolve(tempDir, `script-${Date.now()}.py`)
     
@@ -553,7 +552,7 @@ export class Python<
     if (this._bridgeScriptPath) return this._bridgeScriptPath
 
     const fs = this.container.feature('fs')
-    const bridgeDir = `${tmpdir()}/luca-python-bridge`
+    const bridgeDir = `${this.container.feature('os').tmpdir}/luca-python-bridge`
     await fs.ensureFolder(bridgeDir)
     const scriptPath = `${bridgeDir}/bridge.py`
     await fs.writeFileAsync(scriptPath, bridgeScript)

@@ -3,7 +3,6 @@ import { FeatureStateSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { Server, Socket } from "net";
-import { existsSync } from "fs";
 
 /**
  * Zod schema for the IpcSocket feature state.
@@ -269,7 +268,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   async listen(socketPath: string, removeLock = false): Promise<Server> {
     socketPath = this.container.paths.resolve(socketPath)
 
-    if (existsSync(socketPath)) {
+    if (this.container.fs.exists(socketPath)) {
       if (removeLock) {
         const alive = await this.probeSocket(socketPath)
         if (alive) {
@@ -353,7 +352,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
       this.server.close((err) => {
         // Clean up socket file
-        if (this._socketPath && existsSync(this._socketPath)) {
+        if (this._socketPath && this.container.fs.exists(this._socketPath)) {
           try { this.container.fs.rm(this._socketPath) } catch {}
         }
         if (err) {
@@ -770,7 +769,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * ```
    */
   probeSocket(socketPath: string): Promise<boolean> {
-    if (!existsSync(socketPath)) return Promise.resolve(false)
+    if (!this.container.fs.exists(socketPath)) return Promise.resolve(false)
     return new Promise<boolean>((resolve) => {
       const probe = new Socket()
       const timer = setTimeout(() => {

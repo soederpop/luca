@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { isAbsolute } from 'path'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
@@ -137,7 +136,7 @@ export function collectAssistants(container: any, source: string): BundleAssista
 function resolveAbsolute(container: any, input: string): string {
 	const os = container.feature('os') as any
 	const expanded = input.replace(/^~/, os.homedir)
-	if (isAbsolute(expanded)) return expanded
+	// paths.resolve keeps an absolute input as-is (normalized) and resolves a relative one against cwd.
 	return container.paths.resolve(expanded)
 }
 

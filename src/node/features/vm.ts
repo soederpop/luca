@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { createRequire } from 'module'
-import { dirname } from 'path'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
 import { Feature } from "../feature.js";
@@ -223,7 +222,7 @@ export class VM<
       // loadModule, so its own `import 'luca'` hits the virtual module instead
       // of Node resolution (which has nothing to find inside the compiled binary).
       if (chain && (id.startsWith('./') || id.startsWith('../'))) {
-        const resolved = this._resolveRelativeSource(dirname(filePath), id)
+        const resolved = this._resolveRelativeSource(this.container.paths.dirname(filePath), id)
         if (resolved) {
           if (chain.cache.has(resolved)) return chain.cache.get(resolved)
           if (chain.loading.has(resolved)) {
@@ -295,7 +294,7 @@ export class VM<
       }
 
       if (specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/')) {
-        return import(this.container.paths.resolve(dirname(filePath), specifier))
+        return import(this.container.paths.resolve(this.container.paths.dirname(filePath), specifier))
       }
 
       try {
@@ -1094,7 +1093,7 @@ export class VM<
       exports: sharedExports,
       module: { exports: sharedExports },
       __filename: filePath,
-      __dirname: dirname(filePath),
+      __dirname: this.container.paths.dirname(filePath),
       console,
       setTimeout,
       setInterval,

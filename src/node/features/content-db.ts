@@ -3,7 +3,6 @@ import * as contentbaseExports from 'contentbase'
 import { parse, Collection, Document, extractSections, parseWhereClause, introspectMetaSchema, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { realpathSync } from 'node:fs'
 import type { GrepOptions } from './grep.js'
 import type { Helper } from '../../helper.js'
 
@@ -794,7 +793,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   /** The directory where this collection's search index lives. */
   private _searchIndexDir(): string {
-    const realPath = realpathSync(this.collectionPath)
+    const realPath = this.container.fs.realpath(this.collectionPath)
     const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
     return this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash)
   }
@@ -843,7 +842,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * Check if a search index exists for this collection.
    */
   private _hasSearchIndex(): boolean {
-    const realPath = realpathSync(this.collectionPath)
+    const realPath = this.container.fs.realpath(this.collectionPath)
     const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
     const dbDir = this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash)
 

@@ -1,8 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
-import { readdir, readFile } from 'fs/promises'
-import { resolve, join, basename } from 'path'
 import { mapValues, pickBy, uniqBy } from 'lodash-es'
 
 /**
@@ -242,7 +240,7 @@ export class PackageFinder<
 
     await Promise.all(
       manifestPaths.map((path) => 
-        readFile(path).then((buf) => JSON.parse(String(buf))).then((manifest: PartialManifest) => {
+        this.container.fs.readFileAsync(path).then((buf) => JSON.parse(String(buf))).then((manifest: PartialManifest) => {
           this.addPackage(manifest, path)
         })
       )
@@ -471,13 +469,14 @@ export class PackageFinder<
    * @private
    */
   private async findPackageFolders(nodeModulesPath: string) {
-    const topLevelFolders = await readdir(nodeModulesPath);
+    const { fs, paths } = this.container
+    const topLevelFolders = await fs.readdir(nodeModulesPath);
   
     const withScoped: Array<string[]> = await Promise.all(
       topLevelFolders.map(async (folder) => {
-        const folderPath = join(nodeModulesPath, folder);
+        const folderPath = paths.resolve(nodeModulesPath, folder);
         if (folder.startsWith('@')) {
-          return readdir(folderPath).then((subs) => subs.map((sub) => join(nodeModulesPath,folder,sub)))
+          return fs.readdir(folderPath).then((subs) => subs.map((sub) => paths.resolve(nodeModulesPath, folder, sub)))
         } else if (folder.startsWith('.')) {
           return []
         } else {

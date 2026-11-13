@@ -1,5 +1,3 @@
-import { homedir } from 'os'
-import { join } from 'path'
 import minimist from 'minimist'
 import { minimistOptionsFor } from '../command.js'
 
@@ -113,10 +111,10 @@ export async function loadEnvPlugins(container: any) {
 const DISCOVERABLE_USER_TYPES = ['features', 'clients', 'servers', 'commands', 'selectors'] as const
 
 export async function discoverUserHelpers(container: any) {
-  const lucaHome = join(homedir(), '.luca')
+  const lucaHome = container.paths.resolve(container.feature('os').homedir, '.luca')
   const helpers = container.feature('helpers') as any
   for (const type of DISCOVERABLE_USER_TYPES) {
-    const dir = join(lucaHome, type)
+    const dir = container.paths.resolve(lucaHome, type)
     if (container.fs.exists(dir)) await helpers.discover(type, { directory: dir })
   }
 }
@@ -155,7 +153,7 @@ export async function runCli(container: any, options: RunCliOptions = {}) {
   const builtinCommands = new Set(container.commands.available as string[])
 
   if (shouldLoadGlobalCli) {
-    await loadCliModule(container, join(homedir(), '.luca', 'luca.cli.ts'))
+    await loadCliModule(container, container.paths.resolve(container.feature('os').homedir, '.luca', 'luca.cli.ts'))
   }
 
   // Bun already loaded .env from cwd at process start, so LUCA_PLUGINS may come

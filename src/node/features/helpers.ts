@@ -21,9 +21,7 @@ import { Selector, selectors } from '../../selector.js'
 import type { Registry } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
 import type { VM } from './vm.js'
-import { resolve, parse, isAbsolute } from 'path'
-import { existsSync } from 'fs'
-import { homedir } from 'os'
+import { resolve, isAbsolute } from 'path'
 
 export const HelpersStateSchema = FeatureStateSchema.extend({
   discovered: z.record(z.string(), z.boolean()).default({}).describe('Which registry types have been discovered'),
@@ -151,7 +149,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     if (import.meta.url.includes('$bunfs') || import.meta.url.includes('~BUN')) return false
 
     const nodeModules = resolve(this.rootDir, 'node_modules')
-    return existsSync(resolve(nodeModules, 'luca')) || existsSync(resolve(nodeModules, '@soederpop', 'luca'))
+    return this.container.fs.exists(resolve(nodeModules, 'luca')) || this.container.fs.exists(resolve(nodeModules, '@soederpop', 'luca'))
   }
 
 
@@ -558,15 +556,15 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     if (!nameOrPath || typeof nameOrPath !== 'string') return null
 
     const expanded = nameOrPath.startsWith('~/')
-      ? resolve(homedir(), nameOrPath.slice(2))
+      ? resolve(this.container.feature('os').homedir, nameOrPath.slice(2))
       : nameOrPath
 
     const looksLikePath = isAbsolute(expanded) || expanded.startsWith('.') || expanded.includes('/')
     const dir = looksLikePath
       ? resolve(this.container.cwd, expanded)
-      : resolve(homedir(), '.luca', 'plugins', expanded)
+      : resolve(this.container.feature('os').homedir, '.luca', 'plugins', expanded)
 
-    return existsSync(dir) ? dir : null
+    return this.container.fs.exists(dir) ? dir : null
   }
 
   /**
@@ -625,7 +623,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     for (const candidate of PLUGIN_ENTRY_CANDIDATES) {
       const entryPath = resolve(dir, candidate)
-      if (!existsSync(entryPath)) continue
+      if (!this.container.fs.exists(entryPath)) continue
 
       const mod = await this.loadModuleExports(entryPath)
       const exports = (mod?.default && (typeof mod.default.attach === 'function' || typeof mod.default.main === 'function'))
@@ -729,7 +727,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // interceptRegistration() can merge JSDoc descriptions from the generated file.
     const introspectionFile = resolve(dir, 'introspection.generated.ts')
     try {
-      if (existsSync(introspectionFile)) {
+      if (this.container.fs.exists(introspectionFile)) {
         // loadModuleExports, not a raw import(): in the compiled binary project
         // TS files only load through the VM, and the generated file's
         // `luca/introspection` import must resolve to the binary's own module
@@ -771,7 +769,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     }
 
     for (const absPath of files) {
-      const { name: fileName } = parse(absPath)
+      const { name: fileName } = this.container.paths.parse(absPath)
 
       if (fileName.includes('.test.') || fileName.includes('.spec.') || fileName.includes('.generated')) {
         continue
@@ -866,7 +864,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // Commands are top-level only (not recursive) — walk and filter to *.ts in the immediate dir
     const walked = await fs.walkAsync(dir, { include: ['*.ts'] })
     const tsFiles = walked.files
-      .map(f => parse(f))
+      .map(f => this.container.paths.parse(f))
       .filter(p => p.dir === dir) // top-level only
       .map(p => p.base)
 
@@ -940,7 +938,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const { fs } = this.container
     const walked = await fs.walkAsync(dir, { include: ['*.ts'] })
     const tsFiles = walked.files
-      .map(f => parse(f))
+      .map(f => this.container.paths.parse(f))
       .filter(p => p.dir === dir)
       .map(p => p.base)
 
@@ -992,7 +990,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         const endpointModule = mod.default || mod
 
         if (endpointModule.path && typeof endpointModule.path === 'string') {
-          const name = endpointModule.path.replace(/^\//, '').replace(/\//g, '_') || parse(file).name
+          const name = endpointModule.path.replace(/^\//, '').replace(/\//g, '_') || this.container.paths.parse(file).name
 
           if (!endpoints.has(name)) {
             // Import the module so it's available, but don't mount it to a server

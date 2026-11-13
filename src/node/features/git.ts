@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { dirname, resolve, isAbsolute } from 'path';
 import { State } from '../../state.js';
 import { Feature } from '../feature.js'
 
@@ -242,8 +241,8 @@ export class Git extends Feature {
         const repoRoot = this.container.fs.findUp('.git')
 
         if(typeof repoRoot === 'string') {
-            this.state.set('repoRoot', dirname(repoRoot))
-            return dirname(repoRoot)
+            this.state.set('repoRoot', this.container.paths.dirname(repoRoot))
+            return this.container.paths.dirname(repoRoot)
         }
 
         return null
@@ -312,7 +311,7 @@ export class Git extends Feature {
         const root = this.repoRoot!
 
         const resolved = files.map(p =>
-            isAbsolute(p) ? p : resolve(this.container.cwd, p)
+            this.container.paths.resolve(p)
         )
 
         const separator = '---COMMIT---'
@@ -361,7 +360,7 @@ export class Git extends Feature {
         const proc = this.container.feature('proc')
         const root = this.repoRoot!
         const from = compareFrom ?? this.sha!
-        const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
+        const resolved = this.container.paths.resolve(file)
 
         return proc.execSync(
             `${this.gitPath} diff ${from} ${compareTo} -- "${resolved}"`,
@@ -547,7 +546,7 @@ export class Git extends Feature {
 
         // resolve each path relative to cwd (globs stay as-is for git, but we resolve for matching)
         const resolved = paths.map(p =>
-            isAbsolute(p) ? p : resolve(this.container.cwd, p)
+            this.container.paths.resolve(p)
         )
 
         const separator = '---COMMIT---'
@@ -585,7 +584,7 @@ export class Git extends Feature {
                 { cwd: root }
             ).trim().split(/\r?\n/).filter(Boolean)
 
-            const changedAbsolute = changedFiles.map(f => resolve(root, f))
+            const changedAbsolute = changedFiles.map(f => this.container.paths.resolve(root, f))
 
             const filesMatched = matchers
                 .filter(m => changedAbsolute.some(f => m.match(f)))
@@ -756,7 +755,7 @@ export class Git extends Feature {
     async fileLogAsync(...files: string[]): Promise<Array<{ sha: string, message: string }>> {
         if (!this.isRepo || !files.length) return []
 
-        const resolved = files.map(p => isAbsolute(p) ? p : resolve(this.container.cwd, p))
+        const resolved = files.map(p => this.container.paths.resolve(p))
         const separator = '---COMMIT---'
         const fieldSep = '---FIELD---'
         const output = await this.execAsync(['log', `--pretty=format:%H${fieldSep}%s${separator}`, '--', ...resolved])
@@ -789,7 +788,7 @@ export class Git extends Feature {
         if (!this.isRepo) return ''
 
         const from = compareFrom ?? (await this.getSha())!
-        const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
+        const resolved = this.container.paths.resolve(file)
         return await this.execAsync(['diff', from, compareTo, '--', resolved])
     }
 
@@ -812,7 +811,7 @@ export class Git extends Feature {
         if (!this.isRepo || !paths.length) return []
 
         const root = this.repoRoot!
-        const resolved = paths.map(p => isAbsolute(p) ? p : resolve(this.container.cwd, p))
+        const resolved = paths.map(p => this.container.paths.resolve(p))
         const separator = '---COMMIT---'
         const fieldSep = '---FIELD---'
         const output = await this.execAsync(['log', `--pretty=format:%H${fieldSep}%s${fieldSep}%b${separator}`, '--', ...resolved])
@@ -840,7 +839,7 @@ export class Git extends Feature {
         const results: Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }> = []
         for (const commit of commits) {
             const changed = await this.execAsync(['diff-tree', '--no-commit-id', '--name-only', '-r', commit.sha])
-            const changedAbsolute = changed.split(/\r?\n/).filter(Boolean).map(f => resolve(root, f))
+            const changedAbsolute = changed.split(/\r?\n/).filter(Boolean).map(f => this.container.paths.resolve(root, f))
             const filesMatched = matchers
                 .filter(m => changedAbsolute.some(f => m.match(f)))
                 .map(m => m.original)
