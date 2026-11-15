@@ -510,6 +510,10 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     if (this._mcpServer) {
       await this._mcpServer.close()
     }
+    for (const session of [...this._httpSessions.values()]) {
+      try { await session.close() } catch {}
+    }
+    this._httpSessions.clear()
 
     this.state.set('listening', false)
     this.state.set('stopped', true)
@@ -657,21 +661,35 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     return server
   }
 
-  /** Start an HTTP transport using StreamableHTTPServerTransport. */
-  private async _startHTTPTransport(port: number, compat: MCPCompatMode): Promise<void> {
-    const { createServer } = await import('node:http')
-    const { StreamableHTTPServerTransport } = await import(
-      '@modelcontextprotocol/sdk/server/streamableHttp.js'
-    )
-    const { randomUUID } = await import('node:crypto')
+  /** Open Streamable HTTP sessions, keyed by session id. Closed on stop(). */
+  _httpSessions: Map<string, { close(): Promise<void> }> = new Map()
 
-    // Track active sessions: sessionId → transport. Each new initialize request
-    // gets a fresh server+transport pair so reconnecting clients don't hit
-    // "Server already initialized".
-    const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>()
-
-    const httpServer = createServer((req, res) => {
-      handle(req, res).catch((error: any) => {
+  /**
+   * Build a Streamable HTTP request handler without opening a port, so a host
+   * server (an existing Express app, say) can route its own path to MCP.
+   * The host is responsible for auth and for picking the path; the handler
+   * answers every request it is given.
+   *
+   * Pass `body` when the host already parsed the JSON (express.json consumes
+   * the stream, so the handler cannot read it again). Without it the handler
+   * uses `req.body` when body-parser set it, else reads the stream itself.
+   *
+   * @example
+   * ```ts
+   * const handle = await mcp.requestHandler()
+   * app.all('/mcp', (req, res) => handle(req, res))
+   * ```
+   */
+  async requestHandler(options?: { mcpCompat?: MCPCompatMode }): Promise<(req: any, res: any, body?: any) => Promise<void>> {
+    await this._drainPendingPlugins()
+    if (!this.isConfigured) await this.configure()
+    const compat = this._resolveMCPCompat(options?.mcpCompat)
+    const handle = await this._createHTTPHandler(compat)
+    this.state.set('transport', 'http')
+    return async (req: any, res: any, body?: any) => {
+      try {
+        await handle(req, res, body)
+      } catch (error: any) {
         // A rejected handler is an unhandled rejection that kills the process.
         // Answer the client and keep serving everyone else.
         console.error(`[mcp http] request failed: ${error?.message ?? error}`)
@@ -681,17 +699,17 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
         } else {
           res.end()
         }
-      })
-    })
-
-    const handle = async (req: any, res: any) => {
-      if (compat === 'codex') {
-        this._normalizeCodexRequest(req)
-        this._ensureJSONContentType(res)
       }
+    }
+  }
 
+  /** Start an HTTP transport using StreamableHTTPServerTransport. */
+  private async _startHTTPTransport(port: number, compat: MCPCompatMode): Promise<void> {
+    const { createServer } = await import('node:http')
+    const handle = await this.requestHandler({ mcpCompat: compat })
+
+    const httpServer = createServer((req, res) => {
       const url = new URL(req.url || '/', `http://localhost:${port}`)
-
       if (url.pathname !== '/mcp') {
         res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
         res.end(JSON.stringify({
@@ -701,39 +719,68 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
         }))
         return
       }
+      void handle(req, res)
+    })
 
-      // We read the body ourselves and hand the parsed JSON to the SDK, so the
-      // SDK's own body limit never sees it. Cap it here to the SDK's default and
-      // turn parse failures into a 400: before this, one malformed or oversized
-      // POST threw out of the handler and took the whole process down.
-      let body: any
-      if (req.method === 'POST') {
-        const chunks: Buffer[] = []
-        let size = 0
-        for await (const chunk of req) {
-          size += (chunk as Buffer).length
-          if (size > MCP_HTTP_MAX_BODY_BYTES) {
-            res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8', Connection: 'close' })
+    await new Promise<void>((resolve) => {
+      httpServer.listen(port, () => resolve())
+    })
+  }
+
+  /** The per-request logic shared by the standalone port and requestHandler(). */
+  private async _createHTTPHandler(compat: MCPCompatMode): Promise<(req: any, res: any, body?: any) => Promise<void>> {
+    const { StreamableHTTPServerTransport } = await import(
+      '@modelcontextprotocol/sdk/server/streamableHttp.js'
+    )
+    const { randomUUID } = await import('node:crypto')
+
+    // Each new initialize request gets a fresh server+transport pair so
+    // reconnecting clients don't hit "Server already initialized".
+    const sessions = this._httpSessions as Map<string, InstanceType<typeof StreamableHTTPServerTransport>>
+
+    return async (req: any, res: any, parsedBody?: any) => {
+      if (compat === 'codex') {
+        this._normalizeCodexRequest(req)
+        this._ensureJSONContentType(res)
+      }
+
+      let body: any = parsedBody
+      if (body === undefined && req.method === 'POST') {
+        if (req._body === true && req.body !== undefined) {
+          // body-parser (express.json) already drained the stream.
+          body = req.body
+        } else {
+          // We read the body ourselves and hand the parsed JSON to the SDK, so the
+          // SDK's own body limit never sees it. Cap it here to the SDK's default and
+          // turn parse failures into a 400: one malformed or oversized POST must
+          // not take the whole process down.
+          const chunks: Buffer[] = []
+          let size = 0
+          for await (const chunk of req) {
+            size += (chunk as Buffer).length
+            if (size > MCP_HTTP_MAX_BODY_BYTES) {
+              res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8', Connection: 'close' })
+              res.end(JSON.stringify({
+                jsonrpc: '2.0',
+                error: { code: -32600, message: `Request body exceeds ${MCP_HTTP_MAX_BODY_BYTES} bytes` },
+                id: null,
+              }))
+              req.destroy()
+              return
+            }
+            chunks.push(chunk as Buffer)
+          }
+          try {
+            body = JSON.parse(Buffer.concat(chunks).toString())
+          } catch {
+            res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
             res.end(JSON.stringify({
               jsonrpc: '2.0',
-              error: { code: -32600, message: `Request body exceeds ${MCP_HTTP_MAX_BODY_BYTES} bytes` },
+              error: { code: -32700, message: 'Parse error: body is not valid JSON' },
               id: null,
             }))
-            req.destroy()
             return
           }
-          chunks.push(chunk as Buffer)
-        }
-        try {
-          body = JSON.parse(Buffer.concat(chunks).toString())
-        } catch {
-          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
-          res.end(JSON.stringify({
-            jsonrpc: '2.0',
-            error: { code: -32700, message: 'Parse error: body is not valid JSON' },
-            id: null,
-          }))
-          return
         }
       }
 
@@ -775,10 +822,6 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       await sessionServer.connect(transport)
       await transport.handleRequest(req, res, body)
     }
-
-    await new Promise<void>((resolve) => {
-      httpServer.listen(port, () => resolve())
-    })
   }
 
   private _resolveMCPCompat(explicit?: MCPCompatMode): MCPCompatMode {
