@@ -430,9 +430,62 @@ export class FileManager<
 
   watcher: FSWatcher | null = null;
 
+  /**
+   * Excludes that always apply to the watcher. `.git` and `node_modules` match at any
+   * depth; `dist`, `out` and `build` match only at the project root.
+   */
+  static defaultWatchExcludes = ["**/.git/**", "**/node_modules/**", "dist/**", "out/**", "build/**"];
+
+  private _watchExcludes: string[] = [];
+  private _watchExcludeMatchers: Array<(path: string) => boolean> = [];
+
   /** Returns the directories and files currently being watched by chokidar. */
   get watchedFiles(): Record<string, string[]> {
     return this.watcher?.getWatched() || {};
+  }
+
+  /** The exclude patterns the watcher applies: the defaults plus every pattern passed to `watch()`. */
+  get watchExcludes(): string[] {
+    return [...this._watchExcludes];
+  }
+
+  /**
+   * Whether the watcher ignores this path. Relative patterns match the path relative
+   * to the container cwd; absolute patterns match the absolute path.
+   *
+   * @param {string} path - Absolute path, or a path relative to the container cwd
+   * @returns {boolean} True when an exclude pattern matches the path
+   */
+  isWatchExcluded(path: string): boolean {
+    const absolute = this.container.paths.resolve(path).replace(/\\/g, "/");
+    return this._watchExcludeMatchers.some((matches) => matches(absolute));
+  }
+
+  /** Adds exclude patterns to the shared watcher. Returns only the patterns that were new. */
+  private _addWatchExcludes(patterns: string[]): string[] {
+    const cwd = this.container.cwd.replace(/\\/g, "/");
+    const added = patterns
+      .map((pattern) => pattern.replace(/\\/g, "/").replace(/^\.\//, ""))
+      .filter((pattern) => pattern.length && !this._watchExcludes.includes(pattern));
+
+    for (const pattern of [...new Set(added)]) {
+      this._watchExcludes.push(pattern);
+      const isMatch = micromatch.matcher(pattern, { dot: true });
+
+      if (pattern.startsWith("/")) {
+        this._watchExcludeMatchers.push((absolute) => isMatch(absolute));
+      } else if (pattern.startsWith("**/")) {
+        // Depth-free patterns also apply to watched paths outside the cwd.
+        this._watchExcludeMatchers.push((absolute) => isMatch(absolute) || isMatch(relativeTo(cwd, absolute)));
+      } else {
+        this._watchExcludeMatchers.push((absolute) => {
+          const rel = relativeTo(cwd, absolute);
+          return !rel.startsWith("../") && isMatch(rel);
+        });
+      }
+    }
+
+    return added;
   }
 
   /**
@@ -443,6 +496,12 @@ export class FileManager<
    * When called with `paths`, watches only those specific directories/globs.
    * Subsequent calls add to the existing watcher — they never replace what's already watched.
    *
+   * There is one watcher per fileManager, so excludes are shared: patterns from every
+   * call, plus the `exclude` option, apply to all watched paths. Relative patterns are
+   * relative to the container cwd (`tmp/**` skips `<cwd>/tmp`). Start a pattern
+   * with a globstar segment to match at any depth, or use an absolute pattern. The defaults are in
+   * `FileManager.defaultWatchExcludes`.
+   *
    * @param {object} [options={}] - Options for the file manager
    * @param {string | string[]} [options.paths] - Specific directories or globs to watch. Defaults to project directoryIds.
    * @param {string | string[]} [options.exclude] - The patterns to exclude from the watch
@@ -452,8 +511,18 @@ export class FileManager<
     const pathsToWatch = castArray(options.paths || this.directoryIds.map(id => this.container.paths.resolve(id)))
       .map(p => this.container.paths.resolve(p));
 
-    // If already watching, just add the new paths
-    if (this.isWatching && this.watcher) {
+    const exclude = castArray(options.exclude || []).filter((v) => v?.length);
+
+    // If already watching, add the new excludes and paths to the shared watcher
+    if (this.watcher) {
+      const added = this._addWatchExcludes(exclude);
+      if (added.length) {
+        // The ignore check also runs when chokidar emits, so this stops events at
+        // once. Directories it already descended into keep their OS handles until
+        // the watcher restarts.
+        this.watcher.unwatch(added.map((pattern) => pattern.startsWith("/") || pattern.startsWith("**/") ? pattern : this.container.paths.resolve(pattern)));
+      }
+
       const currentPaths: string[] = (this.state.get("watchedPaths") as string[] | undefined) || [];
       const newPaths = pathsToWatch.filter(p => !currentPaths.includes(p));
 
@@ -465,31 +534,22 @@ export class FileManager<
       return;
     }
 
-    if (!Array.isArray(options.exclude)) {
-      options.exclude = [options.exclude!].filter((v) => v?.length);
-    }
-
-    const {
-      exclude = [".git/**", "dist/**", "node_modules/**", "out/**", "build/**"],
-    } = options;
-
-    exclude.push(...castArray(this.options.exclude!).filter((v) => v?.length));
+    this._addWatchExcludes([
+      ...FileManager.defaultWatchExcludes,
+      ...castArray(this.options.exclude || []).filter((v) => v?.length),
+      ...exclude,
+    ]);
 
     const watcher = chokidar.watch(pathsToWatch, {
       ignoreInitial: true,
       persistent: true,
-      ignored: [
-        '.git/**',
-        ...[".git", "dist/**", "node_modules/**", "out/**", "build/**"],
-        ...exclude,
-      ].map((pattern) => micromatch.makeRe(pattern)).concat([
-        /\.git/,
-        /node_modules/
-      ]),
+      // chokidar passes absolute paths; a function lets later watch() calls add excludes.
+      ignored: (path: string) => this.isWatchExcluded(path),
     });
 
     watcher
       .on("add", (path) => {
+        if (this.isWatchExcluded(path)) return;
         this.updateFile(path);
         this.emit("file:change", {
           type: "add",
@@ -497,6 +557,7 @@ export class FileManager<
         });
       })
       .on("change", (path) => {
+        if (this.isWatchExcluded(path)) return;
         this.updateFile(path);
         this.emit("file:change", {
           type: "change",
@@ -504,6 +565,7 @@ export class FileManager<
         });
       })
       .on("unlink", (path) => {
+        if (this.isWatchExcluded(path)) return;
         this.removeFile(path);
         this.emit("file:change", {
           type: "delete",
@@ -513,23 +575,25 @@ export class FileManager<
 
     watcher.on("ready", () => {
       this.state.set("watching", true);
-      this.state.set("watchedPaths", pathsToWatch as any);
     });
 
+    // Set now, not on ready, so a watch() call before ready adds to this list.
+    this.state.set("watchedPaths", pathsToWatch as any);
     this.watcher = watcher;
   }
 
   async stopWatching(): Promise<void> {
-    if (!this.isWatching) {
+    // Check the watcher, not `watching`: that flag is only set once chokidar is ready.
+    if (!this.watcher) {
       return;
     }
 
-    if (this.watcher) {
-      this.watcher.close();
-      this.state.set("watching", false);
-      this.state.set("watchedPaths", [] as any);
-      this.watcher = null;
-    }
+    this.watcher.close();
+    this.state.set("watching", false);
+    this.state.set("watchedPaths", [] as any);
+    this.watcher = null;
+    this._watchExcludes = [];
+    this._watchExcludeMatchers = [];
   }
 
   async updateFile(path: string): Promise<void> {
@@ -565,3 +629,7 @@ export class FileManager<
 }
 
 export default FileManager
+/** Forward-slash path of `absolute` relative to `cwd`. */
+function relativeTo(cwd: string, absolute: string): string {
+  return relative(cwd, absolute).replace(/\\/g, "/");
+}
