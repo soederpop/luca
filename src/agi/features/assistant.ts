@@ -517,12 +517,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				api: 'chat',
 				// When a provider is configured, thread it through. The `assistant`
 				// providerOption drives claude-session's MCP tool wiring; default it
-				// to this assistant's name so tools work without extra config.
+				// to the folder name, which is what `luca mcp --assistant` resolves.
+				// Not `this.name`: the container fills options.name with the registry
+				// id ("assistant"), so that would start a server no assistant matches.
 				...(provider ? {
 					provider,
 					providerOptions: {
 						...callerProviderOptions,
-						assistant: callerProviderOptions.assistant ?? this.name,
+						assistant: callerProviderOptions.assistant ?? this.assistantName,
 						...(assistantToolFilters ? { assistantToolFilters } : {}),
 					},
 				} : {}),
@@ -602,7 +604,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		opts.model = options.model
 		const replacementProviderOptions = provider ? {
 			...(options.providerOptions ?? {}),
-			assistant: options.providerOptions?.assistant ?? this.name,
+			assistant: options.providerOptions?.assistant ?? this.assistantName,
 			...(this.providerToolFilters ? { assistantToolFilters: this.providerToolFilters } : {}),
 		} : undefined
 		opts.providerOptions = replacementProviderOptions
