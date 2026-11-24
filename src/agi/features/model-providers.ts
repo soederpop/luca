@@ -1044,6 +1044,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       request.instructions,
     )
     const mcpServers = this.resolveMcpServers(providerOptions)
+    const allowedTools = this.resolveAllowedTools(providerOptions, claudeCode)
 
     // provider.defaultModel is the 'claude-code' placeholder — don't pass that
     // as --model. Only forward a real model name when one was explicitly set.
@@ -1059,7 +1060,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       ...(Object.keys(mcpServers).length ? { mcpServers } : {}),
       ...(previousSessionId ? { resumeSessionId: previousSessionId } : {}),
       ...(providerOptions.permissionMode ? { permissionMode: providerOptions.permissionMode } : {}),
-      ...(providerOptions.allowedTools ? { allowedTools: providerOptions.allowedTools } : {}),
+      ...(allowedTools ? { allowedTools } : {}),
       ...(request.reasoningEffort ? { effort: clampEffortToClaudeCode(request.reasoningEffort) } : {}),
       ...(providerOptions.runOptions ?? {}),
     }
@@ -1104,11 +1105,32 @@ export class ClaudeSessionTransport implements ModelTransport {
       for (const pattern of filters.allowTools ?? []) mcpArgs.push('--allow-tool', pattern)
       for (const pattern of filters.forbidTools ?? []) mcpArgs.push('--forbid-tool', pattern)
       for (const name of filters.toolNames ?? []) mcpArgs.push('--tool-name', name)
-      const serverName = providerOptions.mcpServerName ?? `luca-${assistant}`
-      servers[serverName] = { command: lucaBin, args: mcpArgs }
+      servers[this.assistantServerName(providerOptions)!] = { command: lucaBin, args: mcpArgs }
     }
 
     return servers
+  }
+
+  /** The name of the assistant's own luca MCP server, or undefined when no assistant is set. */
+  private assistantServerName(providerOptions: Record<string, any>): string | undefined {
+    const assistant = providerOptions.assistant
+    if (typeof assistant !== 'string' || assistant.length === 0) return undefined
+    return providerOptions.mcpServerName ?? `luca-${assistant}`
+  }
+
+  /**
+   * Build the allowed-tools list for the claude run. A headless session refuses
+   * every MCP tool that is not allowed, so the assistant's own server is always
+   * granted: those are the tools the assistant declares, and its allow/forbid
+   * filters already limit what the server exposes. The grant is added to the
+   * caller's list, or to the claudeCode feature default that an explicit list
+   * would otherwise replace.
+   */
+  private resolveAllowedTools(providerOptions: Record<string, any>, claudeCode: any): string[] | undefined {
+    const ownServer = this.assistantServerName(providerOptions)
+    if (!ownServer) return providerOptions.allowedTools
+    const base: string[] = providerOptions.allowedTools ?? claudeCode?.options?.allowedTools ?? []
+    return [...new Set([...base, `mcp__${ownServer}`])]
   }
 
   private systemInstructions(messages: ModelMessage[]): string {

@@ -439,5 +439,19 @@ describe('Conversation correctness boundaries', () => {
 		for await (const _event of claudeProvider.transport.stream({ model: 'claude-code', messages: [{ role: 'user', content: 'go' }] }, claudeProvider)) { /* drain */ }
 		expect(runs[0].mcpServers['luca-researcher'].args).toContain('--forbid-tool')
 		expect(runs[0].mcpServers['luca-researcher'].args).toContain('createResearchJob')
+		// A headless claude session refuses unlisted MCP tools, so the assistant's
+		// own server is granted without config.
+		expect(runs[0].allowedTools).toEqual(['mcp__luca-researcher'])
+
+		const withCallerList = await providers.resolve({
+			provider: 'claude-code',
+			providerOptions: { assistant: 'researcher', mcpServerName: 'tools', allowedTools: ['Bash(git *)'] },
+		})
+		for await (const _event of withCallerList.transport.stream({ model: 'claude-code', messages: [{ role: 'user', content: 'go' }] }, withCallerList)) { /* drain */ }
+		expect(runs[1].allowedTools).toEqual(['Bash(git *)', 'mcp__tools'])
+
+		const noAssistant = await providers.resolve({ provider: 'claude-code' })
+		for await (const _event of noAssistant.transport.stream({ model: 'claude-code', messages: [{ role: 'user', content: 'go' }] }, noAssistant)) { /* drain */ }
+		expect(runs[2].allowedTools).toBeUndefined()
 	})
 })
