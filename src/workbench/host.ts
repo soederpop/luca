@@ -11,6 +11,8 @@ import { z } from 'zod'
 import { allHelperInstances } from '../container.js'
 import { project, registryNames, registryStacks, allRegistryStacks, helperView, findLiveInstance, methodsOf, parseArgs, displayText, commandView } from './views.js'
 import { ConsoleSessions } from './console.js'
+import { ServerControl } from './servers.js'
+import { AiEnvironment } from './ai.js'
 import { CommandRuns, buildArgs } from './runs.js'
 import { OriginIndex } from './origins.js'
 import { planCopy, planBorrow, planUnborrow, applyPlan } from './borrow.js'
@@ -166,6 +168,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const serve = new ServeControl(container, runs, (frame) => broadcast(frame))
 	const docsIndex = new DocsIndex(container)
 	const chats = new ChatSessions(container, (frame) => broadcast(frame))
+	const ai = new AiEnvironment(container)
+	const servers = new ServerControl(container, (frame) => broadcast(frame), () => origins())
 	const tools = new ToolIndex(container)
 
 	/** Token from a header or ?token=. Also refuses Host headers that are not loopback (DNS rebinding). */
@@ -392,6 +396,58 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			return runs.stop(seg[1]!) ? sendJson(res, 200, { ok: true, runId: seg[1] }) : sendJson(res, 404, { error: `unknown run: ${seg[1]}` })
 		}
 
+		// --- The AI environment ---
+		if (method === 'GET' && path === '/ai') {
+			return sendJson(res, 200, await ai.view())
+		}
+
+		if (method === 'POST' && (path === '/ai/discover' || path === '/ai/agents' || path === '/ai/providers/add' || path === '/ai/key')) {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			if (path === '/ai/discover') return sendJson(res, 200, await ai.discover())
+			if (path === '/ai/agents') return sendJson(res, 200, await ai.view({ refreshAgents: true }))
+			const answer = path === '/ai/key' ? await ai.setKey(body?.env, body?.value) : await ai.addServer(body?.baseURL, body?.target, body?.model)
+			return sendJson(res, answer.status, answer.body)
+		}
+
+		// What `luca prompt` can run a doc or a file with, and the path to give it.
+		if (method === 'POST' && path === '/prompt/targets') {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			const cwd = String(container.cwd).replace(/\/+$/, '')
+			let abs: string | undefined
+			if (typeof body?.doc === 'string' && body.doc) {
+				if (docsIndex.exists) { await docsIndex.refresh(); abs = docsIndex.fileOf(body.doc) }
+				if (!abs) return sendJson(res, 404, { error: `no doc ${body.doc}` })
+			} else if (typeof body?.file === 'string' && body.file) {
+				abs = container.paths.resolve(body.file)
+			} else {
+				return sendJson(res, 400, { error: 'doc or file is required' })
+			}
+			if (!abs!.startsWith(cwd + '/')) return sendJson(res, 400, { error: 'the file is outside the project' })
+			let list: any[] = []
+			try { list = (await chats.assistantsView()).assistants ?? [] } catch {}
+			return sendJson(res, 200, { file: abs!.slice(cwd.length + 1), ...(await ai.promptTargets(list)) })
+		}
+
+		// --- Servers of the registry, run in this container ---
+		if (method === 'GET' && path === '/servers') {
+			return sendJson(res, 200, servers.view)
+		}
+
+		if (method === 'POST' && path === '/servers/start') {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			if (!body || typeof body.id !== 'string' || !body.id) return sendJson(res, 400, { error: 'id is required' })
+			const answer = servers.start(body.id, body.options)
+			return sendJson(res, answer.status, answer.body)
+		}
+
+		if (method === 'POST' && seg[0] === 'servers' && seg.length === 3 && seg[2] === 'stop') {
+			const answer = await servers.stop(seg[1]!)
+			return sendJson(res, answer.status, answer.body)
+		}
+
 		// --- Endpoints and the serve child ---
 		if (method === 'GET' && path === '/endpoints') {
 			return sendJson(res, 200, await endpointsView(endpointIndex, serve))
@@ -616,6 +672,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		runs.killAll()
 		chats.closeAll()
 		tools.closeAll()
+		void servers.stopAll()
 		attached.forEach((detach) => detach())
 		attached.clear()
 		for (const ws of sockets) { try { ws.terminate() } catch {} }
