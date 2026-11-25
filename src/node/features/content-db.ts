@@ -463,6 +463,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       return this;
     }
 
+    await this.installWorkspaceModels()
     await this.collection.load()
     await this._checkModelLoad(options.ignoreModelErrors)
     this.state.set('started', true)
@@ -525,8 +526,22 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     }
   }
 
+  /**
+   * Hook the workspace model files (`docs/models.md`, `docs/models/*.md|ts`)
+   * into the collection, so they register on every load and reload. Runs
+   * once per collection; `load()` and `reload()` call it.
+   */
+  async installWorkspaceModels(): Promise<void> {
+    try {
+      await (this.container.feature('markdownModels' as any) as any).install(this)
+    } catch (error: any) {
+      console.warn(`[contentDb] workspace models did not install: ${error?.message ?? error}`)
+    }
+  }
+
   /** Force-reload the collection from disk, picking up new/changed/deleted documents. */
   async reload(): Promise<ContentDb> {
+    await this.installWorkspaceModels()
     await this.collection.load({ refresh: true })
     // New/changed documents may need (re-)embedding on the next search
     this._indexEnsured = false

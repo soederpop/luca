@@ -150,7 +150,7 @@ export function sizeText(bytes: number): string {
 	return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function modelFields(def: any): ModelFieldView[] {
+export function modelFields(def: any): ModelFieldView[] {
 	let infos: any[] = []
 	try { infos = introspectMetaSchema(def?.meta) || [] } catch {}
 	return infos.map((f) => {
@@ -205,7 +205,8 @@ export class DocsIndex {
 
 	/** Models in the order the models file defines them, `Base` last, each with its color slot. */
 	definitions(): Array<{ def: any; slot: number }> {
-		const defs: any[] = this.db.collection.modelDefinitions
+		// A workspace model that was removed stays registered as a stub until restart.
+		const defs: any[] = this.db.collection.modelDefinitions.filter((d: any) => !d.removed)
 		const own = defs.filter((d) => d.name !== 'Base')
 		const base = defs.find((d) => d.name === 'Base')
 		return [...own.map((def, slot) => ({ def, slot })), ...(base ? [{ def: base, slot: -1 }] : [])]
