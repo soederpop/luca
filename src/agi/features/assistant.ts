@@ -498,7 +498,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	get conversation(): Conversation {
 		let conv = this.state.get('conversation') as Conversation | null
 		if (!conv) {
-			const provider = this.effectiveOptions.provider
+			let provider = this.effectiveOptions.provider
+			// A machine default that is a coding agent (claude-code, codex) runs its
+			// own loop and reaches this assistant's tools through `luca mcp
+			// --assistant <name>`, so it has to be named here like a configured one.
+			if (!provider) {
+				const fallback = this.resolveDefaultProviderId()
+				try { if ((this.container.feature('modelProviders') as any).isAgentProvider(fallback)) provider = fallback } catch {}
+			}
 			const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
 			const assistantToolFilters = this.providerToolFilters
 			// With no provider configured, the conversation resolves the container's

@@ -114,7 +114,8 @@ async function start(cwd: string, env: Record<string, string> = {}): Promise<Run
 		stdin: 'pipe',
 		stdout: 'pipe',
 		stderr: 'ignore',
-		env: { ...process.env, XDG_CACHE_HOME: cacheHome, ...env },
+		// HOME too: assistants in ~/.luca/assistants (Luca Desktop installs one) would join every project.
+		env: { ...process.env, XDG_CACHE_HOME: cacheHome, HOME: join(cacheHome, 'home'), ...env },
 	})
 	const info = JSON.parse(await readFirstLine(proc))
 	return { proc, port: info.port, token: info.token, base: `http://127.0.0.1:${info.port}` }

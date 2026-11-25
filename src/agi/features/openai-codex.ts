@@ -176,6 +176,8 @@ export interface CodexRunOptions {
   profile?: string
   /** Additional CLI flags. */
   extraArgs?: string[]
+  /** Run in a folder that is not a git repository codex trusts (`--skip-git-repo-check`). */
+  skipGitRepoCheck?: boolean
 }
 
 /**
@@ -266,6 +268,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    */
   private buildArgs(options: CodexRunOptions = {}): string[] {
     const args: string[] = ['exec', '--json']
+    if (options.skipGitRepoCheck) args.push('--skip-git-repo-check')
 
     if (options.profile) args.push('--profile', options.profile)
 

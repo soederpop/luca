@@ -355,17 +355,77 @@ function findWebBundle(container: any): string | undefined {
 	return candidates.find((p) => { try { return fs.exists(p) && !fs.isDirectory(p) } catch { return false } })
 }
 
+/**
+ * A tool's answer as MCP content: text, plus an image part for each data URL
+ * in `images` (what `canvasSnapshot` returns). Pure.
+ */
+export function toMcpContent(result: any): { content: any[]; isError?: boolean } {
+	if (typeof result === 'string') return { content: [{ type: 'text', text: result }] }
+	const { images, ...rest } = result && typeof result === 'object' && !Array.isArray(result) ? result : { images: undefined, value: result }
+	const content: any[] = [{ type: 'text', text: JSON.stringify(Array.isArray(result) ? result : rest) }]
+	for (const url of Array.isArray(images) ? images : []) {
+		const m = /^data:([^;,]+);base64,(.*)$/s.exec(String(url))
+		if (m) content.push({ type: 'image', mimeType: m[1], data: m[2] })
+	}
+	return { content, ...(result && result.ok === false ? { isError: true } : {}) }
+}
+
 export class Canvases {
 	private canvases = new Map<string, Canvas>()
 	private snapshots = new Map<string, Pending>()
 	private bundlePath: string | undefined | null = null
 	private loaded = false
+	private mcpHandle?: Promise<(req: any, res: any, body?: any) => Promise<void>>
+	/**
+	 * The bearer token of `/mcp/canvas`, the canvas tools for a coding agent
+	 * (Claude Code, Codex) an assistant runs on. It opens that route only.
+	 */
+	readonly mcpToken: string
 
 	constructor(
 		private container: any,
 		private broadcast: Broadcast,
 		private opts: { lucaVersion: string; port: () => number },
-	) {}
+	) {
+		this.mcpToken = String(container.utils.uuid()).replace(/-/g, '')
+	}
+
+	/**
+	 * The MCP server entry a coding-agent session gets, so its model can use
+	 * the canvas tools: `{ 'luca-canvas': { type: 'http', url, headers } }`.
+	 */
+	agentMcpServers(): Record<string, any> {
+		return {
+			'luca-canvas': {
+				type: 'http',
+				url: `http://127.0.0.1:${this.opts.port()}/mcp/canvas`,
+				headers: { Authorization: `Bearer ${this.mcpToken}` },
+			},
+		}
+	}
+
+	/** True when a request carries the MCP token. */
+	mcpAuthorized(req: IncomingMessage): boolean {
+		const auth = String(req.headers.authorization || '')
+		return auth.toLowerCase().startsWith('bearer ') && auth.slice(7).trim() === this.mcpToken
+	}
+
+	/** The `/mcp/canvas` request handler: the canvas tools as an MCP server over streamable HTTP. */
+	mcpHandler(): Promise<(req: any, res: any, body?: any) => Promise<void>> {
+		this.mcpHandle ??= (async () => {
+			const mcp = this.container.server('mcp', { serverName: 'luca-canvas', serverVersion: this.opts.lucaVersion })
+			const { schemas, handlers } = this.toTools()
+			for (const [name, schema] of Object.entries(schemas)) {
+				mcp.tool(name, {
+					description: (schema as any).description || name,
+					schema: schema as any,
+					handler: async (args: any) => toMcpContent(await (handlers as any)[name](args)),
+				})
+			}
+			return mcp.requestHandler()
+		})()
+		return this.mcpHandle
+	}
 
 	// --- Storage ---
 

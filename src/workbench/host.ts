@@ -176,6 +176,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const tools = new ToolIndex(container)
 	const canvases = new Canvases(container, (frame) => broadcast(frame), { lucaVersion, port: () => boundPort })
 	chats.extraTools = () => canvases.toTools()
+	chats.agentMcpServers = () => canvases.agentMcpServers()
+	chats.chatMcpUrl = (key) => `http://127.0.0.1:${boundPort}/mcp/chat/${key}`
 
 	/** Refuses Host headers that are not loopback (DNS rebinding). */
 	const loopbackHost = (req: IncomingMessage): boolean => /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(String(req.headers.host || ''))
@@ -597,7 +599,9 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : ''
 			if (!assistant) return sendJson(res, 400, { error: 'assistant is required' })
 			if (seg[1] === 'open') {
-				const answer = await chats.open(assistant, conversationId)
+				const t = body?.target
+				const target = t && typeof t.assistant === 'string' && typeof t.conversationId === 'string' && t.assistant && t.conversationId ? { assistant: t.assistant, conversationId: t.conversationId } : null
+				const answer = await chats.open(assistant, conversationId, target)
 				return sendJson(res, answer.status, answer.body)
 			}
 			if (!conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'conversationId is required (from POST /chat/open)' })
@@ -606,6 +610,28 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 				return sendJson(res, answer.status, answer.body)
 			}
 			return sendJson(res, 200, { ok: true, stopped: chats.stop(assistant, conversationId) })
+		}
+
+		// Extra tools for one conversation: GET the picker's list, POST a new list.
+		if (seg[0] === 'chat' && seg[1] === 'extensions' && seg.length === 2 && (method === 'GET' || method === 'POST')) {
+			let body: any = {}
+			if (method === 'POST') {
+				try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			}
+			const assistant = String((method === 'GET' ? url.searchParams.get('assistant') : body?.assistant) || '')
+			const conversationId = String((method === 'GET' ? url.searchParams.get('conversationId') : body?.conversationId) || '')
+			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			const manager = await chats.manager()
+			if (!manager.list().some((e: any) => e.name === assistant)) return sendJson(res, 404, { error: `no assistant ${assistant}` })
+			const target = { assistant, conversationId }
+			if (method === 'GET') return sendJson(res, 200, await chats.extensionsView(target))
+			try {
+				const list = await chats.setExtensions(target, body?.extensions)
+				return sendJson(res, 200, { ok: true, extensions: list })
+			} catch (err: any) {
+				const issues = err?.issues ? err.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join('; ') : ''
+				return sendJson(res, 200, { ok: false, error: issues || String(err?.message ?? err) })
+			}
 		}
 
 		// --- The project's own tools (workbench/ in the project and its plugins) ---
@@ -670,6 +696,25 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const server = createServer((req, res) => {
 		let url: URL
 		try { url = new URL(req.url || '/', 'http://127.0.0.1') } catch { return sendJson(res, 400, { error: 'bad request' }) }
+		// The canvas tools for a coding agent, behind their own token.
+		if (url.pathname === '/mcp/canvas') {
+			if (!loopbackHost(req) || !canvases.mcpAuthorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
+			canvases.mcpHandler().then((handle) => handle(req, res)).catch((err: any) => {
+				if (!res.headersSent) sendJson(res, 500, { error: String(err?.message ?? err) })
+			})
+			return
+		}
+		// One coding-agent chat's own tools (its extensions, tech support tools), behind that chat's token.
+		if (url.pathname.startsWith('/mcp/chat/')) {
+			const key = url.pathname.slice('/mcp/chat/'.length)
+			const auth = String(req.headers.authorization || '')
+			const session = chats.sessionForToken(key)
+			if (!loopbackHost(req) || !session || auth !== `Bearer ${key}`) return sendJson(res, 401, { error: 'unauthorized' })
+			chats.mcpHandler(session, lucaVersion).then((handle) => handle(req, res)).catch((err: any) => {
+				if (!res.headersSent) sendJson(res, 500, { error: String(err?.message ?? err) })
+			})
+			return
+		}
 		// Canvas pages carry their own key, never the host's token.
 		if (url.pathname.startsWith('/canvas/')) {
 			if (!loopbackHost(req)) return sendJson(res, 401, { error: 'unauthorized' })

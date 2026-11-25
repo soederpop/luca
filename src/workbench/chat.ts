@@ -14,6 +14,8 @@
  * `chat-error` (`error`). Each carries `assistant`, `conversationId` and `turnId`.
  */
 
+import { ChatExtensions, parseExtensions, summary, PROMPT_KEY, type ChatExtension, type ChatTarget, type ToolBundle } from './extensions.js'
+
 const MAX_TOOL_TEXT = 4000
 const MAX_ARGS_TEXT = 2000
 
@@ -154,6 +156,19 @@ type Session = {
 	instance: any
 	turn: Turn | null
 	starting: Promise<void>
+	/** The chat this one is tech support for, when it was opened as that. */
+	target: ChatTarget | null
+	/** Host tools that are not the canvas: the support tools of a tech support chat. */
+	support: ToolBundle | null
+	/** The extensions the last mount put on. */
+	extensions: ChatExtension[]
+	/** Tool names the last mount added, so the next one can take them off. */
+	mounted: string[]
+	/** On a coding agent: the tools it reaches over `/mcp/chat/<token>`. */
+	agent: boolean
+	token: string
+	served: ToolBundle
+	mcp?: { signature: string; handle: Promise<(req: any, res: any, body?: any) => Promise<void>> }
 }
 
 export class ChatSessions {
@@ -162,8 +177,15 @@ export class ChatSessions {
 	private discovered: Promise<any> | null = null
 	/** Tools the host gives every chat assistant (the canvas tools). */
 	extraTools?: () => { schemas: Record<string, any>; handlers: Record<string, (...args: any[]) => any> }
+	/** The same tools as MCP servers, for an assistant that runs on a coding agent (Claude Code, Codex). */
+	agentMcpServers?: () => Record<string, any>
+	/** The URL of a session's own MCP route, `/mcp/chat/<token>` on the host. */
+	chatMcpUrl?: (token: string) => string
+	readonly extensionsIndex: ChatExtensions
 
-	constructor(private container: any, private broadcast: Broadcast) {}
+	constructor(private container: any, private broadcast: Broadcast) {
+		this.extensionsIndex = new ChatExtensions(container)
+	}
 
 	async manager(): Promise<any> {
 		const manager = this.container.feature('assistantsManager')
@@ -273,26 +295,218 @@ export class ChatSessions {
 		return path.startsWith(home + '/') ? '~' + path.slice(home.length) : path
 	}
 
-	/** The live session for a conversation, started (history loaded) on first use. */
-	private async session(name: string, conversationId: string): Promise<Session> {
+	/**
+	 * The live session for a conversation, started (history loaded) on first
+	 * use. `target` makes it the tech support chat of another conversation;
+	 * the link is saved, so a reopen after a restart keeps it.
+	 */
+	private async session(name: string, conversationId: string, target?: ChatTarget | null): Promise<Session> {
 		const key = this.key(name, conversationId)
 		let s = this.sessions.get(key)
 		if (!s) {
 			const manager = await this.manager()
 			const thread = manager.threadPrefixFor(name) + conversationId
+			const store = await this.stored(thread)
+			if (target && (target.assistant !== store.target?.assistant || target.conversationId !== store.target?.conversationId)) {
+				await this.store(thread, { ...store, target })
+			}
+			const linked = target ?? store.target ?? null
 			const instance = manager.create(name, { cached: false, historyMode: 'session' })
 			if (this.extraTools) {
 				try { instance.use(this.extraTools()) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
 			}
+			const support = linked ? this.extensionsIndex.supportTools(linked, this.supportHost()) : null
+			const agent = this.isAgent(instance)
+			const token = String(this.container.utils.uuid()).replace(/-/g, '')
+			this.giveAgentServers(instance, agent ? token : null)
+			if (support && !agent) instance.use(support)
+			if (linked) instance.addSystemPromptExtension('workbenchTechSupport', ChatExtensions.brief(linked))
 			instance.resumeThread(thread)
-			const session: Session = { assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve() }
-			session.starting = instance.start().then(() => {})
+			const session: Session = {
+				assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve(),
+				target: linked, support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
+			}
+			session.starting = instance.start().then(() => this.mount(session))
 			this.wire(session)
 			this.sessions.set(key, session)
 			s = session
 		}
 		await s.starting
 		return s
+	}
+
+	/**
+	 * A coding agent runs its own loop and never sees tools added in this
+	 * process. When the assistant runs on one (configured, or the machine
+	 * default), hand it the host's tools as MCP servers instead.
+	 */
+	private giveAgentServers(instance: any, token: string | null) {
+		if (!token) return
+		try {
+			const current = instance.effectiveOptions?.providerOptions ?? {}
+			const own = this.chatMcpUrl ? { 'luca-chat': { type: 'http', url: this.chatMcpUrl(token), headers: { Authorization: `Bearer ${token}` } } } : {}
+			instance.options.providerOptions = { ...current, mcpServers: { ...(current.mcpServers ?? {}), ...(this.agentMcpServers?.() ?? {}), ...own } }
+		} catch (err: any) {
+			console.error(`[workbench] could not give ${instance?.name} the host's MCP servers: ${err?.message}`)
+		}
+	}
+
+	/** True when the assistant runs on a coding agent (configured, or the machine default). */
+	private isAgent(instance: any): boolean {
+		try {
+			const mp = this.container.feature('modelProviders')
+			const configured = instance.effectiveOptions?.provider
+			const id = typeof configured === 'string' ? configured : configured ? undefined : mp.resolveDefaultId()
+			return !!mp.isAgentProvider(id)
+		} catch {
+			return false
+		}
+	}
+
+	// --- Extensions ---
+
+	private storeKey(thread: string) {
+		return `workbench-chat:${thread}`
+	}
+
+	/** What the host keeps for one conversation: its extensions and the chat it supports. */
+	private async stored(thread: string): Promise<{ extensions: ChatExtension[]; target?: ChatTarget }> {
+		try {
+			const cache = this.history.diskCache
+			if (!(await cache.has(this.storeKey(thread)))) return { extensions: [] }
+			const value = await cache.get(this.storeKey(thread), true)
+			let extensions: ChatExtension[] = []
+			try { extensions = parseExtensions(value?.extensions) } catch {}
+			const target = value?.target?.assistant && value?.target?.conversationId ? { assistant: String(value.target.assistant), conversationId: String(value.target.conversationId) } : undefined
+			return { extensions, ...(target ? { target } : {}) }
+		} catch {
+			return { extensions: [] }
+		}
+	}
+
+	private async store(thread: string, value: { extensions: ChatExtension[]; target?: ChatTarget }) {
+		await this.history.diskCache.set(this.storeKey(thread), value)
+	}
+
+	private async threadOf(target: ChatTarget): Promise<string> {
+		return (await this.manager()).threadPrefixFor(target.assistant) + target.conversationId
+	}
+
+	/** A conversation's extensions, open or not. */
+	async extensions(target: ChatTarget): Promise<ChatExtension[]> {
+		return (await this.stored(await this.threadOf(target))).extensions
+	}
+
+	/**
+	 * Replace a conversation's extensions. Each entry must build, so a bad
+	 * one is refused here, not at the next turn. The open session picks the
+	 * list up at once and the app hears a `chat-extensions` frame.
+	 */
+	async setExtensions(target: ChatTarget, value: unknown): Promise<ChatExtension[]> {
+		const list = parseExtensions(value)
+		for (const entry of list) await this.extensionsIndex.bundle(entry)
+		const thread = await this.threadOf(target)
+		const stored = await this.stored(thread)
+		await this.store(thread, { ...stored, extensions: list })
+		const s = this.sessions.get(this.key(target.assistant, target.conversationId))
+		if (s && !s.turn) await this.mount(s, list)
+		this.broadcast({ type: 'chat-extensions', assistant: target.assistant, conversationId: target.conversationId, extensions: list.map(summary), at: Date.now() })
+		return list
+	}
+
+	/** The tools a conversation's assistant has on its own: not the ones the extensions added. */
+	async toolNames(target: ChatTarget): Promise<string[]> {
+		const s = this.sessions.get(this.key(target.assistant, target.conversationId))
+		if (s) return Object.keys(s.instance.tools || {}).filter((name) => !s.mounted.includes(name))
+		const manager = await this.manager()
+		try { return Object.keys(this.info(manager, target.assistant).tools || {}) } catch { return [] }
+	}
+
+	/** The picker's list: features with tools, and what the conversation has. */
+	async extensionsView(target: ChatTarget) {
+		const has = await this.toolNames(target)
+		return { features: this.extensionsIndex.available(has), extensions: await this.extensions(target) }
+	}
+
+	private supportHost() {
+		return {
+			extensions: (t: ChatTarget) => this.extensions(t),
+			setExtensions: (t: ChatTarget, list: ChatExtension[]) => this.setExtensions(t, list),
+			toolNames: (t: ChatTarget) => this.toolNames(t),
+		}
+	}
+
+	/**
+	 * Put the conversation's extensions on its assistant: the last mount's
+	 * tools come off first. A coding agent gets them (and the support tools)
+	 * over its MCP route instead, rebuilt when the tool names change.
+	 */
+	private async mount(s: Session, list?: ChatExtension[]) {
+		const a = s.instance
+		try {
+			const entries = list ?? (await this.stored(s.thread)).extensions
+			s.extensions = entries
+			for (const name of s.mounted) a.removeTool(name)
+			s.mounted = []
+			const has = new Set(Object.keys(a.tools || {}))
+			const built = await this.extensionsIndex.build(entries, has)
+			if (built.lines.length) a.addSystemPromptExtension(PROMPT_KEY, ChatExtensions.prompt(built.lines))
+			else a.removeSystemPromptExtension(PROMPT_KEY)
+			if (s.agent) {
+				s.served = {
+					schemas: { ...(s.support?.schemas ?? {}), ...built.tools.schemas },
+					handlers: { ...(s.support?.handlers ?? {}), ...built.tools.handlers },
+				}
+				return
+			}
+			const names = Object.keys(built.tools.schemas)
+			if (!names.length) return
+			a.use({ ...built.tools, provider: { name: 'workbench.chatExtensions' } })
+			for (const setup of built.setups) { try { setup(a) } catch {} }
+			s.mounted = names
+		} catch (err: any) {
+			console.error(`[workbench] could not mount ${s.assistant}'s extensions: ${err?.message ?? err}`)
+		}
+	}
+
+	/** The session a `/mcp/chat/<token>` request belongs to. */
+	sessionForToken(token: string): Session | undefined {
+		if (!token) return undefined
+		for (const s of this.sessions.values()) if (s.agent && s.token === token) return s
+		return undefined
+	}
+
+	/**
+	 * A session's tools as an MCP server over streamable HTTP. The server is
+	 * built again when the tool names change; each agent turn lists them anew.
+	 * Calls are announced on the assistant, so the chat draws them as cards.
+	 */
+	mcpHandler(s: Session, lucaVersion: string): Promise<(req: any, res: any, body?: any) => Promise<void>> {
+		const signature = Object.keys(s.served.schemas).sort().join(',')
+		if (s.mcp?.signature === signature) return s.mcp.handle
+		const handle = (async () => {
+			const mcp = this.container.server('mcp', { serverName: 'luca-chat', serverVersion: lucaVersion })
+			for (const [name, schema] of Object.entries(s.served.schemas)) {
+				mcp.tool(name, {
+					description: (schema as any).description || name,
+					schema: schema as any,
+					handler: async (args: any) => {
+						s.instance.emit('toolCall', name, args)
+						try {
+							const result = await s.served.handlers[name]!(args)
+							s.instance.emit('toolResult', name, result)
+							return typeof result === 'string' ? result : JSON.stringify(result)
+						} catch (err) {
+							s.instance.emit('toolError', name, err)
+							throw err
+						}
+					},
+				})
+			}
+			return mcp.requestHandler()
+		})()
+		s.mcp = { signature, handle }
+		return handle
 	}
 
 	private frame(s: Session, type: string, extra: Record<string, unknown>) {
@@ -331,14 +545,17 @@ export class ChatSessions {
 		return { id, name, argsText, status, resultText, ms }
 	}
 
-	/** Open (or reopen) a conversation. `conversationId` empty or `new` starts a fresh one. */
-	async open(name: string, conversationId?: string): Promise<{ status: number; body: any }> {
+	/**
+	 * Open (or reopen) a conversation. `conversationId` empty or `new` starts
+	 * a fresh one. `target` opens it as the tech support chat of another.
+	 */
+	async open(name: string, conversationId?: string, target?: ChatTarget | null): Promise<{ status: number; body: any }> {
 		const manager = await this.manager()
 		if (!manager.list().some((e: any) => e.name === name)) return { status: 404, body: { error: `no assistant ${name}` } }
 		const id = conversationId && conversationId !== 'new' ? conversationId : this.freshId()
 		if (!/^[\w.-]+$/.test(id)) return { status: 400, body: { error: 'a conversation id is letters, digits, dot, dash and underscore' } }
 		let s: Session
-		try { s = await this.session(name, id) } catch (err: any) {
+		try { s = await this.session(name, id, target) } catch (err: any) {
 			return { status: 200, body: { ok: false, error: `could not start ${name}: ${err?.message ?? err}` } }
 		}
 		return { status: 200, body: this.view(s) }
@@ -364,7 +581,9 @@ export class ChatSessions {
 			thread: s.thread,
 			title,
 			modelText: [routing?.provider, routing?.model].filter(Boolean).join(' · ') || 'default model',
-			tools: Object.keys(s.instance.tools || {}),
+			tools: Object.keys(s.instance.tools || {}).filter((name) => !s.mounted.includes(name)),
+			extensions: s.extensions.map(summary),
+			target: s.target,
 			messages,
 			busy: !!s.turn,
 			live: s.turn ? { turnId: s.turn.turnId, user: s.turn.user, text: s.turn.text, tools: s.turn.tools.map((t) => this.publicTool(t)) } : null,
@@ -384,6 +603,8 @@ export class ChatSessions {
 		const turn = s.turn
 		void (async () => {
 			try {
+				// The list may have changed on disk since the last turn (another host, a hand edit).
+				await this.mount(s)
 				const answer = await s.instance.ask(text)
 				this.frame(s, 'chat-done', { text: typeof answer === 'string' ? answer : turn.text, aborted: false, ms: Date.now() - turn.startedAt })
 			} catch (err: any) {

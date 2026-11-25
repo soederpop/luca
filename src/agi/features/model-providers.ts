@@ -87,7 +87,8 @@ export interface ModelProviderConfigSource {
 }
 
 /** Keys inside a `providers:` map that are not provider ids. */
-const PROVIDER_CONFIG_RESERVED_KEYS = new Set(['hosts'])
+// `default` names the provider assistants use when they name none.
+const PROVIDER_CONFIG_RESERVED_KEYS = new Set(['hosts', 'default'])
 
 /** apiMode assumed per `kind` when a config entry doesn't name one. */
 const DEFAULT_API_MODE_BY_KIND: Record<string, ModelProviderApiMode> = {
@@ -164,6 +165,8 @@ export const ModelProvidersStateSchema = FeatureStateSchema.extend({
   discoveredAt: z.number().optional().describe('Time of the cached scan in milliseconds since epoch'),
   configuredProviderIds: z.array(z.string()).default([]).describe('Profile ids registered from YAML config files, in registration order'),
   loadedConfigSources: z.array(z.string()).default([]).describe('Config files that existed and were parsed on the last loadConfigFiles()'),
+  configuredDefault: z.string().optional().describe('The `default:` provider id the config files name (a later file wins), if any'),
+  configuredDefaultSource: z.string().optional().describe('The config file the configured default came from'),
 })
 
 export type ModelProvidersState = z.infer<typeof ModelProvidersStateSchema>
@@ -343,14 +346,18 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     label: 'OpenAI Codex auth',
     apiMode: 'openai-codex',
     auth: 'codex',
-    defaultModel: 'gpt-5-codex',
+    // A placeholder: codex picks its own model, which is the one a ChatGPT
+    // subscription allows. A named model is passed as --model.
+    defaultModel: 'codex',
   },
   {
     id: 'codex',
     label: 'OpenAI Codex auth',
     apiMode: 'openai-codex',
     auth: 'codex',
-    defaultModel: 'gpt-5-codex',
+    // A placeholder: codex picks its own model, which is the one a ChatGPT
+    // subscription allows. A named model is passed as --model.
+    defaultModel: 'codex',
   },
   {
     id: 'anthropic',
@@ -933,6 +940,59 @@ export class OpenAIResponsesTransport implements ModelTransport {
   }
 }
 
+/**
+ * The MCP servers a coding-agent session gets: `providerOptions.mcpServers`,
+ * plus `luca mcp --assistant <name>` when `providerOptions.assistant` names
+ * one, so the agent can call the assistant's own tools. Pure.
+ */
+export function agentMcpServers(providerOptions: Record<string, any>): Record<string, any> {
+  const servers: Record<string, any> = { ...(providerOptions.mcpServers ?? {}) }
+  const name = assistantMcpServerName(providerOptions)
+  if (name) {
+    const mcpArgs = ['mcp', '--assistant', providerOptions.assistant, '--transport', 'stdio']
+    if (providerOptions.askOnly) mcpArgs.push('--ask-only')
+    const filters = providerOptions.assistantToolFilters ?? {}
+    for (const pattern of filters.allowTools ?? []) mcpArgs.push('--allow-tool', pattern)
+    for (const pattern of filters.forbidTools ?? []) mcpArgs.push('--forbid-tool', pattern)
+    for (const toolName of filters.toolNames ?? []) mcpArgs.push('--tool-name', toolName)
+    servers[name] = { command: providerOptions.lucaBin ?? 'luca', args: mcpArgs }
+  }
+  return servers
+}
+
+/** The name of the assistant's own luca MCP server, or undefined when no assistant is set. Pure. */
+export function assistantMcpServerName(providerOptions: Record<string, any>): string | undefined {
+  const assistant = providerOptions.assistant
+  if (typeof assistant !== 'string' || assistant.length === 0) return undefined
+  return providerOptions.mcpServerName ?? `luca-${assistant}`
+}
+
+/**
+ * MCP servers as codex `-c` config entries (`mcp_servers.<name>.command`, …).
+ * A stdio server is `{command, args, env}`; an HTTP one `{url, headers}`. Pure.
+ */
+/** The `--model` for codex: none for the `codex` placeholder, so codex uses its own default. Pure. */
+export function codexModel(model: string | undefined): string | undefined {
+  return model && model !== 'codex' ? model : undefined
+}
+
+export function codexMcpConfig(servers: Record<string, any>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [name, server] of Object.entries(servers)) {
+    if (!server || typeof server !== 'object') continue
+    const key = `mcp_servers.${name}`
+    if (typeof server.url === 'string') {
+      out[`${key}.url`] = server.url
+      for (const [header, value] of Object.entries(server.headers ?? {})) out[`${key}.http_headers.${header}`] = String(value)
+    } else if (typeof server.command === 'string') {
+      out[`${key}.command`] = server.command
+      if (Array.isArray(server.args)) out[`${key}.args`] = server.args.map(String)
+      for (const [envName, value] of Object.entries(server.env ?? {})) out[`${key}.env.${envName}`] = String(value)
+    }
+  }
+  return out
+}
+
 export interface ClaudeSessionTransportOptions {
   /** Inject a claudeCode-like backend (with a `run()` method) — used by tests. */
   claudeCode?: { run: (prompt: string, options?: any) => Promise<any> }
@@ -956,15 +1016,19 @@ export class OpenAICodexTransport implements ModelTransport {
       ? this.lastUserMessage(request.messages)
       : this.promptFromMessages(request.messages)
     const config = {
+      // The assistant's own tools (and any extra servers) as codex MCP servers.
+      ...codexMcpConfig(agentMcpServers(providerOptions)),
       ...(providerOptions.config ?? {}),
       ...(request.reasoningEffort ? { model_reasoning_effort: request.reasoningEffort } : {}),
       ...(developerInstructions ? { developer_instructions: developerInstructions } : {}),
     }
     const result = await withAbort<any>(codex.run(prompt, {
+      // An assistant's project folder need not be a git repository codex trusts.
+      skipGitRepoCheck: true,
       ...providerOptions,
       previousProviderData: undefined,
       config: Object.keys(config).length ? config : undefined,
-      model: request.model ?? provider.model,
+      model: codexModel(request.model ?? provider.model),
       ...(previousThreadId ? { resumeSessionId: previousThreadId } : {}),
       ...(request.signal ? { signal: request.signal } : {}),
     }), request.signal)
@@ -1094,28 +1158,7 @@ export class ClaudeSessionTransport implements ModelTransport {
    * `mcpServers` (extra servers), `lucaBin`, `askOnly`, and `mcpServerName`.
    */
   private resolveMcpServers(providerOptions: Record<string, any>): Record<string, any> {
-    const servers: Record<string, any> = { ...(providerOptions.mcpServers ?? {}) }
-    const assistant = providerOptions.assistant
-
-    if (typeof assistant === 'string' && assistant.length > 0) {
-      const lucaBin = providerOptions.lucaBin ?? 'luca'
-      const mcpArgs = ['mcp', '--assistant', assistant, '--transport', 'stdio']
-      if (providerOptions.askOnly) mcpArgs.push('--ask-only')
-      const filters = providerOptions.assistantToolFilters ?? {}
-      for (const pattern of filters.allowTools ?? []) mcpArgs.push('--allow-tool', pattern)
-      for (const pattern of filters.forbidTools ?? []) mcpArgs.push('--forbid-tool', pattern)
-      for (const name of filters.toolNames ?? []) mcpArgs.push('--tool-name', name)
-      servers[this.assistantServerName(providerOptions)!] = { command: lucaBin, args: mcpArgs }
-    }
-
-    return servers
-  }
-
-  /** The name of the assistant's own luca MCP server, or undefined when no assistant is set. */
-  private assistantServerName(providerOptions: Record<string, any>): string | undefined {
-    const assistant = providerOptions.assistant
-    if (typeof assistant !== 'string' || assistant.length === 0) return undefined
-    return providerOptions.mcpServerName ?? `luca-${assistant}`
+    return agentMcpServers(providerOptions)
   }
 
   /**
@@ -1127,10 +1170,11 @@ export class ClaudeSessionTransport implements ModelTransport {
    * would otherwise replace.
    */
   private resolveAllowedTools(providerOptions: Record<string, any>, claudeCode: any): string[] | undefined {
-    const ownServer = this.assistantServerName(providerOptions)
-    if (!ownServer) return providerOptions.allowedTools
+    // Every server the caller passed is granted too: passing one is the ask to use it.
+    const granted = Object.keys(agentMcpServers(providerOptions)).map((name) => `mcp__${name}`)
+    if (!granted.length) return providerOptions.allowedTools
     const base: string[] = providerOptions.allowedTools ?? claudeCode?.options?.allowedTools ?? []
-    return [...new Set([...base, `mcp__${ownServer}`])]
+    return [...new Set([...base, ...granted])]
   }
 
   private systemInstructions(messages: ModelMessage[]): string {
@@ -1301,6 +1345,22 @@ export class ModelProviders extends Feature<ModelProvidersState> {
     return [...(this.state.get('configuredProviderIds') ?? [])]
   }
 
+  /** The `default:` provider id the config files name, if any. `luca setup` writes it. */
+  get configuredDefault(): string | undefined {
+    return (this.state.get('configuredDefault' as any) as string | undefined) || undefined
+  }
+
+  /**
+   * Whether a provider runs a coding agent's own loop (Claude Code, Codex)
+   * instead of answering tool calls. An assistant on one of these gets its
+   * tools through a `luca mcp` server the agent starts.
+   */
+  isAgentProvider(id: string | undefined): boolean {
+    if (!id) return false
+    const mode = this.get(id)?.apiMode
+    return mode === 'claude-session' || mode === 'openai-codex'
+  }
+
   /** Config files that existed and parsed on the last `loadConfigFiles()`. */
   get loadedConfigSources(): string[] {
     return [...(this.state.get('loadedConfigSources') ?? [])]
@@ -1334,12 +1394,20 @@ export class ModelProviders extends Feature<ModelProvidersState> {
     }
 
     const registered: string[] = []
+    let configuredDefault: string | undefined
+    let configuredDefaultSource: string | undefined
     for (const { path, section } of sections) {
       registered.push(...this.registerFromConfig(section, { hosts, source: path }))
+      if (typeof section.default === 'string' && section.default.trim()) {
+        configuredDefault = section.default.trim()
+        configuredDefaultSource = path
+      }
     }
 
     this.state.set('loadedConfigSources', sections.map(s => s.path))
     this.state.set('configuredProviderIds', registered)
+    this.state.set('configuredDefault' as any, configuredDefault as any)
+    this.state.set('configuredDefaultSource' as any, configuredDefaultSource as any)
     return registered
   }
 
@@ -1611,14 +1679,18 @@ export class ModelProviders extends Feature<ModelProvidersState> {
    * order, designed around a brand-new user of the framework:
    *
    *   1. An explicit `setDefault(id)` or the LUCA_DEFAULT_PROVIDER env var
-   *   2. `openai` when OPENAI_API_KEY is set
-   *   3. `local` when the llama-server binary and a chat model are installed (`luca setup`)
-   *   4. `anthropic` when ANTHROPIC_API_KEY is set
-   *   5. The first user-registered custom profile whose auth is satisfied
+   *   2. `default: <id>` in a config file (`~/.luca/model-providers.yml`, or
+   *      `providers.default` in `assistants/options.yml`, which wins)
+   *   3. `openai` when OPENAI_API_KEY is set
+   *   4. `local` when the llama-server binary and a chat model are installed (`luca setup`)
+   *   5. `anthropic` when ANTHROPIC_API_KEY is set
+   *   6. The first user-registered custom profile whose auth is satisfied
    */
   resolveDefaultId(): string | undefined {
     const pinned = (this.state.get('defaultProvider' as any) as string | undefined) || process.env.LUCA_DEFAULT_PROVIDER
     if (pinned && this.hasProfile(pinned)) return pinned
+    const configured = this.configuredDefault
+    if (configured && this.hasProfile(configured)) return configured
 
     // Older `luca bootstrap` wrote a live `OPENAI_API_KEY=set-your-own` into
     // .env; treat that placeholder as no key so those projects fall back to local.

@@ -77,7 +77,7 @@ describe('ModelProviders', () => {
     const codex = await providers.resolve({ provider: 'codex' })
     expect(codex.id).toBe('codex')
     expect(codex.apiMode).toBe('openai-codex')
-    expect(codex.model).toBe('gpt-5-codex')
+    expect(codex.model).toBe('codex')
   })
 
   it('resolves claude-code as a public provider backed by claude-session api mode', async () => {
@@ -417,6 +417,7 @@ describe('ModelProviders', () => {
     expect(runs[0]).toEqual({
       prompt: 'fix it',
       options: {
+        skipGitRepoCheck: true,
         cwd: '/tmp/repo',
         model: 'gpt-5-codex',
         config: { developer_instructions: 'Be brief.' },

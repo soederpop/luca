@@ -23,6 +23,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'skip-models': z.boolean().default(false).describe('Install the llama-server binary and write project types, but skip all model weight downloads'),
 	types: z.boolean().default(false).describe('Only write TypeScript declarations + tsconfig.json into the current project'),
 	providers: z.boolean().default(false).describe('Scan for running OpenAI-compatible servers (localhost + tailscale) and offer to write ~/.luca/model-providers.yml or assistants/options.yml'),
+	'default-provider': z.string().optional().describe('Set the provider Luca assistants use when they name none (`claude-code`, `codex`, or any provider id), in ~/.luca/model-providers.yml'),
 })
 
 interface SetupState {
@@ -91,6 +92,104 @@ function progressLine(label: string) {
 		const pct = total > 0 ? ` ${Math.floor((received / total) * 100)}%` : ''
 		process.stdout.write(`\r  ${label}: ${mb(received)}MB${total ? `/${mb(total)}MB` : ''}${pct}   `)
 	}
+}
+
+// ── The default provider: a Claude Code or Codex subscription ──────────────
+
+/** A coding agent found on this machine whose subscription can power assistants. */
+export interface DetectedAgent {
+	id: 'claude-code' | 'codex'
+	label: string
+	version?: string
+}
+
+/** Claude Code and Codex, when their CLIs answer `--version`. */
+export async function detectAgents(container: NodeContainer): Promise<DetectedAgent[]> {
+	const check = async (feature: string, id: DetectedAgent['id'], label: string, versionKey: string): Promise<DetectedAgent | null> => {
+		try {
+			const f = container.feature(feature as any) as any
+			const ok = await Promise.race([f.checkAvailability(), new Promise<boolean>((r) => setTimeout(() => r(false), 8000))])
+			if (!ok) return null
+			const version = f.state?.get?.(versionKey)
+			return { id, label, ...(version ? { version: String(version).trim() } : {}) }
+		} catch {
+			return null
+		}
+	}
+	const found = await Promise.all([
+		check('claudeCode', 'claude-code', 'Claude Code (your Claude subscription)', 'claudeVersion'),
+		check('openaiCodex', 'codex', 'Codex (your ChatGPT subscription)', 'codexVersion'),
+	])
+	return found.filter((a): a is DetectedAgent => !!a)
+}
+
+/**
+ * The machine config file's text with `default: <id>` set. Edits only that
+ * line (or adds it near the top), so the user's comments survive. Pure.
+ */
+export function withDefaultProvider(raw: string, id: string): string {
+	const line = `default: ${id}`
+	if (/^default:.*$/m.test(raw)) return raw.replace(/^default:.*$/m, line)
+	const lines = raw.split('\n')
+	let i = 0
+	while (i < lines.length && /^\s*(#.*)?$/.test(lines[i]!)) i++
+	const head = lines.slice(0, i)
+	const rest = lines.slice(i)
+	const block = ['# The provider Luca assistants use when they name none (`luca setup`).', line, '']
+	if (!raw.trim()) return block.join('\n')
+	return [...head, ...(head.length && head[head.length - 1]!.trim() ? [''] : []), ...block, ...rest].join('\n')
+}
+
+/** Write `default: <id>` to `~/.luca/model-providers.yml` and reload the providers. */
+export function writeDefaultProvider(container: NodeContainer, id: string): string {
+	const fs = container.feature('fs')
+	const path = container.paths.resolve(lucaHome(), 'model-providers.yml')
+	const raw = fs.exists(path) ? String(fs.readFileSync(path, 'utf8')) : ''
+	fs.ensureFolder(lucaHome())
+	fs.writeFileSync(path, withDefaultProvider(raw, id))
+	try { (container.feature('modelProviders') as any).loadConfigFiles() } catch {}
+	return path
+}
+
+/**
+ * Ask, first thing, whether assistants should run on a Claude Code or Codex
+ * subscription. Only when one is installed and none is the default yet.
+ * Returns the id chosen, if any.
+ */
+async function askSubscriptionDefault(container: NodeContainer, ui: any): Promise<{ chosen?: string; line?: string }> {
+	const mp = container.feature('modelProviders') as any
+	const current = mp.configuredDefault as string | undefined
+	const agents = await detectAgents(container)
+	if (!agents.length) return {}
+	if (current && agents.some((a) => a.id === current)) {
+		ui.print.green(`  ✓ Luca assistants run on ${current} by default`)
+		return {}
+	}
+	ui.print('  Found on this machine:')
+	for (const a of agents) ui.print(`    ${ui.colors.green('●')} ${a.label}${a.version ? ui.colors.dim(`  ${a.version}`) : ''}`)
+	ui.print('')
+	ui.print('  Luca assistants can run on that subscription: no API key, no local model.')
+	ui.print('  The agent runs the conversation and calls the assistant\'s own tools.')
+	if (current) ui.print.dim(`  Now: ${current} (from ${mp.state.get('configuredDefaultSource') ?? 'config'})`)
+	if (process.env.LUCA_DEFAULT_PROVIDER) ui.print.yellow(`  LUCA_DEFAULT_PROVIDER=${process.env.LUCA_DEFAULT_PROVIDER} is set in this shell and wins over the file.`)
+	ui.print('')
+	const { choice } = await ui.wizard([{
+		type: 'list',
+		name: 'choice',
+		message: 'Power Luca assistants with your subscription by default?',
+		choices: [
+			...agents.map((a) => ({ name: `Yes, ${a.label}`, value: a.id })),
+			{ name: 'Not now', value: 'none' },
+		],
+		default: agents[0]!.id,
+	}])
+	if (!choice || choice === 'none') {
+		ui.print.dim('  Skipped. Run `luca setup --default-provider claude-code` (or codex) any time.\n')
+		return {}
+	}
+	const path = writeDefaultProvider(container, choice)
+	ui.print.green(`  ✓ Assistants use ${choice} unless they name a provider (default: in ${path})\n`)
+	return { chosen: choice, line: `default provider ${choice}` }
 }
 
 // ── `luca setup --providers` ────────────────────────────────────────────────
@@ -368,7 +467,28 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	const state = await scanState(container, fs)
 	printStateReport(ui, state)
 
-	const flagged = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models'] || options.types || options.providers
+	// ── First: which model powers the assistants ─────────────────────
+	const early: { done: string[]; skipped: string[] } = { done: [], skipped: [] }
+	let subscriptionDefault: string | undefined
+	const named = options['default-provider']?.trim()
+	if (named) {
+		const mp = container.feature('modelProviders') as any
+		if (!mp.hasProfile(named)) {
+			ui.print.red(`  ✗ Unknown provider '${named}'. Known: ${Object.keys(mp.profiles ?? {}).join(', ')}`)
+			early.skipped.push(`default provider (${named} is not a provider)`)
+		} else {
+			const path = writeDefaultProvider(container, named)
+			ui.print.green(`  ✓ Assistants use ${named} unless they name a provider (default: in ${path})`)
+			early.done.push(`default provider ${named}`)
+			subscriptionDefault = named
+		}
+	} else if (process.stdin.isTTY) {
+		const asked = await askSubscriptionDefault(container, ui)
+		if (asked.line) early.done.push(asked.line)
+		subscriptionDefault = asked.chosen
+	}
+
+	const flagged = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models'] || options.types || options.providers || !!named
 	const doProviders = options.providers
 	let doBinary: boolean
 	let doEmbedWeights: boolean
@@ -433,8 +553,9 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 			ui.print('  fully offline assistant. When no OPENAI_API_KEY is set and no custom')
 			ui.print('  provider is registered, luca assistants use this model automatically.')
 			ui.print('  With an API key set, the key wins and this model is optional.')
+			if (subscriptionDefault) ui.print(`  Your assistants already run on ${subscriptionDefault}, so this is optional.`)
 			ui.print('')
-			doChatWeights = await confirm(ui, `Download the local chat model now (${approx})?`, !process.env.OPENAI_API_KEY && (doBinary || state.binaryReady))
+			doChatWeights = await confirm(ui, `Download the local chat model now (${approx})?`, !subscriptionDefault && !process.env.OPENAI_API_KEY && (doBinary || state.binaryReady))
 			if (!doChatWeights) ui.print.dim('  Skipped — run `luca setup --chat-model` any time.\n')
 		}
 
@@ -475,8 +596,8 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	}
 
 	// ── Execute ──────────────────────────────────────────────────────
-	const done: string[] = []
-	const skipped: string[] = []
+	const done: string[] = [...early.done]
+	const skipped: string[] = [...early.skipped]
 	const llama = container.feature('llamaServer')
 
 	let binaryFailed = false
@@ -612,6 +733,7 @@ commands.registerHandler('setup', {
 		{ command: 'luca setup --chat-model', description: `Download llama-server and the local chat model (${DEFAULT_CHAT_MODEL}) for a fully offline assistant` },
 		{ command: 'luca setup --types', description: 'Write TypeScript declarations + tsconfig.json into the current project' },
 		{ command: 'luca setup --providers', description: 'Scan localhost + tailscale for OpenAI-compatible servers and write them to ~/.luca/model-providers.yml or assistants/options.yml' },
+		{ command: 'luca setup --default-provider claude-code', description: 'Run Luca assistants on your Claude Code subscription by default (or codex for ChatGPT)' },
 	],
 	handler: setup,
 })
