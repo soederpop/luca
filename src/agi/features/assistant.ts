@@ -377,8 +377,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 
-	get name() {
-		return this.options.name || this.resolvedFolder.split('/').pop()
+	/**
+	 * The assistant's name: an explicit `name` option, otherwise the folder
+	 * basename. The container fills `options.name` with the registry id
+	 * ("assistant") when no name is passed, so that value means "not set" here.
+	 * Without this, every assistant made by `assistantsManager.create()` was
+	 * named "assistant" and they all shared one memory namespace.
+	 */
+	get name(): string {
+		const explicit = this.options.name
+		if (explicit && explicit !== 'assistant') return explicit
+		return this.assistantName
 	}
 
 	/** The absolute resolved path to the assistant folder. */
@@ -518,8 +527,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				// When a provider is configured, thread it through. The `assistant`
 				// providerOption drives claude-session's MCP tool wiring; default it
 				// to the folder name, which is what `luca mcp --assistant` resolves.
-				// Not `this.name`: the container fills options.name with the registry
-				// id ("assistant"), so that would start a server no assistant matches.
+				// Not `this.name`: an explicit `name` option wins there, and
+				// `luca mcp` only knows folder names.
 				...(provider ? {
 					provider,
 					providerOptions: {

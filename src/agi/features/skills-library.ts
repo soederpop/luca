@@ -263,8 +263,8 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const unknown = requested.filter(name => !this.find(name))
 		if (unknown.length) {
 			const names = Object.keys(this.filteredSkills)
-			// `name` defaults to "assistant"; the folder is what actually identifies which
-			// one of a workspace's assistants is misconfigured.
+			// An explicit `name` option can differ from the folder; the folder is what
+			// identifies which one of a workspace's assistants is misconfigured.
 			const label = a.options.folder ? this.container.paths.basename(a.options.folder) : a.name
 			this.warn(`assistant "${label}" asks to preload ${unknown.length === 1 ? 'a skill that is' : 'skills that are'} not available: ${unknown.join(', ')}. ${
 				names.length ? `Available: ${names.slice(0, 20).join(', ')}${names.length > 20 ? `, …(${names.length} total)` : ''}` : 'No skills are available — check `locations` and `only`.'

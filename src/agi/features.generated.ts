@@ -30,7 +30,7 @@ import { SkillsLibrary } from "./features/skills-library";
 import { VoiceMode } from "./features/voice-mode";
 
 export { Memory } from "./features/agent-memory";
-export type { MemoryState, MemoryOptions, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
+export type { MemoryState, MemoryOptions, MemoryNamespaceSummary, MemoryLegacyNamespaceStatus, MemoryNamespaceMigrationOptions, MemoryNamespaceMigrationReport, MemoryRecord, MemorySearchResult, MemoryConsolidateOptions, MemoryConsolidateAction, MemoryConsolidateReport } from "./features/agent-memory";
 export { AssistantDelegator } from "./features/assistant-delegator";
 export type { AssistantDelegatorOptions, DelegationResult, DelegationTask, DelegationTaskOptions, DelegationResearchOptions, DelegationSynthesisOptions } from "./features/assistant-delegator";
 export { Assistant } from "./features/assistant";

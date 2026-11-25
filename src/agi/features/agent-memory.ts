@@ -39,7 +39,78 @@ export const MemoryEventsSchema = FeatureEventsSchema.extend({
   memoryDeleted: z.tuple([z.object({ id: z.number(), category: z.string() }).describe('The deleted memory ref')]).describe('Emitted when a memory is deleted'),
   epochChanged: z.tuple([z.number().describe('New epoch value')]).describe('Emitted when the epoch changes'),
   dbInitialized: z.tuple([]).describe('Emitted when the database is ready'),
+  legacyNamespaceFound: z.tuple([z.object({
+    dbPath: z.string(),
+    namespace: z.string(),
+    legacyNamespace: z.string(),
+    legacyRows: z.number(),
+    pending: z.number(),
+  }).describe('What was found')]).describe('Emitted when an assistant-scoped memory finds rows it cannot see under the old shared "assistant" namespace'),
 })
+
+/**
+ * The namespace every manager-created assistant shared before assistants were
+ * named after their folder (their name was the registry id, "assistant").
+ */
+export const LEGACY_ASSISTANT_NAMESPACE = 'assistant'
+
+/** Row counts for one namespace in a memory database. */
+export interface MemoryNamespaceSummary {
+  namespace: string
+  /** All rows, whatever their status. */
+  memories: number
+  /** Rows with status 'active'. */
+  active: number
+  /** The namespace's epoch, or null when it has no epochs row. */
+  epoch: number | null
+}
+
+/** Whether a namespace is missing rows that still sit under the old shared namespace. */
+export interface MemoryLegacyNamespaceStatus {
+  dbPath: string
+  namespace: string
+  legacyNamespace: string
+  /** Rows stored under the legacy namespace. */
+  legacyRows: number
+  /** Legacy rows that have not been copied to `namespace`. */
+  pending: number
+  /** True when someone ran the migration in "leave" mode for this database. */
+  left: boolean
+  /** True when the assistant is missing rows and nobody has decided to leave them. */
+  needsMigration: boolean
+}
+
+export interface MemoryNamespaceMigrationOptions {
+  /** Namespace to migrate from. Defaults to the old shared "assistant" namespace. */
+  from?: string
+  /** Target namespaces. Exactly one for 'rename', one or more for 'copy', none for 'leave'. */
+  to?: string[]
+  /**
+   * 'rename' moves the rows to one namespace (a database only one assistant used).
+   * 'copy' gives each target its own copy and keeps the originals.
+   * 'leave' changes no rows and records the decision, which stops the warning.
+   */
+  mode: 'rename' | 'copy' | 'leave'
+  /** Report what would change without writing anything. */
+  dryRun?: boolean
+}
+
+export interface MemoryNamespaceMigrationReport {
+  dbPath: string
+  mode: 'rename' | 'copy' | 'leave'
+  from: string
+  dryRun: boolean
+  /** Rows under `from` before this run. */
+  sourceRows: number
+  /** Per target: rows moved or copied by this run (or that would be, on a dry run). */
+  targets: Array<{ namespace: string; rows: number; alreadyThere: number; epoch: number }>
+  before: MemoryNamespaceSummary[]
+  /** Same as `before` on a dry run. */
+  after: MemoryNamespaceSummary[]
+}
+
+/** @internal One warning per database and namespace per process. */
+const warnedLegacyNamespaces = new Set<string>()
 
 // --- Types ---
 
@@ -217,6 +288,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
   private _db: any = null
   private _searcher: any = null
+  /** @internal Set on the instance an assistant was re-scoped to. */
+  private _watchLegacyNamespace = false
 
   /** @internal */
   private get db() {
@@ -351,6 +424,8 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     this.state.set('dbReady', true)
     this.emit('dbInitialized')
+
+    if (this._watchLegacyNamespace) await this.warnIfLegacyNamespace()
   }
 
   /** @internal Ensure db is ready before any operation */
@@ -483,7 +558,15 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     if (this.options.namespace === 'default' && ownerName && ownerName !== 'default') {
       // Re-registering under the same tool names replaces this instance's
       // handlers with the scoped instance's, which then runs this setup itself.
-      assistant.use(this.container.feature('memory', { ...this.options, namespace: ownerName }))
+      const scoped = this.container.feature('memory', { ...this.options, namespace: ownerName }) as Memory
+      // This assistant read and wrote the shared "assistant" namespace before
+      // it was named after its folder. Say so on first use instead of starting
+      // empty without a word.
+      if (ownerName !== LEGACY_ASSISTANT_NAMESPACE) {
+        scoped._watchLegacyNamespace = true
+        if (scoped.state.get('dbReady')) void scoped.warnIfLegacyNamespace()
+      }
+      assistant.use(scoped)
       return
     }
 
@@ -950,6 +1033,284 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     const rows = await this.db.query('SELECT DISTINCT namespace FROM memories ORDER BY namespace') as { namespace: string }[]
     return rows.map((r: { namespace: string }) => r.namespace)
+  }
+
+  // --- Namespace migration ---
+
+  /** @internal */
+  private async tableExists(name: string): Promise<boolean> {
+    const rows = await this.db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [name])
+    return rows.length > 0
+  }
+
+  /**
+   * Row counts and epoch for every namespace in this database.
+   *
+   * @returns {Promise<MemoryNamespaceSummary[]>} One entry per namespace, sorted by name
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory')
+   * console.table(await mem.namespaceSummary())
+   * ```
+   */
+  async namespaceSummary(): Promise<MemoryNamespaceSummary[]> {
+    await this.ensureDb()
+
+    const counts = await this.db.query(
+      "SELECT namespace, COUNT(*) AS memories, SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active FROM memories GROUP BY namespace"
+    ) as { namespace: string; memories: number; active: number }[]
+    const epochs = await this.db.query('SELECT namespace, value FROM epochs') as { namespace: string; value: number }[]
+
+    const byName = new Map<string, MemoryNamespaceSummary>()
+    for (const row of counts) {
+      byName.set(row.namespace, { namespace: row.namespace, memories: Number(row.memories), active: Number(row.active), epoch: null })
+    }
+    for (const row of epochs) {
+      const entry = byName.get(row.namespace) ?? { namespace: row.namespace, memories: 0, active: 0, epoch: null }
+      entry.epoch = row.value
+      byName.set(row.namespace, entry)
+    }
+    return [...byName.values()].sort((a, b) => a.namespace.localeCompare(b.namespace))
+  }
+
+  /**
+   * Check whether this namespace is missing rows that still sit under the old
+   * shared namespace. Before assistants were named after their folder, every
+   * assistant in a working directory stored its memories under "assistant".
+   *
+   * @param {object} [options] - What to compare
+   * @param {string} [options.namespace] - The namespace to check (default: this instance's)
+   * @param {string} [options.legacyNamespace] - The old namespace to look under (default "assistant")
+   * @returns {Promise<MemoryLegacyNamespaceStatus>} Counts, and whether a migration is still needed
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory', { namespace: 'researcher' })
+   * const status = await mem.legacyNamespaceStatus()
+   * if (status.needsMigration) console.log(`${status.pending} memories are still under "assistant"`)
+   * ```
+   */
+  async legacyNamespaceStatus(options: { namespace?: string; legacyNamespace?: string } = {}): Promise<MemoryLegacyNamespaceStatus> {
+    await this.ensureDb()
+    const namespace = options.namespace ?? this.options.namespace
+    const legacyNamespace = options.legacyNamespace ?? LEGACY_ASSISTANT_NAMESPACE
+
+    const countRows = async (sql: string, params: any[]) => Number(((await this.db.query(sql, params)) as { cnt: number }[])[0]?.cnt ?? 0)
+    const legacyRows = await countRows('SELECT COUNT(*) AS cnt FROM memories WHERE namespace = ?', [legacyNamespace])
+
+    let pending = Number(legacyRows)
+    let left = false
+    if (namespace === legacyNamespace) {
+      pending = 0
+    } else if (pending > 0 && await this.tableExists('namespace_migration_rows')) {
+      pending = await countRows(
+        'SELECT COUNT(*) AS cnt FROM memories WHERE namespace = ? AND id NOT IN (SELECT source_id FROM namespace_migration_rows WHERE target_namespace = ?)',
+        [legacyNamespace, namespace]
+      )
+      const decisions = await this.db.query(
+        "SELECT mode FROM namespace_migrations WHERE source_namespace = ? AND mode = 'leave'", [legacyNamespace]
+      )
+      left = decisions.length > 0
+    }
+
+    return {
+      dbPath: this.dbPath,
+      namespace,
+      legacyNamespace,
+      legacyRows: Number(legacyRows),
+      pending,
+      left,
+      needsMigration: pending > 0 && !left,
+    }
+  }
+
+  /**
+   * @internal Print one warning per process when this namespace is missing
+   * rows that sit under the old shared namespace. Never throws.
+   */
+  async warnIfLegacyNamespace(): Promise<MemoryLegacyNamespaceStatus | null> {
+    try {
+      const status = await this.legacyNamespaceStatus()
+      if (!status.needsMigration) return status
+
+      this.emit('legacyNamespaceFound', {
+        dbPath: status.dbPath,
+        namespace: status.namespace,
+        legacyNamespace: status.legacyNamespace,
+        legacyRows: status.legacyRows,
+        pending: status.pending,
+      })
+
+      const key = `${status.dbPath}\n${status.namespace}`
+      if (!warnedLegacyNamespaces.has(key) && !process.env.LUCA_MEMORY_NO_LEGACY_WARN) {
+        warnedLegacyNamespaces.add(key)
+        console.error(
+          `[memory] Assistant "${status.namespace}" now has its own memory namespace, and ${status.pending} older ${status.pending === 1 ? 'memory is' : 'memories are'} still under the shared "${status.legacyNamespace}" namespace, where it cannot see them. `
+          + `Nothing is lost. Run \`luca memory-namespaces\` in this folder to move, copy, or leave them. (${status.dbPath})`
+        )
+      }
+      return status
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Move or copy the memories stored under one namespace to others. Built for
+   * the old shared "assistant" namespace: rows do not record which assistant
+   * wrote them, so the caller picks who gets them.
+   *
+   * - `rename`: for a database only one assistant used. Rows move to the one target.
+   * - `copy`: for a shared database. Each target gets its own copy; originals stay.
+   * - `leave`: change no rows, record the decision so assistants stop warning.
+   *
+   * It never deletes a row, and running it again changes nothing: a rename has
+   * nothing left to move, and a copy skips rows it already copied.
+   *
+   * @param {MemoryNamespaceMigrationOptions} options - Mode, targets, and dryRun
+   * @returns {Promise<MemoryNamespaceMigrationReport>} Counts per namespace before and after, and rows per target
+   *
+   * @example
+   * ```typescript
+   * const mem = container.feature('memory')
+   * const plan = await mem.migrateNamespace({ mode: 'copy', to: ['researcher', 'writer'], dryRun: true })
+   * console.log(plan.targets)
+   * ```
+   */
+  async migrateNamespace(options: MemoryNamespaceMigrationOptions): Promise<MemoryNamespaceMigrationReport> {
+    await this.ensureDb()
+
+    const from = options.from ?? LEGACY_ASSISTANT_NAMESPACE
+    const mode = options.mode
+    const dryRun = options.dryRun ?? false
+    const to = [...new Set((options.to ?? []).map(t => String(t).trim()).filter(Boolean))]
+
+    if (mode === 'rename' && to.length !== 1) throw new Error('rename needs exactly one target namespace')
+    if (mode === 'copy' && to.length < 1) throw new Error('copy needs at least one target namespace')
+    if (mode === 'leave' && to.length) throw new Error('leave takes no target namespace')
+    if (to.includes(from)) throw new Error(`a target namespace cannot be the source namespace "${from}"`)
+
+    const hasLedger = await this.tableExists('namespace_migration_rows')
+    const count = async (sql: string, params: any[]) => Number(((await this.db.query(sql, params)) as { cnt: number }[])[0]!.cnt)
+
+    const before = await this.namespaceSummary()
+    const sourceRows = before.find(n => n.namespace === from)?.memories ?? 0
+    const sourceEpoch = before.find(n => n.namespace === from)?.epoch ?? 1
+    const epochFor = (namespace: string) => Math.max(sourceEpoch, before.find(n => n.namespace === namespace)?.epoch ?? 1)
+
+    if (mode === 'rename' && hasLedger) {
+      // Rows already copied to this target would land in it a second time.
+      const copied = await count(
+        'SELECT COUNT(*) AS cnt FROM namespace_migration_rows WHERE source_namespace = ? AND target_namespace = ?', [from, to[0]!]
+      )
+      if (copied > 0) throw new Error(`"${to[0]}" already holds ${copied} rows copied from "${from}". Renaming would duplicate them. Use copy again or leave.`)
+    }
+
+    const targets: MemoryNamespaceMigrationReport['targets'] = []
+    for (const namespace of to) {
+      const alreadyThere = before.find(n => n.namespace === namespace)?.memories ?? 0
+      const rows = mode === 'rename' || !hasLedger
+        ? sourceRows
+        : await count(
+          'SELECT COUNT(*) AS cnt FROM memories WHERE namespace = ? AND id NOT IN (SELECT source_id FROM namespace_migration_rows WHERE target_namespace = ?)',
+          [from, namespace]
+        )
+      targets.push({ namespace, rows, alreadyThere, epoch: epochFor(namespace) })
+    }
+
+    const report: MemoryNamespaceMigrationReport = { dbPath: this.dbPath, mode, from, dryRun, sourceRows, targets, before, after: before }
+    if (dryRun) return report
+
+    await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS namespace_migration_rows (
+        source_id INTEGER NOT NULL,
+        source_namespace TEXT NOT NULL,
+        target_namespace TEXT NOT NULL,
+        target_id INTEGER NOT NULL,
+        PRIMARY KEY (source_id, target_namespace)
+      )
+    `)
+    await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS namespace_migrations (
+        source_namespace TEXT NOT NULL,
+        target_namespace TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        rows INTEGER NOT NULL DEFAULT 0,
+        at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (source_namespace, target_namespace, mode)
+      )
+    `)
+
+    // bun:sqlite transactions are synchronous, so the work inside uses the raw handle.
+    const raw = this.db.db
+    const record = raw.prepare(
+      "INSERT INTO namespace_migrations (source_namespace, target_namespace, mode, rows) VALUES (?, ?, ?, ?) "
+      + "ON CONFLICT(source_namespace, target_namespace, mode) DO UPDATE SET rows = rows + excluded.rows, at = datetime('now')"
+    )
+    const raiseEpoch = raw.prepare(
+      'INSERT INTO epochs (namespace, value) VALUES (?, ?) ON CONFLICT(namespace) DO UPDATE SET value = MAX(value, excluded.value)'
+    )
+
+    this.db.transaction(() => {
+      if (mode === 'leave') {
+        record.run(from, '*', 'leave', 0)
+        return
+      }
+
+      for (const target of targets) {
+        if (mode === 'rename') {
+          const result = raw.prepare('UPDATE memories SET namespace = ? WHERE namespace = ?').run(target.namespace, from)
+          target.rows = Number(result.changes)
+        } else {
+          const pending = raw.prepare(
+            'SELECT * FROM memories WHERE namespace = ? AND id NOT IN (SELECT source_id FROM namespace_migration_rows WHERE target_namespace = ?) ORDER BY id'
+          ).all(from, target.namespace) as Record<string, any>[]
+
+          const ledger = raw.prepare(
+            'INSERT INTO namespace_migration_rows (source_id, source_namespace, target_namespace, target_id) VALUES (?, ?, ?, ?)'
+          )
+          const newIds: number[] = []
+          for (const row of pending) {
+            const columns = Object.keys(row).filter(c => c !== 'id')
+            const values = columns.map(c => c === 'namespace' ? target.namespace : row[c])
+            const inserted = raw.prepare(
+              `INSERT INTO memories (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
+            ).run(...values)
+            const newId = Number(inserted.lastInsertRowid)
+            ledger.run(row.id, from, target.namespace, newId)
+            newIds.push(newId)
+          }
+
+          // superseded_by and derived_from hold row ids. Point the copies at
+          // each other, not back at the originals in the source namespace.
+          const idMap = new Map<number, number>(
+            (raw.prepare('SELECT source_id, target_id FROM namespace_migration_rows WHERE target_namespace = ?').all(target.namespace) as { source_id: number; target_id: number }[])
+              .map(r => [r.source_id, r.target_id])
+          )
+          const fixRefs = raw.prepare('UPDATE memories SET superseded_by = ?, derived_from = ? WHERE id = ?')
+          for (const newId of newIds) {
+            const copy = raw.prepare('SELECT superseded_by, derived_from FROM memories WHERE id = ?').get(newId) as { superseded_by: number | null; derived_from: string }
+            let derived: any[] = []
+            try { derived = JSON.parse(copy.derived_from || '[]') } catch {}
+            const superseded = copy.superseded_by == null ? null : (idMap.get(copy.superseded_by) ?? copy.superseded_by)
+            const remapped = Array.isArray(derived) ? derived.map(id => idMap.get(Number(id)) ?? id) : derived
+            fixRefs.run(superseded, JSON.stringify(remapped), newId)
+          }
+          target.rows = newIds.length
+        }
+
+        raiseEpoch.run(target.namespace, target.epoch)
+        if (target.rows > 0) record.run(from, target.namespace, mode, target.rows)
+      }
+    })
+
+    // This instance may be scoped to a namespace whose epoch just rose.
+    const mine = targets.find(t => t.namespace === this.options.namespace)
+    if (mine && mine.epoch > this.getEpoch()) this.state.set('epoch', mine.epoch)
+
+    report.after = await this.namespaceSummary()
+    return report
   }
 
   // --- Semantic Search ---
