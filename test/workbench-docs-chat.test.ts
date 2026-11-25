@@ -330,7 +330,7 @@ describe('assistants and chat', () => {
 		expect(open.ok).toBe(true)
 		expect(open.conversationId).toMatch(/^desk-\d{8}-/)
 		expect(open.messages).toEqual([])
-		expect(open.tools).toEqual(['add'])
+		expect(open.tools).toEqual(['add', 'createCanvas', 'canvasEval', 'canvasSnapshot', 'canvasEvents', 'listCanvases', 'resetCanvas'])
 		const id = open.conversationId
 
 		const sock = await frames(wb)

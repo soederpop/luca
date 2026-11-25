@@ -160,6 +160,8 @@ export class ChatSessions {
 	private sessions = new Map<string, Session>()
 	private infos = new Map<string, any>()
 	private discovered: Promise<any> | null = null
+	/** Tools the host gives every chat assistant (the canvas tools). */
+	extraTools?: () => { schemas: Record<string, any>; handlers: Record<string, (...args: any[]) => any> }
 
 	constructor(private container: any, private broadcast: Broadcast) {}
 
@@ -279,6 +281,9 @@ export class ChatSessions {
 			const manager = await this.manager()
 			const thread = manager.threadPrefixFor(name) + conversationId
 			const instance = manager.create(name, { cached: false, historyMode: 'session' })
+			if (this.extraTools) {
+				try { instance.use(this.extraTools()) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
+			}
 			instance.resumeThread(thread)
 			const session: Session = { assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve() }
 			session.starting = instance.start().then(() => {})

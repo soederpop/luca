@@ -69,6 +69,37 @@ export class AssetLoader extends Feature {
     await this.loadScript(url);
     return (window as any)[globalName];
   }
+
+  /**
+   * The unpkg URL of a package as an ES module. `?module` makes unpkg rewrite
+   * the package's bare imports to unpkg URLs, so the module loads with no
+   * bundler. A full URL is returned as is.
+   *
+   * @example
+   * ```typescript
+   * loader.unpkgModuleUrl('d3@7') // 'https://unpkg.com/d3@7?module'
+   * ```
+   */
+  unpkgModuleUrl(specifier: string): string {
+    if (/^https?:\/\//.test(specifier)) return specifier
+    return `https://unpkg.com/${specifier.replace(/^\/+/, '')}?module`
+  }
+
+  /**
+   * Import an ES module from unpkg (or from a full URL) and return its
+   * namespace. Use it for packages that ship ESM and no UMD global.
+   *
+   * @example
+   * ```typescript
+   * const d3 = await loader.importModule('d3@7')
+   * const THREE = await loader.importModule('three@0.170.0')
+   * ```
+   */
+  async importModule(specifier: string): Promise<any> {
+    const url = this.unpkgModuleUrl(specifier)
+    // The URL is only known at runtime: keep bundlers from resolving it.
+    return import(/* @vite-ignore */ /* webpackIgnore: true */ url)
+  }
 }
 
 export default AssetLoader;

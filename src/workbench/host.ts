@@ -20,9 +20,11 @@ import { pluginsView, planPlugin } from './plugins.js'
 import type { Plan } from './changes.js'
 import { EndpointIndex, ServeControl, endpointsView } from './endpoints.js'
 import { DocsIndex, docsView, modelsView, docView, saveDoc } from './docs.js'
+import { ModelsEditor, runQuery } from './models.js'
 import { ChatSessions } from './chat.js'
 import { fileView, saveFile, listFiles } from './files.js'
 import { ToolIndex, plainParams } from './tools.js'
+import { Canvases } from './canvas.js'
 
 export type WorkbenchHostOptions = {
 	lucaVersion?: string
@@ -137,13 +139,13 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
 	res.end(text)
 }
 
-function readBody(req: IncomingMessage): Promise<string> {
+function readBody(req: IncomingMessage, max = MAX_BODY): Promise<string> {
 	return new Promise((resolve, reject) => {
 		let size = 0
 		const chunks: Buffer[] = []
 		req.on('data', (c: Buffer) => {
 			size += c.length
-			if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return }
+			if (size > max) { reject(new Error('body too large')); req.destroy(); return }
 			chunks.push(c)
 		})
 		req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
@@ -167,15 +169,21 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const endpointIndex = new EndpointIndex(container)
 	const serve = new ServeControl(container, runs, (frame) => broadcast(frame))
 	const docsIndex = new DocsIndex(container)
+	const modelsEditor = new ModelsEditor(container, docsIndex)
 	const chats = new ChatSessions(container, (frame) => broadcast(frame))
 	const ai = new AiEnvironment(container)
 	const servers = new ServerControl(container, (frame) => broadcast(frame), () => origins())
 	const tools = new ToolIndex(container)
+	const canvases = new Canvases(container, (frame) => broadcast(frame), { lucaVersion, port: () => boundPort })
+	chats.extraTools = () => canvases.toTools()
 
-	/** Token from a header or ?token=. Also refuses Host headers that are not loopback (DNS rebinding). */
+	/** Refuses Host headers that are not loopback (DNS rebinding). */
+	const loopbackHost = (req: IncomingMessage): boolean => /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(String(req.headers.host || ''))
+
+	/** Token from a header or ?token=. A canvas key opens the read-only routes only. */
 	const authorized = (req: IncomingMessage, url: URL): boolean => {
-		const host = String(req.headers.host || '')
-		if (!/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(host)) return false
+		if (!loopbackHost(req)) return false
+		if (canvases.keyOpensReadRoute(req, url)) return true
 		const auth = String(req.headers.authorization || '')
 		const supplied =
 			(auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '') ||
@@ -503,6 +511,26 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			return sendJson(res, answer.status, answer.body)
 		}
 
+		// --- Contentbase tile: define models, run queries (models.ts) ---
+		if (method === 'GET' && path === '/contentbase') {
+			return sendJson(res, 200, await modelsEditor.overview())
+		}
+
+		if (method === 'GET' && path === '/contentbase/model') {
+			const view = await modelsEditor.modelView(url.searchParams.get('name') || '')
+			return view ? sendJson(res, 200, view) : sendJson(res, 404, { error: `no model ${url.searchParams.get('name') || ''}` })
+		}
+
+		if (method === 'POST' && (path === '/contentbase/preview' || path === '/contentbase/save' || path === '/contentbase/delete' || path === '/contentbase/query')) {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			if (path === '/contentbase/preview') { await docsIndex.refresh(); return sendJson(res, 200, modelsEditor.preview(body)) }
+			const answer = path === '/contentbase/save' ? await modelsEditor.save(body)
+				: path === '/contentbase/delete' ? await modelsEditor.remove(body)
+				: await runQuery(docsIndex, modelsEditor, body)
+			return sendJson(res, answer.status, answer.body)
+		}
+
 		// --- Files in the project folder (the file tile) ---
 		if (method === 'GET' && path === '/files') {
 			return sendJson(res, 200, listFiles(String(container.cwd)))
@@ -518,6 +546,37 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
 			const answer = saveFile(String(container.cwd), body)
 			return sendJson(res, answer.status, answer.body)
+		}
+
+		// --- Canvases: pages an assistant draws on ---
+		if (seg[0] === 'canvases') {
+			if (method === 'GET' && seg.length === 1) return sendJson(res, 200, { canvases: canvases.list() })
+			if (method === 'POST' && seg.length === 1) {
+				let body: any
+				try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+				const answer = canvases.create({ id: body?.id, title: body?.title, open: body?.open })
+				return sendJson(res, answer.status, answer.body)
+			}
+			const id = seg[1] || ''
+			if (method === 'GET' && seg.length === 2) {
+				const view = canvases.get(id)
+				return view ? sendJson(res, 200, view) : sendJson(res, 404, { error: `no canvas ${id}` })
+			}
+			if (method === 'GET' && seg.length === 3 && seg[2] === 'events') {
+				const answer = canvases.events(id, Number(url.searchParams.get('since')) || 0)
+				return sendJson(res, answer.status, answer.body)
+			}
+			if (method === 'POST' && seg.length === 3) {
+				let body: any
+				// Luca Desktop posts a whole screenshot here.
+				try { body = JSON.parse(await readBody(req, seg[2] === 'snapshot' ? 40_000_000 : MAX_BODY) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+				if (seg[2] === 'eval') return sendJson(res, 200, await canvases.eval(id, String(body?.code || ''), { timeoutMs: body?.timeoutMs, keep: body?.keep }))
+				if (seg[2] === 'shot') return sendJson(res, 200, await canvases.snapshot(id))
+				if (seg[2] === 'snapshot') { const answer = canvases.answerSnapshot(body); return sendJson(res, answer.status, answer.body) }
+				if (seg[2] === 'reset') return canvases.reset(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { error: `no canvas ${id}` })
+				if (seg[2] === 'remove') return canvases.remove(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { error: `no canvas ${id}` })
+			}
+			return sendJson(res, 404, { error: 'not found' })
 		}
 
 		// --- Assistants and chat ---
@@ -611,6 +670,11 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const server = createServer((req, res) => {
 		let url: URL
 		try { url = new URL(req.url || '/', 'http://127.0.0.1') } catch { return sendJson(res, 400, { error: 'bad request' }) }
+		// Canvas pages carry their own key, never the host's token.
+		if (url.pathname.startsWith('/canvas/')) {
+			if (!loopbackHost(req)) return sendJson(res, 401, { error: 'unauthorized' })
+			try { if (canvases.servePage(req, res, url)) return } catch (err: any) { return sendJson(res, 500, { error: String(err?.message ?? err) }) }
+		}
 		if (!authorized(req, url)) return sendJson(res, 401, { error: 'unauthorized' })
 		routes(req, res, url).catch((err: any) => {
 			console.error(`[workbench] ${req.method} ${req.url} failed: ${err?.stack || err}`)
@@ -621,12 +685,19 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 
 	// --- WS upgrade ---
 	const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 })
+	// A canvas page sends results and snapshots, which can be large.
+	const canvasWss = new WebSocketServer({ noServer: true, maxPayload: 40 * 1024 * 1024 })
 	const openSockets = new Set<Socket>()
 	server.on('connection', (s: Socket) => { openSockets.add(s); s.on('close', () => openSockets.delete(s)) })
 
 	server.on('upgrade', (req, socket, head) => {
 		let url: URL
 		try { url = new URL(req.url || '/', 'http://127.0.0.1') } catch { socket.destroy(); return }
+		const canvasId = loopbackHost(req) ? canvases.linkTarget(url) : undefined
+		if (canvasId) {
+			canvasWss.handleUpgrade(req, socket, head, (ws) => canvases.attachLink(canvasId, ws))
+			return
+		}
 		if (!authorized(req, url)) {
 			const body = JSON.stringify({ error: 'unauthorized' })
 			socket.write(`HTTP/1.1 401 Unauthorized\r\ncontent-type: application/json\r\ncontent-length: ${Buffer.byteLength(body)}\r\nconnection: close\r\n\r\n${body}`)
@@ -672,12 +743,14 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		runs.killAll()
 		chats.closeAll()
 		tools.closeAll()
+		canvases.closeAll()
 		void servers.stopAll()
 		attached.forEach((detach) => detach())
 		attached.clear()
 		for (const ws of sockets) { try { ws.terminate() } catch {} }
 		sockets.clear()
 		wss.close()
+		canvasWss.close()
 		server.close(() => resolve())
 		for (const s of openSockets) { try { s.destroy() } catch {} }
 	}))
