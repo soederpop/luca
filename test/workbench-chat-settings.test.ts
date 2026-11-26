@@ -7,7 +7,7 @@ import { mergeSettings, parseSettings, modelChoices, transcriptMarkdown, exportF
 // A chat's own provider, model and effort, its reasoning stream, and the
 // history actions (retry, clear, rename, delete, export) on a real host.
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 const base = realpathSync(process.env.WORKBENCH_TEST_TMP || tmpdir())
 const tempDirs: string[] = []

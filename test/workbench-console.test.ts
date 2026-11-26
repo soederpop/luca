@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { persistDeclarations, valueTree } from '../src/workbench/console'
 import { buildArgs, splitWords, childPrefix, stripAnsi, statusText, displayArgv, type CommandField } from '../src/workbench/runs'
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 
 const tempDirs: string[] = []

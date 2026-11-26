@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseServerOptions } from '../src/workbench/servers'
 
-const CLI = join('/Users/jonathansoeder/@luca', 'src/cli/cli.ts')
+const CLI = join(join(import.meta.dir, '..'), 'src/cli/cli.ts')
 type Proc = ReturnType<typeof Bun.spawn>
 let dir: string
 let proc: Proc

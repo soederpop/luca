@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs, displayText } from '../src/workbench/views'
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 
 const tempDirs: string[] = []

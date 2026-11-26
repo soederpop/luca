@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildRequest, coerce, fieldOf, fieldsOf, groupRoutes, sizeText, type RouteView } from '../src/workbench/endpoints'
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 const base = process.env.WORKBENCH_TEST_TMP || tmpdir()
 const tempDirs: string[] = []

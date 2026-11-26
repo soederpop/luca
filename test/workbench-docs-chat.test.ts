@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fieldKind, valueKind, docTitle, docPreview, digestOf } from '../src/workbench/docs'
 import { messagesView, argsText, resultFailed, resultText, shortTime } from '../src/workbench/chat'
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 const base = realpathSync(process.env.WORKBENCH_TEST_TMP || tmpdir())
 const tempDirs: string[] = []

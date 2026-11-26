@@ -7,7 +7,7 @@ import { addBorrow, removeBorrow, borrowEntries, findUserMain, parseCliFile, CAL
 import { diffLines, envPlugins, setEnvPlugins } from '../src/workbench/changes'
 import { importSpecifiers } from '../src/workbench/borrow'
 
-const LUCA_ROOT = '/Users/jonathansoeder/@luca'
+const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
 const tempDirs: string[] = []
 

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { paramNames, rank, type CompletionItem } from '../src/workbench/complete'
 import { docQuery } from '../src/workbench/console'
 
-const CLI = join('/Users/jonathansoeder/@luca', 'src/cli/cli.ts')
+const CLI = join(join(import.meta.dir, '..'), 'src/cli/cli.ts')
 type Proc = ReturnType<typeof Bun.spawn>
 let dir: string
 let proc: Proc
