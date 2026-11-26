@@ -1,0 +1,4 @@
+dist/
+.build/
+# The repo root ignores vendor/. The Markdown engine is vendored on purpose.
+!Vendor/

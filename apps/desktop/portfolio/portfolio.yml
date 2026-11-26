@@ -1,0 +1,17 @@
+# Where lucaPortfolio looks for your Luca projects.
+#
+# Each root's child folders are checked, and so are the folders inside each
+# child's projects/ folder (~/work/projects/invoice-sync). A folder is a
+# Luca project when it has luca.cli.ts or luca in its
+# package.json. Projects Luca Desktop has opened are always included.
+#
+# Luca Desktop never overwrites this file once you change it.
+roots:
+  - "~"   # quoted: a bare ~ is null in YAML
+  - ~/projects
+
+# Where new projects go when you ask for one without saying where.
+newProjectsFolder: ~/projects
+
+# Folder names to skip anywhere in the scan.
+skip: []

@@ -1,0 +1,113 @@
+diff --git a/Sources/MarkdownEngine/Parser/BlockLevelTokenizer.swift b/Sources/MarkdownEngine/Parser/BlockLevelTokenizer.swift
+index d8c5188..dc884f6 100644
+--- a/Sources/MarkdownEngine/Parser/BlockLevelTokenizer.swift
++++ b/Sources/MarkdownEngine/Parser/BlockLevelTokenizer.swift
+@@ -147,14 +147,22 @@ enum BlockLevelTokenizer {
+         let len = s.length
+         guard len >= 3 else { return [] }
+         let afterOpenLine = line(in: s, from: 0).nextStart
++        func run(at start: Int) -> Int {
++            var end = start
++            while end < len, s.character(at: end) == backtick { end += 1 }
++            return end - start
++        }
++        // The closing run is at least as long as the opening one.
++        let openRun = run(at: 0)
++        guard openRun >= 3 else { return [] }
+         var lineStart = afterOpenLine
+         var closingStart = -1
++        var closeRun = 3
+         while lineStart < len {
+-            if lineStart + 3 <= len,
+-               s.character(at: lineStart) == backtick,
+-               s.character(at: lineStart + 1) == backtick,
+-               s.character(at: lineStart + 2) == backtick {
++            let found = run(at: lineStart)
++            if found >= openRun {
+                 closingStart = lineStart
++                closeRun = found
+                 break
+             }
+             let next = line(in: s, from: lineStart).nextStart
+@@ -164,10 +172,10 @@ enum BlockLevelTokenizer {
+         guard closingStart >= 0 else { return [] }   // no closing fence → legacy didn't match
+         return [MarkdownToken(
+             kind: .codeBlock,
+-            range: NSRange(location: 0, length: closingStart + 3),
++            range: NSRange(location: 0, length: closingStart + closeRun),
+             contentRange: NSRange(location: afterOpenLine, length: closingStart - afterOpenLine),
+             markerRanges: [NSRange(location: 0, length: afterOpenLine),
+-                           NSRange(location: closingStart, length: 3)])]
++                           NSRange(location: closingStart, length: closeRun)])]
+     }
+ 
+     // MARK: - Table  (legacy header `|…|` + separator `|-…-|` + data rows)
+diff --git a/Sources/MarkdownEngine/Parser/BlockParser.swift b/Sources/MarkdownEngine/Parser/BlockParser.swift
+index 45f3f45..c289be0 100644
+--- a/Sources/MarkdownEngine/Parser/BlockParser.swift
++++ b/Sources/MarkdownEngine/Parser/BlockParser.swift
+@@ -276,9 +276,12 @@ enum BlockParser {
+ 
+         /// Line index of the fence closing a code block opened at `start`; nil when unclosed.
+         func fenceCloseIndex(from start: Int) -> Int? {
++            // CommonMark: the closing run is at least as long as the opening
++            // one, so a ```` block can hold ``` fences as plain code.
++            let open = fenceLength(lineText(start))
+             var scan = start + 1
+             while scan < lines.count {
+-                if isFence(lineText(scan)) { return scan }
++                if fenceLength(lineText(scan)) >= open { return scan }
+                 scan += 1
+             }
+             return nil
+@@ -390,6 +393,14 @@ enum BlockParser {
+         line.hasPrefix("```")
+     }
+ 
++    /// The length of the backtick run a fence line starts with; 0 for a
++    /// line that is not a fence.
++    static func fenceLength(_ line: String) -> Int {
++        var count = 0
++        for c in line.utf16 { if c == 0x60 { count += 1 } else { break } }
++        return count >= 3 ? count : 0
++    }
++
+     /// `^\s*(-{3,}|\*{3,}|_{3,})\s*$` — a solid run of 3+ of one of `- * _`.
+     private static func isThematicBreak(_ line: String) -> Bool {
+         let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+diff --git a/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift b/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift
+index 13f9544..0afe23a 100644
+--- a/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift
++++ b/Sources/MarkdownEngine/Parser/MarkdownTokenizer.swift
+@@ -23,9 +23,11 @@ enum MarkdownTokenizer {
+               openingMarker.length > 4 else { return nil }
+ 
+         let nsText = text as NSString
+-        let langRange = NSRange(location: openingMarker.location + 3, length: openingMarker.length - 4)
+-
+-        guard langRange.location + langRange.length <= nsText.length else { return nil }
++        guard NSMaxRange(openingMarker) <= nsText.length else { return nil }
++        // The opening run can be longer than three backticks.
++        var run = 0
++        while run < openingMarker.length, nsText.character(at: openingMarker.location + run) == 0x60 { run += 1 }
++        let langRange = NSRange(location: openingMarker.location + run, length: max(0, openingMarker.length - run - 1))
+ 
+         let langString = nsText.substring(with: langRange).trimmingCharacters(in: .whitespacesAndNewlines)
+         return langString.isEmpty ? nil : langString
+diff --git a/Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift b/Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift
+index f5926a9..757293b 100644
+--- a/Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift
++++ b/Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift
+@@ -832,8 +832,10 @@ enum MarkdownASTStyler {
+         let content = NSRange(location: openEnd, length: max(0, lastLine.location - openEnd))
+ 
+         var language: String?
+-        if openFence.length > 3 {
+-            let raw = ns.substring(with: NSRange(location: start + 3, length: openFence.length - 3))
++        var openRun = 0
++        while openRun < openFence.length, ns.character(at: start + openRun) == 0x60 { openRun += 1 }
++        if openFence.length > openRun {
++            let raw = ns.substring(with: NSRange(location: start + openRun, length: openFence.length - openRun))
+                 .trimmingCharacters(in: .whitespacesAndNewlines)
+             language = raw.isEmpty ? nil : raw
+         }

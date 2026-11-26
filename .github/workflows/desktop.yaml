@@ -1,0 +1,119 @@
+name: Luca Desktop
+
+# Builds, signs and notarizes Luca Desktop, and publishes it as a GitHub
+# release that `luca desktop install` downloads. It runs only when a push to
+# main changes apps/desktop/ (or by hand).
+#
+# Each build is its own release, tagged desktop-v<luca version>-<build>, where
+# build is the commit count (CFBundleVersion). It is never marked latest:
+# install.sh and `luca self-update` read releases/latest and must keep finding
+# the luca binaries. The tag does not match release.yaml's `v*` trigger.
+#
+# Signing uses the same Developer ID and notary secrets as release.yaml.
+env:
+  MAC_SIGN_IDENTITY: "Developer ID Application: Jonathan Soeder (TXYJ5S79U2)"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS 15.4 SDK or newer: Package.swift targets macOS 15.4.
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The build number is the commit count, so it needs full history.
+          fetch-depth: 0
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      # build-app.sh runs `luca bootstrap --update-skill` from source for the
+      # bundled luca-framework skill. The prepare script builds the generated
+      # sources it reads.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        working-directory: apps/desktop
+        run: swift test
+
+      - name: Import Developer ID Certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "" build.keychain
+          rm certificate.p12
+
+      - name: Build and sign
+        working-directory: apps/desktop
+        env:
+          DEV_ID: ${{ env.MAC_SIGN_IDENTITY }}
+        run: bash scripts/build-app.sh
+
+      - name: Notarize and staple
+        working-directory: apps/desktop
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent "dist/Luca Desktop.app" dist/notarize.zip
+          xcrun notarytool submit dist/notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "dist/Luca Desktop.app"
+          rm dist/notarize.zip
+          # Zip again so the download carries the stapled ticket.
+          ditto -c -k --keepParent "dist/Luca Desktop.app" dist/Luca-Desktop.zip
+
+      - name: Read version
+        id: version
+        working-directory: apps/desktop
+        run: |
+          plist="dist/Luca Desktop.app/Contents/Info.plist"
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist")
+          build=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist")
+          echo "tag=desktop-v$version-$build" >> "$GITHUB_OUTPUT"
+          echo "name=Luca Desktop $version (build $build)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          make_latest: "false"
+          body: |
+            Luca Desktop for Apple Silicon Macs (macOS 15.4 or newer).
+
+            Install or update with `luca desktop install`, or download Luca-Desktop.zip and move the app to /Applications.
+          files: apps/desktop/dist/Luca-Desktop.zip
