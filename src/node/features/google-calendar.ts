@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google, type calendar_v3 } from 'googleapis'
+import { calendar as calendarApi, type calendar_v3 } from 'googleapis/build/src/apis/calendar'
 import type { GoogleAuth } from './google-auth.js'
 
 export type CalendarInfo = {
@@ -139,7 +139,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
   private async getCalendar(): Promise<calendar_v3.Calendar> {
     if (this._calendar) return this._calendar
     const auth = await this.auth.getAuthClient()
-    this._calendar = google.calendar({ version: 'v3', auth: auth as any })
+    this._calendar = calendarApi({ version: 'v3', auth: auth as any })
     return this._calendar
   }
 

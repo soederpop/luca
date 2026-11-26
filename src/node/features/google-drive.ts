@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google, type drive_v3 } from 'googleapis'
+import { drive as driveApi, type drive_v3 } from 'googleapis/build/src/apis/drive'
 import type { GoogleAuth } from './google-auth.js'
 
 export type DriveFile = {
@@ -140,7 +140,7 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
   private async getDrive(): Promise<drive_v3.Drive> {
     if (this._drive) return this._drive
     const auth = await this.auth.getAuthClient()
-    this._drive = google.drive({ version: 'v3', auth: auth as any })
+    this._drive = driveApi({ version: 'v3', auth: auth as any })
     return this._drive
   }
 

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google, type gmail_v1 } from 'googleapis'
+import { gmail as gmailApi, type gmail_v1 } from 'googleapis/build/src/apis/gmail'
 import type { GoogleAuth } from './google-auth.js'
 
 export type MailMessage = {
@@ -176,7 +176,7 @@ export class GoogleMail extends Feature<GoogleMailState, GoogleMailOptions> {
   private async getGmail(): Promise<gmail_v1.Gmail> {
     if (this._gmail) return this._gmail
     const auth = await this.auth.getAuthClient()
-    this._gmail = google.gmail({ version: 'v1', auth: auth as any })
+    this._gmail = gmailApi({ version: 'v1', auth: auth as any })
     return this._gmail
   }
 

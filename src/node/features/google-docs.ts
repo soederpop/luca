@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google, type docs_v1 } from 'googleapis'
+import { docs as docsApi, type docs_v1 } from 'googleapis/build/src/apis/docs'
 import type { GoogleAuth } from './google-auth.js'
 import type { GoogleDrive, DriveFile } from './google-drive.js'
 
@@ -96,7 +96,7 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   private async getDocs(): Promise<docs_v1.Docs> {
     if (this._docs) return this._docs
     const auth = await this.auth.getAuthClient()
-    this._docs = google.docs({ version: 'v1', auth: auth as any })
+    this._docs = docsApi({ version: 'v1', auth: auth as any })
     return this._docs
   }
 

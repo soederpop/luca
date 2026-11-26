@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google } from 'googleapis'
+import { auth as googleAuth, oauth2 as oauth2Api } from 'googleapis/build/src/apis/oauth2'
 import type { OAuth2Client } from 'google-auth-library'
 
 export const GoogleAuthStateSchema = FeatureStateSchema.extend({
@@ -191,7 +191,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     if (this._oauth2Client) return this._oauth2Client
 
     const redirectUri = this._redirectUri || `http://localhost:${this.redirectPort}/oauth2callback`
-    this._oauth2Client = new google.auth.OAuth2(this.clientId, this.clientSecret, redirectUri)
+    this._oauth2Client = new googleAuth.OAuth2(this.clientId, this.clientSecret, redirectUri)
     return this._oauth2Client
   }
 
@@ -214,7 +214,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
    * // google.drive({ version: 'v3', auth: client })
    * ```
    */
-  async getAuthClient(): Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>> {
+  async getAuthClient(): Promise<OAuth2Client | ReturnType<typeof googleAuth.fromJSON>> {
     if (!this.isAuthenticated) {
       // Try restoring from cache first
       const restored = await this.tryRestoreTokens()
@@ -225,7 +225,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
 
     if (this.state.get('authMode') === 'service-account') {
       const key = this.getServiceAccountKey()
-      const auth = google.auth.fromJSON(key) as any
+      const auth = googleAuth.fromJSON(key) as any
       auth.scopes = this.options.scopes || this.defaultScopes
       return auth
     }
@@ -286,7 +286,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     const redirectUri = `http://localhost:${port}/oauth2callback`
     this._redirectUri = redirectUri
 
-    const oauth2Client = new google.auth.OAuth2(this.clientId, this.clientSecret, redirectUri)
+    const oauth2Client = new googleAuth.OAuth2(this.clientId, this.clientSecret, redirectUri)
     this._oauth2Client = oauth2Client
 
     const authUrl = oauth2Client.generateAuthUrl({
@@ -362,7 +362,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
       // Fetch user info
       let email: string | undefined
       try {
-        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client })
+        const oauth2 = oauth2Api({ version: 'v2', auth: oauth2Client })
         const userInfo = await oauth2.userinfo.get()
         email = userInfo.data.email || undefined
       } catch {
@@ -420,7 +420,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     try {
       const key = this.getServiceAccountKey()
       const scopes = this.options.scopes || this.defaultScopes
-      const auth = google.auth.fromJSON(key) as any
+      const auth = googleAuth.fromJSON(key) as any
       auth.scopes = scopes
 
       // Test the auth by getting an access token
@@ -487,7 +487,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
 
       let email: string | undefined
       try {
-        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client })
+        const oauth2 = oauth2Api({ version: 'v2', auth: oauth2Client })
         const userInfo = await oauth2.userinfo.get()
         email = userInfo.data.email || undefined
       } catch {

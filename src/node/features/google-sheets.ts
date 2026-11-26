@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
-import { google, type sheets_v4 } from 'googleapis'
+import { sheets as sheetsApi, type sheets_v4 } from 'googleapis/build/src/apis/sheets'
 import type { GoogleAuth } from './google-auth.js'
 
 export type SpreadsheetMeta = {
@@ -108,7 +108,7 @@ export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions
   private async getSheets(): Promise<sheets_v4.Sheets> {
     if (this._sheets) return this._sheets
     const auth = await this.auth.getAuthClient()
-    this._sheets = google.sheets({ version: 'v4', auth: auth as any })
+    this._sheets = sheetsApi({ version: 'v4', auth: auth as any })
     return this._sheets
   }
 
