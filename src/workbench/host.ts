@@ -612,6 +612,30 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			return sendJson(res, 200, { ok: true, stopped: chats.stop(assistant, conversationId) })
 		}
 
+		// One conversation's settings and its history: retry, clear, rename, delete.
+		if (method === 'POST' && seg[0] === 'chat' && seg.length === 2 && ['settings', 'retry', 'clear', 'rename', 'delete'].includes(seg[1]!)) {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			const assistant = typeof body?.assistant === 'string' ? body.assistant : ''
+			const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : ''
+			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			const answer = seg[1] === 'settings' ? await chats.setSettings(assistant, conversationId, body)
+				: seg[1] === 'retry' ? await chats.retry(assistant, conversationId)
+				: seg[1] === 'clear' ? await chats.clear(assistant, conversationId)
+				: seg[1] === 'rename' ? await chats.rename(assistant, conversationId, body?.title)
+				: await chats.remove(assistant, conversationId)
+			return sendJson(res, answer.status, answer.body)
+		}
+
+		if (method === 'GET' && seg[0] === 'chat' && seg.length === 2 && (seg[1] === 'models' || seg[1] === 'export')) {
+			const assistant = String(url.searchParams.get('assistant') || '')
+			const conversationId = String(url.searchParams.get('conversationId') || '')
+			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			const answer = seg[1] === 'export' ? await chats.exportView(assistant, conversationId)
+				: await chats.modelsView(assistant, conversationId, await ai.view())
+			return sendJson(res, answer.status, answer.body)
+		}
+
 		// Extra tools for one conversation: GET the picker's list, POST a new list.
 		if (seg[0] === 'chat' && seg[1] === 'extensions' && seg.length === 2 && (method === 'GET' || method === 'POST')) {
 			let body: any = {}

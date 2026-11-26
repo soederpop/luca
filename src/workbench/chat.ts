@@ -147,7 +147,115 @@ export function shortTime(iso: string | undefined, now = new Date()): string {
 	return `${months[d.getMonth()]} ${d.getDate()}${sameYear ? '' : ` ${d.getFullYear()}`} ${hm}`
 }
 
-type Turn = { turnId: string; text: string; tools: ChatToolView[]; startedAt: number; user: string }
+export const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
+
+/** One conversation's own routing. Empty fields fall back to the assistant's. */
+export type ChatSettings = { provider?: string; model?: string; reasoningEffort?: (typeof EFFORTS)[number] }
+
+/**
+ * A settings patch as the app sends it, merged over `current`. An empty
+ * string clears a field; a missing one keeps it. A provider change with no
+ * model clears the model, since it was tied to the old provider. Throws on
+ * an effort that is not one of EFFORTS. Pure.
+ */
+export function mergeSettings(current: ChatSettings, patch: any): ChatSettings {
+	const next: ChatSettings = { ...current }
+	const text = (v: unknown) => (typeof v === 'string' ? v.trim() : undefined)
+	const provider = text(patch?.provider)
+	const model = text(patch?.model)
+	const effort = text(patch?.reasoningEffort)
+	if (provider !== undefined) {
+		if (provider !== (current.provider ?? '') && model === undefined) delete next.model
+		if (provider) next.provider = provider
+		else delete next.provider
+	}
+	if (model !== undefined) {
+		if (model) next.model = model
+		else delete next.model
+	}
+	if (effort !== undefined) {
+		if (!effort) delete next.reasoningEffort
+		else if ((EFFORTS as readonly string[]).includes(effort)) next.reasoningEffort = effort as ChatSettings['reasoningEffort']
+		else throw new Error(`reasoningEffort is one of ${EFFORTS.join(', ')}, or empty for the model default`)
+	}
+	return next
+}
+
+/** Settings read back from the store; anything odd is dropped. Pure. */
+export function parseSettings(value: any): ChatSettings {
+	try { return mergeSettings({}, value ?? {}) } catch { return mergeSettings({}, { ...value, reasoningEffort: '' }) }
+}
+
+/** `provider · model`, each once. Pure. */
+export function modelText(provider?: string | null, model?: string | null): string {
+	return [...new Set([provider, model].filter(Boolean))].join(' · ')
+}
+
+/** A conversation as a markdown file: title, who, then each message with its tool calls. Pure. */
+export function transcriptMarkdown(title: string, assistant: string, messages: ChatMessageView[], at = new Date()): string {
+	const out = [`# ${title}`, '', `A chat with **${assistant}**, exported ${at.toISOString().slice(0, 16).replace('T', ' ')}.`, '']
+	for (const m of messages) {
+		out.push(m.role === 'user' ? '## You' : `## ${assistant}`, '')
+		for (const t of m.tools) {
+			out.push(`<details><summary>${t.name} · ${t.status}</summary>`, '')
+			if (t.argsText && t.argsText !== '{}') out.push('```json', t.argsText, '```', '')
+			if (t.resultText) out.push('```', t.resultText, '```', '')
+			out.push('</details>', '')
+		}
+		if (m.text) out.push(m.text, '')
+		if (m.aborted) out.push('_(stopped)_', '')
+	}
+	return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
+}
+
+/** A safe file name for an export. Pure. */
+export function exportFilename(title: string, conversationId: string): string {
+	const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+	return `${slug || 'chat'}-${conversationId}.md`
+}
+
+export type ModelChoice = { provider: string; model: string; title: string; detail: string; ready: boolean }
+
+/** Models a provider is known to take, for providers that list none themselves. */
+const KNOWN_MODELS: Record<string, string[]> = {
+	openai: ['gpt-5.4-mini', 'gpt-5.4'],
+	'openai-responses': ['gpt-5.4-mini', 'gpt-5.4'],
+	'claude-code': ['opus', 'sonnet', 'haiku'],
+}
+
+/** Which coding agent check stands for a provider id. */
+const AGENT_FOR: Record<string, string> = { 'claude-code': 'claude', codex: 'codex', 'openai-codex': 'codex' }
+
+/**
+ * The model picker's rows, from the AI view: per provider its default
+ * model, then each model a found server or `KNOWN_MODELS` names. Providers
+ * that cannot answer are left out, except the one in use. Ready ones
+ * first. Pure.
+ */
+export function modelChoices(ai: { providers: any[]; servers: any[]; agents: any[] }, current: { provider?: string | null }): ModelChoice[] {
+	const rows: Array<ModelChoice & { rank: number }> = []
+	for (const p of ai.providers || []) {
+		const id = String(p.id)
+		const agent = AGENT_FOR[id] ? (ai.agents || []).find((a: any) => a.id === AGENT_FOR[id]) : undefined
+		const ready = agent ? !!agent.available : p.status === 'ready' || p.status === 'login'
+		if (!ready && id !== current.provider && !agent) continue
+		if (agent && !agent.available && id !== current.provider) continue
+		const status = agent ? (agent.available ? 'coding agent' : 'not installed') : String(p.statusText || p.status || '')
+		const label = String(p.label || id)
+		const rank = p.isDefault ? 0 : ready ? 1 : 2
+		rows.push({ provider: id, model: '', title: `${label} · ${p.model ? p.model : 'its default model'}`, detail: status, ready, rank })
+		const served = (ai.servers || []).filter((s: any) => s.profileId === id).flatMap((s: any) => s.models || [])
+		for (const model of [...new Set([...(KNOWN_MODELS[id] ?? []), ...served])]) {
+			if (model === p.model) continue
+			rows.push({ provider: id, model: String(model), title: `${label} · ${model}`, detail: status, ready, rank })
+		}
+	}
+	return rows.sort((a, b) => a.rank - b.rank).map(({ rank, ...row }) => row)
+}
+
+type Stored = { extensions: ChatExtension[]; target?: ChatTarget; settings?: ChatSettings }
+
+type Turn = { turnId: string; text: string; reasoning: string; tools: ChatToolView[]; startedAt: number; user: string }
 
 type Session = {
 	assistant: string
@@ -169,6 +277,10 @@ type Session = {
 	token: string
 	served: ToolBundle
 	mcp?: { signature: string; handle: Promise<(req: any, res: any, body?: any) => Promise<void>> }
+	/** This conversation's own provider, model and effort, over the assistant's. */
+	settings: ChatSettings
+	/** A name given with rename; null shows the first message. */
+	title: string | null
 }
 
 export class ChatSessions {
@@ -311,7 +423,13 @@ export class ChatSessions {
 				await this.store(thread, { ...store, target })
 			}
 			const linked = target ?? store.target ?? null
-			const instance = manager.create(name, { cached: false, historyMode: 'session' })
+			const settings = store.settings ?? {}
+			const instance = manager.create(name, {
+				cached: false,
+				historyMode: 'session',
+				...(settings.provider ? { provider: settings.provider } : {}),
+				...(settings.model ? { model: settings.model } : {}),
+			})
 			if (this.extraTools) {
 				try { instance.use(this.extraTools()) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
 			}
@@ -325,8 +443,13 @@ export class ChatSessions {
 			const session: Session = {
 				assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve(),
 				target: linked, support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
+				settings, title: null,
 			}
-			session.starting = instance.start().then(() => this.mount(session))
+			session.starting = instance.start().then(async () => {
+				this.applyEffort(session)
+				session.title = await this.savedTitle(thread)
+				await this.mount(session)
+			})
 			this.wire(session)
 			this.sessions.set(key, session)
 			s = session
@@ -370,7 +493,7 @@ export class ChatSessions {
 	}
 
 	/** What the host keeps for one conversation: its extensions and the chat it supports. */
-	private async stored(thread: string): Promise<{ extensions: ChatExtension[]; target?: ChatTarget }> {
+	private async stored(thread: string): Promise<Stored> {
 		try {
 			const cache = this.history.diskCache
 			if (!(await cache.has(this.storeKey(thread)))) return { extensions: [] }
@@ -378,13 +501,14 @@ export class ChatSessions {
 			let extensions: ChatExtension[] = []
 			try { extensions = parseExtensions(value?.extensions) } catch {}
 			const target = value?.target?.assistant && value?.target?.conversationId ? { assistant: String(value.target.assistant), conversationId: String(value.target.conversationId) } : undefined
-			return { extensions, ...(target ? { target } : {}) }
+			const settings = parseSettings(value?.settings)
+			return { extensions, ...(target ? { target } : {}), ...(Object.keys(settings).length ? { settings } : {}) }
 		} catch {
 			return { extensions: [] }
 		}
 	}
 
-	private async store(thread: string, value: { extensions: ChatExtension[]; target?: ChatTarget }) {
+	private async store(thread: string, value: Stored) {
 		await this.history.diskCache.set(this.storeKey(thread), value)
 	}
 
@@ -520,6 +644,11 @@ export class ChatSessions {
 			s.turn.text += text
 			this.frame(s, 'chat-delta', { text })
 		})
+		a.on('reasoning', (text: string) => {
+			if (!s.turn || !text) return
+			s.turn.reasoning += text
+			this.frame(s, 'chat-reasoning', { text })
+		})
 		a.on('toolCall', (name: string, args: any) => {
 			if (!s.turn) return
 			const tool: ChatToolView = { id: String(this.container.utils.uuid()).slice(0, 8), name, argsText: argsText(args), status: 'running', resultText: null, ms: null }
@@ -572,21 +701,23 @@ export class ChatSessions {
 		let title = 'New conversation'
 		const firstUser = messages.find((m) => m.role === 'user')
 		if (firstUser) title = firstUser.text.split('\n')[0]!.slice(0, 80)
-		let routing: any = null
-		try { routing = s.instance.routing } catch {}
+		if (s.title) title = s.title
+		const routing = this.routingOf(s)
 		return {
 			ok: true,
 			assistant: s.assistant,
 			conversationId: s.conversationId,
 			thread: s.thread,
 			title,
-			modelText: [routing?.provider, routing?.model].filter(Boolean).join(' · ') || 'default model',
+			modelText: modelText(routing.provider, routing.model) || 'default model',
+			settings: s.settings,
+			routing,
 			tools: Object.keys(s.instance.tools || {}).filter((name) => !s.mounted.includes(name)),
 			extensions: s.extensions.map(summary),
 			target: s.target,
 			messages,
 			busy: !!s.turn,
-			live: s.turn ? { turnId: s.turn.turnId, user: s.turn.user, text: s.turn.text, tools: s.turn.tools.map((t) => this.publicTool(t)) } : null,
+			live: s.turn ? { turnId: s.turn.turnId, user: s.turn.user, text: s.turn.text, reasoning: s.turn.reasoning, tools: s.turn.tools.map((t) => this.publicTool(t)) } : null,
 		}
 	}
 
@@ -597,15 +728,23 @@ export class ChatSessions {
 		if (opened.status !== 200 || opened.body.ok === false) return opened
 		const s = this.sessions.get(this.key(name, conversationId))!
 		if (s.turn) return { status: 409, body: { error: 'A reply is still coming. Stop it first.' } }
+		return this.runTurn(s, text, () => s.instance.ask(text))
+	}
+
+	/**
+	 * Start a turn: `chat-start` (`text` = the user's message, empty when it
+	 * is already in the history), then frames, then `chat-done` or `chat-error`.
+	 */
+	private runTurn(s: Session, user: string, ask: () => Promise<unknown>): { status: number; body: any } {
 		const turnId = String(this.container.utils.uuid()).slice(0, 8)
-		s.turn = { turnId, text: '', tools: [], startedAt: Date.now(), user: text }
-		this.frame(s, 'chat-start', { text })
+		s.turn = { turnId, text: '', reasoning: '', tools: [], startedAt: Date.now(), user }
+		this.frame(s, 'chat-start', { text: user })
 		const turn = s.turn
 		void (async () => {
 			try {
 				// The list may have changed on disk since the last turn (another host, a hand edit).
 				await this.mount(s)
-				const answer = await s.instance.ask(text)
+				const answer = await ask()
 				this.frame(s, 'chat-done', { text: typeof answer === 'string' ? answer : turn.text, aborted: false, ms: Date.now() - turn.startedAt })
 			} catch (err: any) {
 				if (err?.name === 'ConversationAbortError') {
@@ -617,7 +756,175 @@ export class ChatSessions {
 				if (s.turn === turn) s.turn = null
 			}
 		})()
-		return { status: 200, body: { ok: true, turnId, conversationId, assistant: name } }
+		return { status: 200, body: { ok: true, turnId, conversationId: s.conversationId, assistant: s.assistant } }
+	}
+
+	// --- Settings, retry, clear, rename, delete, export ---
+
+	/** Where the next turn goes: provider, model, effort. Read live from the conversation. */
+	private routingOf(s: Session): { provider: string; model: string; reasoningEffort: string } {
+		let r: any = null
+		try { r = s.instance.routing } catch {}
+		return { provider: String(r?.provider ?? ''), model: String(r?.model ?? ''), reasoningEffort: String(r?.reasoningEffort ?? '') }
+	}
+
+	private applyEffort(s: Session) {
+		try { s.instance.conversation.setReasoningEffort(s.settings.reasoningEffort ?? null) } catch (err: any) {
+			console.error(`[workbench] could not set ${s.assistant}'s effort: ${err?.message ?? err}`)
+		}
+	}
+
+	/** A title the user gave (rename). The history's own default is not one. */
+	private async savedTitle(thread: string): Promise<string | null> {
+		try {
+			const record = await this.history.findByThread(thread)
+			const title = String(record?.metadata?.workbenchTitle ?? '')
+			return title || null
+		} catch {
+			return null
+		}
+	}
+
+	/** The open session, for a route that needs one and no turn running. */
+	private async idle(name: string, conversationId: string): Promise<{ s?: Session; error?: { status: number; body: any } }> {
+		const opened = await this.open(name, conversationId)
+		if (opened.status !== 200 || opened.body.ok === false) return { error: opened }
+		const s = this.sessions.get(this.key(name, opened.body.conversationId))!
+		if (s.turn) return { error: { status: 409, body: { error: 'A reply is still coming. Stop it first.' } } }
+		return { s }
+	}
+
+	private settingsFrame(s: Session) {
+		const routing = this.routingOf(s)
+		this.frame(s, 'chat-settings', { settings: s.settings, routing, modelText: modelText(routing.provider, routing.model) || 'default model', title: s.title })
+	}
+
+	/**
+	 * Change this conversation's provider, model or effort. A new provider or
+	 * model builds the assistant again on the same history (the tools a coding
+	 * agent gets depend on it); an effort change applies at once. Saved with
+	 * the conversation, so a reopen keeps it.
+	 */
+	async setSettings(name: string, conversationId: string, patch: any): Promise<{ status: number; body: any }> {
+		const { s, error } = await this.idle(name, conversationId)
+		if (!s) return error!
+		let next: ChatSettings
+		try { next = mergeSettings(s.settings, patch) } catch (err: any) { return { status: 400, body: { ok: false, error: err.message } } }
+		if (next.provider) {
+			const mp = this.container.feature('modelProviders')
+			if (!mp.get(next.provider)) return { status: 400, body: { ok: false, error: `no model provider ${next.provider}. Known: ${Object.keys(mp.profiles ?? {}).join(', ')}` } }
+		}
+		const stored = await this.stored(s.thread)
+		await this.store(s.thread, { ...stored, settings: next })
+		let current = s
+		if ((next.provider ?? '') !== (s.settings.provider ?? '') || (next.model ?? '') !== (s.settings.model ?? '')) {
+			this.sessions.delete(this.key(s.assistant, s.conversationId))
+			try { s.instance.removeAllListeners?.() } catch {}
+			try { current = await this.session(s.assistant, s.conversationId) } catch (err: any) {
+				await this.store(s.thread, stored)
+				this.sessions.delete(this.key(s.assistant, s.conversationId))
+				return { status: 200, body: { ok: false, error: `could not switch: ${err?.message ?? err}` } }
+			}
+		} else {
+			s.settings = next
+			this.applyEffort(s)
+		}
+		this.settingsFrame(current)
+		return { status: 200, body: this.view(current) }
+	}
+
+	/** The model picker: this chat's choice, the assistant's own, and every model that can answer. */
+	async modelsView(name: string, conversationId: string, ai: { providers: any[]; servers: any[]; agents: any[] }) {
+		const opened = await this.open(name, conversationId)
+		if (opened.status !== 200 || opened.body.ok === false) return opened
+		const s = this.sessions.get(this.key(name, opened.body.conversationId))!
+		const manager = await this.manager()
+		let own = { provider: '', model: '' }
+		try { const r = this.info(manager, name).routing; own = { provider: String(r?.provider ?? ''), model: String(r?.model ?? '') } } catch {}
+		const routing = this.routingOf(s)
+		return {
+			status: 200,
+			body: {
+				settings: s.settings,
+				routing,
+				own: { ...own, text: modelText(own.provider, own.model) || 'default model' },
+				efforts: [...EFFORTS],
+				choices: modelChoices(ai, { provider: routing.provider }),
+			},
+		}
+	}
+
+	/**
+	 * Run the last turn again. A failed turn reruns its input (it is still in
+	 * the history); otherwise the last user message and the reply after it are
+	 * taken out and the message is sent again. `chat-history` comes first, so
+	 * the app drops what was taken out.
+	 */
+	async retry(name: string, conversationId: string): Promise<{ status: number; body: any }> {
+		const { s, error } = await this.idle(name, conversationId)
+		if (!s) return error!
+		const failed = s.instance.failedTurn
+		if (failed?.retryable) {
+			this.frame(s, 'chat-history', { messages: messagesView(s.instance.messages || []) })
+			return this.runTurn(s, '', () => s.instance.retryFailedTurn({ expectId: failed.id }))
+		}
+		const messages: any[] = s.instance.messages || []
+		const at = messages.map((m) => m?.role).lastIndexOf('user')
+		if (at < 0) return { status: 400, body: { ok: false, error: 'Nothing to retry yet' } }
+		const text = messages[at].content
+		const kept = messages.slice(0, at)
+		// clearMessages drops the provider's continuation handles; the kept part goes back after.
+		s.instance.clearMessages()
+		s.instance.conversation._setMessages(kept)
+		this.frame(s, 'chat-history', { messages: messagesView(kept) })
+		const shown = typeof text === 'string' ? text : messagesView([{ role: 'user', content: text }])[0]?.text ?? ''
+		return this.runTurn(s, shown, () => s.instance.ask(text))
+	}
+
+	/** Wipe the transcript; the conversation keeps its id, tools and settings. */
+	async clear(name: string, conversationId: string): Promise<{ status: number; body: any }> {
+		const { s, error } = await this.idle(name, conversationId)
+		if (!s) return error!
+		s.instance.clearMessages()
+		try { if (await this.history.findByThread(s.thread)) await s.instance.save({ thread: s.thread }) } catch {}
+		this.frame(s, 'chat-history', { messages: [] })
+		return { status: 200, body: this.view(s) }
+	}
+
+	/** Name the conversation. Kept in its history record, so the list shows it too. */
+	async rename(name: string, conversationId: string, title: string): Promise<{ status: number; body: any }> {
+		const clean = String(title ?? '').trim().slice(0, 120)
+		if (!clean) return { status: 400, body: { ok: false, error: 'title is required' } }
+		const { s, error } = await this.idle(name, conversationId)
+		if (!s) return error!
+		const record = await this.history.findByThread(s.thread)
+		if (!record) return { status: 200, body: { ok: false, error: 'Send a message first: a new chat has nothing saved to name.' } }
+		await this.history.updateMeta(record.id, { title: clean, metadata: { ...(record.metadata ?? {}), workbenchTitle: clean } })
+		s.title = clean
+		this.settingsFrame(s)
+		return { status: 200, body: this.view(s) }
+	}
+
+	/** Delete the conversation's history and what the host kept for it. */
+	async remove(name: string, conversationId: string): Promise<{ status: number; body: any }> {
+		const { s, error } = await this.idle(name, conversationId)
+		if (!s) return error!
+		const deleted = await this.history.deleteThread(s.thread)
+		try { await this.history.diskCache.rm(this.storeKey(s.thread)) } catch {}
+		this.sessions.delete(this.key(s.assistant, s.conversationId))
+		this.frame(s, 'chat-deleted', {})
+		return { status: 200, body: { ok: true, deleted } }
+	}
+
+	/** The conversation as markdown, for the app to copy or save. */
+	async exportView(name: string, conversationId: string): Promise<{ status: number; body: any }> {
+		const opened = await this.open(name, conversationId)
+		if (opened.status !== 200 || opened.body.ok === false) return opened
+		const v = opened.body
+		return {
+			status: 200,
+			body: { title: v.title, filename: exportFilename(v.title, v.conversationId), markdown: transcriptMarkdown(v.title, name, v.messages) },
+		}
 	}
 
 	stop(name: string, conversationId: string): boolean {
