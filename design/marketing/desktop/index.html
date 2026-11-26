@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large" />
+    <link rel="canonical" href="https://luca-js.soederpop.com/desktop/" />
+    <title>Luca Desktop — A keyboard-first workbench for your Luca projects</title>
+    <meta name="description" content="Luca Desktop is a native macOS app for any Luca project. See every helper, send requests to your endpoints, eval with the container in scope, edit docs by model, and talk to the assistants inside. Every action has a key." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Luca" />
+    <meta property="og:url" content="https://luca-js.soederpop.com/desktop/" />
+    <meta property="og:title" content="Luca Desktop — A keyboard-first workbench for your Luca projects" />
+    <meta property="og:description" content="A native macOS app for any Luca project: the registry, endpoints, a live console, docs, and the assistants inside. Every action has a key." />
+    <meta property="og:image" content="https://luca-js.soederpop.com/desktop/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Luca Desktop: tiled tools for one Luca project, with the registry, endpoints, and docs side by side." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Luca Desktop — A keyboard-first workbench for your Luca projects" />
+    <meta name="twitter:description" content="The registry, endpoints, a live console, docs, and the assistants inside. One native macOS app. Every action has a key." />
+    <meta name="twitter:image" content="https://luca-js.soederpop.com/desktop/og.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Luca Desktop",
+        "url": "https://luca-js.soederpop.com/desktop/",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "macOS 15.4 or later",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "description": "A native, keyboard-first macOS workbench for Luca projects: browse helpers, send requests to endpoints, eval with the container in scope, edit docs by model, and chat with the project's assistants.",
+        "isPartOf": { "@type": "WebSite", "name": "Luca", "url": "https://luca-js.soederpop.com/" },
+        "author": { "@type": "Person", "name": "Jonathan Soeder", "url": "https://github.com/soederpop" }
+      }
+    </script>
+    <style>
+      :root {
+        --bg: #12141a;
+        --panel: #1a1d25;
+        --panel-2: #222631;
+        --white: #f0f1ee;
+        --muted: #a4a9b4;
+        --faint: #6f7583;
+        --line: #2e3340;
+        --blue: #7baeff;
+        --violet: #b195ff;
+        --amber: #f4c773;
+        --teal: #60d9ca;
+        --rose: #ef98c5;
+        --green: #8fd694;
+        --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        --sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      html { background: var(--bg); color: var(--white); font-family: var(--sans); font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+      body { margin: 0; background: var(--bg); overflow-x: clip; }
+      a { color: var(--blue); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code, .mono { font-family: var(--mono); font-size: 0.86em; }
+      img { display: block; max-width: 100%; height: auto; }
+
+      .wrap { width: min(1180px, 100% - 32px); margin: 0 auto; }
+
+      /* Nav */
+      nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+      nav .brand { color: var(--white); font-weight: 600; letter-spacing: 0.01em; }
+      nav .brand span { color: var(--faint); font-weight: 400; }
+      nav .links { display: flex; gap: 22px; font-size: 0.9rem; }
+      nav .links a { color: var(--muted); }
+
+      /* Hero */
+      .hero { position: relative; padding: 56px 0 24px; text-align: center; }
+      .hero::before {
+        content: ''; position: absolute; inset: -120px 0 auto; height: 720px; z-index: -1;
+        background:
+          radial-gradient(520px 300px at 30% 30%, rgba(177, 149, 255, 0.22), transparent 70%),
+          radial-gradient(520px 300px at 70% 40%, rgba(123, 174, 255, 0.18), transparent 70%),
+          radial-gradient(400px 240px at 50% 80%, rgba(239, 152, 197, 0.12), transparent 70%);
+      }
+      .eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: rgba(26, 29, 37, 0.7); }
+      .eyebrow b { color: var(--violet); font-weight: 600; }
+      h1 { font-size: clamp(2.2rem, 5.4vw, 3.9rem); line-height: 1.05; letter-spacing: -0.025em; font-weight: 600; margin: 22px auto 18px; max-width: 16ch; }
+      h1 em { font-style: normal; background: linear-gradient(90deg, var(--violet), var(--blue) 55%, var(--teal)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .lead { color: var(--muted); font-size: 1.15rem; max-width: 60ch; margin: 0 auto 30px; }
+
+      .install { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 12px; align-items: center; }
+      .cmd { display: inline-flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 16px; font-family: var(--mono); font-size: 0.92rem; max-width: 100%; }
+      .cmd .p { color: var(--faint); }
+      .cmd code { font-size: 1em; color: var(--white); overflow-x: auto; white-space: nowrap; min-width: 0; }
+      .copy { font: inherit; font-family: var(--sans); font-size: 0.8rem; color: var(--bg); background: var(--white); border: 0; border-radius: 8px; padding: 6px 11px; cursor: pointer; }
+      .copy.done { background: var(--green); }
+      .btn-ghost { color: var(--muted); font-size: 0.92rem; padding: 10px 6px; }
+      .req { color: var(--faint); font-size: 0.82rem; margin-top: 14px; }
+
+      /* Screens */
+      .shot { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid #3a3f4d; background: #000; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.02); cursor: zoom-in; }
+      .shot img { width: 100%; }
+      .hero-shot { margin: 52px auto 0; position: relative; }
+
+      /* Facts */
+      .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 72px 0 24px; }
+      .fact { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; border-top: 3px solid var(--c); }
+      .fact h3 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 600; }
+      .fact p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+      /* Feature rows */
+      section.feature { display: grid; grid-template-columns: 5fr 8fr; gap: 48px; align-items: center; padding: 64px 0; border-top: 1px solid var(--line); }
+      section.feature.flip { grid-template-columns: 8fr 5fr; }
+      section.feature.flip .copytext { order: 2; }
+      .tag { display: inline-block; font-family: var(--mono); font-size: 0.76rem; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); border-radius: 6px; padding: 2px 8px; margin-bottom: 14px; }
+      h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -0.015em; font-weight: 600; margin: 0 0 14px; }
+      .copytext p { color: var(--muted); margin: 0 0 14px; }
+      .copytext ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 8px; }
+      .copytext li { position: relative; padding-left: 20px; color: var(--muted); font-size: 0.95rem; }
+      .copytext li::before { content: ''; position: absolute; left: 2px; top: 0.62em; width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+      kbd { font-family: var(--mono); font-size: 0.78rem; color: var(--white); background: var(--panel-2); border: 1px solid #3a3f4d; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+
+      /* How it works */
+      .how { padding: 72px 0; border-top: 1px solid var(--line); }
+      .how .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+      .step { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+      .step .n { font-family: var(--mono); color: var(--c); font-size: 0.8rem; }
+      .step h3 { margin: 6px 0 8px; font-size: 1.05rem; font-weight: 600; }
+      .step p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+      .center { text-align: center; }
+      .center .lead { margin-bottom: 0; }
+
+      /* Install */
+      .get { padding: 80px 0 96px; border-top: 1px solid var(--line); text-align: center; }
+      .get .cmds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center; margin: 28px 0 18px; }
+      .get .alt { color: var(--muted); font-size: 0.92rem; }
+
+      footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--faint); font-size: 0.88rem; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      footer a { color: var(--muted); }
+
+      /* Lightbox */
+      .lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(8, 9, 12, 0.92); display: none; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+      .lightbox.open { display: flex; }
+      .lightbox img { max-height: 100%; border-radius: 10px; border: 1px solid #3a3f4d; }
+
+      @media (max-width: 860px) {
+        section.feature, section.feature.flip { grid-template-columns: 1fr; gap: 26px; padding: 48px 0; }
+        section.feature.flip .copytext { order: 0; }
+        .facts, .how .grid { grid-template-columns: 1fr; }
+        nav .links a.hide-sm { display: none; }
+        .hero { padding-top: 28px; }
+        .hero-shot { margin-top: 36px; }
+        .shot { border-radius: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav>
+        <a class="brand" href="/">Luca <span>/ Desktop</span></a>
+        <div class="links">
+          <a class="hide-sm" href="#tour">Tour</a>
+          <a class="hide-sm" href="#how">How it works</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/soederpop/luca/tree/main/apps/desktop">GitHub</a>
+        </div>
+      </nav>
+
+      <header class="hero">
+        <span class="eyebrow"><b>New</b> Native macOS app, free and open source</span>
+        <h1>Your Luca project, <em>on one screen.</em></h1>
+        <p class="lead">
+          Luca Desktop is a keyboard-first workbench for any Luca project folder. See every helper, send requests to
+          your endpoints, run code with the container in scope, edit your docs, and talk to the assistants inside.
+        </p>
+        <div class="install">
+          <div class="cmd"><span class="p">$</span><code>luca desktop install --open</code><button class="copy" data-copy="luca desktop install --open">Copy</button></div>
+          <a class="btn-ghost" href="#install">Other ways to install &rarr;</a>
+        </div>
+        <p class="req">macOS 15.4 or later. Needs the <a href="/">luca</a> CLI, version 3.27 or later.</p>
+
+        <figure class="hero-shot shot" style="margin-left: 0; margin-right: 0">
+          <img src="shots/hero.webp" width="2000" height="1100" alt="Luca Desktop with four tiles for one project: the project overview, the registry of features, clients, servers and commands, the endpoints list, and the docs grouped by model." fetchpriority="high" />
+        </figure>
+      </header>
+
+      <div class="facts">
+        <div class="fact" style="--c: var(--violet)">
+          <h3>A native Mac app</h3>
+          <p>A SwiftUI app that tiles like a window manager. Tiles open side by side, keep their place, and come back after a restart.</p>
+        </div>
+        <div class="fact" style="--c: var(--blue)">
+          <h3>Every action has a key</h3>
+          <p>Leader keys, a palette, and a keys view that always shows what you can press. The mouse works too.</p>
+        </div>
+        <div class="fact" style="--c: var(--teal)">
+          <h3>Your project's real container</h3>
+          <p>Each project runs its own <code>luca workbench</code> host. What you see is what your code loads, not a guess.</p>
+        </div>
+      </div>
+
+      <div id="tour"></div>
+
+      <section class="feature" style="--c: var(--violet)">
+        <div class="copytext">
+          <span class="tag">Space r &nbsp;registry</span>
+          <h2>See everything your project holds.</h2>
+          <p>
+            The registry shows every feature, client, server and command. Your own helpers and the built-in ones sit
+            side by side, each marked by where it came from.
+          </p>
+          <p>Open a helper to read its methods, options, state schema and docs. When it has an instance, its live state and events update as they happen.</p>
+          <ul>
+            <li>Filter to your own helpers or the built-in ones</li>
+            <li>Docs come from the same source as <code>luca describe</code></li>
+          </ul>
+        </div>
+        <figure class="shot" style="margin: 0"><img src="shots/helper.webp" width="2000" height="1100" loading="lazy" alt="The registry tile beside the helper tile for a waitlist feature, with its description, methods, options and state schema." /></figure>
+      </section>
+
+      <section class="feature flip" style="--c: var(--green)">
+        <figure class="shot" style="margin: 0"><img src="shots/request.webp" width="2000" height="1100" loading="lazy" alt="The endpoints tile with luca serve running, beside a request tile that sent POST /api/signups and shows a 200 OK response." /></figure>
+        <div class="copytext">
+          <span class="tag">Space h &nbsp;endpoints</span>
+          <h2>Hit your endpoints without curl.</h2>
+          <p>
+            The endpoints tile reads <code>endpoints/</code> the same way <code>luca serve</code> does, so the list matches what the server answers.
+            Start the server with one key. Its log streams in the tile.
+          </p>
+          <p>Open a route to get a form built from its schema. Fill the fields, press <kbd>r</kbd>, and read the status, time, headers and body.</p>
+          <ul>
+            <li>Path, query and body fields, or raw JSON</li>
+            <li>Not running? It asks to start the server, then sends</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="feature" style="--c: var(--amber)">
+        <div class="copytext">
+          <span class="tag">Space e &nbsp;console</span>
+          <h2>Run code with the container in scope.</h2>
+          <p>
+            The console evaluates TypeScript inside your project's container. Top-level <code>await</code> works. Results open as a tree you can expand, and errors show their stack.
+          </p>
+          <p>The side panel lists the names you made and everything in scope, each with its docs one key away.</p>
+          <ul>
+            <li>Try a method before you write the endpoint</li>
+            <li>Type <code>?name</code> to read a helper's docs</li>
+          </ul>
+        </div>
+        <figure class="shot" style="margin: 0"><img src="shots/console.webp" width="2000" height="1100" loading="lazy" alt="The console tile with four evaluated lines that use a waitlist feature, their results as expandable trees, and a side panel of names in scope." /></figure>
+      </section>
+
+      <section class="feature flip" style="--c: var(--rose)">
+        <figure class="shot" style="margin: 0"><img src="shots/docs.webp" width="2000" height="1100" loading="lazy" alt="The docs tile with campaign and template documents grouped by model, beside a campaign document whose frontmatter shows as typed fields." /></figure>
+        <div class="copytext">
+          <span class="tag">Space d &nbsp;docs</span>
+          <h2>Your docs, grouped by model.</h2>
+          <p>
+            Luca keeps structured Markdown in <code>docs/</code>. The docs tile groups it by model, with status at a glance.
+            Open a document to read it, edit it in a rich editor, or switch to source.
+          </p>
+          <p>Frontmatter shows as typed fields. A save that would overwrite a newer file stops and lets you choose.</p>
+          <ul>
+            <li>A models view shows each schema, its fields and defaults</li>
+            <li>Query documents from the contentbase tile</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="feature" style="--c: var(--blue)">
+        <div class="copytext">
+          <span class="tag">Space n &nbsp;chat</span>
+          <h2>Talk to the assistants inside.</h2>
+          <p>
+            Every assistant in your project is one key away. Replies stream in, with each tool call as it happens.
+            Switch the model, effort, thinking and tool output from the chat bar.
+          </p>
+          <p>Conversations are saved per project, so you can pick up where you left off.</p>
+          <ul>
+            <li>Run on an API key, a local model, or a Claude Code or Codex subscription</li>
+            <li>Ships with <code>lucaExpert</code>, an assistant that builds with Luca</li>
+          </ul>
+        </div>
+        <figure class="shot" style="margin: 0"><img src="shots/chat.webp" width="2000" height="1100" loading="lazy" alt="A chat with a concierge assistant that reports waitlist signups by source and sends three invites, beside the project's list of assistants and recent conversations." /></figure>
+      </section>
+
+      <section class="feature flip" style="--c: var(--teal)">
+        <figure class="shot" style="margin: 0"><img src="shots/projects.webp" width="2000" height="1100" loading="lazy" alt="The projects tile listing three Luca projects, with a button to ask lucaPortfolio about them, beside the keys view." /></figure>
+        <div class="copytext">
+          <span class="tag">Space P &nbsp;projects</span>
+          <h2>Every Luca project on your Mac.</h2>
+          <p>
+            Each project gets its own workspace and its own host. Switch between them with a key. Open one on another machine over SSH.
+          </p>
+          <p>
+            Ask <code>lucaPortfolio</code> about all of them: which project has a Postgres feature, or which one already has the helper you need.
+            It can take a helper from one project into another. You review each change in its own tile before anything is written.
+          </p>
+        </div>
+      </section>
+
+      <section class="feature" style="--c: var(--violet)">
+        <div class="copytext">
+          <span class="tag">Space Space &nbsp;palette</span>
+          <h2>Fast to learn. Faster to use.</h2>
+          <p>
+            Press <kbd>Space</kbd> <kbd>Space</kbd> to find any project, tool, file or open tile. Leader keys open each tool directly.
+          </p>
+          <p>
+            The keys view lists every key for the tile in focus. Remap anything in <code>keymap.yml</code>. Save layouts, pick a color theme, and float or tile windows as you like.
+          </p>
+        </div>
+        <figure class="shot" style="margin: 0"><img src="shots/palette.webp" width="2000" height="1100" loading="lazy" alt="The palette open over a tiled layout, filtered to the signup-app project's tools and open tiles." /></figure>
+      </section>
+
+      <section class="how" id="how">
+        <div class="center">
+          <h2>How it works</h2>
+          <p class="lead">The app draws. Your project does the work.</p>
+        </div>
+        <div class="grid">
+          <div class="step" style="--c: var(--violet)">
+            <div class="n">01</div>
+            <h3>Open a folder</h3>
+            <p>Point Luca Desktop at any Luca project. It remembers the folder and gives it a workspace.</p>
+          </div>
+          <div class="step" style="--c: var(--blue)">
+            <div class="n">02</div>
+            <h3>A host starts</h3>
+            <p>The app runs <code>luca workbench</code> in that folder: a token-guarded HTTP and WebSocket API on 127.0.0.1, over the project's own container.</p>
+          </div>
+          <div class="step" style="--c: var(--teal)">
+            <div class="n">03</div>
+            <h3>Tiles ask the host</h3>
+            <p>Every tile reads from the host and writes through it. The host listens only on your Mac. Close the last tile and it stops.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="get" id="install">
+        <h2>Install Luca Desktop</h2>
+        <p class="lead" style="margin: 0 auto">Get the luca CLI, then let it install the app. Signed and notarized by Apple.</p>
+        <div class="cmds">
+          <div class="cmd"><span class="p">$</span><code>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</code><button class="copy" data-copy="curl -fsSL https://luca-js.soederpop.com/install.sh | bash">Copy</button></div>
+          <div class="cmd"><span class="p">$</span><code>luca desktop install --open</code><button class="copy" data-copy="luca desktop install --open">Copy</button></div>
+        </div>
+        <p class="alt">
+          <code>luca desktop check</code> tells you when a newer build exists. Or download a build from
+          <a href="https://github.com/soederpop/luca/releases">GitHub releases</a>.
+        </p>
+      </section>
+
+      <footer>
+        <span>Luca Desktop is part of <a href="/">Luca</a>. MIT licensed.</span>
+        <span><a href="/">Luca</a> &nbsp;·&nbsp; <a href="/local/">Luca Local</a> &nbsp;·&nbsp; <a href="https://github.com/soederpop/luca">GitHub</a></span>
+      </footer>
+    </div>
+
+    <div class="lightbox" aria-hidden="true"><img alt="" /></div>
+
+    <script>
+      document.querySelectorAll('.copy').forEach((button) => {
+        button.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(button.dataset.copy)
+            button.textContent = 'Copied'
+            button.classList.add('done')
+            setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('done') }, 1600)
+          } catch {}
+        })
+      })
+      const box = document.querySelector('.lightbox')
+      const big = box.querySelector('img')
+      document.querySelectorAll('.shot img').forEach((img) => {
+        img.addEventListener('click', () => { big.src = img.src; big.alt = img.alt; box.classList.add('open') })
+      })
+      box.addEventListener('click', () => box.classList.remove('open'))
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') box.classList.remove('open') })
+    </script>
+  </body>
+</html>

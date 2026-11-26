@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="g1" cx="0.18" cy="0.2" r="0.6"><stop offset="0" stop-color="#b195ff" stop-opacity="0.32"/><stop offset="1" stop-color="#b195ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g2" cx="0.85" cy="0.75" r="0.6"><stop offset="0" stop-color="#7baeff" stop-opacity="0.3"/><stop offset="1" stop-color="#7baeff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="word" x1="0" x2="1"><stop offset="0" stop-color="#b195ff"/><stop offset="0.55" stop-color="#7baeff"/><stop offset="1" stop-color="#60d9ca"/></linearGradient>
+    <clipPath id="shot"><rect x="560" y="132" width="760" height="418" rx="14"/></clipPath>
+  </defs>
+  <rect width="1200" height="630" fill="#12141a"/>
+  <rect width="1200" height="630" fill="url(#g1)"/>
+  <rect width="1200" height="630" fill="url(#g2)"/>
+
+  <text x="64" y="92" font-family="Helvetica Neue" font-size="22" fill="#a4a9b4">luca-js.soederpop.com/desktop</text>
+
+  <text x="64" y="200" font-family="Helvetica Neue" font-weight="600" font-size="62" fill="#f0f1ee" letter-spacing="-1.5">Luca</text>
+  <text x="64" y="268" font-family="Helvetica Neue" font-weight="600" font-size="62" fill="url(#word)" letter-spacing="-1.5">Desktop</text>
+
+  <text font-family="Helvetica Neue" font-size="25" fill="#a4a9b4">
+    <tspan x="64" y="336">A keyboard-first workbench</tspan>
+    <tspan x="64" y="370">for your Luca projects.</tspan>
+  </text>
+
+  <g font-family="Menlo" font-size="17" fill="#f0f1ee">
+    <rect x="64" y="430" width="128" height="34" rx="7" fill="#222631" stroke="#3a3f4d"/>
+    <text x="80" y="453">Space r</text>
+    <text x="206" y="453" font-family="Helvetica Neue" font-size="19" fill="#a4a9b4">registry</text>
+    <rect x="64" y="476" width="128" height="34" rx="7" fill="#222631" stroke="#3a3f4d"/>
+    <text x="80" y="499">Space h</text>
+    <text x="206" y="499" font-family="Helvetica Neue" font-size="19" fill="#a4a9b4">endpoints</text>
+    <rect x="64" y="522" width="128" height="34" rx="7" fill="#222631" stroke="#3a3f4d"/>
+    <text x="80" y="545">Space n</text>
+    <text x="206" y="545" font-family="Helvetica Neue" font-size="19" fill="#a4a9b4">chat</text>
+  </g>
+
+  <rect x="572" y="150" width="760" height="418" rx="14" fill="#000" opacity="0.55"/>
+  <image x="560" y="132" width="760" height="418" preserveAspectRatio="xMinYMin slice" clip-path="url(#shot)" xlink:href="og-shot.png"/>
+  <rect x="560.5" y="132.5" width="760" height="418" rx="14" fill="none" stroke="#4a5060"/>
+</svg>
