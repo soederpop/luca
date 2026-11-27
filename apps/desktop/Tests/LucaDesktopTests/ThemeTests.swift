@@ -47,4 +47,26 @@ final class ThemeTests: XCTestCase {
         XCTAssertEqual(Set(ids).count, ids.count)
         for id in ids { XCTAssertNotNil(id.range(of: "^[a-z0-9-]+$", options: .regularExpression), id) }
     }
+
+    func testEveryThemeGivesTheTerminalSixteenColors() throws {
+        for theme in KitTokens.themes {
+            XCTAssertEqual(theme.palette.terminalColors(dark: theme.dark).count, 16, theme.id)
+        }
+        XCTAssertEqual(KitTokens.dark.terminalColors(dark: true).count, 16)
+        XCTAssertEqual(KitTokens.light.terminalColors(dark: false).count, 16)
+    }
+
+    func testNewMoonUsesItsOwnTerminalColors() throws {
+        let moon = try XCTUnwrap(KitTokens.themes.first { $0.id == "new-moon" })
+        let colors = moon.palette.terminalColors(dark: true)
+        XCTAssertEqual(colors[0].hex, "#666666")
+        XCTAssertEqual(colors[6].hex, "#62CFCF")
+        XCTAssertEqual(colors[8].hex, "#777777")
+    }
+
+    func testADerivedLightTerminalKeepsBlackDark() {
+        let colors = KitTokens.light.terminalColors(dark: false)
+        XCTAssertEqual(colors[0], KitTokens.light.text)
+        XCTAssertEqual(colors[1], KitTokens.light.bad)
+    }
 }

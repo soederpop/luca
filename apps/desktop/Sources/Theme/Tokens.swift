@@ -45,6 +45,9 @@ struct KitPalette: Equatable, Sendable {
     let syntax: KitSyntax
     /// Spare hues: project colors and the kind colors that are not syntax colors.
     let hues: [KitColor]
+    /// The theme's own 16 terminal colors, when it has them. Nil means the
+    /// terminal makes them from the palette (`terminalColors(dark:)`).
+    var ansi: [KitColor]? = nil
 }
 
 /// A named look: one whole palette, dark or light.
@@ -740,6 +743,24 @@ enum KitTokens {
                 KitColor(hex: "#76D4D6", red: 0.4627, green: 0.8314, blue: 0.8392, alpha: 1),
                 KitColor(hex: "#92D192", red: 0.5725, green: 0.8196, blue: 0.5725, alpha: 1),
                 KitColor(hex: "#AC8D58", red: 0.6745, green: 0.5529, blue: 0.3451, alpha: 1),
+            ],
+            ansi: [
+                KitColor(hex: "#666666", red: 0.4, green: 0.4, blue: 0.4, alpha: 1),
+                KitColor(hex: "#F2777A", red: 0.949, green: 0.4667, blue: 0.4784, alpha: 1),
+                KitColor(hex: "#92D192", red: 0.5725, green: 0.8196, blue: 0.5725, alpha: 1),
+                KitColor(hex: "#FFD479", red: 1, green: 0.8314, blue: 0.4745, alpha: 1),
+                KitColor(hex: "#6AB0F3", red: 0.4157, green: 0.6902, blue: 0.9529, alpha: 1),
+                KitColor(hex: "#E1A6F2", red: 0.8824, green: 0.651, blue: 0.949, alpha: 1),
+                KitColor(hex: "#62CFCF", red: 0.3843, green: 0.8118, blue: 0.8118, alpha: 1),
+                KitColor(hex: "#FFFFFF", red: 1, green: 1, blue: 1, alpha: 1),
+                KitColor(hex: "#777777", red: 0.4667, green: 0.4667, blue: 0.4667, alpha: 1),
+                KitColor(hex: "#F2777A", red: 0.949, green: 0.4667, blue: 0.4784, alpha: 1),
+                KitColor(hex: "#92D192", red: 0.5725, green: 0.8196, blue: 0.5725, alpha: 1),
+                KitColor(hex: "#FFD479", red: 1, green: 0.8314, blue: 0.4745, alpha: 1),
+                KitColor(hex: "#6AB0F3", red: 0.4157, green: 0.6902, blue: 0.9529, alpha: 1),
+                KitColor(hex: "#E1A6F2", red: 0.8824, green: 0.651, blue: 0.949, alpha: 1),
+                KitColor(hex: "#62CFCF", red: 0.3843, green: 0.8118, blue: 0.8118, alpha: 1),
+                KitColor(hex: "#FFFFFF", red: 1, green: 1, blue: 1, alpha: 1),
             ]
         )),
         KitTheme(id: "solarized-light", label: "Solarized Light", dark: false, palette: KitPalette(

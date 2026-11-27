@@ -25,6 +25,7 @@ final class TerminalContent: TileContent, LocalProcessTerminalViewDelegate {
     @Published private(set) var exited: Int32?
     @Published private(set) var folder: String?
     private var started = false
+    nonisolated(unsafe) private var schemeObserver: NSObjectProtocol?
 
     let projectId: String
 
@@ -43,6 +44,14 @@ final class TerminalContent: TileContent, LocalProcessTerminalViewDelegate {
         terminal.font = NSFont.monospacedSystemFont(ofSize: KitTokens.TypeScale.sm, weight: .regular)
         terminal.processDelegate = self
         applyColors()
+        // A theme switch repaints the open shell, not only new ones.
+        schemeObserver = NotificationCenter.default.addObserver(forName: .tilesSchemeChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyColors() }
+        }
+    }
+
+    deinit {
+        if let schemeObserver { NotificationCenter.default.removeObserver(schemeObserver) }
     }
 
     override func makeBody() -> AnyView { AnyView(TerminalTileView(model: self)) }
@@ -110,6 +119,12 @@ final class TerminalContent: TileContent, LocalProcessTerminalViewDelegate {
         terminal.nativeBackgroundColor = NSColor(p.inset.color)
         terminal.nativeForegroundColor = NSColor(p.textBody.color)
         terminal.caretColor = NSColor(p.accent.color)
+        terminal.installColors(p.terminalColors(dark: ThemeSettings.currentDark).map(Self.termColor))
+    }
+
+    /// SwiftTerm takes 16-bit channels.
+    private static func termColor(_ c: KitColor) -> SwiftTerm.Color {
+        SwiftTerm.Color(red: UInt16(c.red * 65535), green: UInt16(c.green * 65535), blue: UInt16(c.blue * 65535))
     }
 
     override var editorHasKeyboard: Bool { terminal.window?.firstResponder === terminal }
