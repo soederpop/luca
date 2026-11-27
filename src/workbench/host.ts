@@ -25,6 +25,7 @@ import { ChatSessions, parseAbout } from './chat.js'
 import { fileView, saveFile, listFiles } from './files.js'
 import { ToolIndex, plainParams } from './tools.js'
 import { Canvases } from './canvas.js'
+import { Guides } from './guide.js'
 import { AssistantEditor } from './assistant-editor.js'
 import { helperSourceView, saveHelperSource } from './helper-source.js'
 import { helperBrief } from './helper-brief.js'
@@ -182,6 +183,10 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	chats.extraTools = () => canvases.toTools()
 	chats.agentMcpServers = () => canvases.agentMcpServers()
 	chats.chatMcpUrl = (key) => `http://127.0.0.1:${boundPort}/mcp/chat/${key}`
+	// Guides: scripted chats with no model. They look like assistants named `guide:<id>`.
+	const guides = new Guides(container, (frame) => broadcast(frame))
+	guides.attach(canvases)
+	chats.extraAssistants = (firstSlot) => guides.entries(firstSlot)
 	// The assistant editor: one assistant's folder for the editor tile, and the brief and tools of a chat about an assistant.
 	const editor = new AssistantEditor(container, {
 		manager: () => chats.manager(),
@@ -544,6 +549,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const answer = await saveDoc(docsIndex, body)
 			return sendJson(res, answer.status, answer.body)
 		}
+
 		if (method === 'POST' && path === '/docs/create') {
 			let body: any
 			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
@@ -646,6 +652,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		}
 
 		if (method === 'GET' && seg[0] === 'assistants' && seg.length === 3 && seg[2] === 'conversations') {
+			if (guides.owns(seg[1]!)) return sendJson(res, 200, { assistant: seg[1], conversations: [] })
 			const manager = await chats.manager()
 			if (!manager.list().some((e: any) => e.name === seg[1])) return sendJson(res, 404, { error: `no assistant ${seg[1]}` })
 			return sendJson(res, 200, { assistant: seg[1], conversations: await chats.conversations(seg[1]!) })
@@ -657,6 +664,12 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const assistant = typeof body?.assistant === 'string' ? body.assistant : ''
 			const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : ''
 			if (!assistant) return sendJson(res, 400, { error: 'assistant is required' })
+			if (guides.owns(assistant)) {
+				if (seg[1] === 'open') { const answer = await guides.open(assistant, conversationId); return sendJson(res, answer.status, answer.body) }
+				if (!conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'conversationId is required (from POST /chat/open)' })
+				if (seg[1] === 'send') { const answer = await guides.send(assistant, conversationId, typeof body?.text === 'string' ? body.text : ''); return sendJson(res, answer.status, answer.body) }
+				return sendJson(res, 200, { ok: true, stopped: guides.stop(conversationId) })
+			}
 			if (seg[1] === 'open') {
 				const t = body?.target
 				const target = t && typeof t.assistant === 'string' && typeof t.conversationId === 'string' && t.assistant && t.conversationId ? { assistant: t.assistant, conversationId: t.conversationId } : null
@@ -678,6 +691,14 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const assistant = typeof body?.assistant === 'string' ? body.assistant : ''
 			const conversationId = typeof body?.conversationId === 'string' ? body.conversationId : ''
 			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			if (guides.owns(assistant)) {
+				const answer = seg[1] === 'settings' ? guides.noModel()
+					: seg[1] === 'retry' ? await guides.retry(assistant, conversationId)
+					: seg[1] === 'clear' ? await guides.clear(assistant, conversationId)
+					: seg[1] === 'rename' ? await guides.rename(assistant, conversationId, body?.title)
+					: await guides.remove(assistant, conversationId)
+				return sendJson(res, answer.status, answer.body)
+			}
 			const answer = seg[1] === 'settings' ? await chats.setSettings(assistant, conversationId, body)
 				: seg[1] === 'retry' ? await chats.retry(assistant, conversationId)
 				: seg[1] === 'clear' ? await chats.clear(assistant, conversationId)
@@ -690,6 +711,10 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const assistant = String(url.searchParams.get('assistant') || '')
 			const conversationId = String(url.searchParams.get('conversationId') || '')
 			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			if (guides.owns(assistant)) {
+				const answer = seg[1] === 'export' ? await guides.exportView(assistant, conversationId) : guides.noModel()
+				return sendJson(res, answer.status, answer.body)
+			}
 			const answer = seg[1] === 'export' ? await chats.exportView(assistant, conversationId)
 				: await chats.modelsView(assistant, conversationId, await ai.view())
 			return sendJson(res, answer.status, answer.body)
@@ -704,6 +729,10 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			const assistant = String((method === 'GET' ? url.searchParams.get('assistant') : body?.assistant) || '')
 			const conversationId = String((method === 'GET' ? url.searchParams.get('conversationId') : body?.conversationId) || '')
 			if (!assistant || !conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'assistant and conversationId are required' })
+			if (guides.owns(assistant)) {
+				if (method === 'GET') return sendJson(res, 200, { features: [], extensions: [] })
+				return sendJson(res, 200, guides.noModel().body)
+			}
 			const manager = await chats.manager()
 			if (!manager.list().some((e: any) => e.name === assistant)) return sendJson(res, 404, { error: `no assistant ${assistant}` })
 			const target = { assistant, conversationId }
@@ -872,6 +901,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		try { container.off?.('featureEnabled', onFeatureEnabled) } catch {}
 		runs.killAll()
 		chats.closeAll()
+		guides.closeAll()
 		tools.closeAll()
 		canvases.closeAll()
 		void servers.stopAll()

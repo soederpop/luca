@@ -1,0 +1,45 @@
+SkillsLibrary: preloading skill "luca-framework" into system prompt (~2.5k tokens)
+SkillsLibrary: preloading skill "extending-luca" into system prompt (~3.0k tokens)
+[httpCache] tool 1: listDirectory . {recursive,include,exclude}
+[httpCache] tool 2: describe_registry {"registry":"features","platform":"all","sections":["description"]} {registry,platform,sections}
+[httpCache] tool 3: readFile CLAUDE.md {offset,limit}
+[httpCache] tool 4: listDirectory features {recursive,include,exclude}
+[httpCache] tool 5: runShellCommand git status --short; echo ---; cat RUNME.md; echo ---; cat luca.cli.ts
+[httpCache] tool 6: describe_helper {"target":"diskCache","platform":"all","sections":["description","methods","options","state","events"]} {target,platform,sections}
+[httpCache] tool 7: readFile features/example.ts {offset,limit}
+[httpCache] tool 8: describe_registry {"registry":"clients","platform":"all","sections":["description"]} {registry,platform,sections}
+[httpCache] tool 9: runLucaCommand scaffold feature --tutorial
+[httpCache] tool 10: runLucaCommand scaffold feature httpCache --description "Caches HTTP GET responses on disk with TTL expiry, revalidating with ETag/Last-Modified when possible"
+[httpCache] tool 11: readFile features/http-cache.ts {limit,offset}
+[httpCache] tool 12: evalCode const utils = container.utils const names = Object.keys(utils).filter(k => !k.startsWith('_')) const dc = container.feature('diskCache') ({ utilsNames: names, d
+[httpCache] tool 13: describe_helper {"platform":"all","sections":["options"],"target":"diskCache"} {platform,sections,target}
+[httpCache] tool 14: evalCode const utils = container.utils; const names = Object.keys(utils).filter(k => !k.startsWith('_')); const dc = await container.describer.describeHelper('diskCache'
+[httpCache] tool 15: runLucaCommand describe diskCache --json
+[httpCache] tool 16: describe_helper {"platform":"all","sections":["description","usage"],"target":"utils.hashObject"} {platform,sections,target}
+[httpCache] tool 17: evalCode const u = container.utils; ({ hashObjectType: typeof u.hashObject, sample: typeof u.hashObject === 'function' ? [u.hashObject('a'), u.hashObject({url:'x'}), u.h
+[httpCache] tool 18: evalCode const p = container.paths; ({ keys: Object.keys(p).slice(0,40), resolveSample: p.resolve('/tmp', 'a'), cacheDir: p.cacheDir }) {expectation,purpose}
+[httpCache] tool 19: evalCode const dc = container.feature('diskCache', { path: '/tmp/luca-hc-probe', ttl: 5 }); await dc.setJson('k', {a:1}); const got = await dc.getJson('k'); const keys =
+[httpCache] tool 20: runLucaCommand eval "typeof fetch + ' ' + typeof AbortSignal.timeout"
+[httpCache] tool 21: describe_helper {"platform":"all","sections":["description"],"target":"os"} {platform,sections,target}
+[httpCache] tool 22: describe_helper {"platform":"all","sections":["getters"],"target":"os"} {platform,sections,target}
+[httpCache] tool 23: evalCode const dc = container.feature('diskCache'); ({ emit: typeof dc.emit, stateSet: typeof dc.state.set, pathsTmp: typeof container.paths.resolve(container.feature('o
+[httpCache] tool 24: evalCode const dc = container.feature('diskCache', { path: '/tmp/luca-hc-probe2', ttl: 5 }); const key = 'httpget/https://api.example.com/users?id=1&fields=a,b'; await d
+[httpCache] tool 25: evalCode const dc = container.feature('diskCache', { path: '/tmp/luca-hc-probe3', ttl: 3 }); dc.state.set({ enabled: true }); const before = dc.state.get(); await dc.set
+[httpCache] tool 26: evalCode const dc = container.feature('diskCache', { path: '/tmp/luca-hc-probe4', ttl: 3 }); await dc.setJson('exp', { a: 1 }, { ttl: 1 }); await container.sleep(1200); 
+[httpCache] tool 27: evalCode const dc = container.feature('diskCache'); const proto = Object.getOwnPropertyNames(Object.getPrototypeOf(Object.getPrototypeOf(dc))); JSON.stringify(proto) {ex
+[httpCache] tool 28: runShellCommand ls .luca; ls .luca/types 2>/dev/null | head; grep -n "emit" .luca/types/*/feature*.d.ts 2>/dev/null | head -40
+[httpCache] tool 29: runShellCommand cd .luca/types && ls | head -40; echo ---; grep -n "dispatch\|emit" feature.d.ts helper.d.ts 2>/dev/null | head -30
+[httpCache] tool 30: runLucaCommand eval "const crypto = require('crypto'); crypto.createHash('sha256').update('a').digest('hex').slice(0,12)"
+[httpCache] tool 31: readFile .luca/types/feature.d.ts {offset,limit}
+[httpCache] tool 32: readFile .luca/types/state.d.ts {limit,offset}
+[httpCache] tool 33: runLucaCommand eval "typeof crypto + ' | ' + (typeof crypto !== 'undefined' ? crypto.createHash('sha256').update('abc').digest('hex').slice(0,10) : 'n/a')"
+[httpCache] tool 34: describe_helper {"platform":"all","sections":["usage"],"target":"vault"} {platform,sections,target}
+[httpCache] tool 35: runLucaCommand eval "container.utils.hashObject({ url: 'https://api.example.com/users', method: 'GET' }) + '|' + container.utils.hashObject('a')"
+[httpCache] tool 36: runLucaCommand eval "container.utils.hashObject({ url: 'https://api.example.com/users', method: 'GET' }) + '|' + container.utils.hashObject('a')"
+[httpCache] tool 37: runLucaCommand eval "require('node:crypto').createHash('sha256').update('abc').digest('hex').slice(0,10)"
+[httpCache] tool 38: runLucaCommand eval "Buffer.from('hi').toString('base64')"
+[httpCache] tool 39: runShellCommand cat .luca/types/hash-object.d.ts
+[httpCache] tool 40: describe_helper {"platform":"all","sections":["description","methods"],"target":"fs"} {platform,sections,target}
+[httpCache] tool 41: evalCode const a = container.feature('diskCache', { path: '/tmp/hc-a' }); const b = container.feature('diskCache', { path: '/tmp/hc-b' }); const c = container.feature('d
+[httpCache] tool 42: runLucaCommand eval "const http = require('node:http'); const srv = http.createServer((req,res)=>{res.setHeader('content-type','application/json');res.setHeader('etag','\"abc\
+[httpCache] tool 43: writeFile features/http-cache.ts {content}

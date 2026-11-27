@@ -425,7 +425,7 @@ path outside the receiving project (or the plugins folder, for a link).
   (`chatOpener`, whole up to 24 000 characters), through the chat address's
   `?say=<text>`, which the chat tile sends once it is open and then drops.
 - **Companion tiles.** `Shell.open(uri, near:, group: true)` is how a tile
-  opens something that belongs to it (lucaArchitect about an assistant or a
+  opens something that belongs to it (lucaExpert about an assistant or a
   helper, a chat's tech support, a helper's console). In a free workspace
   the companion takes half of that tile's own space (`Shell.splitFrames`,
   pure: right of a wide tile, below a tall one; the tile keeps the other
@@ -550,6 +550,7 @@ Registered in `TileKinds.registerBuiltIns()`. `*` marks a card-stack index
 | `luca-page` | `luca://<project>/page/<path>?<query>` or `…/page/https://…` (`Space g`, `:page`) | `Tiles/Web/PageContent.swift` |
 | `luca-tool`* | `luca://<project>/tool/<id>?<params>` (`Space w`) | `Tiles/Workbench/ToolContent.swift` |
 | `luca-canvas` | `luca://<project>/canvas/<id>` (`:canvas <name>`, or an assistant's `createCanvas`) | `Tiles/Web/CanvasContent.swift`, `CanvasLockdown.swift` |
+| (guide) | `luca://<project>/chat/new?assistant=guide:<id>` (`:guide [id]`): a scripted chat, see Guides | a `luca-chat` tile |
 | `app-projects` | `app://desktop/projects` (`Space P`, `:projects`) | `Tiles/App/ProjectsContent.swift` |
 | `app-file` | `app://desktop/file/<path>` (`:keymap edit`, `:layout edit`) | `Tiles/File/FileContent.swift` |
 
@@ -743,6 +744,33 @@ tests `test/workbench-assistant-editor.test.ts`; Swift
   `a` scaffolds a new one (`Shell.scaffold`, type `assistant`, which opens
   the command tile), `:edit-assistant [name]` and the palette's "edit an
   assistant…" too (Tab completes the name).
+
+## Guides
+
+A scripted chat with no model (`src/workbench/guide.ts`, tests in
+`workbench-guide.test.ts`). Authoring: `docs/writing-guides.md`.
+
+- A guide is a YAML graph of nodes (`say`, `card`, `ask` with choices,
+  `next`, `end`, `actions`, `canvas`). The host reads
+  `<project>/guides`, `~/.luca/guides`, `~/.luca/assistants/*/guides` and
+  `<project>/assistants/*/guides` (plus `LUCA_WORKBENCH_GUIDES`) on every
+  open and send, so an edit shows on the next message.
+- To the app it is the assistant `guide:<id>`: `GET /assistants` lists it
+  ("scripted · no model"), `POST /chat/open|send|stop|retry|clear|rename|delete`
+  and `GET /chat/export` work, the reply streams as the usual `chat-*`
+  frames. Settings, models and extensions answer `ok: false`. The chat tile
+  needs nothing new.
+- Each turn draws a card on the canvas `guide-<id>` (the renderer is
+  `guideCanvasSetup`, drawn with `keep: false`; the host redraws on the
+  page's hello). Buttons `emit('guide', {choice})` and the host turns that
+  into a turn with the label as the user text; action buttons post `open`
+  to the web bridge. The card never blocks the chat: a page that is not open
+  is skipped.
+- `:guide [id]` (`onboarding` by default) opens one beside the tile in
+  focus. lucaArchitect ships `assistants/lucaArchitect/guides/onboarding.yml`, the
+  welcome tour (a developer track and a new-to-code track, ending in a
+  handoff to lucaArchitect).
+- `LUCA_GUIDE_DELAY_MS` is the pause per streamed word (14; tests use 0).
 
 ## Canvases
 

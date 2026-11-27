@@ -329,6 +329,8 @@ export class ChatSessions {
 	agentMcpServers?: () => Record<string, any>
 	/** The URL of a session's own MCP route, `/mcp/chat/<token>` on the host. */
 	chatMcpUrl?: (token: string) => string
+	/** Entries added to the assistants view that are not the manager's (the guides). */
+	extraAssistants?: (firstSlot: number) => any[]
 	/** The assistant editor: a chat about an assistant gets its brief and tools. */
 	editor?: { brief(name: string, self: boolean): Promise<string>; tools(name: string): ToolBundle }
 	/** The inspector: a chat about a helper gets its brief (docs, source, how to work). */
@@ -450,6 +452,7 @@ export class ChatSessions {
 			})
 		}
 		recent.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+		try { assistants.push(...(this.extraAssistants?.(assistants.length) ?? [])) } catch (err: any) { console.error(`[workbench] could not list the guides: ${err?.message}`) }
 		return {
 			notice: assistants.length ? null : 'This project has no assistants. An assistant is a folder with a CORE.md under assistants/.',
 			historyDir: this.historyDir,

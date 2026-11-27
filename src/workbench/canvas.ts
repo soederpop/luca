@@ -376,6 +376,8 @@ export class Canvases {
 	private bundlePath: string | undefined | null = null
 	private loaded = false
 	private mcpHandle?: Promise<(req: any, res: any, body?: any) => Promise<void>>
+	private eventListeners: Array<(id: string, name: string, data: unknown) => void> = []
+	private readyListeners: Array<(id: string) => void> = []
 	/**
 	 * The bearer token of `/mcp/canvas`, the canvas tools for a coding agent
 	 * (Claude Code, Codex) an assistant runs on. It opens that route only.
@@ -426,6 +428,12 @@ export class Canvases {
 		})()
 		return this.mcpHandle
 	}
+
+	/** Hear every `emit(name, data)` a page sends. The guides answer their buttons this way. */
+	onPageEvent(fn: (id: string, name: string, data: unknown) => void) { this.eventListeners.push(fn) }
+
+	/** Hear a page that just linked and finished its replay: what draws with `keep: false` draws again here. */
+	onPageReady(fn: (id: string) => void) { this.readyListeners.push(fn) }
 
 	// --- Storage ---
 
@@ -682,6 +690,7 @@ export class Canvases {
 					const waiters = c.waiters
 					c.waiters = []
 					waiters.forEach((w) => w())
+					for (const fn of this.readyListeners) { try { fn(c.id) } catch {} }
 				})
 				return
 			}
@@ -705,6 +714,7 @@ export class Canvases {
 				c.events.push(ev)
 				if (c.events.length > MAX_EVENTS) c.events.splice(0, c.events.length - MAX_EVENTS)
 				this.broadcast({ type: 'canvas-event', id: c.id, name, text: JSON.stringify(ev.data ?? null).slice(0, 500), at: ev.at })
+				for (const fn of this.eventListeners) { try { fn(c.id, name, ev.data) } catch {} }
 				return
 			}
 		}

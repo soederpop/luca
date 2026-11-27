@@ -1,6 +1,6 @@
 ---
 name: building-assistants
-description: How to build, configure and test a Luca assistant: the `assistants/<name>/` folder, CORE.md frontmatter (provider, model, skills, config), tools.ts with `schemas`, functions and the `use` export, hooks.ts, `assistants/options.yml` overrides, and the assistantsManager tools that create, edit, roll back and test a definition. Use it whenever the request is to make an assistant, give one tools or skills, pick or change its provider or model, or fix one that does not behave. Start with the inventory recipe, which gathers providers, skills, existing assistants and tool-bearing features in one `evalCode` call.
+description: "How to build, configure and test a Luca assistant: the `assistants/<name>/` folder, CORE.md frontmatter (provider, model, skills, config), tools.ts with `schemas`, functions and the `use` export, hooks.ts, `assistants/options.yml` overrides, and the assistantsManager tools that create, edit, roll back and test a definition. Use it whenever the request is to make an assistant, give one tools or skills, pick or change its provider or model, or fix one that does not behave. Start with the inventory recipe, which gathers providers, skills, existing assistants and tool-bearing features in one `evalCode` call."
 ---
 
 # Building Assistants

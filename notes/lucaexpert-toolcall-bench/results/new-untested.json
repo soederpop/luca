@@ -1,0 +1,42 @@
+{
+  "prompt": "untested",
+  "promptText": "What features does this project have that no test covers?",
+  "assistantFolder": "/private/tmp/claude-501/-Users-jonathansoeder--soederpop-projects-luca/e4f63052-23b4-4681-9103-60a056c19a96/scratchpad/new-lucaExpert",
+  "cwd": "/private/tmp/claude-501/-Users-jonathansoeder--soederpop-projects-luca/e4f63052-23b4-4681-9103-60a056c19a96/scratchpad/runs/new-untested",
+  "routing": {
+    "provider": "deepseek-v4-local",
+    "model": "deepseek-v4-flash-vision-exp",
+    "apiMode": "chat",
+    "transport": "openai",
+    "reasoningEffort": null
+  },
+  "durationMs": 55360,
+  "totalToolCalls": 3,
+  "shellCalls": 0,
+  "evalCodeCalls": 3,
+  "byTool": {
+    "evalCode": 3
+  },
+  "calls": [
+    {
+      "t": 16183,
+      "name": "evalCode",
+      "args": "const featureFiles = await fs.glob('features/**/*.ts', { cwd: container.cwd }); const testFiles = await fs.glob('**/*.{test,spec}.ts', { cwd: container.cwd, exclude: ['node_modules'] }); const allTs = await fs.glob('**/*.{ts,tsx,js}', { cwd: container.cwd, exclude: ['node_modules', '.luca', 'dist'] }); const available = Object.keys(container.features.available || {}); const out = { cwd: container. {purpose,expectation}",
+      "resultChars": 640
+    },
+    {
+      "t": 31843,
+      "name": "evalCode",
+      "args": "const avail = Array.isArray(container.features.available) ? container.features.available : Object.keys(container.features.available || {}); const projFeatures = avail.filter(n => !/^\\d+$/.test(String(n))); const allFiles = await fs.glob('**/*', { cwd: container.cwd, exclude: ['node_modules/**', '.git/**', '.luca/**'] }); const pkg = await fs.exists('package.json') ? await fs.readJsonAsync?.(contai {purpose,expectation}",
+      "resultChars": 1386
+    },
+    {
+      "t": 40514,
+      "name": "evalCode",
+      "args": "const src = await fs.readFileAsync('features/example.ts'); const hasPkg = await fs.exists('package.json'); const out = { hasPkg, registered: typeof container.feature('example'), head: src.split('\\n').slice(0, 30).join('\\n') }; out; {purpose,expectation}",
+      "resultChars": 984
+    }
+  ],
+  "newFiles": [],
+  "answer": "I'll inventory the project's features and tests in one snippet.\n\n`available` came back as an array, so `Object.keys` gave me indices. Let me read the real names and confirm there are genuinely no tests.\n\nLet me confirm what that one feature is, since \"features this project has\" should mean project-authored ones, not framework built-ins.\n\n**Answer: one — `example` (`features/example.ts`), and no test covers it, because the project has no tests at all.**\n\nEvidence from the inventory:\n\n- Project-authored helpers: a single feature file, `features/example.ts` → registered as `example`. Everything else in `container.features.available` (fs, git, proc, sqlite, …) is framework built-in, not this project's.\n- Test files matching `*.test.ts` / `*.spec.ts`: **none**, anywhere. `tests/` does not exist either. `package.json` does not exist, so there is no `bun test` script wired up.\n\nSo the coverage gap is total: `example` is the only project feature and it is untested. Also worth noting the project's `endpoints/health.ts` and `commands/about.ts` are untested too, for the same reason.\n\nNot verified: I did not run a test suite (there is nothing to run). If you want `example` covered, I can scaffold a test with `luca scaffold`/a `features/example.test.ts` — say the word."
+}
