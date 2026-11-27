@@ -68,6 +68,18 @@ final class GroupTests: XCTestCase {
         XCTAssertEqual(Set(ws.visibleTiles()), [a, b, c])
     }
 
+    func testAddingATileWhileZoomedEndsTheZoom() {
+        var (ws, a, b, c) = organizedRow()
+        ws.toggleZoom(c, in: screen, gap: gap)
+        XCTAssertEqual(ws.zoomed, c)
+        let d = UUID()
+        ws.add(d, frame: CGRect(x: 40, y: 40, width: 300, height: 200))
+        XCTAssertNil(ws.zoomed, "a new tile zooms out, else it opens as a loose window over the zoomed one")
+        XCTAssertEqual(Set(ws.visibleTiles()), [a, b, c, d])
+        ws.applyTree(in: screen, gap: gap)
+        XCTAssertNotEqual(ws.frames[d], CGRect(x: 40, y: 40, width: 300, height: 200), "the tree sets its frame")
+    }
+
     func testGroupZoomInFreeModeRestoresEveryFrame() {
         var ws = Workspace()
         let a = UUID(), b = UUID()

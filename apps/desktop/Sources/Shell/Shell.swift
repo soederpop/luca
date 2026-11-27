@@ -88,6 +88,12 @@ final class Shell: ObservableObject {
         }
         if !focus, let near, nearWs != nil { workspaces[ws].focused = near }
         if ws == current {
+            // Solo hides other projects' tiles; a new one would open as a
+            // loose window over them, or not show at all. Solo ends instead.
+            if let solo, tile.owner != solo {
+                self.solo = nil
+                flash("Solo off: \(Self.ownerName(tile.owner)) opened")
+            }
             applyLayout(animated: true)
             if focus { focusTile(tile.id) }
         }
@@ -1016,6 +1022,12 @@ final class Shell: ObservableObject {
             withProject("a canvas of which project") { [weak self] project in
                 let id = CanvasContent.slug(rest)
                 self?.openOrFocus(CanvasContent.address(project: project, id: id.isEmpty ? "canvas" : id))
+            }
+        case "guide", "tour":
+            // A scripted chat the host runs with no model: the assistant is `guide:<id>`.
+            withProject("the guide in which project") { [weak self] project in
+                let id = rest.isEmpty ? "onboarding" : CanvasContent.slug(rest)
+                _ = self?.open(WorkbenchChat.newChat(project: project, assistant: "guide:" + id), near: self?.focusedId)
             }
         case "bootstrap", "new-project":
             bootstrapProject(path: rest)

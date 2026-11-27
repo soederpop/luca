@@ -90,7 +90,8 @@ struct Workspace: Codable, Equatable {
         }
     }
 
-    /// Add a tile. In organized mode it splits the focused tile's slot.
+    /// Add a tile. In organized mode it splits the focused tile's slot and
+    /// ends any zoom, so the new tile is on screen in the tree.
     mutating func add(_ id: UUID, frame: CGRect) {
         tiles.append(id)
         frames[id] = frame
@@ -104,6 +105,10 @@ struct Workspace: Codable, Equatable {
                 tree = .leaf(id)
             }
             nextSplit = nil
+            // A zoom shows one slot only; the new tile would open as a loose
+            // window over it. Zoom out so the split shows.
+            zoomed = nil
+            zoomRestore = [:]
         }
         focused = id
     }
