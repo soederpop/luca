@@ -151,6 +151,30 @@ disabled:
 
 The file is read when the manager discovers assistants, so a change needs a new process (or `container.feature('assistantsManager').discover()`).
 
+### Project docs and setup for a shared assistant
+
+Two options let each project give a shared assistant its own context:
+
+- **`preloadDocs`**: plaintext files appended to the system prompt, in order. Re-read on `reload()`.
+- **`setup`**: `.ts` files run once, on the assistant's first `start()`. Each exports a default function or one named `setup`. It may be async, and it gets the assistant as its argument. A missing file or a module with no function makes `start()` throw.
+
+Both take one path or a list. Paths in `options.yml` or `create()` resolve against the project root. Paths in CORE.md frontmatter resolve against the assistant folder and come first, so the assistant keeps its own docs and setup and the project adds to them.
+
+```yaml
+researcher:
+  preloadDocs:
+    - docs/house-style.md
+    - docs/glossary.txt
+  setup: assistants/researcher-setup.ts
+```
+
+```ts
+// assistants/researcher-setup.ts
+export default async function setup(assistant) {
+  assistant.addSystemPromptExtension('project', `Project root: ${container.cwd}`)
+}
+```
+
 ## Editing and Testing from Code
 
 The `assistantsManager` feature does the file work with guards, and exposes the same as tools to any assistant that `use`s it:

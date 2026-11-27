@@ -79,6 +79,23 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Text to append to the system prompt from CORE.md */
 	appendPrompt: z.string().optional().describe('Text to append to the system prompt'),
 
+	/**
+	 * Plaintext files appended to the system prompt, in order. Paths in options
+	 * (create() or assistants/options.yml) resolve against the project cwd, so a
+	 * shared assistant from ~/.luca/assistants can read each project's own docs.
+	 * Paths in CORE.md frontmatter resolve against the assistant folder, and load
+	 * before the option paths. Files are re-read on reload().
+	 */
+	preloadDocs: z.union([z.string(), z.array(z.string())]).optional().describe('Paths to plaintext files appended to the system prompt. Option paths resolve against the project cwd; CORE.md frontmatter paths resolve against the assistant folder'),
+
+	/**
+	 * TypeScript files run once, the first time the assistant starts. Each file
+	 * exports a default function or one named `setup`; it may be async and gets
+	 * the assistant as its argument. Path resolution follows preloadDocs:
+	 * frontmatter paths (assistant folder) run first, then option paths (cwd).
+	 */
+	setup: z.union([z.string(), z.array(z.string())]).optional().describe('Paths to .ts files that export a default or `setup` async function, run once on the first start(). Option paths resolve against the project cwd; CORE.md frontmatter paths resolve against the assistant folder'),
+
 	/** Human-readable description of the assistant. Falls back to about.md in folder mode. */
 	about: z.string().optional().describe('Human-readable description of the assistant. Falls back to about.md in the assistant folder.'),
 
@@ -1209,6 +1226,67 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Absolute paths for a path-list option, frontmatter entries first. The
+	 * frontmatter belongs to the assistant, so its paths resolve against the
+	 * assistant folder. Options belong to whoever creates it (usually a project's
+	 * assistants/options.yml), so their paths resolve against the container cwd.
+	 * A leading `~/` expands to the home directory. Duplicates are dropped.
+	 */
+	private resolvePathList(key: 'preloadDocs' | 'setup'): string[] {
+		const { paths, os } = this.container as any
+		const list = (value: unknown): string[] =>
+			value == null ? [] : (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string' && v.length > 0)
+		const expand = (p: string) => (p === '~' || p.startsWith('~/') ? os.homedir + p.slice(1) : p)
+
+		const fromMeta = list(this.meta[key]).map((p) => this.paths.resolve(expand(p)))
+		const fromOptions = list((this.options as any)[key]).map((p) => paths.resolve(expand(p)))
+		return [...new Set([...fromMeta, ...fromOptions])]
+	}
+
+	/** Absolute paths of the plaintext files appended to the system prompt. See the `preloadDocs` option. */
+	get preloadDocPaths(): string[] {
+		return this.resolvePathList('preloadDocs')
+	}
+
+	/** Absolute paths of the setup modules run on the first start(). See the `setup` option. */
+	get setupPaths(): string[] {
+		return this.resolvePathList('setup')
+	}
+
+	/** Set once the setup modules have run, so a stop()/start() cycle does not repeat them. */
+	private _setupDone = false
+
+	/**
+	 * Run every setup module once, in order, awaiting each. A module exports a
+	 * default function or one named `setup`, and is called with the assistant.
+	 * Forks skip this: they copy a parent that already ran its setup.
+	 * A missing file or a module without a function throws, so a bad path in
+	 * options.yml fails start() loudly instead of skipping silently.
+	 */
+	private async runSetup(): Promise<void> {
+		if (this._setupDone || this.isFork) return
+
+		const vm = this.container.feature('vm')
+		for (const setupPath of this.setupPaths) {
+			const mod = vm.loadModule(setupPath, {
+				container: this.container,
+				me: this,
+				my: this,
+				assistant: this,
+				console: console,
+			}) as Record<string, any>
+			const fn = typeof mod.default === 'function' ? mod.default : mod.setup
+			if (typeof fn !== 'function') {
+				throw new Error(`[assistant] setup module ${setupPath} must export a default function or a function named "setup"`)
+			}
+			await fn(this)
+		}
+		// Marked only after every module succeeds, so a start() retried after
+		// fixing a broken setup file runs setup again.
+		this._setupDone = true
+	}
+
+	/**
 	 * Load the system prompt from CORE.md, applying any prepend/append options.
 	 * YAML frontmatter (between --- fences) is stripped from the prompt and
 	 * stored in `_meta`.
@@ -1241,6 +1319,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		if (this.options.appendPrompt) {
 			prompt = prompt + '\n\n' + this.options.appendPrompt
+		}
+
+		for (const docPath of this.preloadDocPaths) {
+			if (!fs.exists(docPath)) {
+				console.warn(`[assistant] preloadDocs: ${docPath} does not exist, skipping`)
+				continue
+			}
+			const text = fs.readFile(docPath).toString().trim()
+			if (text) prompt = prompt + '\n\n' + text
 		}
 
 		if (this.options.injectTimestamps) {
@@ -1813,6 +1900,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await Promise.all(pending)
 			this.state.set('pendingPlugins', [])
 		}
+
+		// Setup modules from the `setup` option / frontmatter, first start only.
+		// They run after plugins are ready and before the prompt is formatted, so
+		// they can add tools and system prompt extensions.
+		await this.runSetup()
 
 		// Allow hooks.ts to export a formatSystemPrompt(assistant, prompt) => string
 		// that transforms the system prompt before the conversation is created.

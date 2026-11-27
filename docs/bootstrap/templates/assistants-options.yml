@@ -69,6 +69,11 @@
 #   # forbidTools:                # denylist, applied after allowTools
 #   #   - proc.execSync
 #   #
+#   # preloadDocs:               # plaintext files appended to the system prompt
+#   #   - docs/house-style.md     # paths resolve against the project root
+#   # setup: assistants/setup.ts  # one path or a list; each exports a default
+#   #                             # or `setup` async fn, run on first start()
+#   #
 #   # config: free-form settings the framework never interprets. Anything you
 #   # put here reaches the assistant's own code — tools.ts and hooks.ts read it
 #   # as `assistant.config.<key>` or `assistant.setting('a.b', fallback)`, and
