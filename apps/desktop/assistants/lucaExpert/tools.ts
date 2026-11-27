@@ -55,6 +55,8 @@ export const use = [
 		only: [
 			'luca-framework',
 			'extending-luca',
+			'container-first',
+			'building-assistants',
 			'contentbase-models',
 			'developing-with-contentbase',
 			'querying-contentbase',
@@ -64,6 +66,11 @@ export const use = [
 	// evalCode plus describe_container / describe_registry / describe_helper.
 	container.feature('vm'),
 	container.describer,
+	// listAssistants, createAssistant, readDefinitionFile, writeDefinitionFile,
+	// rollbackDefinitionFile, listDefinitionHistory, testAssistant,
+	// reloadAssistant: building an assistant is three tool calls, with the
+	// parse check and .history/ backup the manager does on every write.
+	container.feature('assistantsManager'),
 ]
 
 function isInside(root: string, target: string): boolean {
