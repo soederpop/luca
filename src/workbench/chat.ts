@@ -255,8 +255,27 @@ export function modelChoices(ai: { providers: any[]; servers: any[]; agents: any
 
 type Stored = { extensions: ChatExtension[]; target?: ChatTarget; about?: ChatAbout; settings?: ChatSettings }
 
-/** The assistant a chat is about: it gets the editor's brief and tools for that one. */
-export type ChatAbout = { assistant: string }
+/**
+ * What a chat is about. An assistant: it gets the editor's brief and tools
+ * for that one. A helper: it gets the inspector's brief (docs, source).
+ */
+export type ChatAbout = { assistant?: string; helper?: { registry: string; id: string } }
+
+/** `about` as sent or stored, or undefined when it names nothing. Pure. */
+export function parseAbout(raw: any): ChatAbout | undefined {
+	const assistant = typeof raw?.assistant === 'string' && raw.assistant ? raw.assistant : undefined
+	const h = raw?.helper
+	const helper = typeof h?.registry === 'string' && typeof h?.id === 'string' && h.registry && h.id ? { registry: h.registry, id: h.id } : undefined
+	if (!assistant && !helper) return undefined
+	return { ...(assistant ? { assistant } : {}), ...(helper ? { helper } : {}) }
+}
+
+/** Two `about`s name the same things. Pure. */
+export function sameAbout(a: ChatAbout | undefined, b: ChatAbout | undefined): boolean {
+	return (a?.assistant ?? null) === (b?.assistant ?? null)
+		&& (a?.helper?.registry ?? null) === (b?.helper?.registry ?? null)
+		&& (a?.helper?.id ?? null) === (b?.helper?.id ?? null)
+}
 
 type Turn = { turnId: string; text: string; reasoning: string; tools: ChatToolView[]; startedAt: number; user: string }
 
@@ -312,6 +331,8 @@ export class ChatSessions {
 	chatMcpUrl?: (token: string) => string
 	/** The assistant editor: a chat about an assistant gets its brief and tools. */
 	editor?: { brief(name: string, self: boolean): Promise<string>; tools(name: string): ToolBundle }
+	/** The inspector: a chat about a helper gets its brief (docs, source, how to work). */
+	helperBrief?: (registry: string, id: string) => Promise<string>
 	readonly extensionsIndex: ChatExtensions
 
 	constructor(private container: any, private broadcast: Broadcast) {
@@ -458,12 +479,14 @@ export class ChatSessions {
 				store = { ...store, target }
 				await this.store(thread, store)
 			}
-			if (about && about.assistant !== store.about?.assistant) {
+			if (about && !sameAbout(about, store.about)) {
 				store = { ...store, about }
 				await this.store(thread, store)
 			}
 			const linked = target ?? store.target ?? null
-			const building = this.editor ? (about ?? store.about ?? null) : null
+			const aboutNow = about ?? store.about ?? null
+			const building = this.editor && aboutNow?.assistant ? { assistant: aboutNow.assistant } : null
+			const inspecting = this.helperBrief && aboutNow?.helper ? aboutNow.helper : null
 			const settings = store.settings ?? {}
 			const instance = manager.create(name, {
 				cached: false,
@@ -487,17 +510,22 @@ export class ChatSessions {
 				try { instance.addSystemPromptExtension('workbenchAssistantEditor', await this.editor!.brief(building.assistant, building.assistant === name)) }
 				catch (err: any) { console.error(`[workbench] could not brief ${name} about ${building.assistant}: ${err?.message}`) }
 			}
+			if (inspecting) {
+				try { instance.addSystemPromptExtension('workbenchHelper', await this.helperBrief!(inspecting.registry, inspecting.id)) }
+				catch (err: any) { console.error(`[workbench] could not brief ${name} about ${inspecting.registry}.${inspecting.id}: ${err?.message}`) }
+			}
 			instance.resumeThread(thread)
 			const session: Session = {
 				assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve(),
-				target: linked, about: building, support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
+				target: linked, about: building || inspecting ? { ...(building ?? {}), ...(inspecting ? { helper: inspecting } : {}) } : null,
+				support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
 				settings, title: null,
 			}
 			session.starting = instance.start().then(async () => {
 				this.applyEffort(session)
 				session.title = await this.savedTitle(thread)
 				await this.mount(session)
-				if (building) await this.ensureSkill(session, 'luca-framework')
+				if (building || inspecting) await this.ensureSkill(session, 'luca-framework')
 			})
 			this.wire(session)
 			this.sessions.set(key, session)
@@ -570,7 +598,7 @@ export class ChatSessions {
 			let extensions: ChatExtension[] = []
 			try { extensions = parseExtensions(value?.extensions) } catch {}
 			const target = value?.target?.assistant && value?.target?.conversationId ? { assistant: String(value.target.assistant), conversationId: String(value.target.conversationId) } : undefined
-			const about = typeof value?.about?.assistant === 'string' && value.about.assistant ? { assistant: String(value.about.assistant) } : undefined
+			const about = parseAbout(value?.about)
 			const settings = parseSettings(value?.settings)
 			return { extensions, ...(target ? { target } : {}), ...(about ? { about } : {}), ...(Object.keys(settings).length ? { settings } : {}) }
 		} catch {
@@ -751,7 +779,8 @@ export class ChatSessions {
 	async open(name: string, conversationId?: string, target?: ChatTarget | null, about?: ChatAbout | null): Promise<{ status: number; body: any }> {
 		const manager = await this.manager()
 		if (!manager.list().some((e: any) => e.name === name)) return { status: 404, body: { error: `no assistant ${name}` } }
-		if (about && !manager.list().some((e: any) => e.name === about.assistant)) return { status: 404, body: { error: `no assistant ${about.assistant} to talk about` } }
+		if (about?.assistant && !manager.list().some((e: any) => e.name === about.assistant)) return { status: 404, body: { error: `no assistant ${about.assistant} to talk about` } }
+		if (about?.helper && !this.hasHelper(about.helper.registry, about.helper.id)) return { status: 404, body: { error: `no helper ${about.helper.registry}.${about.helper.id} to talk about` } }
 		const id = conversationId && conversationId !== 'new' ? conversationId : this.freshId()
 		if (!/^[\w.-]+$/.test(id)) return { status: 400, body: { error: 'a conversation id is letters, digits, dot, dash and underscore' } }
 		let s: Session
@@ -759,6 +788,11 @@ export class ChatSessions {
 			return { status: 200, body: { ok: false, error: `could not start ${name}: ${err?.message ?? err}` } }
 		}
 		return { status: 200, body: this.view(s) }
+	}
+
+	/** The registry knows the id. */
+	private hasHelper(registry: string, id: string): boolean {
+		try { return !!this.container[registry]?.has?.(id) } catch { return false }
 	}
 
 	private freshId(): string {

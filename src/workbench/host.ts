@@ -21,11 +21,13 @@ import type { Plan } from './changes.js'
 import { EndpointIndex, ServeControl, endpointsView } from './endpoints.js'
 import { DocsIndex, docsView, modelsView, docView, saveDoc, createDoc } from './docs.js'
 import { ModelsEditor, runQuery } from './models.js'
-import { ChatSessions } from './chat.js'
+import { ChatSessions, parseAbout } from './chat.js'
 import { fileView, saveFile, listFiles } from './files.js'
 import { ToolIndex, plainParams } from './tools.js'
 import { Canvases } from './canvas.js'
 import { AssistantEditor } from './assistant-editor.js'
+import { helperSourceView, saveHelperSource } from './helper-source.js'
+import { helperBrief } from './helper-brief.js'
 
 export type WorkbenchHostOptions = {
 	lucaVersion?: string
@@ -187,6 +189,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		providers: () => chats.extensionsIndex.available().map(({ name, description, tools }) => ({ name, description, tools: tools.map(({ name, description }) => ({ name, description })) })),
 	}, (frame) => broadcast(frame))
 	chats.editor = editor
+	// The inspector: a chat about a helper gets its docs and source as a brief.
+	chats.helperBrief = (registry, id) => helperBrief(container, origins(), registry, id, toJsonSafe)
 
 	/** Refuses Host headers that are not loopback (DNS rebinding). */
 	const loopbackHost = (req: IncomingMessage): boolean => /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(String(req.headers.host || ''))
@@ -338,6 +342,24 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		if (method === 'GET' && seg[0] === 'helper' && seg.length === 3) {
 			const view = await helperView(container, seg[1]!, seg[2]!, toJsonSafe, origins())
 			return view ? sendJson(res, 200, view) : sendJson(res, 404, { error: `unknown helper: ${seg[1]}.${seg[2]}` })
+		}
+
+		// The helper's source file: read for the inspector's source view, saved with the file tile's digest rule.
+		if (seg[0] === 'helper' && seg[3] === 'source' && (seg.length === 4 || (seg.length === 5 && seg[4] === 'save'))) {
+			const reg: any = (container as any)[seg[1]!]
+			if (!reg?.has?.(seg[2]!)) return sendJson(res, 404, { error: `unknown helper: ${seg[1]}.${seg[2]}` })
+			const origin = origins().of(seg[1]!, seg[2]!)
+			const home = String(container.feature('os').homedir)
+			if (method === 'GET' && seg.length === 4) {
+				const answer = helperSourceView(origin, home)
+				return sendJson(res, answer.status, answer.body)
+			}
+			if (method === 'POST' && seg.length === 5) {
+				let body: any
+				try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+				const answer = saveHelperSource(origin, home, body)
+				return sendJson(res, answer.status, answer.body)
+			}
 		}
 
 		if (method === 'POST' && seg[0] === 'helper' && seg.length === 4 && seg[3] === 'call') {
@@ -637,8 +659,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			if (seg[1] === 'open') {
 				const t = body?.target
 				const target = t && typeof t.assistant === 'string' && typeof t.conversationId === 'string' && t.assistant && t.conversationId ? { assistant: t.assistant, conversationId: t.conversationId } : null
-				const about = typeof body?.about?.assistant === 'string' && body.about.assistant ? { assistant: body.about.assistant } : null
-				const answer = await chats.open(assistant, conversationId, target, about)
+				const answer = await chats.open(assistant, conversationId, target, parseAbout(body?.about) ?? null)
 				return sendJson(res, answer.status, answer.body)
 			}
 			if (!conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'conversationId is required (from POST /chat/open)' })

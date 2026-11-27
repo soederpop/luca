@@ -2,16 +2,35 @@ import SwiftUI
 import Combine
 import MarkdownUI
 
-/// `luca://<project>/helper/<registry>/<id>`: the inspector for one helper.
-/// It draws what the host's `GET /helper/<registry>/<id>` sends (docs,
-/// schemas, methods), the live state and events from the host socket, and
-/// the last method call. `m` calls a method: the palette picks it and asks
-/// for its arguments, the host runs it and shapes the result.
+/// `luca://<project>/helper/<registry>/<id>?view=docs|source`: the inspector
+/// for one helper. The docs view draws what the host's
+/// `GET /helper/<registry>/<id>` sends (docs, schemas, methods), the live
+/// state and events from the host socket, and the last method call. The
+/// source view is the helper's file (`GET …/source`) in the shared source
+/// editor, saved with the doc tile's digest rule (`Cmd-s`, `:w`; a 409 is a
+/// conflict bar, `d p` / `d o`); a plugin's or built-in helper is read only.
+///
+/// `m` calls a method: the palette picks it and asks for its arguments, the
+/// host runs it and shapes the result. `e` picks one of the helper's
+/// `@example` blocks and runs it in a console beside the tile, one console
+/// scope per helper, so the next example sees the names the last one set.
+/// `c` opens lucaExpert beside the tile, briefed on this helper (one chat
+/// per helper; a second `c` focuses it). `P` docs, `E` source, `i` edit.
 @MainActor
 final class HelperContent: WorkbenchContent {
     static let kind = TileKind(id: "luca-helper", label: "Helper", glyph: "cube") { uri, _ in
         HelperContent(uri: uri)
     }
+
+    /// The two views of the tile.
+    enum HelperTileView: String { case docs, source }
+
+    nonisolated static func address(project: String, registry: String, id: String) -> TileURI {
+        TileURI.luca(project: project, tool: "helper", id: "\(registry)/\(id)")
+    }
+
+    /// Who `c` talks to about a helper.
+    static let expertAssistant = WorkbenchChatContent.supportAssistant
 
     /// The last method call, as the host answered it.
     struct CallShown: Equatable {
@@ -29,18 +48,34 @@ final class HelperContent: WorkbenchContent {
     @Published private(set) var events = HelperEventLog()
     @Published private(set) var lastCall: CallShown?
     @Published private(set) var calling: String?
+    @Published private(set) var view: HelperTileView
+    /// The source file as the host last sent it; nil until the source view is first shown.
+    @Published private(set) var source: WorkbenchHelperSource?
+    /// Why there is no source to show (built in, a folder, a read error).
+    @Published private(set) var sourceError: String?
+    @Published private(set) var saving = false
+    let buffer = WorkbenchDocBuffer()
     private var loadTask: Task<Void, Never>?
+    private var sourceTask: Task<Void, Never>?
     private var frameWatch: AnyCancellable?
+    private var bufferWatch: AnyCancellable?
+    private var sourceEditor: SourceEditorController?
+    private var sourceLanguage = ""
 
     init(uri: TileURI) {
         address = HelperAddress(uri.id ?? "")
+        view = HelperTileView(rawValue: uri.option("view") ?? "") ?? .docs
         super.init(kindId: Self.kind.id, uri: uri, title: address?.title ?? "helper")
+        bufferWatch = buffer.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.refreshLabel() }
     }
 
-    override func makeBody() -> AnyView { AnyView(HelperView(model: self)) }
+    override func makeBody() -> AnyView { AnyView(HelperView(model: self, buffer: buffer)) }
 
     override func hostChanged(_ client: WorkbenchClient?) {
         loadTask?.cancel()
+        sourceTask?.cancel()
         frameWatch = nil
         guard let client, let address else {
             if address == nil { error = "Not a helper address: \(uri)" }
@@ -51,22 +86,221 @@ final class HelperContent: WorkbenchContent {
             .sink { [weak self] frame in self?.take(frame) }
         client.subscribe(registry: address.registry, id: address.id)
         load(client)
+        if view == .source { loadSource() }
     }
 
     override func perform(_ action: String) -> Bool {
         switch action {
         case "lucaHelper.call": pickMethod()
         case "lucaHelper.reload":
-            if let host { load(host) } else { restartHost() }
+            if let host {
+                load(host)
+                if view == .source || source != nil { reloadSource() }
+            } else { restartHost() }
         case "lucaHelper.restart": restartHost()
         case "lucaHelper.clearEvents": events.clear()
         case "lucaHelper.take": Shell.shared.takeInto(takeSource ?? TakeSource(project: projectId, registry: address?.registry ?? "", id: address?.id ?? "", origin: nil))
         case "lucaHelper.registry":
             Shell.shared.openOrFocus(TileURI.luca(project: projectId, tool: "registry",
                                                   options: address.map { [.init(name: "stack", value: $0.registry)] } ?? []))
+        case "lucaHelper.docs": show(.docs)
+        case "lucaHelper.source": show(.source)
+        case "lucaHelper.edit": edit()
+        case "lucaHelper.example": pickExample()
+        case "lucaHelper.chat": chatAbout()
+        case "doc.save", "lucaHelper.save": save()
+        case "lucaHelper.keepMine":
+            guard buffer.conflict != nil else { Shell.shared.flash("No conflict"); return true }
+            buffer.keepMine()
+        case "lucaHelper.takeTheirs":
+            guard buffer.conflict != nil else { Shell.shared.flash("No conflict"); return true }
+            buffer.takeTheirs()
         default: return false
         }
+        refreshLabel()
         return true
+    }
+
+    // MARK: Docs and source views
+
+    func show(_ next: HelperTileView) {
+        view = next
+        uri = uri.with(option: "view", next == .docs ? nil : next.rawValue)
+        if next == .source, source == nil, sourceError == nil { loadSource() }
+        refreshLabel()
+    }
+
+    /// `i`: the source view with the editor's keyboard. A read-only file still scrolls and selects.
+    private func edit() {
+        if view != .source { show(.source) }
+        guard source != nil else { return Shell.shared.flash(sourceError ?? "Still loading the source") }
+        sourceController.focus()
+        Shell.shared.syncTextMode()
+    }
+
+    /// The source file, read on the first switch to the source view.
+    private func loadSource() {
+        guard let host, let address else { return }
+        sourceTask?.cancel()
+        sourceError = nil
+        if source == nil { stateLabel = "loading" }
+        sourceTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let next = try await host.helperSource(registry: address.registry, id: address.id)
+                guard !Task.isCancelled else { return }
+                self.source = next
+                self.buffer.take(next.doc)
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.sourceError = ErrorText.message(error)
+            }
+            self.refreshLabel()
+        }
+    }
+
+    private func reloadSource() {
+        if buffer.dirty {
+            PaletteController.shared.confirm("Drop your unsaved edits to \(source?.doc.title ?? "the source")?", yes: "Drop them and reload") { [weak self] in
+                self?.buffer.takeTheirs()
+                self?.loadSource()
+            }
+            return
+        }
+        loadSource()
+    }
+
+    func save(then done: (() -> Void)? = nil) {
+        guard let host, let address, let source, let digest = buffer.digest else { return Shell.shared.flash("No source loaded: E shows it") }
+        guard source.editable else { return Shell.shared.flash(source.readOnly ?? "This file is read only") }
+        guard buffer.conflict == nil else { return Shell.shared.flash("The file changed on disk. d p keeps yours, d o takes the file") }
+        guard buffer.dirty else { Shell.shared.flash("No changes"); done?(); return }
+        guard !saving else { return Shell.shared.flash("Still saving") }
+        let sent = buffer.raw
+        saving = true
+        refreshLabel()
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let answer = try await host.saveHelperSource(registry: address.registry, id: address.id, text: sent, digest: digest)
+                self.saving = false
+                if let view = answer.view {
+                    self.source = WorkbenchHelperSource(doc: view, editable: source.editable, readOnly: source.readOnly, origin: source.origin)
+                    self.buffer.saved(sent, digest: view.digest)
+                }
+                Shell.shared.flash(answer.unchanged == true ? "No changes" : (answer.text ?? "Saved") + " · R restarts the host to load it")
+                done?()
+            } catch let conflict as WorkbenchDocConflict {
+                self.saving = false
+                if let current = conflict.current { self.buffer.take(current) }
+                Shell.shared.flash("The file changed on disk since you opened it. d p keeps yours, d o takes the file")
+            } catch {
+                self.saving = false
+                Shell.shared.flash("Save failed: \(ErrorText.message(error))")
+            }
+            self.refreshLabel()
+        }
+    }
+
+    private func refreshLabel() {
+        if buffer.conflict != nil { stateLabel = "conflict" }
+        else if saving { stateLabel = "saving" }
+        else if buffer.dirty { stateLabel = "modified" }
+        else if view == .source { stateLabel = source == nil ? (sourceError == nil ? "loading" : "no source") : (source!.editable ? "source" : "read only") }
+        else if let info { stateLabel = info.live ? "live" : "no instance" }
+    }
+
+    /// The source editor, made for the file's language on first use.
+    var sourceController: SourceEditorController {
+        let language = SourceEditorController.language(for: source?.doc.path ?? "x.ts")
+        if let sourceEditor, sourceLanguage == language { return sourceEditor }
+        let editor = SourceEditorController(buffer: buffer, language: language)
+        editor.onSave = { [weak self] in self?.save() }
+        editor.onClose = { [weak self] in
+            guard let self else { return }
+            Shell.shared.close(self.tileId)
+        }
+        editor.onEscape = { Shell.shared.leaveEditor() }
+        editor.onVimChanged = { on in Shell.shared.flash(on ? "vim on" : "vim off") }
+        sourceEditor = editor
+        sourceLanguage = language
+        return editor
+    }
+
+    override var editorHasKeyboard: Bool { view == .source && (sourceEditor?.hasFocus ?? false) }
+    override func passesEscape() -> Bool { editorHasKeyboard }
+
+    // MARK: Examples and chat
+
+    /// `e`: the palette lists the helper's examples; the pick runs in a console beside this tile.
+    func pickExample() {
+        guard let info else { return Shell.shared.flash("Still loading") }
+        let examples = info.examples ?? []
+        guard !examples.isEmpty else { return Shell.shared.flash("\(info.title) has no @example blocks") }
+        if examples.count == 1 { return runExample(examples[0]) }
+        PaletteController.shared.choose("run an example of \(info.title) in a console", examples.map { ex in
+            PaletteChoice(title: ex.title, detail: Self.firstLine(ex.code)) { [weak self] in self?.runExample(ex) }
+        })
+    }
+
+    /// The console scope the helper's examples run in: one per helper, so names carry over.
+    var consoleSession: String { address.map { "\($0.registry)-\($0.id)" } ?? "default" }
+
+    func runExample(_ example: WorkbenchHelper.Example) {
+        runInConsole(example.code)
+    }
+
+    /// Run `code` in this helper's console beside the tile: the open one takes it, else one opens with it.
+    func runInConsole(_ code: String) {
+        let session = consoleSession
+        if let tile = Shell.shared.tiles.values.first(where: {
+            $0.content.kindId == ConsoleContent.kind.id && $0.uri.authority == projectId && ($0.uri.id ?? "default") == session
+        }) {
+            Shell.shared.focusTile(tile.id)
+            (tile.content as? ConsoleContent)?.run(code)
+            return
+        }
+        _ = Shell.shared.open(ConsoleContent.address(project: projectId, session: session, run: code), focus: true, near: tileId, group: true)
+    }
+
+    nonisolated static func firstLine(_ code: String) -> String {
+        let lines = code.split(separator: "\n", omittingEmptySubsequences: true)
+        guard let first = lines.first else { return "" }
+        return lines.count > 1 ? "\(first) … (\(lines.count) lines)" : String(first)
+    }
+
+    /// `c`: lucaExpert beside this tile, briefed on this helper (`?aboutHelper=`).
+    /// One per helper: a second `c` focuses it. Without lucaExpert in the
+    /// project, the palette asks who.
+    func chatAbout() {
+        guard let host, let address else { return Shell.shared.flash("The workbench host is not running") }
+        let key = "\(address.registry)/\(address.id)"
+        if let tile = Shell.shared.tiles.values.first(where: {
+            $0.content.kindId == WorkbenchChatContent.kind.id && $0.uri.authority == projectId && $0.uri.option("aboutHelper") == key
+        }) {
+            return Shell.shared.focusTile(tile.id)
+        }
+        let open: (String) -> Void = { [weak self] who in
+            guard let self else { return }
+            _ = Shell.shared.open(TileURI.luca(project: self.projectId, tool: "chat", id: "new", options: [
+                .init(name: "assistant", value: who),
+                .init(name: "aboutHelper", value: key),
+            ]), focus: true, near: self.tileId, group: true)
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let reply = try await host.assistants()
+                let names = reply.assistants.map(\.name).filter { !$0.hasPrefix("guide:") }
+                if names.contains(Self.expertAssistant) { return open(Self.expertAssistant) }
+                guard !names.isEmpty else { return Shell.shared.flash(reply.notice ?? "This project has no assistants") }
+                PaletteController.shared.choose("\(Self.expertAssistant) is not in this project. Talk about \(address.title) with", names.map { name in
+                    PaletteChoice(title: name, detail: "") { open(name) }
+                })
+            } catch {
+                Shell.shared.flash(ErrorText.message(error))
+            }
+        }
     }
 
     /// This helper and where it comes from, once loaded.
@@ -76,8 +310,33 @@ final class HelperContent: WorkbenchContent {
     }
 
     override func runCommand(_ verb: String, _ rest: String) -> Bool {
-        guard verb == "take" else { return false }
-        Shell.shared.takeCommand(takeSource, rest)
+        switch verb {
+        case "take": Shell.shared.takeCommand(takeSource, rest)
+        case "w", "write": save()
+        case "wq", "x":
+            save { [weak self] in
+                guard let self else { return }
+                Shell.shared.close(self.tileId)
+            }
+        case "e!":
+            buffer.takeTheirs()
+            loadSource()
+        case "replace":
+            let parts = rest.components(separatedBy: " => ")
+            guard parts.count == 2 else { Shell.shared.flash("Usage: replace <old> => <new>"); return true }
+            if buffer.replaceFirst(parts[0], with: parts[1]) { Shell.shared.flash("Replaced. :w saves") }
+            else { Shell.shared.flash("Not in the file: \(parts[0])") }
+        case "eval":
+            guard !rest.isEmpty else { Shell.shared.flash("Usage: eval <code>"); return true }
+            runInConsole(rest)
+        case "example":
+            guard let info else { Shell.shared.flash("Still loading"); return true }
+            guard let ex = (info.examples ?? []).first(where: { $0.id == rest || $0.title == rest || $0.member == rest }) else {
+                Shell.shared.flash(rest.isEmpty ? "Usage: example <id>" : "No example \(rest)"); return true
+            }
+            runExample(ex)
+        default: return false
+        }
         return true
     }
 
@@ -105,7 +364,7 @@ final class HelperContent: WorkbenchContent {
                 self.stateText = info.stateText
                 self.error = nil
                 self.title = info.title
-                self.stateLabel = info.live ? "live" : "no instance"
+                self.refreshLabel()
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.error = ErrorText.message(error)
@@ -162,7 +421,9 @@ final class HelperContent: WorkbenchContent {
     }
 
     override func stop() {
+        if buffer.dirty { Shell.shared.flash("Unsaved edits to \(title) are dropped") }
         loadTask?.cancel()
+        sourceTask?.cancel()
         frameWatch = nil
         super.stop()
     }
@@ -207,6 +468,7 @@ struct HelperEventLog: Equatable {
 
 struct HelperView: View {
     @ObservedObject var model: HelperContent
+    @ObservedObject var buffer: WorkbenchDocBuffer
 
     private var p: KitPalette { Theme.palette }
     private var registry: String { model.address?.registry ?? "" }
@@ -220,6 +482,123 @@ struct HelperView: View {
     }()
 
     var body: some View {
+        VStack(spacing: 0) {
+            switch model.view {
+            case .docs: docs
+            case .source: sourcePane
+            }
+        }
+        .background(p.surface.color)
+    }
+
+    /// The source view: the file in the editor, under a slim header with the toggle.
+    @ViewBuilder private var sourcePane: some View {
+        if model.hostStatus != .running {
+            WorkbenchHostLine(status: model.hostStatus).padding(KitTokens.Space.s5)
+        }
+        sourceHeader
+        if buffer.conflict != nil { conflictBar }
+        if let source = model.source, !source.editable, let why = source.readOnly { noteBar(why) }
+        if let error = model.sourceError {
+            VStack(alignment: .leading, spacing: KitTokens.Space.s4) {
+                Text(error).font(WorkbenchStyle.body).foregroundStyle(p.textMuted.color)
+                Button { model.show(.docs) } label: { Text("Back to the docs").underline() }
+                    .buttonStyle(.plain).foregroundStyle(p.accent.color).keyBadge("lucaHelper.docs")
+            }
+            .padding(KitTokens.Space.s7)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if !buffer.isLoaded {
+            ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            SourceEditorView(controller: model.sourceController)
+        }
+    }
+
+    private var sourceHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s4) {
+            ThingGlyph(symbol: WorkbenchStyle.thingGlyph(registry), color: tint, size: 20)
+            Text(model.address?.id ?? "helper")
+                .font(WorkbenchStyle.ui(KitTokens.TypeScale.md, weight: .semibold))
+                .foregroundStyle(p.text.color)
+            Text(registry).font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .medium)).foregroundStyle(tint)
+            if let path = model.source?.doc.pathDisplay {
+                Text(path)
+                    .font(WorkbenchStyle.code(KitTokens.TypeScale.xs))
+                    .foregroundStyle(p.textFaint.color)
+                    .lineLimit(1).truncationMode(.head)
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: KitTokens.Space.s4)
+            if buffer.dirty {
+                WorkbenchTag(text: model.saving ? "saving" : "modified", color: p.warn.color)
+            }
+            if let size = model.source?.doc.sizeText {
+                Text(size).font(WorkbenchStyle.ui(KitTokens.TypeScale.xs)).foregroundStyle(p.textFaint.color)
+            }
+            viewToggle
+        }
+        .padding(.horizontal, KitTokens.Space.s7)
+        .padding(.vertical, KitTokens.Space.s4)
+        .background(p.surface.color)
+        .overlay(alignment: .bottom) { Rectangle().fill(p.border.color).frame(height: 1) }
+    }
+
+    /// docs | source, as the doc tile draws its views.
+    private var viewToggle: some View {
+        HStack(spacing: 2) {
+            viewButton("docs", .docs, "lucaHelper.docs")
+            viewButton("source", .source, "lucaHelper.source")
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: KitTokens.Radius.md).fill(p.inset.color))
+    }
+
+    private func viewButton(_ label: String, _ view: HelperContent.HelperTileView, _ action: String) -> some View {
+        let on = model.view == view
+        return Button { model.show(view) } label: {
+            Text(label)
+                .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: on ? .semibold : .regular))
+                .foregroundStyle(on ? p.text.color : p.textMuted.color)
+                .padding(.horizontal, KitTokens.Space.s4)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: KitTokens.Radius.sm).fill(on ? p.raised.color : Color.clear))
+        }
+        .buttonStyle(.plain)
+        .keyBadge(action)
+    }
+
+    private func noteBar(_ text: String) -> some View {
+        HStack(spacing: KitTokens.Space.s4) {
+            Image(systemName: "lock")
+            Text(text).font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(p.textMuted.color)
+        .padding(.horizontal, KitTokens.Space.s7)
+        .padding(.vertical, KitTokens.Space.s3)
+        .background(p.inset.color)
+        .overlay(alignment: .bottom) { Rectangle().fill(p.border.color).frame(height: 1) }
+    }
+
+    private var conflictBar: some View {
+        HStack(spacing: KitTokens.Space.s4) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text("The file changed on disk while you were editing")
+                .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .semibold))
+            Spacer(minLength: KitTokens.Space.s4)
+            Button { _ = model.perform("lucaHelper.keepMine") } label: { Text("keep mine").underline() }
+                .buttonStyle(.plain).keyBadge("lucaHelper.keepMine")
+            Button { _ = model.perform("lucaHelper.takeTheirs") } label: { Text("take the file").underline() }
+                .buttonStyle(.plain).keyBadge("lucaHelper.takeTheirs")
+        }
+        .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
+        .foregroundStyle(p.accentOn.color)
+        .padding(.horizontal, KitTokens.Space.s7)
+        .padding(.vertical, KitTokens.Space.s4)
+        .background(p.warn.color)
+    }
+
+    private var docs: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: WorkbenchStyle.Gap.section) {
                 WorkbenchHostLine(status: model.hostStatus)
@@ -230,6 +609,7 @@ struct HelperView: View {
                 }
                 header
                 if let info = model.info {
+                    actionsRow(info)
                     callSection
                     stateSection(info)
                     eventsSection
@@ -249,7 +629,31 @@ struct HelperView: View {
             .frame(maxWidth: WorkbenchStyle.Size.readable, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(p.surface.color)
+    }
+
+    /// What the tile can do from here: examples into a console, a chat about it, the source.
+    private func actionsRow(_ info: WorkbenchHelper) -> some View {
+        HStack(spacing: KitTokens.Space.s4) {
+            let examples = info.examples ?? []
+            Button { model.pickExample() } label: {
+                Label(examples.isEmpty ? "no examples" : "run an example", systemImage: "play.circle")
+            }
+            .disabled(examples.isEmpty)
+            .keyBadge("lucaHelper.example")
+            .help(examples.isEmpty ? "This helper has no @example blocks" : "Pick an @example block; it runs in a console beside this tile")
+            Button { model.chatAbout() } label: { Label("ask \(HelperContent.expertAssistant)", systemImage: "bubble.left.and.text.bubble.right") }
+                .keyBadge("lucaHelper.chat")
+                .help("A chat briefed on this helper, kept beside this tile")
+            Button { model.show(.source) } label: { Label("source", systemImage: "chevron.left.forwardslash.chevron.right") }
+                .keyBadge("lucaHelper.source")
+            if !examples.isEmpty {
+                CountPill(count: examples.count, color: tint)
+            }
+            Spacer(minLength: 0)
+        }
+        .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 
     private var header: some View {
@@ -268,6 +672,7 @@ struct HelperView: View {
                     if let info = model.info {
                         WorkbenchTag(text: info.live ? "● live" : "no instance", color: info.live ? p.good.color : p.textMuted.color)
                     }
+                    viewToggle
                 }
                 if let summary = model.info?.summary, !summary.isEmpty {
                     Text(summary).font(WorkbenchStyle.body).foregroundStyle(p.textBody.color)

@@ -165,6 +165,13 @@ bindings:
   lucaHelper.clearEvents: { key: "x", label: "clear the events", scope: kind.luca-helper }
   lucaHelper.registry:  { key: "u", label: "up to the registry", scope: kind.luca-helper }
   lucaHelper.take:      { key: "t", label: "take into… another project", scope: kind.luca-helper }
+  lucaHelper.docs:      { key: "P", label: "docs view: methods, state, events, describe docs", scope: kind.luca-helper }
+  lucaHelper.source:    { key: "E", label: "source view: the helper's file", scope: kind.luca-helper }
+  lucaHelper.edit:      { key: "i", label: "edit the source", scope: kind.luca-helper }
+  lucaHelper.example:   { key: "e", label: "run an example in a console beside this tile", scope: kind.luca-helper }
+  lucaHelper.chat:      { key: "c", label: "chat with lucaExpert about this helper (one chat per helper)", scope: kind.luca-helper }
+  lucaHelper.keepMine:  { key: "d p", label: "conflict: keep mine", scope: kind.luca-helper }
+  lucaHelper.takeTheirs: { key: "d o", label: "conflict: take the file on disk", scope: kind.luca-helper }
   lucaChange.apply:     { key: "a", label: "write the change (asks first)", scope: kind.luca-change }
   lucaChange.imports:   { key: "i", label: "copy the relative imports too, or not", scope: kind.luca-change }
   lucaChange.overwrite: { key: "o", label: "write over clashes, or not (asks first)", scope: kind.luca-change }

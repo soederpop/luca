@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseArgs, displayText } from '../src/workbench/views'
+import { parseArgs, displayText, examplesOf } from '../src/workbench/views'
+import { sourceAccess, helperSourceView, saveHelperSource } from '../src/workbench/helper-source'
+import { helperBriefText } from '../src/workbench/helper-brief'
+import { parseAbout, sameAbout } from '../src/workbench/chat'
+import { readFileSync } from 'node:fs'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
@@ -393,6 +397,104 @@ describe('GET /registries', () => {
   })
 })
 
+describe('GET /helper/:registry/:id/source', () => {
+  it("a project helper's file reads, saves with the digest rule, and is editable", async () => {
+    const j: any = await (await fetch(`${wb.base}/helper/features/counter/source`, { headers: authed() })).json()
+    expect(j.editable).toBe(true)
+    expect(j.readOnly).toBeNull()
+    expect(j.pathDisplay.endsWith('features/counter.ts')).toBe(true)
+    expect(j.file).toContain('class Counter')
+    expect(j.origin.kind).toBe('own')
+    const stale = await post('/helper/features/counter/source/save', { text: j.file + '\n', digest: 'nope' })
+    expect(stale.status).toBe(409)
+    const saved = await post('/helper/features/counter/source/save', { text: j.file + '// touched\n', digest: j.digest })
+    expect(saved.status).toBe(200)
+    const again: any = await saved.json()
+    expect(again.ok).toBe(true)
+    expect(again.view.file.endsWith('// touched\n')).toBe(true)
+    expect(readFileSync(join(proj, 'features', 'counter.ts'), 'utf8').endsWith('// touched\n')).toBe(true)
+    // Back as it was, for the other tests.
+    const back = await post('/helper/features/counter/source/save', { text: j.file, digest: again.view.digest })
+    expect(back.status).toBe(200)
+  })
+
+  it('a built-in helper has no file: 404 with the origin', async () => {
+    const res = await fetch(`${wb.base}/helper/features/fs/source`, { headers: authed() })
+    expect(res.status).toBe(404)
+    const j: any = await res.json()
+    expect(j.origin.kind).toBe('builtin')
+    expect((await post('/helper/features/fs/source/save', { text: '', digest: 'x' })).status).toBe(404)
+  })
+
+  it('an unknown helper is 404', async () => {
+    expect((await fetch(`${wb.base}/helper/features/nope-xyz/source`, { headers: authed() })).status).toBe(404)
+  })
+})
+
+describe('helper source and brief (pure)', () => {
+  it('sourceAccess: own, borrowed and home are editable; plugin and built in are not', () => {
+    expect(sourceAccess({ kind: 'own', tag: '', label: '' }).editable).toBe(true)
+    expect(sourceAccess({ kind: 'home', tag: '', label: '' }).editable).toBe(true)
+    expect(sourceAccess({ kind: 'borrowed', tag: '', label: '' }).editable).toBe(true)
+    const plugin = sourceAccess({ kind: 'plugin', tag: '', label: '', plugin: 'ex' })
+    expect(plugin.editable).toBe(false)
+    expect(plugin.readOnly).toContain('ex')
+    expect(sourceAccess({ kind: 'builtin', tag: '', label: '' }).readOnly).toContain('Built into Luca')
+  })
+
+  it('helperSourceView: no file is 404; a plugin file reads but refuses a save', () => {
+    expect(helperSourceView({ kind: 'builtin', tag: '', label: '' }, '/home/x').status).toBe(404)
+    const file = join(proj, 'features', 'counter.ts')
+    const view = helperSourceView({ kind: 'plugin', tag: '', label: '', file, plugin: 'ex' }, '/home/x')
+    expect(view.status).toBe(200)
+    expect(view.body.editable).toBe(false)
+    expect(view.body.pathDisplay).toBe(file)
+    const save = saveHelperSource({ kind: 'plugin', tag: '', label: '', file, plugin: 'ex' }, '/home/x', { text: '', digest: view.body.digest })
+    expect(save.status).toBe(403)
+  })
+
+  it('examplesOf: class first, then methods and getters by name, empty blocks skipped', () => {
+    const list = examplesOf('fs', {
+      examples: [{ language: 'ts', code: 'fs.exists("x")' }],
+      methods: { writeFile: { examples: [{ code: 'fs.writeFile("a", "b")' }, { code: '  ' }] }, readFile: { examples: ['fs.readFile("a")'] } },
+      getters: { cwd: { examples: [{ code: 'fs.cwd' }] } },
+    })
+    expect(list.map((e) => e.id)).toEqual(['class', 'method:readFile', 'method:writeFile', 'getter:cwd'])
+    expect(list.map((e) => e.title)).toEqual(['fs', 'fs.readFile()', 'fs.writeFile()', 'fs.cwd'])
+    expect(list[1]!.language).toBe('ts')
+    expect(examplesOf('x', undefined)).toEqual([])
+  })
+
+  it('helperBriefText names the helper, its origin, the docs and the source, and read only when it is', () => {
+    const view: any = {
+      registry: 'features', id: 'counter', title: 'features.counter', summary: 'Counts bumps', markdown: '# counter\n\nDocs here',
+      live: false, liveNote: 'No instance yet.', methods: [{ name: 'bump' }], getters: [], events: ['bumped'], examples: [{ title: 'counter.bump()' }],
+      origin: { kind: 'own', tag: 'project', label: 'this project', file: '/home/x/p/features/counter.ts' },
+    }
+    const text = helperBriefText(view, 'export class Counter {}', '/home/x')
+    expect(text).toContain('## The Helper `features.counter`')
+    expect(text).toContain("container.feature('counter')")
+    expect(text).toContain('~/p/features/counter.ts')
+    expect(text).toContain('Docs here')
+    expect(text).toContain('export class Counter {}')
+    expect(text).toContain('Methods: bump')
+    expect(text).not.toContain('Read only')
+    const builtin = helperBriefText({ ...view, origin: { kind: 'builtin', tag: 'built in', label: 'built into Luca' } }, null, '/home/x')
+    expect(builtin).toContain('Read only')
+    expect(builtin).not.toContain('Its source')
+  })
+
+  it('parseAbout and sameAbout', () => {
+    expect(parseAbout({ assistant: 'a' })).toEqual({ assistant: 'a' })
+    expect(parseAbout({ helper: { registry: 'features', id: 'fs' } })).toEqual({ helper: { registry: 'features', id: 'fs' } })
+    expect(parseAbout({ helper: { registry: 'features' } })).toBeUndefined()
+    expect(parseAbout(null)).toBeUndefined()
+    expect(sameAbout({ assistant: 'a' }, { assistant: 'a' })).toBe(true)
+    expect(sameAbout({ assistant: 'a' }, { helper: { registry: 'features', id: 'fs' } })).toBe(false)
+    expect(sameAbout(undefined, undefined)).toBe(true)
+  })
+})
+
 describe('GET /helper/:registry/:id inspector fields', () => {
   it('fs: methods with signatures, fields, live state text', async () => {
     const j: any = await (await fetch(`${wb.base}/helper/features/fs`, { headers: authed() })).json()
@@ -414,6 +516,20 @@ describe('GET /helper/:registry/:id inspector fields', () => {
     expect(j.stateFields.map((f: any) => f.name)).toContain('enabled')
     expect(Array.isArray(j.optionFields)).toBe(true)
     expect(Array.isArray(j.getters)).toBe(true)
+  })
+
+  it('fs: the examples of the class, its methods and getters, in that order', async () => {
+    const j: any = await (await fetch(`${wb.base}/helper/features/fs`, { headers: authed() })).json()
+    expect(Array.isArray(j.examples)).toBe(true)
+    const read = j.examples.find((e: any) => e.id === 'method:readFile')
+    expect(read).toBeTruthy()
+    expect(read.title).toBe('fs.readFile()')
+    expect(read.from).toBe('method')
+    expect(read.member).toBe('readFile')
+    expect(read.code).toContain('readFile')
+    const classIndex = j.examples.findIndex((e: any) => e.from === 'class')
+    const methodIndex = j.examples.findIndex((e: any) => e.from === 'method')
+    if (classIndex >= 0) expect(classIndex).toBeLessThan(methodIndex)
   })
 
   it('a project feature with no instance: not live, but callable', async () => {

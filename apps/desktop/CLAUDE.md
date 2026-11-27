@@ -200,7 +200,9 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `GET /project` | name, cwd, Luca version, registries with counts |
 | `GET /registries` | `stacks`: one per registry, project helpers first (`badge: project`). A card's `address` (`helper/features/fs`, `command/<id>` for commands) is its tile after `luca://<project>/`. Each card has an `origin` (below) |
 | `GET /registry/<name>` | one registry as Project / Built in stacks |
-| `GET /helper/<registry>/<id>` | `title`, `summary`, `markdown` (describe docs), `live`, `stateText`, `liveNote`, `callable`, `optionFields`, `stateFields`, `getters`, `methods` (`signature`, `argsHint`, `askArgs`), `events`; `options` (JSON schema) and `state` stay for other readers |
+| `GET /helper/<registry>/<id>` | `title`, `summary`, `markdown` (describe docs), `live`, `stateText`, `liveNote`, `callable`, `optionFields`, `stateFields`, `getters`, `methods` (`signature`, `argsHint`, `askArgs`), `events`, `examples` (the `@example` blocks of the class, then each method's and getter's by name: `id` `class`/`method:<name>`/`getter:<name>`, `title` `fs.readFile()`, `code`, `language`, `from`, `member`; `examplesOf`, pure); `options` (JSON schema) and `state` stay for other readers |
+| `GET /helper/<registry>/<id>/source` | the helper's file (from its origin) in `GET /file`'s shape, `pathDisplay` with `~`, plus `editable`, `readOnly` (why not) and `origin` (`src/workbench/helper-source.ts`). Own, borrowed and `~/.luca` files are editable; a plugin's reads but is read only; a built-in helper is 404 with its `origin` |
+| `POST /helper/<registry>/<id>/source/save` | `{text, digest}` as `/file/save` on that file; 403 (`readOnly: true`) for a plugin's or built-in helper |
 | `POST /helper/<registry>/<id>/call` | `{method, args}`; `args` is the text the user typed. The host reads it: empty is none, plain text is one string, JSON is one value, a JSON array spreads unless the method takes one argument. Answers `{ok, call, text, type, ms, created}` or `{ok: false, error}`. A feature with no instance is created (`container.feature(id)`); other registries answer 409 without one. 30 s timeout |
 | `POST /eval` | `{code}`, as `luca eval` |
 | `POST /console` | `{code, session?}` (session `default`). One vm context per session, so names stay between entries: top-level `const/let/var x =` becomes an assignment to the scope (`persistDeclarations`), also under top-level await. Entries of a session run in order; 60 s timeout. Answers `{ok, entry, input, type, text, tree, logs, ms}` or `{ok: false, error, name, stack, hint?, logs, ms}`. `tree` is `{key?, type, text, children?, more?, open?}`; `text` is a leaf's value or a container's preview. The stack drops the console's own frames. `?name` or `name?` is a question, not code (`docQuery`): the answer has `type: "docs"` and `doc`. A helper or the container as the result also carries its `doc`. `_` is the last result |
@@ -248,7 +250,7 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `POST /assistant/<name>/edit` | a pure edit of the text sent: `{op: "hook", hook, text}` appends a hook stub (and the `Assistant` type import) to a hooks.ts text; `{op: "use", feature, only?, options?, remove?, text}` adds, replaces or removes a `container.feature('x').toTools(...)` entry of the `use` array in a tools.ts text (a text with no `use` gets one). Answers `{ok, text, line}`; the tile puts it in the buffer and the human saves |
 | `POST /assistant/<name>/copy` | copy a plugin's or the home folder's assistant into `<project>/assistants/<name>` (without `.history`, `node_modules`, the desktop's stamp), where it wins the name. 400 for the project's own, 409 when the folder exists |
 | `POST /assistant/<name>/rollback` | `{path}`: the newest `.history/` backup of the file back in place |
-| `POST /chat/open` | `{assistant, conversationId?, target?, about?}` (empty or `new` makes `desk-<date>-<6>`). `about: {assistant}` opens the chat about an assistant (below). Answers `{ok, assistant, conversationId, thread, title, modelText, tools, messages, busy, live}`; `messages` are `{id, role user/assistant, text, tools}` (one assistant message per turn, tool results matched by call id); `live` is the reply in flight |
+| `POST /chat/open` | `{assistant, conversationId?, target?, about?}` (empty or `new` makes `desk-<date>-<6>`). `about: {assistant}` opens the chat about an assistant (below); `about: {helper: {registry, id}}` about a helper (the inspector's brief, `src/workbench/helper-brief.ts`: origin, docs, source up to 24 000 characters, how to work; 404 for a helper the registry lacks). Either is kept with the conversation. Answers `{ok, assistant, conversationId, thread, title, modelText, tools, messages, busy, live}`; `messages` are `{id, role user/assistant, text, tools}` (one assistant message per turn, tool results matched by call id); `live` is the reply in flight |
 | `POST /chat/send` | `{assistant, conversationId, text}` starts a reply and answers `{ok, turnId}` at once; 409 while a reply runs |
 | `GET /chat/extensions?assistant=&conversationId=` | `{features, extensions}`: container features that have tools (`name`, `description`, `builtIn` all/some, `tools` with `builtIn`, `options` that are one plain value), and the conversation's list (`src/workbench/extensions.ts`) |
 | `POST /chat/extensions` | `{assistant, conversationId, extensions}`: replace the list. Each entry (`feature`, `only?`, `options?`, `folder?`, `source?`) must build. Answers `{ok, extensions}` or `{ok: false, error}`; a `chat-extensions` frame follows. Kept per thread in the history diskCache |
@@ -519,10 +521,10 @@ Registered in `TileKinds.registerBuiltIns()`. `*` marks a card-stack index
 |---|---|---|
 | `luca-project` | `luca://<project>/project` (`Space o`) | `Tiles/Workbench/ProjectOverviewContent.swift` |
 | `luca-registry`* | `luca://<project>/registry?stack=<registry>` (`Space r`) | `Tiles/Workbench/RegistryContent.swift` |
-| `luca-helper` | `luca://<project>/helper/<registry>/<id>` | `Tiles/Workbench/HelperContent.swift` |
+| `luca-helper` | `luca://<project>/helper/<registry>/<id>?view=docs\|source` | `Tiles/Workbench/HelperContent.swift` |
 | `luca-ai` | `luca://<project>/ai` (`Space a`) | `Tiles/Workbench/AiContent.swift`: coding agents, API keys, model providers, found servers, local models. `s` scans, `a` adds a found server as a provider (model, then which file), `k` sets a key (a hidden field; `PaletteController.ask(secret:)`), `c` checks the agents again, `x` opens `luca setup` for a missing local model (not run until `r`) |
 | `luca-servers` | `luca://<project>/servers` (`Space s`, `s` in the registry) | `Tiles/Workbench/ServersContent.swift`: running instances, then the registry's servers. `s` starts with defaults or stops, `S` asks for options, `Enter` opens an HTTP server as a page tile. `:start <id> [options]`, `:stop`, `:stop all` |
-| `luca-console` | `luca://<project>/console` (`Space e`) | `Tiles/Workbench/ConsoleContent.swift` (model, transcript, docs pane), `ConsoleAssist.swift` (what the list shows, when `Enter` runs; pure), `ConsoleInput.swift` (the `NSTextView` input), `ConsoleDocViews.swift` (`DocCardView`, the list, the signature strip) |
+| `luca-console` | `luca://<project>/console[/<session>]?run=<code>` (`Space e`) | `Tiles/Workbench/ConsoleContent.swift` (model, transcript, docs pane), `ConsoleAssist.swift` (what the list shows, when `Enter` runs; pure), `ConsoleInput.swift` (the `NSTextView` input), `ConsoleDocViews.swift` (`DocCardView`, the list, the signature strip) |
 | `luca-command` | `luca://<project>/command/<id>?<field>=<value>` (`Space x`) | `Tiles/Workbench/CommandContent.swift` |
 | `luca-change` | `luca://<project>/change?route=borrow&op=copy\|borrow\|unborrow&…` | `Tiles/Workbench/ChangeContent.swift`, `ChangePreview.swift` |
 | `luca-plugins` | `luca://<project>/plugins` (`Space b`) | `Tiles/Workbench/PluginsContent.swift` |
@@ -552,12 +554,32 @@ Notes on the kinds:
   picks the project the same way (`Shell.withProject`), and `Space w`.
 - Project: name, folder, Luca version, a Tools grid (each tool with its
   leader key) and the registries as stat cards in their kind colors.
-- Helper (the inspector): last call, live state, events (newest first, at
-  most 40, `HelperEventLog`), methods, getters, options, state schema, then
-  the docs with `tilesMarkdown()`. `m` picks a method in the palette and
-  asks for arguments with the host's `argsHint` (no prompt when the host
-  says `askArgs: false`). `x` clears events, `u` the registry.
-- Console: each entry is a card: input, logs, then the host's tree or the
+- Helper (the inspector): two views, `docs` and `source`, a toggle in the
+  header (`P` / `E`, `?view=`). Docs: last call, live state, events (newest
+  first, at most 40, `HelperEventLog`), methods, getters, options, state
+  schema, then the docs with `tilesMarkdown()`. `m` picks a method in the
+  palette and asks for arguments with the host's `argsHint` (no prompt when
+  the host says `askArgs: false`). `x` clears events, `u` the registry.
+  Source: the helper's file (`GET …/source`, read on the first switch) in
+  the shared `SourceEditorController` on a `WorkbenchDocBuffer`, the doc
+  tile's save and conflict flow (`Cmd-s`, `:w`, `:wq`, `:e!`, `:replace`,
+  `d p` / `d o`); `i` edits. A plugin's or built-in file shows a lock bar
+  and refuses saves; a saved change loads on the next host restart (`R`).
+  `e` lists the helper's `@example` blocks in the palette (one runs at
+  once) and runs the pick in a console beside the tile, grouped with it:
+  the console address is `console/<registry>-<id>?run=<code>`, one host
+  scope per helper, so the next example sees the names the last one set;
+  an open console for that helper takes the code instead
+  (`ConsoleContent.run`). `:example <id>`, `:eval <code>` do the same. `c`
+  opens lucaExpert beside the tile (`?aboutHelper=<registry>/<id>`,
+  grouped; one per helper, a second `c` focuses it; without lucaExpert
+  the palette asks who): the host briefs it on the helper (`POST
+  /chat/open` `about.helper`) and the chat header shows `about
+  features.fs`, a click back to the inspector.
+- Console: `luca://<project>/console/<session>` is another host scope
+  (`ConsoleContent.session`, `default` with no id; the inspector opens one
+  per helper); `?run=<code>` runs once the host is there and the option is
+  dropped. Each entry is a card: input, logs, then the host's tree or the
   error with its stack. `Enter` runs, `Shift-Return` adds a line (the shell
   inserts it, as for chat), up and down recall `ConsoleHistory`; `h` picks
   from it. History is `console/<project>.json` under the app folder. `x`

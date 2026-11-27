@@ -64,6 +64,20 @@ final class AssistantEditorTests: XCTestCase {
         XCTAssertTrue(view.tools?.contains("writeAssistantFile") ?? false)
     }
 
+    func testAChatAboutAHelperDecodesAndEncodesOnlyWhatIsSet() throws {
+        let json = """
+        {"ok":true,"assistant":"lucaExpert","conversationId":"desk-1","thread":"t","title":"New conversation","modelText":"m",
+         "tools":[],"messages":[],"busy":false,"live":null,"about":{"helper":{"registry":"features","id":"fs"}}}
+        """
+        let view = try JSONDecoder().decode(WorkbenchChatView.self, from: Data(json.utf8))
+        XCTAssertEqual(view.about, WorkbenchChatAbout(helper: .init(registry: "features", id: "fs")))
+        XCTAssertEqual(view.about?.helper?.title, "features.fs")
+        XCTAssertNil(view.about?.assistant)
+        // The request body names only the one that is set, so the host's parser sees no stray keys.
+        let sent = String(decoding: try JSONEncoder().encode(WorkbenchChatAbout(assistant: "x")), as: UTF8.self)
+        XCTAssertEqual(sent, "{\"assistant\":\"x\"}")
+    }
+
     func testTheEditorKeysAreInTheDefaultKeymap() {
         let map = Keymap.merged(defaults: DefaultKeymap.file, user: nil)
         let actions = ["lucaAssistant.edit", "lucaAssistant.rich", "lucaAssistant.source", "lucaAssistant.preview", "lucaAssistant.sidebar",

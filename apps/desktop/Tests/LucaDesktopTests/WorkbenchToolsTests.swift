@@ -102,6 +102,13 @@ final class WorkbenchToolsTests: XCTestCase {
             ("lucaHelper.restart", "R"),
             ("lucaHelper.clearEvents", "x"),
             ("lucaHelper.registry", "u"),
+            ("lucaHelper.docs", "P"),
+            ("lucaHelper.source", "E"),
+            ("lucaHelper.edit", "i"),
+            ("lucaHelper.example", "e"),
+            ("lucaHelper.chat", "c"),
+            ("lucaHelper.keepMine", "d p"),
+            ("lucaHelper.takeTheirs", "d o"),
         ]
         for (action, spec) in expected {
             let binding = map.binding(for: action)
@@ -120,5 +127,46 @@ final class WorkbenchToolsTests: XCTestCase {
             XCTAssertTrue(actions.contains(action), action)
         }
         XCTAssertFalse(map.kindBindings("luca-helper").map(\.action).contains("index.open"))
+    }
+
+    func testAHelperViewDecodesItsExamplesAndTheSourceShape() throws {
+        let json = """
+        {"registry":"features","id":"fs","title":"features.fs","summary":"Files","markdown":"# fs","events":[],"live":true,
+         "stateText":"{}","liveNote":null,"callable":true,"optionFields":[],"stateFields":[],"getters":[],"methods":[],
+         "examples":[{"id":"method:readFile","title":"fs.readFile()","code":"fs.readFile('a')","language":"ts","from":"method","member":"readFile"}]}
+        """
+        let view = try JSONDecoder().decode(WorkbenchHelper.self, from: Data(json.utf8))
+        XCTAssertEqual(view.examples?.count, 1)
+        XCTAssertEqual(view.examples?.first?.title, "fs.readFile()")
+        XCTAssertEqual(view.examples?.first?.member, "readFile")
+        // An older host without examples still decodes.
+        let old = try JSONDecoder().decode(WorkbenchHelper.self, from: Data(json.replacingOccurrences(of: "\"examples\"", with: "\"x\"").utf8))
+        XCTAssertNil(old.examples)
+
+        let source = """
+        {"id":"features/counter.ts","model":"","slot":0,"title":"counter.ts","path":"/p/features/counter.ts","pathDisplay":"~/p/features/counter.ts",
+         "file":"export class Counter {}","digest":"abc","size":23,"sizeText":"23 B","fields":[],"missing":false,
+         "editable":false,"readOnly":"A plugin's file","origin":{"kind":"plugin","tag":"plugin · ex","label":"from the plugin ex"}}
+        """
+        let src = try JSONDecoder().decode(WorkbenchHelperSource.self, from: Data(source.utf8))
+        XCTAssertEqual(src.doc.file, "export class Counter {}")
+        XCTAssertEqual(src.doc.digest, "abc")
+        XCTAssertFalse(src.editable)
+        XCTAssertEqual(src.readOnly, "A plugin's file")
+        XCTAssertEqual(src.origin?.kind, "plugin")
+    }
+
+    func testTheHelperTileAddressesItsConsoleAndChat() throws {
+        let helper = HelperContent.address(project: "notes", registry: "features", id: "fs")
+        XCTAssertEqual(helper.kindKey, "luca-helper")
+        XCTAssertEqual(helper.id, "features/fs")
+        let console = ConsoleContent.address(project: "notes", session: "features-fs", run: "fs.exists('x')")
+        XCTAssertEqual(console.kindKey, "luca-console")
+        XCTAssertEqual(console.id, "features-fs")
+        XCTAssertEqual(console.option("run"), "fs.exists('x')")
+        XCTAssertNil(ConsoleContent.address(project: "notes").id)
+        XCTAssertNil(ConsoleContent.address(project: "notes", session: "default").id)
+        XCTAssertEqual(HelperContent.firstLine("a\nb\nc"), "a … (3 lines)")
+        XCTAssertEqual(HelperContent.firstLine("one"), "one")
     }
 }

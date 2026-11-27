@@ -314,4 +314,15 @@ describe('routes', () => {
 		expect(again.about).toEqual({ assistant: 'shared' })
 		expect((await api.post('/chat/open', { assistant: 'helper', conversationId: 'new', about: { assistant: 'nobody' } })).status).toBe(404)
 	}, 60000)
+
+	it('a chat opened about a helper keeps the link and gets the inspector brief', async () => {
+		const opened = await (await api.post('/chat/open', { assistant: 'helper', conversationId: 'new', about: { helper: { registry: 'features', id: 'fs' } } })).json()
+		expect(opened.ok).toBe(true)
+		expect(opened.about).toEqual({ helper: { registry: 'features', id: 'fs' } })
+		// No editor tools for a helper: the brief is the whole of it.
+		expect(opened.tools).not.toContain('writeAssistantFile')
+		const again = await (await api.post('/chat/open', { assistant: 'helper', conversationId: opened.conversationId })).json()
+		expect(again.about).toEqual({ helper: { registry: 'features', id: 'fs' } })
+		expect((await api.post('/chat/open', { assistant: 'helper', conversationId: 'new', about: { helper: { registry: 'features', id: 'nope-xyz' } } })).status).toBe(404)
+	}, 60000)
 })

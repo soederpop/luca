@@ -107,6 +107,8 @@ struct WorkbenchChatTranscript: Equatable {
 /// `?extends=<conversationId>&extendsAssistant=<name>` opens it as the tech
 /// support chat of that conversation: the host gives it tools to change that
 /// chat's added tools. `?about=<name>` opens it about an assistant: the host
+/// briefs it on that assistant's files. `?aboutHelper=<registry>/<id>` opens
+/// it about a helper: the host briefs it on the inspector's docs and source.
 /// briefs it on that assistant's files and gives it the editor's tools.
 ///
 /// `i` writes, `Enter` sends, `Ctrl-c` stops the reply, `h` past
@@ -156,7 +158,13 @@ final class WorkbenchChatContent: WorkbenchContent {
         } else {
             target = nil
         }
-        about = uri.option("about").flatMap { $0.isEmpty ? nil : WorkbenchChatAbout(assistant: $0) }
+        if let name = uri.option("about"), !name.isEmpty {
+            about = WorkbenchChatAbout(assistant: name)
+        } else if let helper = uri.option("aboutHelper"), let address = HelperAddress(helper) {
+            about = WorkbenchChatAbout(helper: .init(registry: address.registry, id: address.id))
+        } else {
+            about = nil
+        }
         super.init(kindId: Self.kind.id, uri: uri, title: "\(uri.option("assistant") ?? "chat") · new chat")
     }
 
@@ -451,11 +459,20 @@ struct LucaChatView: View {
                 WorkbenchTag(text: "support for \(target.assistant)", color: p.info.color)
             }
             if let about = model.about ?? model.opened?.about {
-                Button { _ = Shell.shared.open(AssistantEditorContent.address(project: model.projectId, assistant: about.assistant), near: model.tileId) } label: {
-                    WorkbenchTag(text: "building \(about.assistant)", color: WorkbenchStyle.thingColor("assistants"))
+                if let name = about.assistant {
+                    Button { _ = Shell.shared.open(AssistantEditorContent.address(project: model.projectId, assistant: name), near: model.tileId) } label: {
+                        WorkbenchTag(text: "building \(name)", color: WorkbenchStyle.thingColor("assistants"))
+                    }
+                    .buttonStyle(.plain)
+                    .help("The assistant this chat builds. Click for its editor.")
                 }
-                .buttonStyle(.plain)
-                .help("The assistant this chat builds. Click for its editor.")
+                if let helper = about.helper {
+                    Button { Shell.shared.openOrFocus(HelperContent.address(project: model.projectId, registry: helper.registry, id: helper.id)) } label: {
+                        WorkbenchTag(text: "about \(helper.title)", color: WorkbenchStyle.thingColor(helper.registry))
+                    }
+                    .buttonStyle(.plain)
+                    .help("The helper this chat is about. Click for its inspector.")
+                }
             }
             Spacer(minLength: KitTokens.Space.s4)
             if model.transcript.busy {

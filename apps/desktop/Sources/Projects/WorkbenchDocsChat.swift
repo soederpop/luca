@@ -244,8 +244,17 @@ struct WorkbenchChatTarget: Codable, Equatable {
 }
 
 /// The assistant a chat builds, when it was opened about one (`?about=`).
+/// What a chat is about: an assistant (the editor's brief and tools) or a
+/// helper (the inspector's brief). One or the other is set.
 struct WorkbenchChatAbout: Codable, Equatable {
-    let assistant: String
+    struct Helper: Codable, Equatable {
+        let registry: String
+        let id: String
+        /// `features.fs`.
+        var title: String { "\(registry).\(id)" }
+    }
+    var assistant: String? = nil
+    var helper: Helper? = nil
 }
 
 /// One set of tools added to a single conversation: a container feature

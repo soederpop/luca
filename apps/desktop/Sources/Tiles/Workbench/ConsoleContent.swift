@@ -15,6 +15,10 @@ import Combine
 /// anywhere, up and down recall this project's history (kept in
 /// `console/<project>.json` under the app folder). `?name` or `name?`
 /// puts a name's docs in the transcript. `_` is the last result.
+///
+/// `luca://<project>/console/<session>` is another scope on the host (the
+/// inspector's `e` opens one per helper); `?run=<code>` runs that code once
+/// the host is there, then drops the option so a restore is a plain console.
 @MainActor
 final class ConsoleContent: WorkbenchContent {
     static let kind = TileKind(id: "luca-console", label: "Console", glyph: "chevron.left.forwardslash.chevron.right") { uri, _ in
@@ -56,6 +60,8 @@ final class ConsoleContent: WorkbenchContent {
     /// True while the docs pane is on screen (the tile is wide enough).
     var paneVisible = false
 
+    /// The host scope this tile runs in: the address's id, else `default`.
+    let session: String
     private(set) var history: ConsoleHistory
     private var nextId = 0
     private var assistSeq = 0
@@ -64,7 +70,15 @@ final class ConsoleContent: WorkbenchContent {
     init(uri: TileURI) {
         history = ConsoleHistory.load(from: ConsoleHistory.file(project: uri.authority))
         docsShown = UserDefaults.standard.object(forKey: Self.docsKey) as? Bool ?? true
-        super.init(kindId: Self.kind.id, uri: uri, title: "\(ProjectHub.shared.displayName(uri.authority)) console")
+        session = uri.id.flatMap { $0.isEmpty ? nil : $0 } ?? "default"
+        let name = ProjectHub.shared.displayName(uri.authority)
+        super.init(kindId: Self.kind.id, uri: uri, title: session == "default" ? "\(name) console" : "\(name) console · \(session)")
+    }
+
+    /// The address for a project's console in `session`.
+    nonisolated static func address(project: String, session: String? = nil, run: String? = nil) -> TileURI {
+        TileURI.luca(project: project, tool: "console", id: session == "default" ? nil : session,
+                     options: run.map { [.init(name: "run", value: $0)] } ?? [])
     }
 
     override func makeBody() -> AnyView { AnyView(ConsoleView(model: self)) }
@@ -72,7 +86,13 @@ final class ConsoleContent: WorkbenchContent {
     override func hostChanged(_ client: WorkbenchClient?) {
         stateLabel = client == nil ? hostStatus.label : nil
         assist.clear()
-        if client != nil { loadScope() }
+        guard client != nil else { return }
+        loadScope()
+        // `?run=`: code the opener wrote (the inspector's example), run once.
+        if let code = uri.option("run"), !code.isEmpty {
+            uri = uri.with(option: "run", nil)
+            run(code)
+        }
     }
 
     override func perform(_ action: String) -> Bool {
@@ -196,8 +216,9 @@ final class ConsoleContent: WorkbenchContent {
         guard let host, show || !draft.isEmpty else { assist.clear(); return }
         let code = draft
         let cursor = caret
+        let session = self.session
         Task { [weak self] in
-            guard let answer = try? await host.complete(code, cursor: cursor) else { return }
+            guard let answer = try? await host.complete(code, cursor: cursor, session: session) else { return }
             guard let self, seq == self.assistSeq else { return }
             self.assist.apply(answer, show: show)
         }
@@ -218,9 +239,10 @@ final class ConsoleContent: WorkbenchContent {
     func showDoc(_ target: String) {
         guard paneVisible else { return run("?" + target) }
         guard let host else { return Shell.shared.flash("The workbench host is not running") }
+        let session = self.session
         Task { [weak self] in
             do {
-                let doc = try await host.describe(target)
+                let doc = try await host.describe(target, session: session)
                 self?.pinned = doc
             } catch {
                 Shell.shared.flash(ErrorText.message(error))
@@ -246,8 +268,9 @@ final class ConsoleContent: WorkbenchContent {
     /// What is in scope, for the docs pane at rest.
     private func loadScope() {
         guard let host else { return }
+        let session = self.session
         Task { [weak self] in
-            guard let answer = try? await host.complete("", cursor: 0) else { return }
+            guard let answer = try? await host.complete("", cursor: 0, session: session) else { return }
             self?.scope = answer.items.filter { !["keyword", "global"].contains($0.kind) }
         }
     }
@@ -263,7 +286,8 @@ final class ConsoleContent: WorkbenchContent {
         run(code)
     }
 
-    private func run(_ code: String) {
+    /// Run `code` as an entry, as if typed. The inspector sends examples here.
+    func run(_ code: String) {
         history.add(code)
         history.save(to: ConsoleHistory.file(project: projectId))
         guard let host else { return Shell.shared.flash("The workbench host is not running") }
@@ -271,9 +295,10 @@ final class ConsoleContent: WorkbenchContent {
         nextId += 1
         entries.append(Entry(id: id, input: code))
         stateLabel = "running"
+        let session = self.session
         Task { [weak self] in
             let result: Result<WorkbenchConsoleAnswer, Error>
-            do { result = .success(try await host.console(code)) } catch { result = .failure(error) }
+            do { result = .success(try await host.console(code, session: session)) } catch { result = .failure(error) }
             guard let self, let index = self.entries.firstIndex(where: { $0.id == id }) else { return }
             switch result {
             case .success(let answer):
@@ -315,9 +340,10 @@ final class ConsoleContent: WorkbenchContent {
 
     private func resetScope() {
         guard let host else { return Shell.shared.flash("The workbench host is not running") }
+        let session = self.session
         Task { [weak self] in
             do {
-                try await host.resetConsole()
+                try await host.resetConsole(session: session)
                 Shell.shared.flash("Console scope reset: names set before are gone")
                 self?.loadScope()
             } catch {

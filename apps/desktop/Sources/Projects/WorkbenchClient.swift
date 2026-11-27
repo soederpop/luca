@@ -77,6 +77,45 @@ struct WorkbenchHelper: Decodable, Equatable {
     let getters: [WorkbenchField]
     let methods: [Method]
     var origin: WorkbenchOrigin? = nil
+    /// The `@example` blocks of the class, its methods and getters; `e` runs one in a console.
+    var examples: [Example]? = nil
+
+    /// One `@example` block, runnable in the console.
+    struct Example: Decodable, Equatable, Identifiable {
+        /// `class`, `method:readFile`, `getter:cwd`.
+        let id: String
+        /// `fs`, `fs.readFile()`, `fs.cwd`.
+        let title: String
+        let code: String
+        let language: String
+        /// `class`, `method` or `getter`.
+        let from: String
+        let member: String?
+    }
+}
+
+/// `GET /helper/<registry>/<id>/source`: the helper's file in the doc's
+/// shape (`WorkbenchDocBuffer` takes it), plus whether a save is allowed.
+struct WorkbenchHelperSource: Decodable, Equatable {
+    let doc: WorkbenchDoc
+    let editable: Bool
+    /// Why not, when `editable` is false.
+    let readOnly: String?
+    let origin: WorkbenchOrigin?
+
+    private enum Keys: String, CodingKey { case editable, readOnly, origin }
+
+    init(from decoder: Decoder) throws {
+        doc = try WorkbenchDoc(from: decoder)
+        let c = try decoder.container(keyedBy: Keys.self)
+        editable = try c.decodeIfPresent(Bool.self, forKey: .editable) ?? false
+        readOnly = try c.decodeIfPresent(String.self, forKey: .readOnly)
+        origin = try c.decodeIfPresent(WorkbenchOrigin.self, forKey: .origin)
+    }
+
+    init(doc: WorkbenchDoc, editable: Bool, readOnly: String?, origin: WorkbenchOrigin?) {
+        self.doc = doc; self.editable = editable; self.readOnly = readOnly; self.origin = origin
+    }
 }
 
 /// `POST /helper/<registry>/<id>/call`. `text` is the result to draw.
@@ -672,6 +711,22 @@ final class WorkbenchClient: @unchecked Sendable {
     /// Call a method. `args` is the text the user typed; the host reads it.
     func call(registry: String, id: String, method: String, args: String) async throws -> WorkbenchCallResult {
         try await post(Self.path("helper", registry, id, "call"), ["method": method, "args": args])
+    }
+
+    /// The helper's source file. 404 for a built-in helper (no file on this machine).
+    func helperSource(registry: String, id: String) async throws -> WorkbenchHelperSource {
+        try await get(Self.path("helper", registry, id, "source"))
+    }
+
+    /// Save the whole file. Throws `WorkbenchDocConflict` when the file on
+    /// disk is no longer the one with `digest`; 403 for a read-only origin.
+    func saveHelperSource(registry: String, id: String, text: String, digest: String) async throws -> WorkbenchDocSaved {
+        struct Body: Encodable { let text: String; let digest: String }
+        do {
+            return try await post(Self.path("helper", registry, id, "source", "save"), Body(text: text, digest: digest))
+        } catch WorkbenchError.http(409, _) {
+            throw WorkbenchDocConflict(current: try? await helperSource(registry: registry, id: id).doc)
+        }
     }
 
     // MARK: AI

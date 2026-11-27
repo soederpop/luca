@@ -185,6 +185,49 @@ export type HelperView = {
 	methods: WorkbenchMethod[]
 	/** Where the helper comes from: own, borrowed, plugin, ~/.luca or built in. */
 	origin?: HelperOrigin
+	/** The `@example` blocks of the class, its methods and its getters, runnable in the console. */
+	examples: HelperExample[]
+}
+
+/** One `@example` block as the inspector lists it. */
+export type HelperExample = {
+	/** `class`, `method:readFile`, `getter:cwd`: stable across loads. */
+	id: string
+	/** `fs`, `fs.readFile()`, `fs.cwd`. */
+	title: string
+	code: string
+	language: string
+	from: 'class' | 'method' | 'getter'
+	/** The method or getter name; none for a class example. */
+	member?: string
+}
+
+/**
+ * The examples an introspection holds: the class's first, then each method's
+ * and each getter's in name order. Pure.
+ */
+export function examplesOf(id: string, introspection: any): HelperExample[] {
+	const out: HelperExample[] = []
+	const take = (from: HelperExample['from'], member: string | undefined, list: any) => {
+		if (!Array.isArray(list)) return
+		list.forEach((ex: any, i: number) => {
+			const code = typeof ex === 'string' ? ex : String(ex?.code ?? '')
+			if (!code.trim()) return
+			const key = member ? `${from}:${member}` : from
+			out.push({
+				id: i ? `${key}#${i + 1}` : key,
+				title: member ? (from === 'method' ? `${id}.${member}()` : `${id}.${member}`) : id,
+				code: code.trim(),
+				language: String(ex?.language || 'ts'),
+				from,
+				...(member ? { member } : {}),
+			})
+		})
+	}
+	take('class', undefined, introspection?.examples)
+	for (const name of Object.keys(introspection?.methods ?? {}).sort()) take('method', name, introspection.methods[name]?.examples)
+	for (const name of Object.keys(introspection?.getters ?? {}).sort()) take('getter', name, introspection.getters[name]?.examples)
+	return out
 }
 
 /** A value as text for the inspector: strings as is, the rest as pretty JSON. */
@@ -369,6 +412,7 @@ export async function helperView(
 		getters: fieldsOf(introspection?.getters),
 		methods: methodsOf(ctor, introspection),
 		...(origins ? { origin: origins.of(registry, id) } : {}),
+		examples: examplesOf(id, introspection),
 	}
 }
 
