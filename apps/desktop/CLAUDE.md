@@ -67,13 +67,22 @@ bundle: copy `portfolio/` there by hand).
   receiving project (matched by real path, else added to `projects.json`)
   and opens one `luca-change` tile per helper (`route=borrow&op=copy`)
   beside the lucaPortfolio chat (`Shell.openBeside`: one column right or
-  left of it, or the chat's right half when the screen has no room; a
-  canvas opens the same way). The human writes each there with `a`. The tool's result
+  left of it, or the chat's right half when the screen has no room). The human writes each there with `a`. The tool's result
   names what the tiles cannot see: helpers the code needs that the target
   lacks, env vars, files that are not helpers. `checkCopy` runs
   `luca describe` in the target afterwards.
 - Test the feature with `luca eval` in `portfolio/`; pass
   `{configFile}` to scan scratch roots. Swift: `BundledPortfolioTests`.
+
+## Canvases
+
+An assistant's canvas opens **grouped with the chat that asked**, on that
+chat's workspace, whatever workspace is in view (`Shell.showCanvas`). The
+host tags each `canvas-open` frame with the chat's `conversationId`: native
+assistants get `canvases.toTools({ chat })`, coding agents get
+`/mcp/canvas?chat=<id>`. The chat's space is split in two: canvas right of
+a wide chat, above a tall one. A frame with no chat (a guide) groups with
+the project's chat in focus, else one on this workspace.
 
 ## Rules
 

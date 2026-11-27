@@ -187,4 +187,16 @@ final class WorkbenchToolsTests: XCTestCase {
         XCTAssertEqual(tall.anchor.height + gap + tall.next.height, 1000)
         XCTAssertEqual(tall.next.width, 600)
     }
+
+    func testSplitFramesOnTopPutsTheCompanionAboveATallTile() {
+        let gap = Shell.gap
+        let tall = Shell.splitFrames(CGRect(x: 0, y: 0, width: 600, height: 1000), onTop: true)
+        XCTAssertEqual(tall.next.maxY, 1000, "the canvas takes the top half")
+        XCTAssertEqual(tall.anchor.minY, 0, "the chat keeps the bottom half")
+        XCTAssertEqual(tall.anchor.height + gap + tall.next.height, 1000)
+
+        let wide = Shell.splitFrames(CGRect(x: 100, y: 50, width: 1000, height: 600), onTop: true)
+        XCTAssertEqual(wide.anchor.minX, 100, "a wide chat stays on the left")
+        XCTAssertEqual(wide.next.minX, wide.anchor.maxX + gap)
+    }
 }

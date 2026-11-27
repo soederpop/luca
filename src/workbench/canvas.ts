@@ -375,7 +375,8 @@ export class Canvases {
 	private snapshots = new Map<string, Pending>()
 	private bundlePath: string | undefined | null = null
 	private loaded = false
-	private mcpHandle?: Promise<(req: any, res: any, body?: any) => Promise<void>>
+	/** One MCP server per chat (`''` for none), so a canvas it opens is tagged with that chat. */
+	private mcpHandles = new Map<string, Promise<(req: any, res: any, body?: any) => Promise<void>>>()
 	private eventListeners: Array<(id: string, name: string, data: unknown) => void> = []
 	private readyListeners: Array<(id: string) => void> = []
 	/**
@@ -395,12 +396,15 @@ export class Canvases {
 	/**
 	 * The MCP server entry a coding-agent session gets, so its model can use
 	 * the canvas tools: `{ 'luca-canvas': { type: 'http', url, headers } }`.
+	 * `chat` (the conversation id) rides in the URL, so Luca Desktop opens
+	 * the canvases it makes beside that chat.
 	 */
-	agentMcpServers(): Record<string, any> {
+	agentMcpServers(chat?: string): Record<string, any> {
+		const query = chat ? `?chat=${encodeURIComponent(chat)}` : ''
 		return {
 			'luca-canvas': {
 				type: 'http',
-				url: `http://127.0.0.1:${this.opts.port()}/mcp/canvas`,
+				url: `http://127.0.0.1:${this.opts.port()}/mcp/canvas${query}`,
 				headers: { Authorization: `Bearer ${this.mcpToken}` },
 			},
 		}
@@ -413,10 +417,12 @@ export class Canvases {
 	}
 
 	/** The `/mcp/canvas` request handler: the canvas tools as an MCP server over streamable HTTP. */
-	mcpHandler(): Promise<(req: any, res: any, body?: any) => Promise<void>> {
-		this.mcpHandle ??= (async () => {
+	mcpHandler(chat = ''): Promise<(req: any, res: any, body?: any) => Promise<void>> {
+		let handle = this.mcpHandles.get(chat)
+		if (handle) return handle
+		handle = (async () => {
 			const mcp = this.container.server('mcp', { serverName: 'luca-canvas', serverVersion: this.opts.lucaVersion })
-			const { schemas, handlers } = this.toTools()
+			const { schemas, handlers } = this.toTools({ chat: chat || undefined })
 			for (const [name, schema] of Object.entries(schemas)) {
 				mcp.tool(name, {
 					description: (schema as any).description || name,
@@ -426,7 +432,8 @@ export class Canvases {
 			}
 			return mcp.requestHandler()
 		})()
-		return this.mcpHandle
+		this.mcpHandles.set(chat, handle)
+		return handle
 	}
 
 	/** Hear every `emit(name, data)` a page sends. The guides answer their buttons this way. */
@@ -514,9 +521,10 @@ export class Canvases {
 
 	/**
 	 * Make a canvas, or give back the one with that id. `open` asks Luca
-	 * Desktop to show it (a `canvas-open` frame).
+	 * Desktop to show it (a `canvas-open` frame). `chat` is the conversation
+	 * that asked: Desktop groups the canvas with that chat's tile.
 	 */
-	create(input: { id?: string; title?: string; open?: boolean } = {}): { status: number; body: any } {
+	create(input: { id?: string; title?: string; open?: boolean; chat?: string } = {}): { status: number; body: any } {
 		this.load()
 		const title = String(input.title || '').trim() || 'Canvas'
 		let id = String(input.id || '').trim() || canvasSlug(title) || 'canvas'
@@ -534,8 +542,12 @@ export class Canvases {
 			this.canvases.set(id, c)
 			this.save(c)
 		}
-		if (input.open !== false) this.broadcast({ type: 'canvas-open', id: c.id, text: c.title, at: Date.now() })
+		if (input.open !== false) this.broadcastOpen(c, input.chat)
 		return { status: 200, body: { ok: true, created, canvas: this.view(c) } }
+	}
+
+	private broadcastOpen(c: { id: string; title: string }, chat?: string) {
+		this.broadcast({ type: 'canvas-open', id: c.id, text: c.title, ...(chat ? { conversationId: chat } : {}), at: Date.now() })
 	}
 
 	/** Forget a canvas: its saved code too. Its page, if open, is told to reload into nothing. */
@@ -775,14 +787,14 @@ export class Canvases {
 	 * Run code in a canvas page and give back its result. Code that ran
 	 * without an error is saved unless `keep` is false.
 	 */
-	async eval(id: string, code: string, opts: { timeoutMs?: number; keep?: boolean } = {}): Promise<any> {
+	async eval(id: string, code: string, opts: { timeoutMs?: number; keep?: boolean; chat?: string } = {}): Promise<any> {
 		this.load()
 		const c = this.canvases.get(id)
 		if (!c) return { ok: false, error: `no canvas ${id}. Make one with createCanvas.` }
 		if (typeof code !== 'string' || !code.trim()) return { ok: false, error: 'code is required' }
 		if (code.length > MAX_CODE) return { ok: false, error: `code is longer than ${MAX_CODE} characters` }
 		if (!(await this.waitForPage(c, CONNECT_WAIT_MS))) {
-			this.broadcast({ type: 'canvas-open', id: c.id, text: c.title, at: Date.now() })
+			this.broadcastOpen(c, opts.chat)
 			if (!(await this.waitForPage(c, CONNECT_WAIT_MS))) {
 				return { ok: false, error: `the canvas page is not open. Open ${this.view(c).url} in Luca Desktop (or a browser) and try again.` }
 			}
@@ -847,8 +859,12 @@ export class Canvases {
 
 	// --- Assistant tools ---
 
-	/** The tools a chat assistant gets: `assistant.use(canvases.toTools())`. */
-	toTools() {
+	/**
+	 * The tools a chat assistant gets: `assistant.use(canvases.toTools({ chat }))`.
+	 * `chat` (the conversation id) tags the canvases they open with that chat.
+	 */
+	toTools(opts: { chat?: string } = {}) {
+		const chat = opts.chat
 		const schemas = {
 			createCanvas: z.object({
 				title: z.string().optional().describe('A short title for the canvas tile, like "Sales chart"'),
@@ -874,13 +890,13 @@ export class Canvases {
 		}
 		const handlers = {
 			createCanvas: async (args: { title?: string; id?: string }) => {
-				const answer = this.create({ title: args?.title, id: args?.id })
+				const answer = this.create({ title: args?.title, id: args?.id, chat })
 				if (answer.status !== 200) return answer.body
 				const c = this.canvases.get(answer.body.canvas.id)!
 				const open = await this.waitForPage(c, CONNECT_WAIT_MS)
 				return { ...answer.body, canvas: this.view(c), ready: open, note: open ? undefined : 'The page has not linked yet. canvasEval waits for it.' }
 			},
-			canvasEval: async (args: { id: string; code: string; timeoutMs?: number; keep?: boolean }) => this.eval(String(args?.id || ''), String(args?.code || ''), { timeoutMs: args?.timeoutMs, keep: args?.keep }),
+			canvasEval: async (args: { id: string; code: string; timeoutMs?: number; keep?: boolean }) => this.eval(String(args?.id || ''), String(args?.code || ''), { timeoutMs: args?.timeoutMs, keep: args?.keep, chat }),
 			canvasSnapshot: async (args: { id: string }) => {
 				const shot = await this.snapshot(String(args?.id || ''))
 				if (!shot.ok) return shot

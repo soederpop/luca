@@ -180,8 +180,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const servers = new ServerControl(container, (frame) => broadcast(frame), () => origins())
 	const tools = new ToolIndex(container)
 	const canvases = new Canvases(container, (frame) => broadcast(frame), { lucaVersion, port: () => boundPort })
-	chats.extraTools = () => canvases.toTools()
-	chats.agentMcpServers = () => canvases.agentMcpServers()
+	chats.extraTools = (conversationId) => canvases.toTools({ chat: conversationId })
+	chats.agentMcpServers = (conversationId) => canvases.agentMcpServers(conversationId)
 	chats.chatMcpUrl = (key) => `http://127.0.0.1:${boundPort}/mcp/chat/${key}`
 	// Guides: scripted chats with no model. They look like assistants named `guide:<id>`.
 	const guides = new Guides(container, (frame) => broadcast(frame))
@@ -811,7 +811,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 		// The canvas tools for a coding agent, behind their own token.
 		if (url.pathname === '/mcp/canvas') {
 			if (!loopbackHost(req) || !canvases.mcpAuthorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-			canvases.mcpHandler().then((handle) => handle(req, res)).catch((err: any) => {
+			canvases.mcpHandler(url.searchParams.get('chat') ?? '').then((handle) => handle(req, res)).catch((err: any) => {
 				if (!res.headersSent) sendJson(res, 500, { error: String(err?.message ?? err) })
 			})
 			return

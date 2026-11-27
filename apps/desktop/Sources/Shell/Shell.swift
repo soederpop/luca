@@ -65,9 +65,10 @@ final class Shell: ObservableObject {
 
     /// Open a tile for an address. Returns its id, or nil for an unknown kind.
     /// `near` opens it beside that tile (on that tile's workspace), and
-    /// `group` puts the two in one group.
+    /// `group` puts the two in one group. `onTop` puts a grouped tile above
+    /// a tall `near` instead of below it (a canvas over its chat).
     @discardableResult
-    func open(_ uri: TileURI, workspace index: Int? = nil, focus: Bool = true, near: UUID? = nil, group: Bool = false) -> UUID? {
+    func open(_ uri: TileURI, workspace index: Int? = nil, focus: Bool = true, near: UUID? = nil, group: Bool = false, onTop: Bool = false) -> UUID? {
         guard let content = makeContent(uri) else {
             flash("No tile '\(uri.kind)' in Luca Desktop")
             return nil
@@ -80,10 +81,12 @@ final class Shell: ObservableObject {
         // of the tile's own space in a free workspace: right of a wide tile,
         // below a tall one. The tile keeps the other half.
         var anchorFrame: CGRect?
+        var toward = Direction.right
         if let near, nearWs != nil {
             if let beside = workspaces[ws].frames[near] {
+                if onTop, Workspace.longerSide(beside) == .vertical { toward = .up }
                 if group, workspaces[ws].mode == .free {
-                    let split = Self.splitFrames(beside)
+                    let split = Self.splitFrames(beside, onTop: onTop)
                     frame = split.next
                     anchorFrame = split.anchor
                 } else {
@@ -97,7 +100,7 @@ final class Shell: ObservableObject {
         workspaces[ws].add(tile.id, frame: frame)
         if let near, let anchorFrame { workspaces[ws].frames[near] = anchorFrame }
         if let near, nearWs != nil, group {
-            workspaces[ws].join(near, with: tile.id, toward: .right)
+            workspaces[ws].join(near, with: tile.id, toward: toward)
         }
         if !focus, let near, nearWs != nil { workspaces[ws].focused = near }
         if ws == current {
@@ -217,8 +220,9 @@ final class Shell: ObservableObject {
 
     /// Split a free-mode frame in two for a grouped companion (`open` with
     /// `group: true`): side by side when the frame is wider than tall (the
-    /// companion on the right), else stacked (the companion below). Pure.
-    nonisolated static func splitFrames(_ rect: CGRect) -> (anchor: CGRect, next: CGRect, axis: SplitAxis) {
+    /// companion on the right), else stacked (the companion below, or above
+    /// with `onTop`). Pure.
+    nonisolated static func splitFrames(_ rect: CGRect, onTop: Bool = false) -> (anchor: CGRect, next: CGRect, axis: SplitAxis) {
         let axis = Workspace.longerSide(rect)
         if axis == .horizontal {
             let half = ((rect.width - gap) / 2).rounded(.down)
@@ -228,9 +232,9 @@ final class Shell: ObservableObject {
         }
         let half = ((rect.height - gap) / 2).rounded(.down)
         // AppKit frames: the top half has the larger y.
-        let anchor = CGRect(x: rect.minX, y: rect.maxY - half, width: rect.width, height: half)
-        let next = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - half - gap)
-        return (anchor.integral, next.integral, axis)
+        let top = CGRect(x: rect.minX, y: rect.maxY - half, width: rect.width, height: half)
+        let bottom = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - half - gap)
+        return onTop ? (bottom.integral, top.integral, axis) : (top.integral, bottom.integral, axis)
     }
 
     /// A free-mode frame to the right of `rect`, or to its left when the

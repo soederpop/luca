@@ -121,11 +121,25 @@ extension Shell {
         if let open = tiles.values.first(where: { $0.uri == uri }) { focusTile(open.id) } else { self.open(uri) }
     }
 
-    /// An assistant asked for a canvas: open it beside the tile in focus
-    /// (the chat) and leave the keyboard there. An open one stays as it is.
-    func showCanvas(_ uri: TileURI) {
+    /// An assistant asked for a canvas: open it grouped with the chat that
+    /// asked, on that chat's workspace (not the one in view): right of a
+    /// wide chat, above a tall one. The keyboard stays where it is. An open
+    /// canvas stays as it is.
+    func showCanvas(_ uri: TileURI, chat conversationId: String?) {
         guard !tiles.values.contains(where: { $0.uri == uri }) else { return }
-        if let focusedId { openBeside([uri], near: focusedId) } else { open(uri) }
+        let isChat = { (id: UUID) -> Bool in
+            guard let tile = self.tiles[id], tile.uri.project == uri.project else { return false }
+            return tile.content is WorkbenchChatContent
+        }
+        // The host names the conversation; with no name (a guide), the
+        // project's chat in focus, else one on this workspace.
+        let asked = conversationId.flatMap { id in
+            tiles.values.first { isChat($0.id) && ($0.content as? WorkbenchChatContent)?.conversationId == id }?.id
+        }
+        let chat = asked
+            ?? focusedId.flatMap { isChat($0) ? $0 : nil }
+            ?? workspace.tiles.first(where: isChat)
+        if let chat { open(uri, focus: false, near: chat, group: true, onTop: true) } else { open(uri, focus: false) }
     }
 
     /// lucaPortfolio sent copies to review: remember the receiving project

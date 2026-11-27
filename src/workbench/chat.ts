@@ -361,9 +361,9 @@ export class ChatSessions {
 	private infos = new Map<string, any>()
 	private discovered: Promise<any> | null = null
 	/** Tools the host gives every chat assistant (the canvas tools). */
-	extraTools?: () => { schemas: Record<string, any>; handlers: Record<string, (...args: any[]) => any> }
+	extraTools?: (conversationId: string) => { schemas: Record<string, any>; handlers: Record<string, (...args: any[]) => any> }
 	/** The same tools as MCP servers, for an assistant that runs on a coding agent (Claude Code, Codex). */
-	agentMcpServers?: () => Record<string, any>
+	agentMcpServers?: (conversationId: string) => Record<string, any>
 	/** The URL of a session's own MCP route, `/mcp/chat/<token>` on the host. */
 	chatMcpUrl?: (token: string) => string
 	/** Entries added to the assistants view that are not the manager's (the guides). */
@@ -535,7 +535,7 @@ export class ChatSessions {
 				...(settings.model ? { model: settings.model } : {}),
 			})
 			if (this.extraTools) {
-				try { instance.use(this.extraTools()) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
+				try { instance.use(this.extraTools(conversationId)) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
 			}
 			const support = mergeBundles(
 				linked ? this.extensionsIndex.supportTools(linked, this.supportHost()) : null,
@@ -543,7 +543,7 @@ export class ChatSessions {
 			)
 			const agent = this.isAgent(instance)
 			const token = String(this.container.utils.uuid()).replace(/-/g, '')
-			this.giveAgentServers(instance, agent ? token : null)
+			this.giveAgentServers(instance, agent ? token : null, conversationId)
 			if (support && !agent) instance.use(support)
 			if (linked) instance.addSystemPromptExtension('workbenchTechSupport', ChatExtensions.brief(linked))
 			if (building) {
@@ -600,12 +600,12 @@ export class ChatSessions {
 	 * process. When the assistant runs on one (configured, or the machine
 	 * default), hand it the host's tools as MCP servers instead.
 	 */
-	private giveAgentServers(instance: any, token: string | null) {
+	private giveAgentServers(instance: any, token: string | null, conversationId: string) {
 		if (!token) return
 		try {
 			const current = instance.effectiveOptions?.providerOptions ?? {}
 			const own = this.chatMcpUrl ? { 'luca-chat': { type: 'http', url: this.chatMcpUrl(token), headers: { Authorization: `Bearer ${token}` } } } : {}
-			instance.options.providerOptions = { ...current, mcpServers: { ...(current.mcpServers ?? {}), ...(this.agentMcpServers?.() ?? {}), ...own } }
+			instance.options.providerOptions = { ...current, mcpServers: { ...(current.mcpServers ?? {}), ...(this.agentMcpServers?.(conversationId) ?? {}), ...own } }
 		} catch (err: any) {
 			console.error(`[workbench] could not give ${instance?.name} the host's MCP servers: ${err?.message}`)
 		}

@@ -233,7 +233,7 @@ final class ProjectHub: ObservableObject {
                     .sink { event in
                         if let review = PortfolioReview(event: event) { return Shell.shared.showReview(review) }
                         guard event.type == "canvas-open", let canvas = event.id else { return }
-                        Shell.shared.showCanvas(CanvasContent.address(project: id, id: canvas))
+                        Shell.shared.showCanvas(CanvasContent.address(project: id, id: canvas), chat: event.conversationId)
                     }
                 self.clientRevision[id, default: 0] += 1
                 self.status[id] = .running
