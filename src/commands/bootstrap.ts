@@ -5,6 +5,7 @@ import type { ContainerContext } from '../container.js'
 import type { NodeContainer } from '../node/container.js'
 import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials, bootstrapReferences } from '../bootstrap/generated.js'
 import { generateScaffold } from '../scaffolds/template.js'
+import { installBundledAssistants, describeInstall } from '../bootstrap/install-assistants.js'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 import { setup as runSetup } from './setup.js'
 import { localEmbeddingReadiness, hasDescribeEmbeddings } from '../describe-search.js'
@@ -128,6 +129,14 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	await fs.ensureFolder(assistantDir)
 	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'CORE.md'), bootstrapTemplates['assistant-core'] || '', 'assistants/default/CORE.md')
 	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'tools.ts'), bootstrapTemplates['assistant-tools'] || '', 'assistants/default/tools.ts')
+
+	// lucaArchitect goes to ~/.luca/assistants, not the project: a project copy
+	// would win the name and hide every later update.
+	try {
+		for (const line of describeInstall(await installBundledAssistants(container))) ui.print.cyan(`  ${line[0]!.toUpperCase()}${line.slice(1)}`)
+	} catch (err: any) {
+		ui.print.yellow(`  Could not install bundled assistants: ${err?.message ?? err}`)
+	}
 
 	// Workspace-level assistant config: options.yml (overrides) + hooks.ts
 	// (lifecycle). Both ship as no-op templates so users have something to

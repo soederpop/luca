@@ -48,6 +48,7 @@ export const bootstrapTemplates: Record<string, string> = {}
 export const bootstrapExamples: Record<string, string> = {}
 export const bootstrapTutorials: Record<string, string> = {}
 export const bootstrapReferences: Record<string, string> = {}
+export const bootstrapAssistants: Record<string, Record<string, string>> = {}
 `,
   'src/python/generated.ts': `${STUB_HEADER}export const bridgeScript = ''
 `,

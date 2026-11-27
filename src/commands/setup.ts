@@ -9,6 +9,7 @@ import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 import { resolveModelPath, DEFAULT_LOCAL_MODEL } from '../node/features/semantic-search.js'
 import { installedBinaryPath, chatModelPath, DEFAULT_CHAT_MODEL, CHAT_MODEL_SOURCES, resolvedReleaseTag } from '../node/features/llama-server.js'
 import { hasDescribeEmbeddings, buildDescribeEmbeddings } from '../describe-search.js'
+import { installBundledAssistants, describeInstall } from '../bootstrap/install-assistants.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -713,6 +714,13 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 		const result = await setupProviders(container, ui, !!process.stdin.isTTY)
 		if (result.done) done.push(result.done)
 		else if (result.skipped) skipped.push(result.skipped)
+	}
+
+	// ── Bundled assistants (lucaArchitect) into ~/.luca/assistants ───
+	try {
+		done.push(...describeInstall(await installBundledAssistants(container)))
+	} catch (err: any) {
+		skipped.push(`bundled assistants (${err?.message ?? err})`)
 	}
 
 	// ── Summary ──────────────────────────────────────────────────────

@@ -163,9 +163,27 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
 	).join(',\n')
 
+	// 6. Assistants the binary installs into ~/.luca/assistants (src/bootstrap/install-assistants.ts).
+	// The desktop app ships the same folder; it stays the one source of truth.
+	const bundledAssistants: Record<string, Record<string, string>> = {}
+	const assistantsRoot = 'apps/desktop/assistants'
+	for (const name of ['lucaArchitect']) {
+		const dir = `${assistantsRoot}/${name}`
+		if (!fs.exists(dir)) throw new Error(`Bundled assistant ${dir} not found`)
+		const { files } = fs.walk(dir, { relative: true, directories: false, exclude: ['.history', '.DS_Store', 'node_modules'] })
+		bundledAssistants[name] = {}
+		for (const file of [...files].sort()) {
+			bundledAssistants[name][file] = await fs.readFileAsync(`${dir}/${file}`)
+		}
+		console.log(`   assistant/${name}: ${files.length} files`)
+	}
+	const assistantEntries = Object.entries(bundledAssistants).map(([name, files]) =>
+		`  ${JSON.stringify(name)}: {\n${Object.entries(files).map(([file, content]) => `    ${JSON.stringify(file)}: \`${escapeForTemplate(content)}\``).join(',\n')}\n  }`
+	).join(',\n')
+
 	const output = `// Auto-generated bootstrap content
 // Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/bootstrap/references/*.md, docs/examples/*.md, docs/tutorials/*.md,
-// plus reference docs generated from live introspection data.
+// apps/desktop/assistants/lucaArchitect, plus reference docs generated from live introspection data.
 //
 // Do not edit manually. Run: luca build-bootstrap
 
@@ -187,6 +205,10 @@ ${tutorialEntries}
 
 export const bootstrapReferences: Record<string, string> = {
 ${referenceEntries}
+}
+
+export const bootstrapAssistants: Record<string, Record<string, string>> = {
+${assistantEntries}
 }
 `
 

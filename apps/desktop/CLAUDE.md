@@ -32,6 +32,13 @@ and the stamp differs; a folder with no stamp is the user's and is left
 alone. `LUCA_DESKTOP_ASSISTANTS_HOME` moves the target for check runs. A new
 skill goes in `assistants/lucaArchitect/skills/` and in its `only:` list.
 
+The `luca` binary ships the same folder (`build-bootstrap` embeds it) and
+installs it from `luca bootstrap` and `luca setup`
+(`src/bootstrap/install-assistants.ts`). It writes both this stamp and its
+own `.luca-cli-build`, and replaces only a copy with its own marker. So the
+app replaces a binary-installed copy on its next launch, and the binary
+never replaces the app's copy.
+
 ## The portfolio project
 
 `portfolio/` here is a small Luca project: `lucaPortfolio` (the projects
