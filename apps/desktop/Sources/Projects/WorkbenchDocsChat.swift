@@ -337,9 +337,24 @@ struct WorkbenchChatSent: Decodable, Equatable {
     let error: String?
 }
 
+/// `POST /docs/create`: the document made.
+struct WorkbenchDocCreated: Decodable, Equatable {
+    let ok: Bool
+    let id: String
+    let model: String
+    let pathDisplay: String
+    let text: String
+}
+
 extension WorkbenchClient {
     func docs() async throws -> WorkbenchDocs {
         try await get("/docs")
+    }
+
+    /// A new document of a model, named from its title; `Base` or empty for none.
+    func createDoc(model: String, title: String) async throws -> WorkbenchDocCreated {
+        struct Body: Encodable { let model: String; let title: String }
+        return try await post("/docs/create", Body(model: model, title: title))
     }
 
     func models() async throws -> WorkbenchModels {

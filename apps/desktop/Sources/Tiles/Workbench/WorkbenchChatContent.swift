@@ -102,6 +102,8 @@ struct WorkbenchChatTranscript: Equatable {
 /// start and end. `new` as the id asks the host for a fresh conversation;
 /// the tile then takes the real id, so it opens the same one after a restart.
 ///
+/// `?say=<text>` sends that as the first message once the chat is open, then
+/// drops the option (a doc tile's `c` hands the document over that way).
 /// `?extends=<conversationId>&extendsAssistant=<name>` opens it as the tech
 /// support chat of that conversation: the host gives it tools to change that
 /// chat's added tools.
@@ -219,6 +221,12 @@ final class WorkbenchChatContent: WorkbenchContent {
                 self.loadError = nil
                 self.transcript.load(view)
                 self.adopt(view)
+                // `?say=`: a first message the opener wrote (a doc tile's `c`), sent once.
+                if let say = self.uri.option("say"), !say.isEmpty {
+                    self.uri = self.uri.with(option: "say", nil)
+                    Shell.shared.scheduleSave()
+                    self.send(say)
+                }
             } catch {
                 guard !Task.isCancelled else { return }
                 self.loadError = ErrorText.message(error)

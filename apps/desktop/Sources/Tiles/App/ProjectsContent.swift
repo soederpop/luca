@@ -54,6 +54,7 @@ final class ProjectsContent: TileContent {
         case "appProjects.open":
             if projects.isEmpty { askFolder() } else { open(selected) }
         case "appProjects.add": askFolder()
+        case "appProjects.new": Shell.shared.bootstrapProject()
         case "appProjects.ask": Shell.shared.openPortfolioChat()
         default: return false
         }
@@ -153,6 +154,16 @@ struct ProjectsView: View {
                     }
                     .buttonStyle(.plain)
                     BoundKey(action: "appProjects.add")
+                    Button { Shell.shared.bootstrapProject() } label: {
+                        Text("New project…")
+                            .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .semibold))
+                            .foregroundStyle(p.accent.color)
+                            .padding(.horizontal, KitTokens.Space.s5)
+                            .padding(.vertical, KitTokens.Space.s3)
+                            .background(Capsule().stroke(p.accent.color))
+                    }
+                    .buttonStyle(.plain)
+                    BoundKey(action: "appProjects.new")
                     HStack(spacing: KitTokens.Space.s3) {
                         BoundKey(action: "palette.projects")
                         Text("pick a known project").font(WorkbenchStyle.meta).foregroundStyle(p.textMuted.color)

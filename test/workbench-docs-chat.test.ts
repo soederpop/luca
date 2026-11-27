@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fieldKind, valueKind, docTitle, docPreview, digestOf } from '../src/workbench/docs'
+import { fieldKind, valueKind, docTitle, docPreview, digestOf, docSlug, newDocText } from '../src/workbench/docs'
 import { messagesView, argsText, resultFailed, resultText, shortTime } from '../src/workbench/chat'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
@@ -208,6 +208,19 @@ describe('pure parts', () => {
 		expect(view[3]!.tools[0]!.status).toBe('failed')
 		expect(view[3]!.tools[0]!.argsText).toBe('{}')
 	})
+	it('names a new document from its title and fills the template', () => {
+		expect(docSlug('The First Note!')).toBe('the-first-note')
+		expect(docSlug('  Épée / Ünïcode  ')).toBe('epee-unicode')
+		expect(docSlug('???')).toBe('')
+		expect(newDocText(null, 'Plan B', 'plan-b')).toBe('---\ntitle: Plan B\n---\n\n# Plan B\n\n')
+		// A template with a title line gets the title; placeholders fill.
+		expect(newDocText('---\ntitle:\nstatus: draft\n---\n\n# {{title}}\n\nSlug {{slug}} on {{date}}.\n', 'Plan B', 'plan-b', new Date('2026-11-26T10:00:00Z')))
+			.toBe('---\ntitle: Plan B\nstatus: draft\n---\n\n# Plan B\n\nSlug plan-b on 2026-11-26.\n')
+		// No title in the frontmatter: one is added. No frontmatter: one is made.
+		expect(newDocText('---\nstatus: draft\n---\n\nBody\n', 'A: b', 'a-b')).toBe('---\ntitle: "A: b"\nstatus: draft\n---\n\nBody\n')
+		expect(newDocText('Just a body\n', 'Plan', 'plan')).toBe('---\ntitle: Plan\n---\n\nJust a body\n')
+	})
+
 	it('tool text helpers', () => {
 		expect(argsText({ a: 1 })).toBe('{\n  "a": 1\n}')
 		expect(argsText('not json')).toBe('not json')
@@ -286,6 +299,35 @@ describe('docs routes', () => {
 		// The index sees the save.
 		const docs = await (await api.get('/docs')).json()
 		expect(docs.stacks[0].cards.find((c: any) => c.id === 'notes/crlf').preview).toBe('This file uses CRLF. Edited.')
+	})
+
+	it('POST /docs/create makes a document of a model, from its template, named from the title', async () => {
+		// A template for Person: the new document starts from it.
+		mkdirSync(join(proj, 'docs', 'models'), { recursive: true })
+		writeFileSync(join(proj, 'docs', 'models', 'Person.template.md'), '---\nname: {{title}}\nactive: true\n---\n\n# {{title}}\n\nWho they are.\n')
+		const r = await api.post('/docs/create', { model: 'Person', title: 'Grace Hopper' })
+		expect(r.status).toBe(200)
+		const made = await r.json()
+		expect(made.ok).toBe(true)
+		expect(made.id).toBe('people/grace-hopper')
+		expect(made.model).toBe('Person')
+		expect(readFileSync(join(proj, 'docs', 'people', 'grace-hopper.md'), 'utf8'))
+			.toBe('---\ntitle: Grace Hopper\nname: Grace Hopper\nactive: true\n---\n\n# Grace Hopper\n\nWho they are.\n')
+		expect(made.view.id).toBe('people/grace-hopper')
+		expect(made.view.model).toBe('Person')
+		// The same title again takes the next free name. No template: a plain frontmatter.
+		const again = await (await api.post('/docs/create', { model: 'Note', title: 'First' })).json()
+		expect(again.id).toBe('notes/first-2')
+		expect(readFileSync(join(proj, 'docs', 'notes', 'first-2.md'), 'utf8')).toBe('---\ntitle: First\n---\n\n# First\n\n')
+		// No model: at the root, under Other.
+		const loose = await (await api.post('/docs/create', { title: 'Loose end' })).json()
+		expect(loose.id).toBe('loose-end')
+		const docs = await (await api.get('/docs')).json()
+		expect(docs.stacks.find((s: any) => s.id === 'Person').cards.some((c: any) => c.id === 'people/grace-hopper')).toBe(true)
+		expect(docs.stacks.find((s: any) => s.title === 'Other').cards.some((c: any) => c.id === 'loose-end')).toBe(true)
+		expect((await api.post('/docs/create', { model: 'Nope', title: 'x' })).status).toBe(404)
+		expect((await api.post('/docs/create', { model: 'Note' })).status).toBe(400)
+		expect((await api.post('/docs/create', { model: 'Note', title: '!!!' })).status).toBe(400)
 	})
 
 	it('a project with no docs folder gets a notice, not an error', async () => {

@@ -164,7 +164,9 @@ owner colors). Colors are kit tokens only, so every theme (`Space T`) and
 (so `LUCA_DESKTOP_HOME` moves it) and runs one host per open project.
 
 - `:open-project <path>` (or `:project`) remembers a folder and goes to its
-  workspace, or a free one with its `project` tile. `Space p`
+  workspace, or a free one with its `project` tile. `:chat [assistant]`
+  starts a chat (`Tab` completes the assistant's name from the project's
+  list, cycling through matches; no name opens the picker). `Space p`
   (`palette.projects`), the projects tile (`Space P`) and the palette list
   known projects.
 - The host lives while a tile holds its project; the last tile's close
@@ -213,7 +215,7 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `GET /servers` | `{kinds, instances, text}` (`src/workbench/servers.ts`). `kinds` are the `servers` registry: `{id, title, summary, options, optionsHint, address, running, origin?}`. `instances` are the ones the workbench started plus any the project's own code has listening: `{key, id, title, status, port, host, url, by, optionsText, state, error}`; `status` is `starting`, `listening`, `stopped` or `failed`; `by` is `workbench` or `project` |
 | `POST /servers/start` | `{id, options}`. `options` is what was typed: empty, a port, `name=value` pairs or a JSON object (`parseServerOptions`). Makes a fresh instance in the host's container (`cached: false`) and starts it; answers at once with `{instance}` and a `servers` frame follows each change. Host defaults to `127.0.0.1`; with no port it takes the first free one from the server's default. `mcp` is always `transport=http`: stdio is the host's line to the app |
 | `POST /servers/<key>/stop` | Stop that instance (a failed one is only cleared). Every instance the workbench started stops when the host closes |
-| `GET /command/<id>` | `title`, `summary`, `badge`, `usage`, `examples`, `fields` (`name`, `flag`, `type` string/number/boolean/enum/array/unknown, `options`, `default` as text, `description`, `required`, `positional`, `position`); the last field `__extra__` (`extra: true`) is free text of more arguments |
+| `GET /command/<id>` | `title`, `summary`, `badge`, `usage`, `examples`, `subcommands` (`name`, `args`, `description`, from `export const subcommands`; empty for most), `fields` (`name`, `flag`, `type` string/number/boolean/enum/array/unknown, `options`, `default` as text, `description`, `required`, `positional`, `position`); the last field `__extra__` (`extra: true`) is free text of more arguments |
 | `POST /command/<id>/run` | `{values: {name: text or bool}}`. The host builds the argv (`buildArgs`: positionals in order up to the first empty one, later ones as flags; booleans only when they differ from the default) and starts a child `luca <id> …` in the project folder, the way the host started (`childPrefix`: `bun /x/cli.ts`, or the compiled binary). 400 lists missing required fields. Answers the run (below) |
 | `GET /runs/<runId>` | `{runId, command, display, status, code, signal, stopped, statusText, ms, chunks [{seq, stream, text}], dropped}`. 1 MB of text per run, oldest chunks dropped; the last 20 finished runs are kept |
 | `POST /runs/<runId>/stop` | SIGTERM to the child's process group, SIGKILL 3 s later |
@@ -228,6 +230,7 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `GET /docs/models` | `models`: `name`, `prefix`, `description`, `count`, `slot`, `fields` (`name`, `kind` string/number/boolean/enum/array/date/object/value, `typeText`, `required`, `default` as text, `description`, `options`), `sections`, `relationships` |
 | `GET /docs/item?id=` | `id`, `model`, `slot`, `title`, `path`, `pathDisplay`, `file` (exact bytes as text), `digest` (sha1 of the file), `size`, `sizeText`, `fields` (the model's fields in order with `value` text or null, `items` for lists, then `extra: true` keys the model does not name). 404 for an id outside the collection |
 | `POST /docs/save` | `{id, text, digest}`: writes `text` as the whole file, byte for byte, only when the disk file still has `digest`; else 409 with `view` (the file now). Answers `{ok, unchanged, view, text}` |
+| `POST /docs/create` | `{model?, title}`: a new document, `<prefix>/<slug>.md` under the model's folder (`-2` when the name is taken; no model or `Base` puts it at the root), from the model's template when it has one (`{{title}}`, `{{slug}}`, `{{date}}` filled; a `title:` added to the frontmatter when it names none), else a frontmatter with the title and a heading. Answers `{ok, id, model, path, pathDisplay, view, text}`; 400 with no title, 404 for a model it does not know |
 | `GET /contentbase` | `rootDisplay`, `modelsDirDisplay`, `notice`, `error`, `fieldTypes`, `extractKinds`, `loadErrors` (workspace model files that did not load: `file`, `fileDisplay`, `model`, `message`), `models`: `name`, `prefix`, `description`, `slot`, `count`, `source` (`models-file`, `tile`, `workspace`, `builtin`), `sourceText`, `file`, `fileDisplay`, `digest`, `editable`, `readOnlyNote`, `spec` (below), `fields` (as `/docs/models`), `sections` (`key`, `heading`, `alternatives`, `extract` text/list/code/custom), `relationships`, `template` (`file`, `fileDisplay`, `exists`) |
 | `GET /contentbase/model?name=` | one model in that shape; 404 for none |
 | `POST /contentbase/preview` | `{spec, original?}`: `{spec, problems, file, fileDisplay, text, suggestedPrefix}`. Writes nothing. A spec is `{name, prefix, description, fields [{name, type string/number/boolean/date/enum/list, required, default text, description, options}], sections [{key, heading, alternatives, extract text/list/code}]}` |
@@ -313,6 +316,13 @@ path outside the receiving project (or the plugins folder, for a link).
   nothing, and the borrowed folders. `j`/`k` move, `t` plans on/off (or stop
   a borrow), `l` links a known project folder (`:link-plugin <path> [name]`),
   `:plugin on|off <name>`. The plan shows at the top; `a` writes, `c` drops.
+  What a plugin adds is one count pill per helper type (in the type's
+  color); `o` (or a pill) opens the names, one block per type, 40 at a time
+  with "more", each a link to its tile when the plugin is loaded
+  (`PluginsContent.address`: features, clients, servers and selectors to the
+  inspector, commands to the command tile; endpoints and assistants have
+  none). `/` asks for a filter (`:filter <text>`): only names with that
+  text show, in every plugin (`PluginsContent.adds(_:matching:)`).
 - **Plugins folder**: `~/.luca/plugins`. `LUCA_WORKBENCH_PLUGINS_DIR` moves
   it (tests, check runs); then `.env` names a plugin by its full path,
   which the CLI also reads. Bun reads `.env` only for variables not already
@@ -380,7 +390,13 @@ path outside the receiving project (or the plugins folder, for a link).
   model in its color (`WorkbenchStyle.slotColor(slot)`, the host's slot;
   `IndexStack.tone` / `IndexCard.tone` = `slot:<n>` draw the dot and card
   bar). `m` the models view, `?model=` focuses a stack. A project with no
-  `docs/` gets the host's one-line notice.
+  `docs/` gets the host's one-line notice. `n` makes a document: the
+  palette asks the model (not with one), then the title; `:new [Model]
+  [title]` in the tile and `:new-doc [Model] [title]` anywhere take them
+  typed (a first word that names a model, `Other` for none). The host
+  writes the file (`POST /docs/create`, `LucaDocsContent.newDocument`),
+  the doc opens in source view beside the tile, and the project's docs
+  tiles reload.
 - **Models** `Space D`: a card per model, fields with kind-colored types
   (`WorkbenchStyle.fieldColor`), enum values as chips, the default marked.
 - **Doc**: `WorkbenchDocBuffer` holds the file as `DocText` (byte for byte)
@@ -395,6 +411,11 @@ path outside the receiving project (or the plugins folder, for a link).
 - **Assistants** `Space c`: an Assistants stack (model, tools, conversation
   count; `Enter` or `n` new chat, `c` past conversations in the palette) and
   Recent conversations (`Enter` reopens). It reloads on `chat-done`.
+- **Doc → chat**: `c` in a doc tile picks an assistant (the last one picked
+  first, kept in the app's defaults, so `Enter` takes it again) and opens a
+  chat beside the tile with the document as its first message
+  (`chatOpener`, whole up to 24 000 characters), through the chat address's
+  `?say=<text>`, which the chat tile sends once it is open and then drops.
 - **Chat** `Space n` (one assistant opens straight away, else the palette
   asks): `luca://p/chat/new?assistant=x` asks the host for an id and the tile
   takes it (`uri.with(id:)`), so a restart reopens the same conversation.
@@ -539,6 +560,25 @@ Notes on the kinds:
   host yet it opens the registry on the commands stack). `r` (or `Enter` in
   a field) runs, `Ctrl-c` stops, `:arg <name> <value>`. `RunTranscript`
   applies `run-output` frames by `seq`. Closing the tile stops its run.
+  `?then=` names what a run that exits 0 leads to, once (`afterSuccess`;
+  the option and `run` go, so a restored tile only shows the form):
+  `open-project` opens the folder the `output` field names as a project
+  (bootstrap), `scaffold` opens the file the output says it wrote
+  (`scaffoldedPath`, pure) and restarts the host.
+- **New project** (`Space N`, `:bootstrap [path]`, `n` or "New project…"
+  in the projects tile; `Shell+New.swift`): the palette asks the folder,
+  then which of the machine's plugins the project loads (a pick list that
+  stays up: each row ticks one, the first row creates), then
+  `luca bootstrap --output <folder> [--use-plugins a,b] --no-setup` runs
+  in a command tile on the project in focus's host (else the portfolio's;
+  `impliedProject`), with `then=open-project`. The plugin list comes from
+  `GET /plugins` of any running host (`ProjectHub.anyClient`), or the
+  runner's host is started for it (`ProjectHub.withClient`).
+- **Scaffold** (`Space S`, `:scaffold [type] [name]`): the host's form for
+  `luca scaffold` gives the types (`type` is a declared positional enum;
+  `subcommands` the descriptions); the palette asks the type and the name,
+  and the command tile opens with both filled and `then=scaffold`, so a
+  description can go in before `r` runs it.
 - **Terminal**: a login shell (SwiftTerm) in the project's folder, from
   `projects.json`; it needs no host. `i` gives it the keyboard; then every
   key goes to the shell, `Esc` too, except `Mod` keys and the few `global`
@@ -574,7 +614,8 @@ Notes on the kinds:
   (`choose`, `ask`, `confirm`, `flash`, answered with `al:reply`). Page keys
   win over tile keys in that tile, never over `Space`, `:`, `?` or `Esc`.
 - **Projects**: the known projects with their color, path, host state and
-  when last opened; `j`/`k`, `Enter` goes to one, `a` asks for a folder.
+  when last opened; `j`/`k`, `Enter` goes to one, `a` asks for a folder,
+  `n` bootstraps a new project.
 - Colors: each project has its color (header band, name tag, border, body
   wash, status line). Kinds have hues by family (`Theme.kindColor`).
 

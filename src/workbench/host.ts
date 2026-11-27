@@ -19,7 +19,7 @@ import { planCopy, planBorrow, planUnborrow, applyPlan } from './borrow.js'
 import { pluginsView, planPlugin } from './plugins.js'
 import type { Plan } from './changes.js'
 import { EndpointIndex, ServeControl, endpointsView } from './endpoints.js'
-import { DocsIndex, docsView, modelsView, docView, saveDoc } from './docs.js'
+import { DocsIndex, docsView, modelsView, docView, saveDoc, createDoc } from './docs.js'
 import { ModelsEditor, runQuery } from './models.js'
 import { ChatSessions } from './chat.js'
 import { fileView, saveFile, listFiles } from './files.js'
@@ -510,6 +510,12 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			let body: any
 			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
 			const answer = await saveDoc(docsIndex, body)
+			return sendJson(res, answer.status, answer.body)
+		}
+		if (method === 'POST' && path === '/docs/create') {
+			let body: any
+			try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+			const answer = await createDoc(docsIndex, body)
 			return sendJson(res, answer.status, answer.body)
 		}
 

@@ -234,6 +234,22 @@ describe('GET /registry/:name', () => {
     expect(p.cards.map((c: any) => c.id)).toContain('hello')
   })
 
+  it('GET /command/scaffold: the type as a pick list, the name, and the subcommands it declares', async () => {
+    const res = await fetch(`${wb.base}/command/scaffold`, { headers: authed() })
+    expect(res.status).toBe(200)
+    const form: any = await res.json()
+    const type = form.fields.find((f: any) => f.name === 'type')
+    expect(type.positional).toBe(true)
+    expect(type.type).toBe('enum')
+    expect(type.options).toContain('feature')
+    expect(form.fields.find((f: any) => f.name === 'name').positional).toBe(true)
+    expect(form.subcommands.map((s: any) => s.name)).toContain('assistant')
+    expect(form.subcommands.find((s: any) => s.name === 'feature').description).toContain('features/<name>.ts')
+    // A command with none has an empty list.
+    const hello: any = await (await fetch(`${wb.base}/command/hello`, { headers: authed() })).json()
+    expect(hello.subcommands).toEqual([])
+  })
+
   it('404 for unknown registry', async () => {
     const res = await fetch(`${wb.base}/registry/nonsense`, { headers: authed() })
     expect(res.status).toBe(404)

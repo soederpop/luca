@@ -239,10 +239,10 @@ final class DocsAndChatTests: XCTestCase {
     func testTheDocsAndChatKeysAreInTheDefaultKeymap() {
         let map = Keymap.merged(defaults: DefaultKeymap.file, user: nil)
         let byKind: [String: [String]] = [
-            "luca-docs": ["lucaDocs.models", "lucaDocs.restart"],
+            "luca-docs": ["lucaDocs.models", "lucaDocs.new", "lucaDocs.restart"],
             "luca-models": ["lucaModels.docs", "lucaModels.reload", "lucaModels.restart"],
             "luca-doc": ["lucaDoc.edit", "lucaDoc.rich", "lucaDoc.source", "lucaDoc.preview", "lucaDoc.fields", "lucaDoc.reload",
-                         "lucaDoc.keepMine", "lucaDoc.takeTheirs", "lucaDoc.docs", "lucaDoc.restart"],
+                         "lucaDoc.keepMine", "lucaDoc.takeTheirs", "lucaDoc.docs", "lucaDoc.chat", "lucaDoc.prompt", "lucaDoc.restart"],
             "luca-assistants": ["lucaAssistants.new", "lucaAssistants.history", "lucaAssistants.restart"],
             "luca-chat": ["lucaChat.input", "lucaChat.stop", "lucaChat.history", "lucaChat.new", "lucaChat.assistants",
                           "lucaChat.reload", "lucaChat.restart", "lucaChat.next", "lucaChat.prev", "lucaChat.details",

@@ -408,6 +408,8 @@ export type CommandFormView = {
 	usage: string
 	fields: import('./runs.js').CommandField[]
 	examples: Array<{ command: string; description: string }>
+	/** `export const subcommands`: the verbs a command takes, for a picker. */
+	subcommands: Array<{ name: string; args: string; description: string }>
 	origin?: HelperOrigin
 }
 
@@ -468,6 +470,10 @@ export function commandView(container: any, id: string, origins?: Origins): Comm
 	const examples = (Array.isArray(Cmd.examples) ? Cmd.examples : []).map((e: any) =>
 		typeof e === 'string' ? { command: e, description: '' } : { command: String(e?.command ?? ''), description: String(e?.description ?? '') })
 	const description = String(Cmd.commandDescription || descriptionOf(container, 'commands', id) || '')
+	const subs = Cmd.subcommands && typeof Cmd.subcommands === 'object' ? Cmd.subcommands : {}
+	const subcommands = Object.entries<any>(subs).map(([name, sub]) => ({
+		name, args: String(sub?.args ?? ''), description: oneLine(String(sub?.description ?? ''), 400),
+	}))
 	return {
 		id,
 		title: `luca ${id}`,
@@ -476,6 +482,7 @@ export function commandView(container: any, id: string, origins?: Origins): Comm
 		usage,
 		fields,
 		examples,
+		subcommands,
 		...(origins ? { origin: origins.of('commands', id) } : {}),
 	}
 }

@@ -128,6 +128,8 @@ final class BorrowHelpersTests: XCTestCase {
             ("lucaPlugins.link", "l", "luca-plugins"),
             ("lucaPlugins.apply", "a", "luca-plugins"),
             ("lucaPlugins.down", "j", "luca-plugins"),
+            ("lucaPlugins.open", "o", "luca-plugins"),
+            ("lucaPlugins.filter", "/", "luca-plugins"),
         ]
         for (action, spec, kind) in expected {
             let binding = map.binding(for: action)
@@ -135,5 +137,21 @@ final class BorrowHelpersTests: XCTestCase {
             XCTAssertFalse(binding?.label.isEmpty ?? true, action)
             if let kind { XCTAssertEqual(binding?.kind, kind, action) }
         }
+    }
+
+    func testAPluginsHelpersFilterByNameAndOpenAsTiles() {
+        let adds = [
+            WorkbenchPlugins.Adds(type: "features", names: ["gmail", "github", "briefings"]),
+            WorkbenchPlugins.Adds(type: "commands", names: ["main", "doctor"]),
+            WorkbenchPlugins.Adds(type: "endpoints", names: ["GET /health"]),
+        ]
+        XCTAssertEqual(PluginsContent.adds(adds, matching: ""), adds)
+        XCTAssertEqual(PluginsContent.adds(adds, matching: " Git "), [WorkbenchPlugins.Adds(type: "features", names: ["github"])])
+        XCTAssertEqual(PluginsContent.adds(adds, matching: "G"), [WorkbenchPlugins.Adds(type: "features", names: ["gmail", "github", "briefings"]), WorkbenchPlugins.Adds(type: "endpoints", names: ["GET /health"])])
+        XCTAssertEqual(PluginsContent.adds(adds, matching: "zzz"), [])
+        XCTAssertEqual(PluginsContent.address(project: "p", type: "features", name: "gmail")?.description, "luca://p/helper/features/gmail")
+        XCTAssertEqual(PluginsContent.address(project: "p", type: "commands", name: "main")?.description, "luca://p/command/main")
+        XCTAssertNil(PluginsContent.address(project: "p", type: "endpoints", name: "GET /health"))
+        XCTAssertNil(PluginsContent.address(project: "p", type: "assistants", name: "chief"))
     }
 }

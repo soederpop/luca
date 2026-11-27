@@ -126,6 +126,62 @@ final class WorkbenchDocContent: WorkbenchContent {
 
     override func makeBody() -> AnyView { AnyView(WorkbenchDocView(model: self, buffer: buffer)) }
 
+    /// Where the last assistant picked for `c` is kept, app wide.
+    static let chatAssistantKey = "lucaDoc.chatAssistant"
+    /// The most of a document that goes into the first message.
+    nonisolated static let chatTextLimit = 24_000
+
+    /// `c`: a chat with an assistant about this document. The palette lists
+    /// the project's assistants with the last one picked first, so `Enter`
+    /// takes it again; the chat opens beside the tile with the document as
+    /// its first message (`?say=`).
+    func chatAbout() {
+        guard let host else { return Shell.shared.flash("The workbench host is not running") }
+        guard let doc, buffer.isLoaded else { return Shell.shared.flash("Still loading the document") }
+        let last = UserDefaults.standard.string(forKey: Self.chatAssistantKey)
+        let say = Self.chatOpener(path: doc.pathDisplay, text: buffer.raw)
+        let open: (String) -> Void = { [weak self] assistant in
+            guard let self else { return }
+            UserDefaults.standard.set(assistant, forKey: Self.chatAssistantKey)
+            let uri = WorkbenchChat.newChat(project: self.projectId, assistant: assistant).with(option: "say", say)
+            Shell.shared.open(uri, near: self.tileId)
+        }
+        Task { @MainActor [weak self] in
+            do {
+                let reply = try await host.assistants()
+                let ordered = Self.chatOrder(reply.assistants.map(\.name), last: last)
+                guard !ordered.isEmpty else { return Shell.shared.flash(reply.notice ?? "This project has no assistants") }
+                if ordered.count == 1 { return open(ordered[0]) }
+                PaletteController.shared.choose("chat about \(self?.title ?? "this document") with", ordered.enumerated().map { index, name in
+                    let a = reply.assistants.first { $0.name == name }
+                    var detail = [a?.modelText ?? "", a?.description ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
+                    if index == 0, name == last { detail = "last time · " + detail }
+                    return PaletteChoice(title: name, detail: detail) { open(name) }
+                })
+            } catch {
+                Shell.shared.flash(ErrorText.message(error))
+            }
+        }
+    }
+
+    /// The assistants with the last one picked first, the rest in the
+    /// host's order; a last pick the project no longer has is skipped. Pure.
+    nonisolated static func chatOrder(_ names: [String], last: String?) -> [String] {
+        guard let last, names.contains(last) else { return names }
+        return [last] + names.filter { $0 != last }
+    }
+
+    /// The first message: the document, whole up to `chatTextLimit`. Pure.
+    nonisolated static func chatOpener(path: String, text: String) -> String {
+        var body = text
+        var note = ""
+        if body.count > chatTextLimit {
+            body = String(body.prefix(chatTextLimit))
+            note = "\n\n(The document goes on past this point; this is the first \(chatTextLimit) characters.)"
+        }
+        return "Let's talk about the document `\(path)`. Read it first, then ask what I want to do with it.\n\n```md\n\(body)\n```" + note
+    }
+
     override func hostChanged(_ client: WorkbenchClient?) {
         loadTask?.cancel()
         if client != nil { load() }
@@ -250,6 +306,7 @@ final class WorkbenchDocContent: WorkbenchContent {
         case "lucaDoc.source": show(.source)
         case "lucaDoc.preview": show(.preview)
         case "lucaDoc.fields": showFields.toggle()
+        case "lucaDoc.chat": chatAbout()
         case "lucaDoc.prompt": runPrompt(dryRun: false)
         case "lucaDoc.promptDry": runPrompt(dryRun: true)
         case "lucaDoc.docs":

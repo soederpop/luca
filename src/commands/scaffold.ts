@@ -14,7 +14,12 @@ declare module '../command.js' {
 
 const validTypes = [...Object.keys(scaffolds), 'assistant']
 
+// Declared so `--help` and the workbench's command form know them; the handler still reads argv._.
+export const positionals = ['type', 'name']
+
 export const argsSchema = CommandOptionsSchema.extend({
+	type: z.enum(['feature', 'client', 'server', 'command', 'endpoint', 'selector', 'assistant']).optional().describe('What to scaffold'),
+	name: z.string().optional().describe('The name of the new helper (kebab-cased for the file)'),
 	description: z.string().optional().describe('Brief description of the helper'),
 	output: z.string().optional().describe('Output file path (overrides default location)'),
 	print: z.boolean().default(false).describe('Print the generated code to stdout instead of writing a file'),
@@ -198,6 +203,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 commands.registerHandler('scaffold', {
 	description: 'Generate boilerplate for a new luca feature, client, server, command, endpoint, or assistant',
 	argsSchema,
+	positionals,
 	subcommands,
 	examples,
 	handler: scaffoldCommand,

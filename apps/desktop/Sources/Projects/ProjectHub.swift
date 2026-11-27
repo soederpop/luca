@@ -82,6 +82,32 @@ final class ProjectHub: ObservableObject {
 
     func client(_ id: String) -> WorkbenchClient? { clients[id] }
 
+    /// Any running host: for a question that is not about one project (the
+    /// plugins folder is the machine's). The portfolio's first, as the one
+    /// that is always known.
+    func anyClient() -> WorkbenchClient? {
+        clients[PortfolioProject.id] ?? clients.values.first
+    }
+
+    /// A client for the project, starting its host when none runs and
+    /// holding it only while `run` works (the usual 5 s idle stop follows).
+    /// Nil when the host does not come up in time.
+    func withClient(_ id: String, timeout: Duration = .seconds(45), _ run: @escaping (WorkbenchClient?) -> Void) {
+        if let client = clients[id] { return run(client) }
+        acquire(id)
+        Task { @MainActor [weak self] in
+            let deadline = ContinuousClock.now + timeout
+            var client: WorkbenchClient?
+            while ContinuousClock.now < deadline {
+                if let found = self?.clients[id] { client = found; break }
+                if case .failed = self?.status[id] ?? .starting { break }
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            run(client)
+            self?.release(id)
+        }
+    }
+
     /// Remember a folder: `~/x`, relative to home, or absolute. The error is
     /// one line for the status line.
     func remember(path: String) -> Result<KnownProject, HostStartError> {

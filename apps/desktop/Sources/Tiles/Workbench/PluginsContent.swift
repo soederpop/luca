@@ -5,7 +5,9 @@ import SwiftUI
 /// links in the plugins folder) with what each adds, and the folders it
 /// borrows in `luca.cli.ts`. `t` turns the row in focus on or off (or stops
 /// a borrow), `l` links a project folder as a plugin. Each write is shown
-/// first, here, and made on `a`.
+/// first, here, and made on `a`. `o` opens what the plugin in focus adds, one
+/// block per helper type with each name a link to its tile; `/` keeps only
+/// the names with some text, across every plugin.
 @MainActor
 final class PluginsContent: WorkbenchContent {
     static let kind = TileKind(id: "luca-plugins", label: "Plugins", glyph: "puzzlepiece.extension") { uri, _ in
@@ -47,7 +49,16 @@ final class PluginsContent: WorkbenchContent {
     @Published private(set) var pending: (request: ChangeRequest, change: WorkbenchChange)?
     @Published private(set) var working = false
     @Published private(set) var done: String?
+    /// Plugins whose contents are open (`o`), and the `plugin:type` groups
+    /// shown whole past the first page.
+    @Published private(set) var expanded: Set<String> = []
+    @Published private(set) var shownWhole: Set<String> = []
+    /// `/`: only helper names with this text show, in every plugin.
+    @Published var filter = ""
     private var task: Task<Void, Never>?
+
+    /// Names per page of a type's list, before "more".
+    static let pageSize = 40
 
     init(uri: TileURI) {
         super.init(kindId: Self.kind.id, uri: uri, title: "\(ProjectHub.shared.displayName(uri.authority)) plugins")
@@ -69,6 +80,8 @@ final class PluginsContent: WorkbenchContent {
         case "lucaPlugins.up": move(-1)
         case "lucaPlugins.toggle": toggleFocused()
         case "lucaPlugins.link": pickLink()
+        case "lucaPlugins.open": toggleExpanded()
+        case "lucaPlugins.filter": askFilter()
         case "lucaPlugins.apply": confirmApply()
         case "lucaPlugins.cancel":
             if pending == nil { return false }
@@ -86,6 +99,9 @@ final class PluginsContent: WorkbenchContent {
             guard !rest.isEmpty else { pickLink(); return true }
             let parts = rest.split(separator: " ").map(String.init)
             plan(ChangeRequest(route: "plugins", op: "link", name: parts.count > 1 ? parts[1] : nil, folder: parts[0]))
+        case "filter":
+            // `:filter <text>`; empty clears.
+            filter = rest
         case "plugin":
             // `:plugin on|off <name>`
             let parts = rest.split(separator: " ").map(String.init)
@@ -122,6 +138,64 @@ final class PluginsContent: WorkbenchContent {
                 self.error = ErrorText.message(error)
                 self.stateLabel = "error"
             }
+        }
+    }
+
+    /// `o`: open or close what the plugin in focus adds.
+    func toggleExpanded(_ name: String? = nil) {
+        let target: String?
+        if let name { target = name }
+        else if rows.indices.contains(cursor), case .plugin(let p) = rows[cursor] { target = p.name }
+        else { target = nil }
+        guard let target else { return Shell.shared.flash("Put the cursor on a plugin first") }
+        if expanded.contains(target) { expanded.remove(target) } else { expanded.insert(target) }
+    }
+
+    func isExpanded(_ plugin: WorkbenchPlugins.Plugin) -> Bool { expanded.contains(plugin.name) || !filter.isEmpty }
+
+    func showWhole(_ plugin: WorkbenchPlugins.Plugin, type: String) { shownWhole.insert(plugin.name + ":" + type) }
+
+    func isWhole(_ plugin: WorkbenchPlugins.Plugin, type: String) -> Bool { shownWhole.contains(plugin.name + ":" + type) }
+
+    /// `/`: a filter on the names, asked in the palette; empty clears it.
+    func askFilter() {
+        PaletteController.shared.ask("show only helpers named like… (empty shows all)", initial: filter) { [weak self] text in
+            self?.filter = text.trimmingCharacters(in: .whitespaces)
+        }
+    }
+
+    /// Open the helper a name stands for: the inspector for a feature,
+    /// client, server or selector, the command tile for a command. Only a
+    /// plugin the host loaded has them in its registry.
+    func open(_ plugin: WorkbenchPlugins.Plugin, type: String, name: String) {
+        guard plugin.loaded else { return Shell.shared.flash("\(plugin.name) is not loaded: turn it on and restart the host first") }
+        guard let uri = Self.address(project: projectId, type: type, name: name) else {
+            return Shell.shared.flash("\(type) have no tile of their own")
+        }
+        Shell.shared.open(uri, near: tileId)
+    }
+
+    /// The tile a helper of a plugin opens as; nil for endpoints and
+    /// assistants, which have none. Pure, so it is tested.
+    nonisolated static func address(project: String, type: String, name: String) -> TileURI? {
+        switch type {
+        case "features", "clients", "servers", "selectors":
+            return TileURI.luca(project: project, tool: "helper", id: type + "/" + name)
+        case "commands":
+            return TileURI.luca(project: project, tool: "command", id: name)
+        default:
+            return nil
+        }
+    }
+
+    /// What a plugin adds, kept to the names that have the filter in them;
+    /// a type with no match is left out. Pure, so it is tested.
+    nonisolated static func adds(_ adds: [WorkbenchPlugins.Adds], matching filter: String) -> [WorkbenchPlugins.Adds] {
+        let needle = filter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !needle.isEmpty else { return adds }
+        return adds.compactMap { group in
+            let names = group.names.filter { $0.lowercased().contains(needle) }
+            return names.isEmpty ? nil : WorkbenchPlugins.Adds(type: group.type, names: names)
         }
     }
 
@@ -272,34 +346,148 @@ struct PluginsView: View {
             if info.plugins.isEmpty {
                 Text("No plugins in \(info.pluginsDir). \(model.key("lucaPlugins.link")) links a project folder as one.")
                     .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm)).foregroundStyle(p.textFaint.color)
+            } else {
+                filterLine
             }
             ForEach(info.plugins) { plugin in
                 row(.plugin(plugin)) {
-                    HStack(alignment: .center, spacing: KitTokens.Space.s6) {
-                        Switch(on: plugin.on) { model.toggle(.plugin(plugin)) }
-                        VStack(alignment: .leading, spacing: KitTokens.Space.s2) {
-                            HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s4) {
-                                Text(plugin.name).font(WorkbenchStyle.ui(KitTokens.TypeScale.md, weight: .semibold)).foregroundStyle(p.text.color)
-                                if plugin.on != plugin.loaded {
-                                    WorkbenchTag(text: plugin.on ? "on after a restart" : "still loaded until a restart", color: WorkbenchStyle.clashColor)
+                    VStack(alignment: .leading, spacing: KitTokens.Space.s4) {
+                        HStack(alignment: .center, spacing: KitTokens.Space.s6) {
+                            Switch(on: plugin.on) { model.toggle(.plugin(plugin)) }
+                            VStack(alignment: .leading, spacing: KitTokens.Space.s2) {
+                                HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s4) {
+                                    Text(plugin.name).font(WorkbenchStyle.ui(KitTokens.TypeScale.md, weight: .semibold)).foregroundStyle(p.text.color)
+                                    if plugin.on != plugin.loaded {
+                                        WorkbenchTag(text: plugin.on ? "on after a restart" : "still loaded until a restart", color: WorkbenchStyle.clashColor)
+                                    }
+                                    if plugin.isThisProject { WorkbenchTag(text: "this project", color: WorkbenchStyle.originColor("own")) }
                                 }
-                                if plugin.isThisProject { WorkbenchTag(text: "this project", color: WorkbenchStyle.originColor("own")) }
+                                HStack(spacing: KitTokens.Space.s3) {
+                                    Image(systemName: plugin.link ? "link" : "folder").font(.system(size: 11)).foregroundStyle(p.textFaint.color)
+                                    Text(plugin.target).font(WorkbenchStyle.code(KitTokens.TypeScale.xs)).foregroundStyle(p.textFaint.color)
+                                        .lineLimit(1).truncationMode(.head)
+                                }
                             }
-                            Text(plugin.addsText).font(WorkbenchStyle.ui(KitTokens.TypeScale.sm)).foregroundStyle(p.textBody.color)
-                            HStack(spacing: KitTokens.Space.s3) {
-                                Image(systemName: plugin.link ? "link" : "folder").font(.system(size: 11)).foregroundStyle(p.textFaint.color)
-                                Text(plugin.target).font(WorkbenchStyle.code(KitTokens.TypeScale.xs)).foregroundStyle(p.textFaint.color)
-                                    .lineLimit(1).truncationMode(.head)
+                            Spacer(minLength: 0)
+                        }
+                        addsSummary(plugin)
+                        if model.isExpanded(plugin) { addsDetail(plugin) }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The filter in force, or how to set one.
+    private var filterLine: some View {
+        HStack(spacing: KitTokens.Space.s3) {
+            if model.filter.isEmpty {
+                BoundKey(action: "lucaPlugins.open")
+                Text("opens what a plugin adds").font(WorkbenchStyle.meta).foregroundStyle(p.textFaint.color)
+                BoundKey(action: "lucaPlugins.filter")
+                Text("filters the names").font(WorkbenchStyle.meta).foregroundStyle(p.textFaint.color)
+            } else {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill").font(.system(size: 12)).foregroundStyle(p.accent.color)
+                Text("names like").font(WorkbenchStyle.meta).foregroundStyle(p.textMuted.color)
+                Text(model.filter).font(WorkbenchStyle.code(KitTokens.TypeScale.xs, weight: .semibold)).foregroundStyle(p.text.color)
+                Button { model.filter = "" } label: {
+                    Text("clear").font(WorkbenchStyle.caption()).foregroundStyle(p.accent.color)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// One pill per type with its count; a click opens the plugin's contents.
+    private func addsSummary(_ plugin: WorkbenchPlugins.Plugin) -> some View {
+        HStack(spacing: KitTokens.Space.s3) {
+            if plugin.adds.isEmpty {
+                Text(plugin.addsText).font(WorkbenchStyle.ui(KitTokens.TypeScale.sm)).foregroundStyle(p.textFaint.color)
+            }
+            ForEach(plugin.adds, id: \.type) { group in
+                Button { model.toggleExpanded(plugin.name) } label: {
+                    HStack(spacing: KitTokens.Space.s2) {
+                        Image(systemName: WorkbenchStyle.thingGlyph(group.type)).font(.system(size: 10, weight: .semibold))
+                        Text("\(group.names.count)").font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .bold).monospacedDigit())
+                        Text(group.names.count == 1 ? String(group.type.dropLast()) : group.type).font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .medium))
+                    }
+                    .foregroundStyle(WorkbenchStyle.thingColor(group.type))
+                    .padding(.horizontal, KitTokens.Space.s4)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(WorkbenchStyle.thingColor(group.type).opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+            }
+            if plugin.entry != nil {
+                WorkbenchTag(text: "\(plugin.entry ?? "") attach()", color: WorkbenchStyle.originColor("plugin"))
+            }
+            if !plugin.adds.isEmpty {
+                Image(systemName: model.isExpanded(plugin) ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(p.textFaint.color)
+            }
+        }
+    }
+
+    /// The names, one block per type, in the type's color; a name opens its
+    /// tile when the plugin is loaded. Long lists stop at a page with "more".
+    private func addsDetail(_ plugin: WorkbenchPlugins.Plugin) -> some View {
+        let groups = PluginsContent.adds(plugin.adds, matching: model.filter)
+        return VStack(alignment: .leading, spacing: KitTokens.Space.s5) {
+            if groups.isEmpty {
+                Text(model.filter.isEmpty ? "Nothing in its helper folders." : "No name like \"\(model.filter)\" in \(plugin.name).")
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs)).foregroundStyle(p.textFaint.color)
+            }
+            ForEach(groups, id: \.type) { group in
+                let color = WorkbenchStyle.thingColor(group.type)
+                let whole = model.isWhole(plugin, type: group.type) || group.names.count <= PluginsContent.pageSize
+                let shown = whole ? group.names : Array(group.names.prefix(PluginsContent.pageSize))
+                let total = plugin.adds.first { $0.type == group.type }?.names.count ?? group.names.count
+                VStack(alignment: .leading, spacing: KitTokens.Space.s3) {
+                    HStack(spacing: KitTokens.Space.s3) {
+                        Image(systemName: WorkbenchStyle.thingGlyph(group.type)).font(.system(size: 11, weight: .semibold)).foregroundStyle(color)
+                        Text(group.type).font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .semibold)).foregroundStyle(color)
+                        Text(group.names.count == total ? "\(total)" : "\(group.names.count) of \(total)")
+                            .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs).monospacedDigit()).foregroundStyle(p.textFaint.color)
+                        if !plugin.loaded, PluginsContent.address(project: "p", type: group.type, name: "n") != nil {
+                            Text("not loaded: names only").font(WorkbenchStyle.meta).foregroundStyle(p.textFaint.color)
+                        }
+                    }
+                    WrapLayout(spacing: KitTokens.Space.s3) {
+                        ForEach(shown, id: \.self) { name in
+                            nameChip(name, color: color, opens: plugin.loaded && PluginsContent.address(project: "p", type: group.type, name: name) != nil) {
+                                model.open(plugin, type: group.type, name: name)
                             }
-                            if !plugin.adds.isEmpty {
-                                FlowTags(tags: plugin.adds.flatMap { a in a.names.map { "\(a.type).\($0)" } }, color: WorkbenchStyle.originColor("plugin"))
-                                    .padding(.top, KitTokens.Space.s2)
+                        }
+                        if !whole {
+                            Button { model.showWhole(plugin, type: group.type) } label: {
+                                Text("+\(group.names.count - shown.count) more")
+                                    .font(WorkbenchStyle.code(KitTokens.TypeScale.xs, weight: .semibold))
+                                    .foregroundStyle(p.accent.color)
+                                    .padding(.horizontal, KitTokens.Space.s4)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().stroke(p.accent.color.opacity(0.6)))
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
             }
         }
+        .padding(.top, KitTokens.Space.s2)
+        .padding(.leading, KitTokens.Space.s2)
+    }
+
+    private func nameChip(_ name: String, color: Color, opens: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(name)
+                .font(WorkbenchStyle.code(KitTokens.TypeScale.xs, weight: .semibold))
+                .foregroundStyle(opens ? color : p.textMuted.color)
+                .padding(.horizontal, KitTokens.Space.s4)
+                .padding(.vertical, 3)
+                .background(Capsule().fill((opens ? color : p.textFaint.color).opacity(0.12)))
+        }
+        .buttonStyle(.plain)
+        .help(opens ? "open \(name)" : name)
     }
 
     private func missingSection(_ info: WorkbenchPlugins) -> some View {

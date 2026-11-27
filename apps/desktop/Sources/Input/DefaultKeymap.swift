@@ -67,6 +67,7 @@ bindings:
   palette.projects:     { key: "Space p", label: "open a project", scope: leader }
   projects.open:        { key: "Space P", label: "the projects tile", scope: leader }
   projects.remote:      { key: "Space R", label: "open a project on another machine (ssh)", scope: leader }
+  projects.new:         { key: "Space N", label: "bootstrap a new Luca project (folder, then plugins)", scope: leader }
   luca.project:         { key: "Space o", label: "this project's overview", scope: leader }
   luca.registry:        { key: "Space r", label: "this project's registry", scope: leader }
   luca.console:         { key: "Space e", label: "this project's console", scope: leader }
@@ -84,6 +85,7 @@ bindings:
   luca.file:            { key: "Space f", label: "open a file of this project", scope: leader }
   luca.page:            { key: "Space g", label: "a web page: luca serve path or URL", scope: leader }
   luca.tools:           { key: "Space w", label: "this project's own tools (declared in workbench/)", scope: leader }
+  luca.scaffold:        { key: "Space S", label: "scaffold a new helper of this project (feature, command, …)", scope: leader }
   layouts.pick:         { key: "Space l", label: "layouts", scope: leader }
   theme.pick:           { key: "Space T", label: "color themes", scope: leader }
   layout.blank:         { key: "Space X", label: "blank slate: close every tile", scope: leader }
@@ -140,6 +142,7 @@ bindings:
   appProjects.up:       { key: "k", label: "previous project", scope: kind.app-projects }
   appProjects.open:     { key: "Enter", label: "go to the project", scope: kind.app-projects }
   appProjects.add:      { key: "a", label: "open another folder", scope: kind.app-projects }
+  appProjects.new:      { key: "n", label: "bootstrap a new project", scope: kind.app-projects }
   appProjects.ask:      { key: "c", label: "ask lucaPortfolio about your projects", scope: kind.app-projects }
 
   lucaTool.actions:     { key: ".", label: "pick an action of this tool", scope: kind.luca-tool }
@@ -172,6 +175,8 @@ bindings:
   lucaPlugins.up:       { key: "k", label: "previous row", scope: kind.luca-plugins }
   lucaPlugins.toggle:   { key: "t", label: "turn on or off · stop a borrow (shows the change)", scope: kind.luca-plugins }
   lucaPlugins.link:     { key: "l", label: "link a project folder as a plugin", scope: kind.luca-plugins }
+  lucaPlugins.open:     { key: "o", label: "show or hide what the plugin in focus adds", scope: kind.luca-plugins }
+  lucaPlugins.filter:   { key: "/", label: "filter the helpers the plugins add by name", scope: kind.luca-plugins }
   lucaPlugins.apply:    { key: "a", label: "write the change shown (asks first)", scope: kind.luca-plugins }
   lucaPlugins.cancel:   { key: "c", label: "drop the change shown", scope: kind.luca-plugins }
   lucaPlugins.reload:   { key: "r", label: "reload", scope: kind.luca-plugins }
@@ -215,6 +220,7 @@ bindings:
   lucaEndpoints.restart: { key: "R", label: "restart the workbench host", scope: kind.luca-endpoints }
   lucaRequest.send:     { key: "r", label: "send the request", scope: kind.luca-request }
   lucaDocs.models:      { key: "m", label: "the doc models", scope: kind.luca-docs }
+  lucaDocs.new:         { key: "n", label: "new document: pick the model, then a title", scope: kind.luca-docs }
   lucaDocs.restart:     { key: "R", label: "restart the workbench host", scope: kind.luca-docs }
   lucaModels.docs:      { key: "u", label: "the docs index", scope: kind.luca-models }
   lucaModels.reload:    { key: "r", label: "reload", scope: kind.luca-models }
@@ -245,6 +251,7 @@ bindings:
   lucaDoc.reload:       { key: "r", label: "reload from disk", scope: kind.luca-doc }
   lucaDoc.keepMine:     { key: "d p", label: "conflict: keep mine", scope: kind.luca-doc }
   lucaDoc.takeTheirs:   { key: "d o", label: "conflict: take the file on disk", scope: kind.luca-doc }
+  lucaDoc.chat:         { key: "c", label: "chat with an assistant about this document (last pick first)", scope: kind.luca-doc }
   lucaDoc.prompt:       { key: "p", label: "run it with luca prompt (pick who)", scope: kind.luca-doc }
   lucaDoc.promptDry:    { key: "D", label: "show the prompt it becomes (dry run)", scope: kind.luca-doc }
   lucaDoc.docs:         { key: "u", label: "the docs index", scope: kind.luca-doc }

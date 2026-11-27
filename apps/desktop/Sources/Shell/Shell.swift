@@ -795,6 +795,8 @@ final class Shell: ObservableObject {
         case "luca.contentbase": openProjectTool("contentbase", prompt: "contentbase of which project")
         case "luca.assistants": openProjectTool("assistants", prompt: "assistants of which project")
         case "luca.chat": withProject("new chat in which project") { WorkbenchChat.pickAssistant(project: $0) }
+        case "luca.scaffold": withProject("scaffold a helper in which project") { [weak self] in self?.scaffold(in: $0) }
+        case "projects.new": bootstrapProject()
         case "luca.terminal": openProjectTool("terminal", prompt: "terminal in which project")
         case "luca.file": withProject("a file of which project") { [weak self] in self?.pickFile(in: $0) }
         case "luca.page": withProject("a web page of which project") { [weak self] in self?.askPage(in: $0) }
@@ -1014,6 +1016,19 @@ final class Shell: ObservableObject {
             withProject("a canvas of which project") { [weak self] project in
                 let id = CanvasContent.slug(rest)
                 self?.openOrFocus(CanvasContent.address(project: project, id: id.isEmpty ? "canvas" : id))
+            }
+        case "bootstrap", "new-project":
+            bootstrapProject(path: rest)
+        case "scaffold":
+            // `:scaffold [type] [name]`
+            withProject("scaffold a helper in which project") { [weak self] project in
+                let words = rest.split(separator: " ").map(String.init)
+                self?.scaffold(in: project, type: words.first, name: words.count > 1 ? words[1] : nil)
+            }
+        case "new-doc":
+            // `:new-doc [Model] [title]`: the docs tile's `n` from the command line.
+            withProject("a new document in which project") { [weak self] project in
+                LucaDocsContent.newDocument(project: project, typed: rest, near: self?.focusedId)
             }
         case "chat", "assistant":
             // `:chat` picks an assistant; `:chat <name>` starts a chat with it. Tab completes the name.

@@ -54,12 +54,82 @@ final class LucaDocsContent: IndexContent {
         switch action {
         case "lucaDocs.models":
             Shell.shared.focusOrOpenTool(project: projectId, tool: "models")
+        case "lucaDocs.new":
+            Self.newDocument(project: projectId, typed: "", near: tileId)
         case "lucaDocs.restart":
             ProjectHub.shared.restart(projectId)
         default:
             return false
         }
         return true
+    }
+
+    override func runCommand(_ verb: String, _ rest: String) -> Bool {
+        switch verb {
+        case "new", "new-doc":
+            Self.newDocument(project: projectId, typed: rest, near: tileId)
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// `n`, `:new [Model] [title]`, the shell's `:new-doc`: a new document.
+    /// A first word that names a model picks it (`Other` is no model); else
+    /// the palette asks, unless the project has one. The rest is the title;
+    /// with none the palette asks. The host makes the file from the model's
+    /// template (`POST /docs/create`) and the doc opens in source view.
+    static func newDocument(project: String, typed: String, near: UUID?) {
+        guard let host = ProjectHub.shared.client(project) else {
+            Shell.shared.focusOrOpenTool(project: project, tool: "docs")
+            return Shell.shared.flash("Starting the host: press n in the docs tile when it is up")
+        }
+        Task { @MainActor in
+            do {
+                let reply = try await host.docs()
+                if reply.stacks.isEmpty { return Shell.shared.flash(reply.notice ?? reply.error ?? "This project has no docs") }
+                var words = typed.split(separator: " ").map(String.init)
+                var picked: WorkbenchDocs.Stack?
+                if let first = words.first?.lowercased(),
+                   let hit = reply.stacks.first(where: { $0.id.lowercased() == first || $0.title.lowercased() == first }) {
+                    picked = hit
+                    words.removeFirst()
+                }
+                let title = words.joined(separator: " ")
+                let create: (WorkbenchDocs.Stack) -> Void = { stack in
+                    let what = stack.id == "Base" ? "document" : stack.title
+                    let go: (String) -> Void = { t in Self.create(host, project: project, model: stack.id, title: t, near: near) }
+                    if !title.isEmpty { go(title) } else { PaletteController.shared.ask("title of the new \(what)") { go($0) } }
+                }
+                if let picked { return create(picked) }
+                if reply.stacks.count == 1 { return create(reply.stacks[0]) }
+                PaletteController.shared.choose("new document of which model", reply.stacks.map { stack in
+                    let note = stack.id == "Base" ? "no model: a file at the docs root" : "\(stack.count) \(stack.count == 1 ? "document" : "documents")"
+                    return PaletteChoice(title: stack.title, detail: note) { create(stack) }
+                })
+            } catch {
+                Shell.shared.flash(ErrorText.message(error))
+            }
+        }
+    }
+
+    private static func create(_ host: WorkbenchClient, project: String, model: String, title: String, near: UUID?) {
+        let title = title.trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return Shell.shared.flash("The document needs a title") }
+        Task { @MainActor in
+            do {
+                let made = try await host.createDoc(model: model == "Base" ? "" : model, title: title)
+                Shell.shared.flash(made.text)
+                let doc = TileURI.luca(project: project, tool: "doc", id: made.id, options: [TileURI.Option(name: "view", value: "source")])
+                Shell.shared.open(doc, near: near)
+                // The docs tiles of the project show the new card without a key press.
+                for tile in Shell.shared.tiles.values {
+                    if let docs = tile.content as? LucaDocsContent, docs.projectId == project { docs.reload(quiet: true) }
+                }
+            } catch {
+                Shell.shared.flash(ErrorText.message(error))
+            }
+        }
     }
 
     private func focusAskedStack() {

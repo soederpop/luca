@@ -6,7 +6,8 @@
  * the app loaded (`digest`).
  */
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { introspectMetaSchema } from 'contentbase'
 import { displayPath } from './origins.js'
 
@@ -376,4 +377,62 @@ export async function saveDoc(index: DocsIndex, body: any): Promise<{ status: nu
 	writeFileSync(path, body.text, 'utf8')
 	const view = await docView(index, id, true)
 	return { status: 200, body: { ok: true, unchanged: false, view, text: `Saved ${index.display(path)}` } }
+}
+
+/** `The First Note!` → `the-first-note`: a file name for a new document. Pure. */
+export function docSlug(title: string): string {
+	return title.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
+}
+
+/**
+ * The text a new document starts with: the model's template (its
+ * `{{title}}`, `{{slug}}` and `{{date}}` filled, a `title:` added to the
+ * frontmatter when it names none), else a frontmatter with the title and a
+ * heading. Pure.
+ */
+export function newDocText(template: string | null, title: string, slug: string, date = new Date()): string {
+	const day = date.toISOString().slice(0, 10)
+	const yamlTitle = /^[A-Za-z0-9 ._-]+$/.test(title) ? title : JSON.stringify(title)
+	if (!template || !template.trim()) return `---\ntitle: ${yamlTitle}\n---\n\n# ${title}\n\n`
+	let text = template.replace(/\{\{\s*title\s*\}\}/gi, title).replace(/\{\{\s*slug\s*\}\}/gi, slug).replace(/\{\{\s*date\s*\}\}/gi, day)
+	const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+	if (fm) {
+		if (!/^title\s*:/m.test(fm[1]!)) text = text.replace(/^---\r?\n/, `---\ntitle: ${yamlTitle}\n`)
+		else text = text.replace(/^(---\r?\n(?:[\s\S]*?\n)?title\s*:)[ \t]*(?=\r?\n)/, `$1 ${yamlTitle}`)
+	} else {
+		text = `---\ntitle: ${yamlTitle}\n---\n\n` + text
+	}
+	return text
+}
+
+/**
+ * `POST /docs/create` `{model, title}`: a new document of that model, named
+ * from the title under the model's folder (`<prefix>/<slug>.md`, `-2` when
+ * taken), from the model's template when it has one. `Base` or no model
+ * makes one at the collection's root.
+ */
+export async function createDoc(index: DocsIndex, body: any): Promise<{ status: number; body: any }> {
+	const title = typeof body?.title === 'string' ? body.title.trim() : ''
+	const model = typeof body?.model === 'string' ? body.model.trim() : ''
+	if (!title) return { status: 400, body: { error: 'title is required' } }
+	if (!index.exists) return { status: 404, body: { error: 'This project has no docs collection' } }
+	await index.refresh()
+	const def = model && model !== 'Base' ? index.definitions().find((d) => d.def.name === model)?.def : undefined
+	if (model && model !== 'Base' && !def) return { status: 404, body: { error: `no model ${model}` } }
+	const prefix = def ? String(def.prefix || '').replace(/^\/+|\/+$/g, '') : ''
+	const slug = docSlug(title)
+	if (!slug) return { status: 400, body: { error: 'The title needs a letter or a digit' } }
+	const base = prefix ? `${prefix}/${slug}` : slug
+	const root = index.rootPath.replace(/\/+$/, '')
+	let id = base
+	for (let n = 2; existsSync(`${root}/${id}.md`) || existsSync(`${root}/${id}.mdx`); n++) id = `${base}-${n}`
+	let template: string | null = null
+	if (def) { try { template = (await index.db.collection.readTemplate(def.name))?.content ?? null } catch {} }
+	const path = `${root}/${id}.md`
+	mkdirSync(dirname(path), { recursive: true })
+	writeFileSync(path, newDocText(template, title, slug), 'utf8')
+	await index.refresh()
+	const view = await docView(index, id, false)
+	return { status: 200, body: { ok: true, id, model: def ? def.name : 'Base', path, pathDisplay: index.display(path), view, text: `Created ${index.display(path)}` } }
 }

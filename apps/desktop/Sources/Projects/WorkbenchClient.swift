@@ -422,9 +422,23 @@ struct WorkbenchCommandForm: Decodable, Equatable {
     let summary: String
     let badge: String?
     let usage: String
+    /// `export const subcommands`: the verbs the command takes.
+    struct Subcommand: Decodable, Equatable {
+        let name: String
+        let args: String
+        let description: String
+    }
+
     let fields: [WorkbenchCommandField]
     let examples: [Example]
     var origin: WorkbenchOrigin? = nil
+    private var subcommandsIfAny: [Subcommand]? = nil
+    var subcommands: [Subcommand] { subcommandsIfAny ?? [] }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, summary, badge, usage, fields, examples, origin
+        case subcommandsIfAny = "subcommands"
+    }
 }
 
 /// One chunk of a run's output.

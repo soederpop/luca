@@ -79,7 +79,7 @@ final class PaletteModel: ObservableObject {
         switch mode {
         case .all: return "tiles, project tools, commands"
         case .projects: return "open a project"
-        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · chat [assistant] · terminal · layout · mode · ws <n> · keys · q"
+        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · chat [assistant] · new-doc [Model] [title] · scaffold [type] [name] · bootstrap [path] · terminal · layout · mode · ws <n> · keys · q"
         case .choose, .ask: return customTitle
         }
     }

@@ -185,6 +185,42 @@ final class CommandContent: WorkbenchContent {
         stateLabel = transcript.statusText
         // A missed frame, or the end: read the run as the host keeps it.
         if !whole || frame.type == "run-exit" { resync() }
+        if frame.type == "run-exit", frame.code == 0, frame.stopped != true { afterSuccess() }
+    }
+
+    /// `?then=`: what a run that exits 0 leads to, once. `open-project` opens
+    /// the folder the `output` field names as a project (bootstrap);
+    /// `scaffold` opens the file the output says it wrote and restarts the
+    /// host, so the registry lists the new helper. The option goes once used,
+    /// as does `run`, so a restored tile only shows the form.
+    private func afterSuccess() {
+        guard let then = uri.option("then") else { return }
+        uri = uri.with(option: "then", nil).with(option: "run", nil)
+        Shell.shared.scheduleSave()
+        switch then {
+        case "open-project":
+            guard let field = form?.fields.first(where: { $0.name == "output" }) else { return }
+            let path = text(field)
+            guard !path.isEmpty else { return }
+            Shell.shared.openProject(path: path)
+        case "scaffold":
+            let output = transcript.segments.map(\.text).joined()
+            if let path = Self.scaffoldedPath(in: output) {
+                Shell.shared.open(FileContent.address(project: projectId, path: path), near: tileId)
+            }
+            restartHost()
+        default:
+            Shell.shared.flash("Unknown then=\(then)")
+        }
+    }
+
+    /// The file `luca scaffold` says it wrote, from its output: `✓ Wrote
+    /// feature scaffold to features/x.ts`, or for an assistant `Scaffolded
+    /// assistant "x" in assistants/x/` (its CORE.md). Pure, so it is tested.
+    nonisolated static func scaffoldedPath(in output: String) -> String? {
+        if let m = output.firstMatch(of: #/Wrote \w+ scaffold to (\S+)/#) { return String(m.1) }
+        if let m = output.firstMatch(of: #/Scaffolded assistant "[^"]*" in (\S+?)/?\s/#) { return String(m.1) + "/CORE.md" }
+        return nil
     }
 
     private func resync() {
