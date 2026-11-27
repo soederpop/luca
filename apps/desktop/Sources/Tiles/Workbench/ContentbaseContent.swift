@@ -140,7 +140,13 @@ final class ContentbaseContent: WorkbenchContent {
                 self.settleSelection()
             } catch {
                 guard let self, !Task.isCancelled else { return }
-                self.error = ErrorText.message(error)
+                // A host started from an older binary has no /contentbase route.
+                // Its bare 404 reads as "not found"; say what is really going on.
+                if case WorkbenchError.http(404, _) = error {
+                    self.error = "This project's host predates the contentbase tile (it was started from an older luca). Press R to restart the host."
+                } else {
+                    self.error = ErrorText.message(error)
+                }
                 self.stateLabel = "error"
             }
         }
