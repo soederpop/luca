@@ -232,6 +232,36 @@ indirect enum LayoutNode: Equatable {
         return self
     }
 
+    /// `Mod-Shift-r`: the nearest split of `axis` around `id` shares its
+    /// space evenly, so the tile is half as wide (horizontal) or half as
+    /// tall (vertical) as that split. No split of that axis: the tree stays.
+    func halving(_ id: UUID, axis: SplitAxis) -> LayoutNode {
+        halved(id, axis: axis) ?? self
+    }
+
+    private func halved(_ id: UUID, axis: SplitAxis) -> LayoutNode? {
+        guard case .split(let ax, let ratio, let a, let b) = self else { return nil }
+        let inA = a.contains(id), inB = b.contains(id)
+        guard inA || inB else { return nil }
+        // The innermost split of that axis wins, even one already at 0.5.
+        if let inner = (inA ? a : b).halved(id, axis: axis) {
+            return inA ? .split(ax, ratio, inner, b) : .split(ax, ratio, a, inner)
+        }
+        return ax == axis ? .split(ax, 0.5, a, b) : nil
+    }
+
+    /// The axes of the splits that hold `id`, innermost first, each once.
+    /// Empty for a tile alone in the tree or alone in a stack; one axis
+    /// when "half" is unambiguous; both when the shell has to ask.
+    func splitAxes(around id: UUID) -> [SplitAxis] {
+        guard case .split(let ax, _, let a, let b) = self else { return [] }
+        let inA = a.contains(id), inB = b.contains(id)
+        guard inA || inB else { return [] }
+        var axes = (inA ? a : b).splitAxes(around: id)
+        if !axes.contains(ax) { axes.append(ax) }
+        return axes
+    }
+
     /// `=`: every split shares its space by tile count.
     func balanced() -> LayoutNode {
         switch self {

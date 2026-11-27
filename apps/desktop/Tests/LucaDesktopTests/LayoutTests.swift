@@ -206,6 +206,37 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(tree.resizing(a, toward: .up, by: 0.05), tree)
     }
 
+    func testHalvingSetsTheNearestSplitOfThatAxis() {
+        let a = UUID(), b = UUID(), c = UUID()
+        // a | (b over c): c is in a vertical split inside a horizontal one.
+        let tree = LayoutNode.split(.horizontal, 0.7, .leaf(a), .split(.vertical, 0.3, .leaf(b), .leaf(c)))
+        XCTAssertEqual(tree.halving(c, axis: .vertical), .split(.horizontal, 0.7, .leaf(a), .split(.vertical, 0.5, .leaf(b), .leaf(c))))
+        XCTAssertEqual(tree.halving(c, axis: .horizontal), .split(.horizontal, 0.5, .leaf(a), .split(.vertical, 0.3, .leaf(b), .leaf(c))))
+        // a has no vertical split around it: nothing changes.
+        XCTAssertEqual(tree.halving(a, axis: .vertical), tree)
+        XCTAssertEqual(tree.halving(a, axis: .horizontal), .split(.horizontal, 0.5, .leaf(a), .split(.vertical, 0.3, .leaf(b), .leaf(c))))
+        // A tile not in the tree, and a lone leaf, change nothing.
+        XCTAssertEqual(tree.halving(UUID(), axis: .horizontal), tree)
+        XCTAssertEqual(LayoutNode.leaf(a).halving(a, axis: .horizontal), .leaf(a))
+        // Two horizontal splits: the inner one moves, not the outer.
+        let nested = LayoutNode.split(.horizontal, 0.6, .leaf(a), .split(.horizontal, 0.5, .leaf(b), .leaf(c)))
+        XCTAssertEqual(nested.halving(c, axis: .horizontal), nested)
+        XCTAssertEqual(nested.halving(a, axis: .horizontal), .split(.horizontal, 0.5, .leaf(a), .split(.horizontal, 0.5, .leaf(b), .leaf(c))))
+    }
+
+    func testSplitAxesAroundATile() {
+        let a = UUID(), b = UUID(), c = UUID(), d = UUID()
+        let tree = LayoutNode.split(.horizontal, 0.5, .leaf(a), .split(.vertical, 0.5, .leaf(b), .stack([c, d], active: 0)))
+        XCTAssertEqual(tree.splitAxes(around: a), [.horizontal])
+        XCTAssertEqual(tree.splitAxes(around: b), [.vertical, .horizontal])
+        XCTAssertEqual(tree.splitAxes(around: c), [.vertical, .horizontal])
+        XCTAssertEqual(tree.splitAxes(around: UUID()), [])
+        XCTAssertEqual(LayoutNode.leaf(a).splitAxes(around: a), [])
+        XCTAssertEqual(LayoutNode.stack([c, d], active: 1).splitAxes(around: d), [])
+        let row = LayoutNode.row([a, b, c], axis: .horizontal)
+        XCTAssertEqual(row.splitAxes(around: c), [.horizontal])
+    }
+
     func testSoloFilterReflows() {
         let a = UUID(), b = UUID(), c = UUID()
         let tree = LayoutNode.split(.horizontal, 0.5, .leaf(a), .split(.vertical, 0.5, .leaf(b), .leaf(c)))

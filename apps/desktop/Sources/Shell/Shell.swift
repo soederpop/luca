@@ -423,6 +423,16 @@ final class Shell: ObservableObject {
         scheduleSave()
     }
 
+    /// `Mod-Shift-r`: the nearest split of `axis` around the tile goes to 0.5.
+    private func halve(_ id: UUID, axis: SplitAxis) {
+        var ws = workspaces[current]
+        guard ws.mode == .organized, let tree = ws.tree, tree.contains(id) else { return }
+        ws.tree = tree.halving(id, axis: axis)
+        workspaces[current] = ws
+        applyLayout(animated: true)
+        scheduleSave()
+    }
+
     private func resize(_ direction: Direction, grow: Bool) {
         guard let id = focusedId else { return }
         var ws = workspaces[current]
@@ -785,6 +795,18 @@ final class Shell: ObservableObject {
             applyLayout(animated: false)
             if let front { focusTile(front) }
             scheduleSave()
+        case "layout.half":
+            guard let id = focused, workspace.mode == .organized, let tree = workspace.tree, tree.contains(id) else { return flash("No tree in free mode") }
+            let axes = tree.splitAxes(around: id)
+            switch axes.count {
+            case 0: flash("This tile is not in a split: nothing to halve")
+            case 1: halve(id, axis: axes[0])
+            default:
+                PaletteController.shared.choose("half of what", [
+                    PaletteChoice(title: "half width", detail: "the tile takes half of its row") { [weak self] in self?.halve(id, axis: .horizontal) },
+                    PaletteChoice(title: "half height", detail: "the tile takes half of its column") { [weak self] in self?.halve(id, axis: .vertical) },
+                ])
+            }
         case "layout.zoom": zoom()
         case "layout.close":
             guard let id = focused else { return }

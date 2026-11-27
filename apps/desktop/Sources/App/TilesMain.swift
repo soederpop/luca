@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var keyMonitor: Any?
     private var modeTimer: Timer?
     private var lastQuitPress: Date?
+    private var lastHidePress: Date?
     private static let quitWindow: TimeInterval = 1.5
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -67,14 +68,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// stray press closed the app too often. A click on the menu item quits
     /// at once. Log out and restart do not come through here.
     @objc func quitGuarded(_ sender: Any?) {
+        guard Self.secondPress(&lastQuitPress, note: "Press Cmd-Q again to quit") else { return }
+        NSApp.terminate(sender)
+    }
+
+    /// Cmd-H the same way: one stray press hides every tile, which is as
+    /// disruptive as a quit in a keyboard-first app.
+    @objc func hideGuarded(_ sender: Any?) {
+        guard Self.secondPress(&lastHidePress, note: "Press Cmd-H again to hide") else { return }
+        NSApp.hide(sender)
+    }
+
+    /// True when the action may run: a menu click, or a key press within
+    /// `quitWindow` of the last one. A first key press flashes `note`.
+    private static func secondPress(_ last: inout Date?, note: String) -> Bool {
         let fromKey = NSApp.currentEvent?.type == .keyDown
         let now = Date()
-        if fromKey, lastQuitPress.map({ now.timeIntervalSince($0) > Self.quitWindow }) ?? true {
-            lastQuitPress = now
-            Shell.shared.flash("Press Cmd-Q again to quit")
-            return
+        if fromKey, last.map({ now.timeIntervalSince($0) > quitWindow }) ?? true {
+            last = now
+            Shell.shared.flash(note)
+            return false
         }
-        NSApp.terminate(sender)
+        last = nil
+        return true
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -91,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About Luca Desktop", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide Luca Desktop", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide Luca Desktop", action: #selector(AppDelegate.hideGuarded(_:)), keyEquivalent: "h")
         appMenu.addItem(withTitle: "Quit Luca Desktop", action: #selector(AppDelegate.quitGuarded(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)

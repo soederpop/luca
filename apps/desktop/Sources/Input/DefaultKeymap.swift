@@ -36,6 +36,7 @@ bindings:
   layout.zoom:          { key: "Mod-z", label: "zoom", scope: layout }
   layout.close:         { key: "Mod-q", label: "close tile", scope: layout }
   layout.resize:        { key: "Mod-r", label: "resize mode", scope: layout }
+  layout.half:          { key: "Mod-Shift-r", label: "half width / height", scope: layout }
   layout.solo:          { key: "Mod-o", label: "solo this project", scope: layout }
   layout.solo.pick:     { key: "Mod-Shift-o", label: "pick a project to solo", scope: layout }
   layout.group:         { key: "Mod-g", label: "group with (then h j k l)", scope: layout }
