@@ -404,8 +404,19 @@ final class WorkbenchChatContent: WorkbenchContent {
 struct LucaChatView: View {
     @ObservedObject var model: WorkbenchChatContent
     @FocusState private var inputFocused: Bool
+    /// Whether the view keeps the newest content in sight. A scroll by the
+    /// user turns it off unless it ends at the bottom; a new turn turns it on.
+    @State private var followTail = true
+    @State private var position = ScrollPosition(edge: .bottom)
 
     private var p: KitPalette { Theme.palette }
+
+    /// Within this many points of the end counts as "at the bottom".
+    private static let tailSlack: CGFloat = 48
+
+    private static func atBottom(_ geo: ScrollGeometry) -> Bool {
+        geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - tailSlack
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -459,17 +470,50 @@ struct LucaChatView: View {
                     .frame(maxWidth: 900, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .onChange(of: model.transcript) { _, _ in
-                    proxy.scrollTo("end", anchor: .bottom)
+                .scrollPosition($position)
+                // Follow the content's height, not the transcript: the transcript
+                // changes before the new text is laid out, so a scroll then lands
+                // short of the real end while a reply streams.
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, _ in
+                    if followTail { position.scrollTo(edge: .bottom) }
+                }
+                // Only the user's own scrolling takes control away; it gives it
+                // back when they scroll to the bottom again.
+                .onScrollPhaseChange { _, phase, context in
+                    switch phase {
+                    case .tracking, .interacting:
+                        followTail = false
+                    case .idle, .decelerating:
+                        if !followTail { followTail = Self.atBottom(context.geometry) }
+                    default:
+                        break
+                    }
+                }
+                .onChange(of: model.transcript.busy) { _, busy in
+                    if busy {
+                        followTail = true
+                        position.scrollTo(edge: .bottom)
+                    }
                 }
                 .onChange(of: model.cursor) { _, id in
-                    if let id { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .center) } }
+                    if let id {
+                        followTail = false
+                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .center) }
+                    }
                 }
+            }
+            if let tool = runningTool {
+                RunningToolStrip(assistant: model.assistant, tool: tool)
             }
             input
         }
         .background(p.surface.color)
         .onChange(of: model.inputTick) { _, _ in inputFocused = true }
+    }
+
+    /// The call the live reply is waiting on, if any: the newest one still running.
+    private var runningTool: WorkbenchChatTool? {
+        model.transcript.live?.tools.last { $0.status == "running" }
     }
 
     private var header: some View {
@@ -746,6 +790,49 @@ private struct ChatBubble: View {
             .overlay(RoundedRectangle(cornerRadius: KitTokens.Radius.lg)
                 .stroke(selected ? p.accent.color.opacity(0.8) : p.border.color.opacity(role == "user" ? 0.4 : 1), lineWidth: selected ? 1.5 : 1))
         }
+    }
+}
+
+/// The call in flight, pinned just above the input so the user always sees
+/// what the assistant is doing and why, wherever the transcript is scrolled.
+private struct RunningToolStrip: View {
+    let assistant: String
+    let tool: WorkbenchChatTool
+
+    private var p: KitPalette { Theme.palette }
+
+    private var headline: String {
+        tool.name == "evalCode" ? "\(assistant) is running code…" : "\(assistant) is running \(tool.name)…"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KitTokens.Space.s2) {
+            HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s3) {
+                ProgressView().controlSize(.mini)
+                Text(headline)
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .semibold))
+                    .foregroundStyle(WorkbenchStyle.toolStateColor("running"))
+            }
+            if let purpose = tool.purpose {
+                Text(purpose)
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .medium))
+                    .foregroundStyle(p.textBody.color)
+                    .textSelection(.enabled)
+                    .lineLimit(4)
+            }
+            if let expectation = tool.expectation {
+                Text("expects: \(expectation)")
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs))
+                    .foregroundStyle(p.textMuted.color)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.horizontal, KitTokens.Space.s7)
+        .padding(.vertical, KitTokens.Space.s4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(p.accent.color.opacity(0.08))
+        .overlay(alignment: .top) { Rectangle().fill(p.border.color).frame(height: 1) }
     }
 }
 
