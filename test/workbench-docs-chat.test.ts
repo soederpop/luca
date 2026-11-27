@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fieldKind, valueKind, docTitle, docPreview, digestOf, docSlug, newDocText } from '../src/workbench/docs'
+import { fieldKind, valueKind, docTitle, docPreview, digestOf, docSlug, docFileName, newDocText } from '../src/workbench/docs'
 import { messagesView, argsText, toolView, transcriptMarkdown, resultFailed, resultText, shortTime } from '../src/workbench/chat'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
@@ -230,6 +230,11 @@ describe('pure parts', () => {
 		expect(docSlug('The First Note!')).toBe('the-first-note')
 		expect(docSlug('  Épée / Ünïcode  ')).toBe('epee-unicode')
 		expect(docSlug('???')).toBe('')
+		// A typed .md/.mdx extension names the file as typed; no second .md.
+		expect(docFileName('SOUL.md')).toEqual({ stem: 'SOUL', ext: '.md', title: 'SOUL' })
+		expect(docFileName('My Notes.MDX')).toEqual({ stem: 'My-Notes', ext: '.mdx', title: 'My Notes' })
+		expect(docFileName('Plan v1.2')).toEqual({ stem: 'plan-v1-2', ext: '.md', title: 'Plan v1.2' })
+		expect(docFileName('.md').stem).toBe('')
 		expect(newDocText(null, 'Plan B', 'plan-b')).toBe('---\ntitle: Plan B\n---\n\n# Plan B\n\n')
 		// A template with a title line gets the title; placeholders fill.
 		expect(newDocText('---\ntitle:\nstatus: draft\n---\n\n# {{title}}\n\nSlug {{slug}} on {{date}}.\n', 'Plan B', 'plan-b', new Date('2026-11-26T10:00:00Z')))
@@ -346,6 +351,11 @@ describe('docs routes', () => {
 		expect((await api.post('/docs/create', { model: 'Nope', title: 'x' })).status).toBe(404)
 		expect((await api.post('/docs/create', { model: 'Note' })).status).toBe(400)
 		expect((await api.post('/docs/create', { model: 'Note', title: '!!!' })).status).toBe(400)
+		// A title with an extension keeps that file name.
+		const soul = await (await api.post('/docs/create', { title: 'SOUL.md' })).json()
+		expect(soul.id).toBe('SOUL')
+		expect(readFileSync(join(proj, 'docs', 'SOUL.md'), 'utf8')).toBe('---\ntitle: SOUL\n---\n\n# SOUL\n\n')
+		expect((await api.post('/docs/create', { title: '.md' })).status).toBe(400)
 	})
 
 	it('a project with no docs folder gets a notice, not an error', async () => {

@@ -386,6 +386,23 @@ export function docSlug(title: string): string {
 }
 
 /**
+ * The file name for a new document's title. A title that ends in `.md` or
+ * `.mdx` names the file itself: `SOUL.md` stays `SOUL.md`, case kept, only
+ * spaces and unsafe characters changed to `-`, and the title becomes the stem
+ * (`SOUL`). Any other title is slugged and gets `.md`. Only those two
+ * extensions count, because the collection loads nothing else. Pure.
+ */
+export function docFileName(title: string): { stem: string; ext: '.md' | '.mdx'; title: string } {
+	const typed = title.trim().match(/^(.*?)\.(mdx?)$/i)
+	if (typed) {
+		const stem = typed[1]!.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|-+$/g, '').slice(0, 80)
+		return { stem, ext: typed[2]!.toLowerCase() === 'mdx' ? '.mdx' : '.md', title: typed[1]!.trim() }
+	}
+	return { stem: docSlug(title), ext: '.md', title: title.trim() }
+}
+
+/**
  * The text a new document starts with: the model's template (its
  * `{{title}}`, `{{slug}}` and `{{date}}` filled, a `title:` added to the
  * frontmatter when it names none), else a frontmatter with the title and a
@@ -409,7 +426,7 @@ export function newDocText(template: string | null, title: string, slug: string,
 /**
  * `POST /docs/create` `{model, title}`: a new document of that model, named
  * from the title under the model's folder (`<prefix>/<slug>.md`, `-2` when
- * taken), from the model's template when it has one. `Base` or no model
+ * taken; a title ending in `.md`/`.mdx` keeps that name, see docFileName), from the model's template when it has one. `Base` or no model
  * makes one at the collection's root.
  */
 export async function createDoc(index: DocsIndex, body: any): Promise<{ status: number; body: any }> {
@@ -421,7 +438,8 @@ export async function createDoc(index: DocsIndex, body: any): Promise<{ status: 
 	const def = model && model !== 'Base' ? index.definitions().find((d) => d.def.name === model)?.def : undefined
 	if (model && model !== 'Base' && !def) return { status: 404, body: { error: `no model ${model}` } }
 	const prefix = def ? String(def.prefix || '').replace(/^\/+|\/+$/g, '') : ''
-	const slug = docSlug(title)
+	const named = docFileName(title)
+	const slug = named.stem
 	if (!slug) return { status: 400, body: { error: 'The title needs a letter or a digit' } }
 	const base = prefix ? `${prefix}/${slug}` : slug
 	const root = index.rootPath.replace(/\/+$/, '')
@@ -429,9 +447,9 @@ export async function createDoc(index: DocsIndex, body: any): Promise<{ status: 
 	for (let n = 2; existsSync(`${root}/${id}.md`) || existsSync(`${root}/${id}.mdx`); n++) id = `${base}-${n}`
 	let template: string | null = null
 	if (def) { try { template = (await index.db.collection.readTemplate(def.name))?.content ?? null } catch {} }
-	const path = `${root}/${id}.md`
+	const path = `${root}/${id}${named.ext}`
 	mkdirSync(dirname(path), { recursive: true })
-	writeFileSync(path, newDocText(template, title, slug), 'utf8')
+	writeFileSync(path, newDocText(template, named.title, slug), 'utf8')
 	await index.refresh()
 	const view = await docView(index, id, false)
 	return { status: 200, body: { ok: true, id, model: def ? def.name : 'Base', path, pathDisplay: index.display(path), view, text: `Created ${index.display(path)}` } }
