@@ -22,15 +22,15 @@ The keyboard-first workbench for any Luca project folder. It lives in
 
 ## Bundled assistants
 
-`build-app.sh` copies `assistants/lucaExpert` (with its `skills/`) into
-`Contents/Resources/assistants/lucaExpert`, adds the `luca-framework` skill
+`build-app.sh` copies `assistants/lucaArchitect` (with its `skills/`) into
+`Contents/Resources/assistants/lucaArchitect`, adds the `luca-framework` skill
 that this checkout's `luca bootstrap --update-skill` writes, and stamps it
 with `.luca-desktop-build` (a hash of the files). On launch
 `BundledAssistants` installs it to `~/.luca/assistants/`, where every Luca
 project discovers it. An installed copy is replaced only when it has a stamp
 and the stamp differs; a folder with no stamp is the user's and is left
 alone. `LUCA_DESKTOP_ASSISTANTS_HOME` moves the target for check runs. A new
-skill goes in `assistants/lucaExpert/skills/` and in its `only:` list.
+skill goes in `assistants/lucaArchitect/skills/` and in its `only:` list.
 
 ## The portfolio project
 
@@ -432,7 +432,7 @@ path outside the receiving project (or the plugins folder, for a link).
   `i` writes, `Enter` sends, `Ctrl-c` stops, `h` history, `n` new,
   `:say <text>` sends from the command line. `t` adds a feature's tools to
   this chat only (tools, folder, options in the palette; a header chip
-  opens its settings). `s` opens lucaExpert as its tech support
+  opens its settings). `s` opens lucaArchitect as its tech support
   (`?extends=<id>&extendsAssistant=<name>`, `POST /chat/open` `target`): the
   host gives it `extendChat`, `inventChatTools` and friends for that chat. An
   assistant on a coding agent gets its added tools over `/mcp/chat/<token>`.
@@ -571,8 +571,8 @@ Notes on the kinds:
   scope per helper, so the next example sees the names the last one set;
   an open console for that helper takes the code instead
   (`ConsoleContent.run`). `:example <id>`, `:eval <code>` do the same. `c`
-  opens lucaExpert beside the tile (`?aboutHelper=<registry>/<id>`,
-  grouped; one per helper, a second `c` focuses it; without lucaExpert
+  opens lucaArchitect beside the tile (`?aboutHelper=<registry>/<id>`,
+  grouped; one per helper, a second `c` focuses it; without lucaArchitect
   the palette asks who): the host briefs it on the helper (`POST
   /chat/open` `about.helper`) and the chat header shows `about
   features.fs`, a click back to the inspector.
@@ -709,11 +709,11 @@ tests `test/workbench-assistant-editor.test.ts`; Swift
   saves answer 403, the tile says why, and `C` copies the folder into the
   project's `assistants/` (`POST /assistant/<name>/copy`), where the copy
   wins the name and is editable. A `home` assistant (`~/.luca/assistants`,
-  where the app installs lucaExpert) is editable in place: it is the
+  where the app installs lucaArchitect) is editable in place: it is the
   user's.
-- **Build it with lucaExpert**: `c` opens a chat beside the tile at
-  `luca://<project>/chat/new?assistant=lucaExpert&about=<name>` (one per
-  assistant; a second `c` focuses it; without lucaExpert the palette asks
+- **Build it with lucaArchitect**: `c` opens a chat beside the tile at
+  `luca://<project>/chat/new?assistant=lucaArchitect&about=<name>` (one per
+  assistant; a second `c` focuses it; without lucaArchitect the palette asks
   who). `POST /chat/open` with `about` keeps the link with the conversation
   (like `target`) and, on each session start, adds the system prompt
   extension `workbenchAssistantEditor` (`AssistantEditor.brief`): the
@@ -723,7 +723,7 @@ tests `test/workbench-assistant-editor.test.ts`; Swift
   (`listAssistantFiles`, `readAssistantFile`, `writeAssistantFile`,
   `rollbackAssistantFile`, `testAssistant`, `reloadAssistant`), which go
   through the same save path (parse check, backup, reload; refused for a
-  plugin's assistant), so lucaExpert's own write guard (project roots
+  plugin's assistant), so lucaArchitect's own write guard (project roots
   only) never gets in the way for a home assistant. When the chat's
   assistant is the one being edited, the brief says so: a save reloads it.
   If the `luca-framework` skill is not in the prompt already and the
@@ -740,7 +740,7 @@ tests `test/workbench-assistant-editor.test.ts`; Swift
 
 A page an assistant draws on. The host owns all of it
 (`src/workbench/canvas.ts`, tests in `workbench-canvas.test.ts`);
-the tile only shows the page and takes screenshots. lucaExpert's guide is
+the tile only shows the page and takes screenshots. lucaArchitect's guide is
 `skills/drawing-on-canvas`.
 
 - **Host**: `GET /canvases`, `POST /canvases` `{id?, title?, open?}`,

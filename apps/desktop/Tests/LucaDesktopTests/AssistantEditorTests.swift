@@ -56,7 +56,7 @@ final class AssistantEditorTests: XCTestCase {
 
     func testAChatAboutAnAssistantDecodesAndKeepsTheLink() throws {
         let json = """
-        {"ok":true,"assistant":"lucaExpert","conversationId":"desk-1","thread":"t","title":"New conversation","modelText":"m",
+        {"ok":true,"assistant":"lucaArchitect","conversationId":"desk-1","thread":"t","title":"New conversation","modelText":"m",
          "tools":["writeAssistantFile"],"messages":[],"busy":false,"live":null,"about":{"assistant":"helper"}}
         """
         let view = try JSONDecoder().decode(WorkbenchChatView.self, from: Data(json.utf8))
@@ -66,7 +66,7 @@ final class AssistantEditorTests: XCTestCase {
 
     func testAChatAboutAHelperDecodesAndEncodesOnlyWhatIsSet() throws {
         let json = """
-        {"ok":true,"assistant":"lucaExpert","conversationId":"desk-1","thread":"t","title":"New conversation","modelText":"m",
+        {"ok":true,"assistant":"lucaArchitect","conversationId":"desk-1","thread":"t","title":"New conversation","modelText":"m",
          "tools":[],"messages":[],"busy":false,"live":null,"about":{"helper":{"registry":"features","id":"fs"}}}
         """
         let view = try JSONDecoder().decode(WorkbenchChatView.self, from: Data(json.utf8))

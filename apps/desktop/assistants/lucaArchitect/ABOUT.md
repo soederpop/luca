@@ -1,4 +1,4 @@
-# Luca Expert
+# Luca Architect
 
 Builds software with the Luca framework. It extends the current project, or creates a new project and builds it out: features, clients, servers, commands, endpoints, selectors, and assistants, each scaffolded, documented, and proven to work.
 

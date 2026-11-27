@@ -66,7 +66,7 @@ The target is a copy, not a link. Before you copy, ask whether using the helper 
 
 ## New Projects
 
-Use `newProject`. Ask for a name only when you cannot choose a good one; otherwise choose a short kebab-case name and say it. Put it next to related projects when the human says where it belongs. After it is created, tell the human the path and that `:open-project <path>` opens it in Luca Desktop, where lucaExpert builds it out.
+Use `newProject`. Ask for a name only when you cannot choose a good one; otherwise choose a short kebab-case name and say it. Put it next to related projects when the human says where it belongs. After it is created, tell the human the path and that `:open-project <path>` opens it in Luca Desktop, where lucaArchitect builds it out.
 
 ## Judgment
 

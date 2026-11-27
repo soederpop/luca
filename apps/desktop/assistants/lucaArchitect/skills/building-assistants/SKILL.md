@@ -93,7 +93,7 @@ Exported functions named after events, called as `(assistant, ...args)`. The com
 ```yaml
 defaults:
   provider: local
-lucaExpert:
+lucaArchitect:
   model: qwen3-coder
   config:
     projectsFolder: ~/code

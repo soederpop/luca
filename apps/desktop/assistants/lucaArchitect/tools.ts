@@ -90,7 +90,7 @@ function resolveInProjectsFolder(name: string): string {
 	const fs = container.feature('fs')
 	const configured = assistant.setting('projectsFolder') as string | undefined
 	if (!configured) {
-		throw new Error('No projects folder is configured. Tell the human to set `lucaExpert.config.projectsFolder` in assistants/options.yml.')
+		throw new Error('No projects folder is configured. Tell the human to set `lucaArchitect.config.projectsFolder` in assistants/options.yml.')
 	}
 
 	const expanded = configured.replace(/^~(?=\/|$)/, container.os.homedir)

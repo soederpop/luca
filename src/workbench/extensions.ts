@@ -9,7 +9,7 @@
  * list before each turn, and serves it as an MCP server to an assistant that
  * runs on a coding agent.
  *
- * `supportTools(target)` gives a helper chat (lucaExpert, opened as the tech
+ * `supportTools(target)` gives a helper chat (lucaArchitect, opened as the tech
  * support of another chat) the tools to change that chat's list.
  */
 import { z } from 'zod'

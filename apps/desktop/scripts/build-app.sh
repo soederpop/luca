@@ -63,7 +63,7 @@ cp "$ROOT_DIR/Resources/highlight.min.js" "$ROOT_DIR/Resources/highlight.js-LICE
 
 # Assistants the app installs into ~/.luca/assistants on launch
 # (Sources/App/BundledAssistants.swift), so every Luca project has them.
-# lucaExpert and its other skills live in assistants/lucaExpert here. The
+# lucaArchitect and its other skills live in assistants/lucaArchitect here. The
 # luca-framework skill is the one this checkout's `luca bootstrap
 # --update-skill` writes, so it always matches the repo. The stamp is a hash
 # of the files, so the app replaces an installed copy only when the content
@@ -71,20 +71,20 @@ cp "$ROOT_DIR/Resources/highlight.min.js" "$ROOT_DIR/Resources/highlight.js-LICE
 ASSISTANTS_DIR="$APP_DIR/Contents/Resources/assistants"
 rm -rf "$ASSISTANTS_DIR"
 mkdir -p "$ASSISTANTS_DIR"
-cp -R "$ROOT_DIR/assistants/lucaExpert" "$ASSISTANTS_DIR/lucaExpert"
+cp -R "$ROOT_DIR/assistants/lucaArchitect" "$ASSISTANTS_DIR/lucaArchitect"
 SKILL_TMP="$(mktemp -d)"
 (cd "$SKILL_TMP" && bun "$REPO_ROOT/src/cli/cli.ts" bootstrap --update-skill >/dev/null)
-cp -R "$SKILL_TMP/.claude/skills/luca-framework" "$ASSISTANTS_DIR/lucaExpert/skills/luca-framework"
+cp -R "$SKILL_TMP/.claude/skills/luca-framework" "$ASSISTANTS_DIR/lucaArchitect/skills/luca-framework"
 rm -rf "$SKILL_TMP"
-for skill in "$ASSISTANTS_DIR"/lucaExpert/skills/*; do
+for skill in "$ASSISTANTS_DIR"/lucaArchitect/skills/*; do
   if [ ! -f "$skill/SKILL.md" ]; then
     echo "error: $skill has no SKILL.md" >&2
     exit 1
   fi
 done
 find "$ASSISTANTS_DIR" -name .DS_Store -delete
-(cd "$ASSISTANTS_DIR/lucaExpert" && find . -type f ! -name .luca-desktop-build -print0 | sort -z | xargs -0 shasum | shasum | cut -d' ' -f1) > "$ASSISTANTS_DIR/lucaExpert/.luca-desktop-build"
-echo "Bundled assistant lucaExpert ($(find "$ASSISTANTS_DIR/lucaExpert" -type f | wc -l | tr -d ' ') files)"
+(cd "$ASSISTANTS_DIR/lucaArchitect" && find . -type f ! -name .luca-desktop-build -print0 | sort -z | xargs -0 shasum | shasum | cut -d' ' -f1) > "$ASSISTANTS_DIR/lucaArchitect/.luca-desktop-build"
+echo "Bundled assistant lucaArchitect ($(find "$ASSISTANTS_DIR/lucaArchitect" -type f | wc -l | tr -d ' ') files)"
 
 # The portfolio project the projects tile chats with (lucaPortfolio and the
 # portfolio feature). BundledPortfolio installs it file by file into

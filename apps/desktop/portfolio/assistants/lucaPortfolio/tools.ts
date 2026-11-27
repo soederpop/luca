@@ -90,11 +90,11 @@ function allowWrites(path: string) {
 	;(assistant.state as any).set('writableProjects', [...new Set([...writable(), path])])
 }
 
-// lucaExpert's skills: Luca Desktop installs lucaExpert with its own skills/
+// lucaArchitect's skills: Luca Desktop installs lucaArchitect with its own skills/
 // folder into ~/.luca/assistants. A missing folder only means fewer skills.
 const skillLocations = [
 	container.paths.resolve(assistant.resolvedFolder, 'skills'),
-	container.paths.resolve(String(container.feature('os').homedir), '.luca/assistants/lucaExpert/skills'),
+	container.paths.resolve(String(container.feature('os').homedir), '.luca/assistants/lucaArchitect/skills'),
 ].filter((location) => container.fs.exists(location))
 
 export const use = [
@@ -195,7 +195,7 @@ export async function newProject(options: z.infer<typeof schemas.newProject>) {
 		ok: true,
 		path: target,
 		inPortfolio: listed,
-		next: `Tell the human the path, and that \`:open-project ${target}\` opens it in Luca Desktop.${listed ? '' : ' It is outside the portfolio roots in portfolio.yml, so listProjects will not show it until they add the folder or open it in Luca Desktop.'} Building it out is lucaExpert's job: suggest they open the project and chat with lucaExpert there.`,
+		next: `Tell the human the path, and that \`:open-project ${target}\` opens it in Luca Desktop.${listed ? '' : ' It is outside the portfolio roots in portfolio.yml, so listProjects will not show it until they add the folder or open it in Luca Desktop.'} Building it out is lucaArchitect's job: suggest they open the project and chat with lucaArchitect there.`,
 	}
 }
 

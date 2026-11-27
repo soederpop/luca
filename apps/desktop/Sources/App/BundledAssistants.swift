@@ -7,8 +7,16 @@ import Foundation
 /// replaces an installed copy only when that copy has a stamp (so the app put
 /// it there) and the stamp differs. A folder with no stamp was made by hand,
 /// so the app leaves it alone. Delete the folder to get the bundled one back.
+///
+/// An installed folder that carries a stamp but is no longer in the bundle was
+/// put there by an older build under a name the app has since dropped (the
+/// assistant was `lucaExpert` before it was `lucaArchitect`). It is removed,
+/// so a renamed assistant does not leave its old self behind to clash with a
+/// user's own assistant of that name. A folder with no stamp is never removed.
 enum BundledAssistants {
     static let stampName = ".luca-desktop-build"
+    /// Names an older build installed that the bundle no longer ships.
+    static let retiredNames: Set<String> = ["lucaExpert"]
 
     static var bundled: URL? {
         Bundle.main.resourceURL?.appendingPathComponent("assistants", isDirectory: true)
@@ -23,7 +31,7 @@ enum BundledAssistants {
     }
 
     enum Outcome: Equatable {
-        case installed, updated, current, handMade
+        case installed, updated, current, handMade, retired
     }
 
     /// Runs off the main thread: the copy is a few hundred small files.
@@ -37,6 +45,8 @@ enum BundledAssistants {
                     AppLogger.info("Bundled assistant \(name): \(outcome) in \(target.path)")
                 case .success(.handMade):
                     AppLogger.info("Bundled assistant \(name): left alone, \(target.path)/\(name) has no \(stampName)")
+                case .success(.retired):
+                    AppLogger.info("Bundled assistant \(name): removed, an older build installed it and the app no longer ships it")
                 case .success:
                     break
                 case .failure(let error):
@@ -49,9 +59,17 @@ enum BundledAssistants {
     static func install(from source: URL, to target: URL) -> [(String, Result<Outcome, Error>)] {
         let fm = FileManager.default
         guard let names = try? fm.contentsOfDirectory(atPath: source.path) else { return [] }
-        return names.sorted().filter { !$0.hasPrefix(".") }.map { name in
+        let bundled = names.sorted().filter { !$0.hasPrefix(".") }
+        let installs = bundled.map { name in
             (name, Result { try installOne(source.appendingPathComponent(name), into: target) })
         }
+        let retirements = retiredNames.subtracting(bundled).sorted().compactMap { name -> (String, Result<Outcome, Error>)? in
+            let folder = target.appendingPathComponent(name, isDirectory: true)
+            // Only a folder the app stamped is the app's to remove.
+            guard fm.fileExists(atPath: folder.path), stamp(folder) != nil else { return nil }
+            return (name, Result { try fm.removeItem(at: folder); return .retired })
+        }
+        return installs + retirements
     }
 
     private static func stamp(_ folder: URL) -> String? {

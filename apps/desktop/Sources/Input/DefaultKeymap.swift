@@ -169,7 +169,7 @@ bindings:
   lucaHelper.source:    { key: "E", label: "source view: the helper's file", scope: kind.luca-helper }
   lucaHelper.edit:      { key: "i", label: "edit the source", scope: kind.luca-helper }
   lucaHelper.example:   { key: "e", label: "run an example in a console beside this tile", scope: kind.luca-helper }
-  lucaHelper.chat:      { key: "c", label: "chat with lucaExpert about this helper (one chat per helper)", scope: kind.luca-helper }
+  lucaHelper.chat:      { key: "c", label: "chat with lucaArchitect about this helper (one chat per helper)", scope: kind.luca-helper }
   lucaHelper.keepMine:  { key: "d p", label: "conflict: keep mine", scope: kind.luca-helper }
   lucaHelper.takeTheirs: { key: "d o", label: "conflict: take the file on disk", scope: kind.luca-helper }
   lucaChange.apply:     { key: "a", label: "write the change (asks first)", scope: kind.luca-change }
@@ -277,7 +277,7 @@ bindings:
   lucaAssistant.newFile: { key: "a", label: "new file in the assistant's folder", scope: kind.luca-assistant }
   lucaAssistant.hook:   { key: "h", label: "add a hook to hooks.ts (pick one the runtime fires)", scope: kind.luca-assistant }
   lucaAssistant.tools:  { key: "t", label: "tool providers: add a feature's tools to tools.ts, or take one out", scope: kind.luca-assistant }
-  lucaAssistant.chat:   { key: "c", label: "build it with lucaExpert: a chat that has read its files", scope: kind.luca-assistant }
+  lucaAssistant.chat:   { key: "c", label: "build it with lucaArchitect: a chat that has read its files", scope: kind.luca-assistant }
   lucaAssistant.talk:   { key: "n", label: "new chat with this assistant", scope: kind.luca-assistant }
   lucaAssistant.copy:   { key: "C", label: "plugin assistant: copy it into this project to edit it", scope: kind.luca-assistant }
   lucaAssistant.reload: { key: "r", label: "reload from disk", scope: kind.luca-assistant }
@@ -290,7 +290,7 @@ bindings:
   lucaChat.history:     { key: "h", label: "past conversations", scope: kind.luca-chat }
   lucaChat.new:         { key: "n", label: "new chat with this assistant", scope: kind.luca-chat }
   lucaChat.tools:       { key: "t", label: "tools for this chat: add a feature", scope: kind.luca-chat }
-  lucaChat.support:     { key: "s", label: "tech support: lucaExpert changes this chat's tools", scope: kind.luca-chat }
+  lucaChat.support:     { key: "s", label: "tech support: lucaArchitect changes this chat's tools", scope: kind.luca-chat }
   lucaChat.assistants:  { key: "u", label: "the assistants", scope: kind.luca-chat }
   lucaChat.reload:      { key: "r", label: "open again from the host", scope: kind.luca-chat }
   lucaChat.restart:     { key: "R", label: "restart the workbench host", scope: kind.luca-chat }

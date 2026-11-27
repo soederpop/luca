@@ -19,7 +19,7 @@ import MarkdownUI
 ///
 /// `i` edit, `e` rich, `E` source, `P` preview, `f` pick a file, `a` new
 /// file, `h` add a hook, `t` add or remove a tool provider, `c` chat with
-/// lucaExpert about this assistant, `n` chat with the assistant itself,
+/// lucaArchitect about this assistant, `n` chat with the assistant itself,
 /// `b` the sidebar, `r` reload, `d p` / `d o` settle a conflict, `u` the
 /// assistants, `R` restart the host. `:w`, `:wq`, `:e!`,
 /// `:replace <old> => <new>`, `:file <path>`, `:hook <name>`,
@@ -335,9 +335,9 @@ final class AssistantEditorContent: WorkbenchContent {
         }
     }
 
-    /// `c`: lucaExpert beside this tile, briefed on this assistant and given
+    /// `c`: lucaArchitect beside this tile, briefed on this assistant and given
     /// the tools to change its files. One per assistant: a second `c`
-    /// focuses it. Without lucaExpert in the project, the palette asks who.
+    /// focuses it. Without lucaArchitect in the project, the palette asks who.
     func chatAbout() {
         guard let host else { return Shell.shared.flash("The workbench host is not running") }
         if let tile = Shell.shared.tiles.values.first(where: {

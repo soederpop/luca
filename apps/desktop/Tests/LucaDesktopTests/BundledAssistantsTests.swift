@@ -16,7 +16,7 @@ final class BundledAssistantsTests: XCTestCase {
     }
 
     private func makeAssistant(build: String, core: String) throws {
-        let folder = source.appendingPathComponent("lucaExpert")
+        let folder = source.appendingPathComponent("lucaArchitect")
         try? FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: folder.appendingPathComponent("skills/a"), withIntermediateDirectories: true)
         try core.write(to: folder.appendingPathComponent("CORE.md"), atomically: true, encoding: .utf8)
@@ -25,19 +25,19 @@ final class BundledAssistantsTests: XCTestCase {
     }
 
     private func installedCore() throws -> String {
-        try String(contentsOf: target.appendingPathComponent("lucaExpert/CORE.md"), encoding: .utf8)
+        try String(contentsOf: target.appendingPathComponent("lucaArchitect/CORE.md"), encoding: .utf8)
     }
 
     private func outcome() throws -> BundledAssistants.Outcome {
         let results = BundledAssistants.install(from: source, to: target)
-        XCTAssertEqual(results.map(\.0), ["lucaExpert"])
+        XCTAssertEqual(results.map(\.0), ["lucaArchitect"])
         return try results[0].1.get()
     }
 
     func testInstallsThenStaysCurrent() throws {
         XCTAssertEqual(try outcome(), .installed)
         XCTAssertEqual(try installedCore(), "v1")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: target.appendingPathComponent("lucaExpert/skills/a/SKILL.md").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: target.appendingPathComponent("lucaArchitect/skills/a/SKILL.md").path))
         XCTAssertEqual(try outcome(), .current)
     }
 
@@ -48,8 +48,29 @@ final class BundledAssistantsTests: XCTestCase {
         XCTAssertEqual(try installedCore(), "v2")
     }
 
-    func testLeavesAHandMadeFolderAlone() throws {
+    func testRemovesAStampedFolderTheBundleNoLongerShips() throws {
+        let old = target.appendingPathComponent("lucaExpert")
+        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        try "old".write(to: old.appendingPathComponent("CORE.md"), atomically: true, encoding: .utf8)
+        try "0".write(to: old.appendingPathComponent(BundledAssistants.stampName), atomically: true, encoding: .utf8)
+        let results = BundledAssistants.install(from: source, to: target)
+        XCTAssertEqual(results.map(\.0), ["lucaArchitect", "lucaExpert"])
+        XCTAssertEqual(try results[1].1.get(), .retired)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: old.path))
+        // A second run has nothing left to retire.
+        XCTAssertEqual(BundledAssistants.install(from: source, to: target).map(\.0), ["lucaArchitect"])
+    }
+
+    func testLeavesAnUnstampedFolderOfARetiredNameAlone() throws {
         let mine = target.appendingPathComponent("lucaExpert")
+        try FileManager.default.createDirectory(at: mine, withIntermediateDirectories: true)
+        try "mine".write(to: mine.appendingPathComponent("CORE.md"), atomically: true, encoding: .utf8)
+        XCTAssertEqual(BundledAssistants.install(from: source, to: target).map(\.0), ["lucaArchitect"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: mine.path))
+    }
+
+    func testLeavesAHandMadeFolderAlone() throws {
+        let mine = target.appendingPathComponent("lucaArchitect")
         try FileManager.default.createDirectory(at: mine, withIntermediateDirectories: true)
         try "mine".write(to: mine.appendingPathComponent("CORE.md"), atomically: true, encoding: .utf8)
         XCTAssertEqual(try outcome(), .handMade)

@@ -51,7 +51,7 @@ Tools, routing, preloaded skills and the prompt it sends, with no model call.
 ```ts
 const manager = container.feature('assistantsManager')
 await manager.discover()
-const a = await manager.create('lucaExpert', { cached: false })
+const a = await manager.create('lucaArchitect', { cached: false })
 const out = {
   folder: a.resolvedFolder,
   frontmatter: a.meta,

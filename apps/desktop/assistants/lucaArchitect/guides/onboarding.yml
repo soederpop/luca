@@ -1,0 +1,427 @@
+# The welcome tour. A scripted chat: no model is ever called.
+#
+# Open it in Luca Desktop with `:guide` (or pick "guide:onboarding" in Space n).
+# The host reads this file again on every message, so edit it and send the
+# next answer to see the change. Rules of the format: apps/desktop/docs/writing-guides.md.
+#
+# Variables you can use in text: {{project}} (the open project's name),
+# {{cwd}} (its folder), {{guide}} (this title), and anything a choice `set`s.
+
+id: onboarding
+title: Welcome to Luca
+description: A guided tour of Luca, for developers and for people who are not developers yet. Scripted, no model.
+start: welcome
+
+nodes:
+  welcome:
+    say: |
+      Hi, I'm the Luca tour. I'm a script, not a model: I can't read your mind, but I can show you around, and you can answer me here or on the card beside this chat.
+
+      Luca is one binary that builds software. It carries its own dependency injection system, a curated set of modules, an AI assistant runtime, and this workbench.
+    card:
+      kicker: Welcome
+      title: Let's find the right tour for you
+      body: |
+        Luca is **one binary** that builds software: a container of curated modules, assistants with tools, and this workbench.
+
+        Pick the tour that fits. You can always type **back** or **start over**.
+    ask:
+      prompt: Which one are you?
+      choices:
+        - label: I'm an experienced developer
+          match: [developer, dev, experienced, engineer, code, coder, programmer, senior]
+          next: dev-intro
+          set: { track: dev }
+        - label: I'm not a developer (yet) and want to learn to build things
+          match: [new, learn, learning, beginner, "not a developer", nontechnical, "no code", start]
+          next: new-intro
+          set: { track: new }
+
+  # ------------------------------------------------------------------
+  # Track: experienced developer
+  # ------------------------------------------------------------------
+
+  dev-intro:
+    say: |
+      Good. Then let's skip the hand-holding and talk about what Luca changes.
+
+      You know the shape of a Node project: a `package.json`, a `node_modules` folder with a few hundred megabytes of other people's code, and a copy of all of it in every project on your disk. Luca is a different shape. It is **a single binary, like bun**, and the modules you build with are already inside it.
+    card:
+      kicker: For developers
+      title: A binary, not a folder of dependencies
+      body: |
+        - **One executable**: `luca`. Install it once, use it in every project.
+        - **The container is inside it**: dependency injection, an event bus, observable state.
+        - **Curated modules ride along**: file system, HTTP servers and clients, SQLite, websockets, model providers, schedulers, and more.
+        - No `node_modules` per project unless *you* want one.
+    ask:
+      prompt: Where do you want to start?
+      choices:
+        - label: Supply chain and security
+          match: [supply, chain, security, secure, audit, vulnerab, trust, dependencies]
+          next: dev-supply
+        - label: The container and dependency injection
+          match: [container, injection, di, inject, architecture, how it works]
+          next: dev-container
+        - label: What can I actually build with it?
+          match: [build, applications, apps, what, kinds, examples]
+          next: dev-build
+
+  dev-supply:
+    say: |
+      Every `npm install` is an act of trust in a few thousand strangers. One of them gets phished, a postinstall script runs, and now it is your laptop.
+
+      Luca's answer is to move that trust up a level. The modules the container provides are **curated, audited, and compiled into the binary**. A project that uses them has no install step and no postinstall scripts. There is one artifact to verify, and it is the same artifact on every machine.
+    card:
+      kicker: Supply chain
+      title: One artifact to trust
+      body: |
+        - **No install step** in a project: nothing runs when you clone it.
+        - **Same binary everywhere**: your laptop, CI, the server. One checksum.
+        - **Modules are vetted once**, in the framework, instead of once per project per developer.
+        - A project that needs more can still `bun add` a package. That is a choice you make, not a default you inherit.
+    ask:
+      prompt: "Fair question at this point:"
+      choices:
+        - label: What if I need a package Luca doesn't have?
+          match: [need, package, missing, "doesn't have", add, extra, library]
+          next: dev-extend
+        - label: OK, show me the container
+          match: [container, show, ok, next, continue]
+          next: dev-container
+
+  dev-extend:
+    say: |
+      Three ways, in the order I'd try them.
+
+      First, check: `luca describe features` lists what the container already has, and it is more than you expect. Second, write a **feature** of your own in `features/`: a class the container discovers and injects, and you choose what it imports. Third, `bun add` the package in that one project. Nothing stops you. The point is that the default path has zero installs, and every install is deliberate.
+    card:
+      kicker: Extending
+      title: When the container is missing something
+      body: |
+        1. `luca describe features` to check it is really missing.
+        2. `luca scaffold feature myThing` and write it yourself.
+        3. `bun add <pkg>` in that project, on purpose.
+        ```
+        luca describe features
+        luca scaffold feature imageResizer --description "Resize uploads"
+        ```
+    next: dev-container
+
+  dev-container:
+    say: |
+      The **container** is the whole idea. It is a per-process singleton that is three things at once: a dependency injector, an event bus, and a state machine.
+
+      Everything you build is a **helper** the container owns: a `feature` (logic, state, a wrapped library), a `client` (a connection out), or a `server` (a listener in). You ask for one by name, `container.feature('fs')`, and you get an instance with its options, its observable state, and its events. Commands and endpoints are thin wrappers that call features. That is the whole architecture.
+    card:
+      kicker: The container
+      title: Injector, event bus, state machine
+      body: |
+        ```
+        const fs = container.feature('fs')
+        const db = container.feature('sqlite', { file: 'app.db' })
+        const api = container.client('rest', { baseURL })
+        const http = container.server('express', { port: 3000 })
+        ```
+        - **Registries**: `container.features`, `.clients`, `.servers`, `.commands`, `.endpoints`.
+        - **Factories**: `container.feature(name, options)` and friends.
+        - **Discovery**: drop a file in `features/` and it is there. No registration ceremony.
+        - **Introspection**: `luca describe <name>` documents any of it from the code itself.
+    actions:
+      - label: Open the console
+        open: console
+      - label: Browse the registry
+        open: registry
+    ask:
+      prompt: Want to go deeper, or see what people build?
+      choices:
+        - label: Same container in the browser?
+          match: [browser, frontend, react, web, client side]
+          next: dev-browser
+        - label: What can I build?
+          match: [build, what, applications, apps, examples]
+          next: dev-build
+
+  dev-browser:
+    say: |
+      Yes. There is a node container and a browser container, with the same API and features tuned for each side. On the frontend it is a reactive state layer that fits React well. The canvas beside this chat runs the browser container right now.
+
+      So one mental model covers scripts, long-running services, HTTP APIs, CLIs, and the UI that talks to them.
+    card:
+      kicker: Both sides
+      title: One container, node and browser
+      body: |
+        - **Node**: servers, daemons, CLIs, assistants.
+        - **Browser**: reactive state and clients for React apps. This card is drawn by it.
+        - Servers and clients pair up: `container.server('websocket')` here, `container.client('websocket')` there.
+    next: dev-build
+
+  dev-build:
+    say: |
+      Every form of application you can imagine, which sounds like marketing until you look at the registries. HTTP APIs with `endpoints/` and `luca serve`. CLIs with `commands/`. Daemons with the scheduler. Data apps on SQLite. Real-time apps on websockets. AI assistants with tools, in `assistants/`, that run on any model provider, local or hosted. And consumer binaries: `luca bundle <name>` compiles your whole project into a standalone executable.
+
+      The last one is the part I'd underline. You hand someone a file, and it runs.
+    card:
+      kicker: What you build
+      title: Every shape of software, one toolchain
+      body: |
+        - **APIs**: `endpoints/` + `luca serve`, OpenAPI for free.
+        - **CLIs**: `commands/`, with generated `--help`.
+        - **Daemons**: `scheduler`, `runUntilShutdown`.
+        - **Assistants**: `assistants/<name>/CORE.md` + tools, any model provider.
+        - **Binaries**: `luca bundle myApp` → one executable to ship.
+    ask:
+      prompt: How do you want to start?
+      choices:
+        - label: Hand me to the Luca Architect to build something
+          match: [expert, build, hand, start, go, assistant, chat]
+          next: handoff
+        - label: Just show me the commands and leave me alone
+          match: [commands, alone, cli, terminal, myself, manual]
+          next: dev-commands
+        - label: Start over
+          match: [over, restart, beginning]
+          next: welcome
+
+  dev-commands:
+    say: |
+      Respect. Here is the short list.
+
+      `luca describe features` to see what the container has. `luca scaffold <type> <name>` to make a helper, with `--tutorial` for the guide. `luca eval "expr"` to run code with the container in scope. `luca serve` for `endpoints/`. `luca chat <assistant>` for an assistant. `luca bundle <name>` to ship a binary. In this workbench, the console (`Space e`) is `luca eval` with completions and docs.
+    card:
+      kicker: Commands
+      title: The ones you'll use first
+      body: |
+        ```
+        luca describe features        # what's in the container
+        luca describe fs.readFile     # one method's docs
+        luca scaffold feature cache   # a new helper (add --tutorial)
+        luca eval "container.features.available"
+        luca serve                    # endpoints/ as an HTTP API
+        luca bundle myApp             # ship a binary
+        ```
+        In the workbench: **Space e** console, **Space r** registry, **Space t** terminal.
+    actions:
+      - label: Open the console
+        open: console
+      - label: Open a terminal
+        open: terminal
+    end: true
+
+  # ------------------------------------------------------------------
+  # Track: new to building software
+  # ------------------------------------------------------------------
+
+  new-intro:
+    say: |
+      Welcome. You are in the right place, and I'll keep the jargon down.
+
+      Here is the idea in one line: Luca lets you build real software by **describing what you want to an assistant** that already knows the toolkit, inside a space that keeps things safe and tidy. You don't start from a blank screen. You start from a conversation.
+    card:
+      kicker: New here
+      title: You describe it. The assistant builds it.
+      body: |
+        - **Luca** is the toolkit: one program that already contains the pieces software is made of.
+        - **The Luca Architect** is an assistant that knows the toolkit and writes the code.
+        - **Projects** are folders. Each thing you build lives in its own one.
+        - You stay in charge: it asks before it changes anything that matters.
+    ask:
+      prompt: What would you like to know first?
+      choices:
+        - label: What kind of things can I build?
+          match: [what, kind, things, build, make, examples, possible]
+          next: new-what
+        - label: Is it safe? I don't want to break my computer
+          match: [safe, safety, break, dangerous, worried, risk, secure]
+          next: new-safe
+        - label: How does a conversation turn into a program?
+          match: [how, work, conversation, program, turn, happen]
+          next: new-how
+
+  new-what:
+    say: |
+      Anything that is a mix of **software and AI doing a job for you**. A script that watches a folder and sorts what lands in it. A little website for your club. A bot that reads your email and drafts replies for you to approve. A dashboard of your spending. A tool that turns your voice notes into tidy documents, every morning, on its own.
+
+      Each one is a **project**: a folder with a name. You will end up with a collection of them, and they can share pieces.
+    card:
+      kicker: What you can build
+      title: Automations, apps, and assistants of your own
+      body: |
+        - **Automations**: watch a folder, poll a website, run every morning at 9.
+        - **Apps**: a small website, a form, a dashboard.
+        - **Assistants**: an AI with its own instructions and tools, for one job.
+        - **A collection**: many small projects, each in its own folder, that can share parts.
+    ask:
+      prompt: Does one of these sound like you?
+      choices:
+        - label: An automation that does a chore for me
+          match: [automation, chore, automate, watch, schedule, every, morning, routine]
+          next: new-automation
+          set: { want: an automation }
+        - label: A small app or website
+          match: [app, website, site, dashboard, form, page]
+          next: new-app
+          set: { want: a small app }
+        - label: My own AI assistant for one job
+          match: [assistant, ai, bot, agent, helper]
+          next: new-assistant
+          set: { want: an assistant }
+
+  new-automation:
+    say: |
+      Perfect first project. An automation is a program that waits for something and then acts: a file shows up, a time comes, a website changes. Luca has a **scheduler** built in for the timing part, and features for files, the web, and email.
+
+      You would tell the Luca Architect something like: *"Every weekday at 8, read the new PDFs in my Downloads folder, summarize each one, and write the summaries to a notes folder."* It builds a project for that, shows you what it made, and you run it.
+    card:
+      kicker: Automations
+      title: A program that waits, then acts
+      body: |
+        Say what you want in plain words:
+
+        *"Every weekday at 8, read the new PDFs in Downloads, summarize each, and save the summaries to a notes folder."*
+
+        - The **scheduler** handles *when*.
+        - **Features** handle files, web, email.
+        - A **model** does the reading and writing part.
+    next: new-safe
+
+  new-app:
+    say: |
+      A small app is a great way to see results fast, because you can look at it. Luca serves web pages and APIs out of a folder called `endpoints/`, and the assistant knows how to build both the page and the data behind it.
+
+      You could say: *"Make me a page where I can log what I ate today and see a weekly chart."* The Expert makes the project, the page, and the storage, and tells you the address to open.
+    card:
+      kicker: Apps
+      title: A page you can open and use
+      body: |
+        *"Make me a page where I log what I ate today and see a weekly chart."*
+
+        - **endpoints/** is where pages and APIs live.
+        - **luca serve** runs them on your machine.
+        - **SQLite** keeps the data, no setup.
+    next: new-safe
+
+  new-assistant:
+    say: |
+      Then you'll like how assistants work here. An assistant is a folder with a file of instructions, `CORE.md`, and a file of **tools** it may use. Tools are what make it able to *do* things instead of only talk: read a file, call a website, send a message.
+
+      You can run it on a hosted model or on a model running on your own computer. You could say: *"Make an assistant that knows my recipes folder and plans a week of dinners when I ask."*
+    card:
+      kicker: Assistants
+      title: Instructions plus tools
+      body: |
+        *"Make an assistant that knows my recipes folder and plans a week of dinners."*
+
+        - **CORE.md**: who it is and how it should behave.
+        - **tools.ts**: what it is allowed to do.
+        - Runs on a hosted model or a **local one** on your machine.
+    next: new-safe
+
+  new-safe:
+    say: |
+      Now the question everyone has: is this safe?
+
+      Here is what keeps it that way. Everything you build lives in a **projects folder** you choose, and the assistant can only write there. It **asks before it deletes** anything it didn't make, installs software, or uses a credential. And Luca itself is **one program with its pieces inside it**, so building a project doesn't pull in hundreds of unknown packages the way most web tutorials do. You can read every file it writes, and you can always say no.
+    card:
+      kicker: Safety
+      title: Fenced in, and it asks first
+      body: |
+        - **One folder**: the assistant writes only inside your projects folder.
+        - **Asks first**: before deleting your files, installing software, or using passwords and keys.
+        - **No surprise downloads**: the toolkit is already inside Luca.
+        - **Readable**: every file it writes is plain text you can open.
+    ask:
+      prompt: Good?
+      choices:
+        - label: Good. How does a conversation become a program?
+          match: [good, how, work, conversation, program, yes, ok, next]
+          next: new-how
+        - label: Who is the Luca Architect, exactly?
+          match: [who, expert, exactly, what is]
+          next: new-expert
+
+  new-expert:
+    say: |
+      The Luca Architect is an assistant that ships with this app. Its instructions are long and specific: it knows the toolkit, it checks the docs before it guesses, it builds things in small steps, and it proves each step works before it says it's done.
+
+      It is not magic and it is not always right. It is a careful colleague who types fast. You read what it did, you ask for changes, and you decide when it's good.
+    card:
+      kicker: The Luca Architect
+      title: A careful colleague who types fast
+      body: |
+        - **Knows the toolkit**: reads the docs before guessing.
+        - **Small steps**: builds, then checks, then tells you.
+        - **Proves it**: runs the thing and shows you the output.
+        - **You decide**: nothing is done until you say so.
+    next: new-how
+
+  new-how:
+    say: |
+      Like this. You open a chat with the Expert and say what you want in your own words. It asks a question or two if it needs to. Then it makes a **project** (a folder with a name), writes the files, runs them, and shows you the result. You say "closer, but..." as many times as you like.
+
+      Behind the scenes it uses the same toolkit a developer would, which is why what it builds is real, keeps working, and can grow. When you want to see the code, it's right there in the folder, and the Expert will explain any line of it.
+    card:
+      kicker: How it works
+      title: Say it, see it, change it
+      body: |
+        1. **Say** what you want, in plain words.
+        2. The Expert makes a **project** and writes the files.
+        3. It **runs** it and shows you.
+        4. You **change** it: "closer, but..."
+
+        The code is real and it's yours. Ask to see any of it.
+    ask:
+      prompt: Ready to try?
+      choices:
+        - label: Yes, take me to the Luca Architect
+          match: [yes, ready, try, go, start, expert, lets]
+          next: handoff
+        - label: Not yet, tell me more about projects
+          match: [not, more, projects, folder, collection, wait]
+          next: new-projects
+        - label: Start over
+          match: [over, restart, beginning]
+          next: welcome
+
+  new-projects:
+    say: |
+      A project is a folder. That's it, and it matters. Every file that makes up one thing you built is in one place, so you can back it up, share it, or throw it away without touching anything else.
+
+      The Expert keeps all of them in one **projects folder**. This workbench lists them, opens them, and lets you copy a useful piece from one project into another. Over time you build a collection, and each new project is faster because the pieces already exist.
+    card:
+      kicker: Projects
+      title: One folder per thing you build
+      body: |
+        - **Self-contained**: back it up, share it, delete it, nothing else moves.
+        - **Listed here**: the workbench opens any project and shows what's inside.
+        - **Pieces travel**: copy a helper from one project to another.
+        - **Compounding**: your tenth project reuses the first nine.
+    actions:
+      - label: See this project's overview
+        open: project
+    next: new-how
+
+  # ------------------------------------------------------------------
+  # Shared ending
+  # ------------------------------------------------------------------
+
+  handoff:
+    say: |
+      Good. The Luca Architect is a real assistant with a model behind it, so from here on you are talking to something that can actually build. Open it with the button on the card, or press **Space n** and pick **lucaArchitect**.
+
+      A good first message says what you want and where: *"In a new project called daily-digest, build..."*. If you get stuck, come back here any time with **Space n** → **guide:onboarding**, or type **start over**.
+    card:
+      kicker: Next
+      title: Over to the Luca Architect
+      body: |
+        A good first message names the thing and the project:
+
+        *"In a new project called **daily-digest**, build a command that reads today's new files in Downloads and writes a summary."*
+
+        The Expert will create the project, build it in small steps, and show you proof it works.
+    actions:
+      - label: Open the Luca Architect
+        open: chat/new?assistant=lucaArchitect
+      - label: Open a terminal
+        open: terminal
+    end: true

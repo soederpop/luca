@@ -202,7 +202,7 @@ const script = `
 export default async function main({ container }) {
   const manager = container.feature('assistantsManager')
   await manager.discover()
-  const helper = await manager.create('lucaExpert', { cached: false, historyMode: 'lifecycle' })
+  const helper = await manager.create('lucaArchitect', { cached: false, historyMode: 'lifecycle' })
   const answer = await helper.ask(process.env.QUESTION || 'Which features of this project have no tests? Answer in five lines.')
   await container.fs.writeFileAsync('.luca/scripts/side-answer.md', answer)
 }

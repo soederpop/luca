@@ -5,7 +5,7 @@ import Foundation
 /// `chat-extensions` frame, so a change the tech support chat makes shows
 /// here too. Building the tools is the host's job.
 extension WorkbenchChatContent {
-    static let supportAssistant = "lucaExpert"
+    static let supportAssistant = "lucaArchitect"
 
     /// Container features with tools. Ones the assistant has already show as
     /// built in. Picking one that is on opens its settings.
@@ -194,7 +194,7 @@ extension WorkbenchChatContent {
 
     // MARK: Tech support
 
-    /// lucaExpert beside this chat, with tools to change this chat's tools.
+    /// lucaArchitect beside this chat, with tools to change this chat's tools.
     /// One per chat: a second `s` focuses it.
     func openSupport() {
         guard target == nil, assistant != Self.supportAssistant else { return Shell.shared.flash("This is the tech support chat") }

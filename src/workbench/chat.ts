@@ -538,7 +538,7 @@ export class ChatSessions {
 	/**
 	 * A chat about an assistant works with the framework: make sure the
 	 * `luca-framework` skill is in the prompt. An assistant that preloads it
-	 * (lucaExpert) has it already; one with a skills library loads it here;
+	 * (lucaArchitect) has it already; one with a skills library loads it here;
 	 * one with neither goes without.
 	 */
 	private async ensureSkill(s: Session, skill: string) {

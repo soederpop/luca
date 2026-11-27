@@ -14,7 +14,7 @@ import MarkdownUI
 /// host runs it and shapes the result. `e` picks one of the helper's
 /// `@example` blocks and runs it in a console beside the tile, one console
 /// scope per helper, so the next example sees the names the last one set.
-/// `c` opens lucaExpert beside the tile, briefed on this helper (one chat
+/// `c` opens lucaArchitect beside the tile, briefed on this helper (one chat
 /// per helper; a second `c` focuses it). `P` docs, `E` source, `i` edit.
 @MainActor
 final class HelperContent: WorkbenchContent {
@@ -269,8 +269,8 @@ final class HelperContent: WorkbenchContent {
         return lines.count > 1 ? "\(first) … (\(lines.count) lines)" : String(first)
     }
 
-    /// `c`: lucaExpert beside this tile, briefed on this helper (`?aboutHelper=`).
-    /// One per helper: a second `c` focuses it. Without lucaExpert in the
+    /// `c`: lucaArchitect beside this tile, briefed on this helper (`?aboutHelper=`).
+    /// One per helper: a second `c` focuses it. Without lucaArchitect in the
     /// project, the palette asks who.
     func chatAbout() {
         guard let host, let address else { return Shell.shared.flash("The workbench host is not running") }
