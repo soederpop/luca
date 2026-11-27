@@ -48,6 +48,8 @@ export type CompletionItem = {
 	/** The text that replaces `from..to`. */
 	insert: string
 	doc: DocCard
+	/** Added to the rank score: a nudge down the list when nothing else separates items. */
+	weight?: number
 }
 
 export type Completion = {
@@ -238,6 +240,16 @@ function parseChain(text: string): Segment[] | undefined {
 		return undefined
 	}
 	return segments
+}
+
+/** The names of a chain of plain names (`a.b.c`), else undefined. */
+function chainNames(segments: Segment[]): string[] | undefined {
+	return segments.every((s) => s.kind === 'name') ? segments.map((s) => (s as { name: string }).name) : undefined
+}
+
+/** `?fs.readFile`: a one-line docs question, as the console reads it. */
+export function isDocQuery(code: string): boolean {
+	return /^\s*\?/.test(code) && !code.includes('\n')
 }
 
 /** `'x'`, `"x"` or `` `x` `` with nothing else: the string. */
@@ -577,6 +589,8 @@ export class ConsoleDocs {
 		cursor = Math.max(0, Math.min(cursor, code.length))
 		const mask = computeNonCodeMask(code)
 		const answer: Completion = { from: cursor, to: cursor, items: [] }
+		// `?rest.`: a docs question. Every helper id and registry is fair game, not only what is in scope.
+		const asking = isDocQuery(code)
 
 		const signature = this.signatureAt(scope, code, cursor, mask)
 		if (signature) answer.signature = signature
@@ -617,10 +631,16 @@ export class ConsoleDocs {
 			if (code[dot - 1] === '?') dot--
 			const start = chainStart(code, dot, mask)
 			const segments = parseChain(code.slice(start, dot))
-			const receiver = segments ? this.resolve(scope, segments) : undefined
+			let receiver = segments ? this.resolve(scope, segments) : undefined
+			if (!receiver && asking && segments) {
+				const names = chainNames(segments)
+				// `?features.`: the registry's ids.
+				if (names?.length === 1 && this.registries().includes(names[0]!)) answer.items = rank(this.registryItems(names[0]!), prefix)
+				else if (names) receiver = this.helperChain(names)
+			}
 			if (receiver) answer.items = rank(this.membersOfValue(receiver), prefix)
 		} else if (code[before - 1] !== '.') {
-			answer.items = rank(this.scopeItems(scope, seed), prefix)
+			answer.items = rank(asking ? this.docScopeItems(scope, seed) : this.scopeItems(scope, seed), prefix)
 		}
 
 		// The name the caret is on, whole: its docs follow the caret.
@@ -628,10 +648,48 @@ export class ConsoleDocs {
 		const segments = wordEnd > start ? parseChain(code.slice(start, wordEnd)) : undefined
 		const last = segments?.[segments.length - 1]
 		if (segments && last?.kind === 'name' && last.name) {
-			const ref = this.resolve(scope, segments)
+			let ref = this.resolve(scope, segments)
+			if (!ref && asking) { const names = chainNames(segments); if (names) ref = this.helperChain(names) }
 			if (ref) answer.hover = this.docOf(ref)
 		}
 		return answer
+	}
+
+	private registries(): string[] {
+		return [...(this.container.registryNames ?? [])]
+	}
+
+	/**
+	 * `features.fs.readFile`, `fs.readFile`, `rest`: a helper by registry and
+	 * id, then its member. Needs no instance: the class and its docs answer.
+	 */
+	private helperChain(names: string[]): Ref | undefined {
+		const registries = this.registries()
+		const candidates: Array<{ registry: string; id: string; rest: string[] }> = []
+		if (registries.includes(names[0]!) && names[1]) candidates.push({ registry: names[0]!, id: names[1], rest: names.slice(2) })
+		for (const registry of registries) candidates.push({ registry, id: names[0]!, rest: names.slice(1) })
+		for (const c of candidates) {
+			if (!this.container[c.registry]?.has?.(c.id)) continue
+			const live = this.liveInstance(c.registry, c.id)
+			let ref: Ref | undefined = { path: c.id, has: !!live, value: live, helper: { registry: c.registry, id: c.id } }
+			for (const name of c.rest) ref = ref ? this.member(ref, name) : undefined
+			if (ref) return ref
+		}
+		return undefined
+	}
+
+	/** What a `?` question can start with: the scope, every registry, and every helper id. */
+	private docScopeItems(scope: any, seed?: Set<string>): CompletionItem[] {
+		const items = this.scopeItems(scope, seed).filter((item) => item.kind !== 'keyword')
+		const seen = new Set(items.map((item) => item.label))
+		const push = (item: CompletionItem) => { if (!seen.has(item.label)) { seen.add(item.label); items.push(item) } }
+		for (const registry of this.registries()) {
+			const count = this.container[registry]?.available?.length ?? 0
+			push({ label: registry, kind: 'registry', detail: `${count} available`, insert: registry, weight: 0.1, doc: { title: registry, kind: 'registry', summary: `The ${registry} registry: ${count} available. Ask about one with ?${registry}.<id>.`, documented: false } })
+		}
+		// What is in scope comes first; the rest of the catalog follows.
+		for (const registry of this.registries()) for (const item of this.registryItems(registry)) push({ ...item, weight: 0.2 })
+		return items
 	}
 
 	/** The call the caret is in: its docs and the argument the caret is at. */
@@ -671,21 +729,9 @@ export class ConsoleDocs {
 		if (segments) {
 			const ref = this.resolve(scope, segments)
 			if (ref) return this.docOf(ref)
-			// `features.fs.readFile`, `fs.readFile`, `rest`: a helper by registry and id, then its member.
-			const names = segments.every((s) => s.kind === 'name') ? segments.map((s) => (s as any).name as string) : undefined
-			if (names) {
-				const registries: string[] = [...(this.container.registryNames ?? [])]
-				const candidates: Array<{ registry: string; id: string; rest: string[] }> = []
-				if (registries.includes(names[0]!) && names[1]) candidates.push({ registry: names[0]!, id: names[1], rest: names.slice(2) })
-				for (const registry of registries) candidates.push({ registry, id: names[0]!, rest: names.slice(1) })
-				for (const c of candidates) {
-					if (!this.container[c.registry]?.has?.(c.id)) continue
-					const live = this.liveInstance(c.registry, c.id)
-					let ref: Ref | undefined = { path: c.id, has: !!live, value: live, helper: { registry: c.registry, id: c.id } }
-					for (const name of c.rest) ref = ref ? this.member(ref, name) : undefined
-					if (ref) return this.docOf(ref)
-				}
-			}
+			const names = chainNames(segments)
+			const helper = names ? this.helperChain(names) : undefined
+			if (helper) return this.docOf(helper)
 		}
 		return undefined
 	}
@@ -726,6 +772,7 @@ export function rank(items: CompletionItem[], prefix: string): CompletionItem[] 
 		if (label.startsWith('_') && !prefix.startsWith('_')) score += 10
 		if (!item.doc.documented && item.kind !== 'helper' && item.kind !== 'container' && item.kind !== 'value') score += 0.5
 		if (item.kind === 'keyword' || item.kind === 'global') score += 0.25
+		score += item.weight ?? 0
 		scored.push({ item, score })
 	}
 	scored.sort((a, b) => a.score - b.score || (prefix ? a.item.label.length - b.item.label.length : 0) || a.item.label.localeCompare(b.item.label))

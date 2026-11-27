@@ -135,6 +135,25 @@ describe('POST /console/complete', () => {
     expect(made.status).toBe(200)
   })
 
+  it('after ?, completes every helper id and registry path, not only the scope', async () => {
+    // rest is a client with no instance in the session: code mode cannot see it.
+    expect(labels(await at('rest.|'))).toEqual([])
+    const rest = await at('?rest.|')
+    expect(labels(rest)).toContain('get')
+    expect(rest.items.find((i: any) => i.label === 'get').doc.owner).toMatchObject({ registry: 'clients', id: 'rest' })
+    expect(labels(await at('?features.|'))).toContain('fs')
+    expect(labels(await at('?features.fs.rea|'))).toContain('readFile')
+    const start = await at('?re|')
+    expect(labels(start)).toContain('rest')
+    expect(labels(start)).not.toContain('return')
+    // The scope still leads: a bare ? starts with what is already there.
+    const bare = await at('?|')
+    expect(labels(bare).indexOf('container')).toBeLessThan(labels(bare).indexOf('features'))
+    expect(bare.items.find((i: any) => i.label === 'features').kind).toBe('registry')
+    const hover = await at('?clients.rest|')
+    expect(hover.hover.title).toBe('clients.rest')
+  })
+
   it('completes helper ids inside a factory string', async () => {
     const a = await at("container.feature('f|')")
     expect(labels(a)).toContain('fs')
