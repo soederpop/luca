@@ -149,6 +149,10 @@ struct WorkbenchChatTool: Decodable, Equatable, Identifiable {
     let status: String
     let resultText: String?
     let ms: Int?
+    /// Why the assistant made the call, in its own words (evalCode's `purpose`). Older hosts send none.
+    var purpose: String? = nil
+    /// What it said it expects back (evalCode's `expectation`).
+    var expectation: String? = nil
 }
 
 struct WorkbenchChatMessage: Decodable, Equatable, Identifiable {

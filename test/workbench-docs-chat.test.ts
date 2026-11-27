@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fieldKind, valueKind, docTitle, docPreview, digestOf, docSlug, newDocText } from '../src/workbench/docs'
-import { messagesView, argsText, resultFailed, resultText, shortTime } from '../src/workbench/chat'
+import { messagesView, argsText, toolView, transcriptMarkdown, resultFailed, resultText, shortTime } from '../src/workbench/chat'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
@@ -203,10 +203,28 @@ describe('pure parts', () => {
 		])
 		expect(view.map((m) => m.role)).toEqual(['user', 'assistant', 'user', 'assistant'])
 		expect(view[1]!.text).toBe('It is 5.')
-		expect(view[1]!.tools).toEqual([{ id: 'c1', name: 'add', argsText: '{\n  "a": 2,\n  "b": 3\n}', status: 'done', resultText: '{\n  "sum": 5\n}', ms: null }])
+		expect(view[1]!.tools).toEqual([{ id: 'c1', name: 'add', argsText: '{\n  "a": 2,\n  "b": 3\n}', purpose: null, expectation: null, status: 'done', resultText: '{\n  "sum": 5\n}', ms: null }])
 		expect(view[2]!.text).toBe('and fail?')
 		expect(view[3]!.tools[0]!.status).toBe('failed')
 		expect(view[3]!.tools[0]!.argsText).toBe('{}')
+	})
+	it('lifts purpose and expectation out of a call and shows evalCode as its code', () => {
+		expect(toolView('evalCode', JSON.stringify({ code: 'container.cwd', purpose: 'Find the project root', expectation: 'an absolute path' })))
+			.toEqual({ argsText: 'container.cwd', purpose: 'Find the project root', expectation: 'an absolute path' })
+		// no intent declared: the code still stands in for the JSON
+		expect(toolView('evalCode', { code: '1 + 1' })).toEqual({ argsText: '1 + 1', purpose: null, expectation: null })
+		// any tool may declare a purpose; it comes off the arguments shown
+		expect(toolView('add', { a: 2, purpose: 'Sum them' })).toEqual({ argsText: '{\n  "a": 2\n}', purpose: 'Sum them', expectation: null })
+		expect(toolView('add', { a: 2, purpose: '   ' })).toEqual({ argsText: '{\n  "a": 2,\n  "purpose": "   "\n}', purpose: null, expectation: null })
+		const view = messagesView([
+			{ role: 'assistant', content: '', tool_calls: [{ id: 'c1', function: { name: 'evalCode', arguments: '{"code":"fs.exists(\'x\')","purpose":"Check x exists"}' } }] },
+			{ role: 'tool', tool_call_id: 'c1', content: 'true' },
+		])
+		expect(view[0]!.tools[0]).toMatchObject({ name: 'evalCode', argsText: "fs.exists('x')", purpose: 'Check x exists', expectation: null })
+		const md = transcriptMarkdown('T', 'bot', view)
+		expect(md).toContain('evalCode · done · Check x exists')
+		expect(md).toContain('**Purpose:** Check x exists')
+		expect(md).toContain('```ts\nfs.exists')
 	})
 	it('names a new document from its title and fills the template', () => {
 		expect(docSlug('The First Note!')).toBe('the-first-note')

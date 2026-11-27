@@ -26,6 +26,41 @@ export type ChatToolView = {
 	status: 'running' | 'done' | 'failed'
 	resultText: string | null
 	ms: number | null
+	/** Why the assistant made this call, in its own words (evalCode's `purpose`). Shown even when tool output is hidden. */
+	purpose?: string | null
+	/** What the assistant said it expects back (evalCode's `expectation`). */
+	expectation?: string | null
+}
+
+/** Tool arguments as an object, or null when they are not one (a bare string, nothing). Pure. */
+function argsObject(args: unknown): Record<string, unknown> | null {
+	let value = args
+	if (typeof args === 'string') {
+		try { value = JSON.parse(args) } catch { return null }
+	}
+	return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
+}
+
+/**
+ * The parts of a tool call the chat shows apart from the raw arguments. A
+ * call that declares its intent (`purpose`, `expectation`: evalCode asks for
+ * both) gets those lifted out so the UI can keep the purpose in view, and
+ * for evalCode the arguments are the code itself rather than JSON with the
+ * snippet escaped inside it. Pure.
+ */
+export function toolView(name: string, args: unknown): { argsText: string; purpose: string | null; expectation: string | null } {
+	const obj = argsObject(args)
+	const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+	const purpose = str(obj?.purpose)
+	const expectation = str(obj?.expectation)
+	if (name === 'evalCode' && typeof obj?.code === 'string') {
+		return { argsText: clip(obj.code, MAX_ARGS_TEXT), purpose, expectation }
+	}
+	if (obj && (purpose || expectation)) {
+		const { purpose: _p, expectation: _e, ...rest } = obj
+		return { argsText: argsText(rest), purpose, expectation }
+	}
+	return { argsText: argsText(args), purpose, expectation }
 }
 
 export type ChatMessageView = {
@@ -115,7 +150,7 @@ export function messagesView(messages: any[]): ChatMessageView[] {
 				const tool: ChatToolView = {
 					id: String(call.id || `t${n++}`),
 					name: String(call.function?.name || call.name || 'tool'),
-					argsText: argsText(call.function?.arguments ?? call.arguments),
+					...toolView(String(call.function?.name || call.name || 'tool'), call.function?.arguments ?? call.arguments),
 					status: 'done',
 					resultText: null,
 					ms: null,
@@ -197,8 +232,10 @@ export function transcriptMarkdown(title: string, assistant: string, messages: C
 	for (const m of messages) {
 		out.push(m.role === 'user' ? '## You' : `## ${assistant}`, '')
 		for (const t of m.tools) {
-			out.push(`<details><summary>${t.name} · ${t.status}</summary>`, '')
-			if (t.argsText && t.argsText !== '{}') out.push('```json', t.argsText, '```', '')
+			out.push(`<details><summary>${t.name} · ${t.status}${t.purpose ? ` · ${t.purpose}` : ''}</summary>`, '')
+			if (t.purpose) out.push(`**Purpose:** ${t.purpose}`, '')
+			if (t.expectation) out.push(`**Expected:** ${t.expectation}`, '')
+			if (t.argsText && t.argsText !== '{}') out.push(t.name === 'evalCode' ? '```ts' : '```json', t.argsText, '```', '')
 			if (t.resultText) out.push('```', t.resultText, '```', '')
 			out.push('</details>', '')
 		}
@@ -752,7 +789,7 @@ export class ChatSessions {
 		})
 		a.on('toolCall', (name: string, args: any) => {
 			if (!s.turn) return
-			const tool: ChatToolView = { id: String(this.container.utils.uuid()).slice(0, 8), name, argsText: argsText(args), status: 'running', resultText: null, ms: null }
+			const tool: ChatToolView = { id: String(this.container.utils.uuid()).slice(0, 8), name, ...toolView(name, args), status: 'running', resultText: null, ms: null }
 			;(tool as any).startedAt = Date.now()
 			s.turn.tools.push(tool)
 			this.frame(s, 'chat-tool', { tool: this.publicTool(tool) })
@@ -771,8 +808,8 @@ export class ChatSessions {
 	}
 
 	private publicTool(t: ChatToolView): ChatToolView {
-		const { id, name, argsText, status, resultText, ms } = t
-		return { id, name, argsText, status, resultText, ms }
+		const { id, name, argsText, status, resultText, ms, purpose = null, expectation = null } = t
+		return { id, name, argsText, status, resultText, ms, purpose, expectation }
 	}
 
 	/**

@@ -749,7 +749,9 @@ private struct ChatBubble: View {
     }
 }
 
-/// A tool call in one line, for when tool output is hidden.
+/// A tool call in one line, for when tool output is hidden. A call that
+/// declared its purpose keeps that purpose on the line: the user asked to
+/// always see why the assistant is running code, whatever else is hidden.
 private struct ToolCallLine: View {
     let tool: WorkbenchChatTool
 
@@ -757,22 +759,75 @@ private struct ToolCallLine: View {
 
     var body: some View {
         let state = WorkbenchStyle.toolStateColor(tool.status)
-        HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s3) {
-            if tool.status == "running" { ProgressView().controlSize(.mini) }
-            else {
-                Image(systemName: tool.status == "failed" ? "xmark.circle.fill" : "checkmark.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(state)
+        VStack(alignment: .leading, spacing: KitTokens.Space.s1) {
+            HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s3) {
+                if tool.status == "running" { ProgressView().controlSize(.mini) }
+                else {
+                    Image(systemName: tool.status == "failed" ? "xmark.circle.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(state)
+                }
+                Text(tool.name)
+                    .font(WorkbenchStyle.code(KitTokens.TypeScale.xs, weight: .semibold))
+                    .foregroundStyle(WorkbenchStyle.roleColor("tool"))
+                if let purpose = tool.purpose {
+                    Text(purpose)
+                        .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .medium))
+                        .foregroundStyle(p.textBody.color)
+                        .textSelection(.enabled)
+                }
+                if let ms = tool.ms {
+                    Text(ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000))
+                        .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs))
+                        .foregroundStyle(p.textFaint.color)
+                }
             }
-            Text(tool.name)
-                .font(WorkbenchStyle.code(KitTokens.TypeScale.xs, weight: .semibold))
-                .foregroundStyle(WorkbenchStyle.roleColor("tool"))
-            if let ms = tool.ms {
-                Text(ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000))
+            if let expectation = tool.expectation {
+                Text("expects: \(expectation)")
                     .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs))
-                    .foregroundStyle(p.textFaint.color)
+                    .foregroundStyle(p.textMuted.color)
+                    .textSelection(.enabled)
+                    .padding(.leading, KitTokens.Space.s6)
             }
         }
+    }
+}
+
+/// What the assistant said a call is for. The purpose reads as a sentence
+/// in the body font (it is the assistant talking, not code) on an accent
+/// strip; the expectation sits under it, muted. Both are optional, and a
+/// tool that declares neither shows nothing here.
+private struct ToolIntent: View {
+    let purpose: String?
+    let expectation: String?
+
+    private var p: KitPalette { Theme.palette }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KitTokens.Space.s2) {
+            if let purpose {
+                HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s3) {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 10))
+                        .foregroundStyle(p.accent.color)
+                    Text(purpose)
+                        .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .medium))
+                        .foregroundStyle(p.textBody.color)
+                        .textSelection(.enabled)
+                }
+            }
+            if let expectation {
+                Text("expects: \(expectation)")
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs))
+                    .foregroundStyle(p.textMuted.color)
+                    .textSelection(.enabled)
+                    .padding(.leading, purpose == nil ? 0 : KitTokens.Space.s6)
+            }
+        }
+        .padding(.horizontal, KitTokens.Space.s4)
+        .padding(.vertical, KitTokens.Space.s3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: KitTokens.Radius.sm).fill(p.accent.color.opacity(0.08)))
     }
 }
 
@@ -802,6 +857,9 @@ private struct ToolCallCard: View {
                         .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs))
                         .foregroundStyle(p.textFaint.color)
                 }
+            }
+            if tool.purpose != nil || tool.expectation != nil {
+                ToolIntent(purpose: tool.purpose, expectation: tool.expectation)
             }
             if !tool.argsText.isEmpty, tool.argsText != "{}" {
                 Text(tool.argsText)

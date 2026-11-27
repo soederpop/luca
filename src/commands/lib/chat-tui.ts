@@ -949,26 +949,53 @@ export async function runChatTui(options: ChatTuiOptions): Promise<ChatTuiResult
 		}
 	}
 
+	/**
+	 * A call that says why it is happening (evalCode's `purpose` and
+	 * `expectation`) gets that said in plain words above the call line, so
+	 * the intent is always visible even with tool results collapsed. For
+	 * evalCode the preview is the code itself, not JSON around it.
+	 */
+	function toolIntent(ev: ToolEv): { purpose: string | null; expectation: string | null; argsStr: string } {
+		const a = ev.args && typeof ev.args === 'object' ? ev.args : null
+		const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+		const purpose = str(a?.purpose)
+		const expectation = str(a?.expectation)
+		if (ev.name === 'evalCode' && typeof a?.code === 'string') {
+			const code = a.code.replace(/\s+/g, ' ').trim()
+			return { purpose, expectation, argsStr: code.length > 80 ? code.slice(0, 80) + '…' : code }
+		}
+		if (a && (purpose || expectation)) {
+			const { purpose: _p, expectation: _e, ...rest } = a
+			return { purpose, expectation, argsStr: previewArgs(rest) }
+		}
+		return { purpose, expectation, argsStr: previewArgs(ev.args) }
+	}
+
 	function ToolLine({ ev, expanded }: { ev: ToolEv; expanded: boolean }) {
-		const argsStr = previewArgs(ev.args)
+		const { purpose, expectation, argsStr } = toolIntent(ev)
+		const intent = purpose
+			? h(Text, { key: 'intent' }, `  ${colors.magenta('◆')} ${colors.bold(purpose)}${expectation ? colors.dim(`  (expects: ${expectation})`) : ''}`)
+			: null
+		const withIntent = (line: any) => intent ? h(Box, { flexDirection: 'column' }, intent, line) : line
 		if (ev.status === 'running') {
-			return h(Text, { dimColor: true }, `  ${colors.yellow('⟳')} ${ev.name}(${argsStr})`)
+			return withIntent(h(Text, { dimColor: true }, `  ${colors.yellow('⟳')} ${ev.name}(${argsStr})`))
 		}
 		if (ev.status === 'error') {
-			return h(Text, null, `  ${colors.red('✗')} ${ev.name} ${colors.red(ev.error || 'failed')}`)
+			return withIntent(h(Text, null, `  ${colors.red('✗')} ${ev.name} ${colors.red(ev.error || 'failed')}`))
 		}
 		const resultStr = typeof ev.result === 'string' ? ev.result : (() => {
 			try { return JSON.stringify(ev.result, null, expanded ? 2 : 0) ?? '' } catch { return String(ev.result) }
 		})()
 		if (!expanded) {
 			const preview = resultStr.replace(/\s+/g, ' ').slice(0, 100)
-			return h(Text, null, `  ${colors.green('✓')} ${colors.dim(`${ev.name}(${argsStr})`)}${preview ? colors.dim(` → ${preview}${resultStr.length > 100 ? '…' : ''}`) : ''}`)
+			return withIntent(h(Text, null, `  ${colors.green('✓')} ${colors.dim(`${ev.name}(${argsStr})`)}${preview ? colors.dim(` → ${preview}${resultStr.length > 100 ? '…' : ''}`) : ''}`))
 		}
 		let body = resultStr.slice(0, TOOL_RESULT_MAX_CHARS)
 		const lines = body.split('\n')
 		const truncated = resultStr.length > TOOL_RESULT_MAX_CHARS || lines.length > TOOL_RESULT_MAX_LINES
 		body = lines.slice(0, TOOL_RESULT_MAX_LINES).map((line) => '    ' + line).join('\n')
 		return h(Box, { flexDirection: 'column' },
+			intent,
 			h(Text, null, `  ${colors.green('✓')} ${colors.dim(`${ev.name}(${argsStr})`)}`),
 			h(Text, { dimColor: true }, body + (truncated ? colors.dim('\n    …') : '')),
 		)
