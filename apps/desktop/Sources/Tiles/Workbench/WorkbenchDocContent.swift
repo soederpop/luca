@@ -280,7 +280,8 @@ final class WorkbenchDocContent: WorkbenchContent {
     }
 
     private func makeSourceEditor() -> SourceEditorController {
-        let editor = SourceEditorController(buffer: buffer, language: "markdown")
+        let editor = SourceEditorController(buffer: buffer, language: "markdown", name: "\(projectId)/\(docId).md",
+                                            folder: ProjectHub.shared.localFolder(projectId))
         editor.onSave = { [weak self] in self?.save() }
         editor.onClose = { [weak self] in
             guard let self else { return }

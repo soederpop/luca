@@ -200,7 +200,9 @@ final class FileContent: TileContent {
     }
 
     private func makeSourceEditor() -> SourceEditorController {
-        let editor = SourceEditorController(buffer: buffer, language: SourceEditorController.language(for: path))
+        let editor = SourceEditorController(buffer: buffer, language: SourceEditorController.language(for: path),
+                                            name: "\(projectId ?? "app")/\(path)",
+                                            folder: projectId.flatMap { ProjectHub.shared.localFolder($0) } ?? TilesPaths.root.path)
         editor.onSave = { [weak self] in self?.save() }
         editor.onClose = { [weak self] in
             guard let self else { return }

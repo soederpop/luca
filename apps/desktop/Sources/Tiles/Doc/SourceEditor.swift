@@ -17,14 +17,23 @@ enum DocEditorView: String {
     case preview, rich, source
 }
 
-/// The `source` view: CodeMirror 6 with vim keys in a web view. The page is
-/// one built file (`Resources/source-editor.html`, from `editor/`), loaded
-/// from disk with no network. Text flows both ways through the doc buffer.
+/// The `source` view: CodeMirror 6 with vim keys in a web view, or real
+/// Neovim (`:set nvim`, `NvimEditor`) in its place. The page is one built
+/// file (`Resources/source-editor.html`), loaded from disk with no network.
+/// Text flows both ways through the doc buffer, for both editors.
 @MainActor
 final class SourceEditorController: NSObject, WKScriptMessageHandler {
     let webView: WKWebView
     private let buffer: SourceEditorText
     private let language: String
+    private let name: String
+    private let folder: String?
+    /// What `SourceEditorView` shows: the web view or nvim's terminal.
+    let host = SourceEditorHostView()
+    private var nvim: NvimEditor?
+    private(set) var usingNvim = false
+    nonisolated(unsafe) private var backendObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var schemeObserver: NSObjectProtocol?
     private var ready = false
     /// The text the page holds, so a buffer change the page made is not sent back.
     private var pageText: String?
@@ -44,9 +53,29 @@ final class SourceEditorController: NSObject, WKScriptMessageHandler {
         set { UserDefaults.standard.set(newValue, forKey: "tiles.source.vim") }
     }
 
-    init(buffer: SourceEditorText, language: String) {
+    /// Kept across launches: `:set nvim` and `:set nonvim`.
+    static var nvimDefault: Bool {
+        get { UserDefaults.standard.bool(forKey: "tiles.source.nvim") }
+        set { UserDefaults.standard.set(newValue, forKey: "tiles.source.nvim") }
+    }
+
+    /// `:set nvim` / `:set nonvim`: every open source view switches.
+    static func setNvimDefault(_ on: Bool) {
+        if on, NvimEditor.executable == nil {
+            return Shell.shared.flash("No nvim found on PATH (or set LUCA_DESKTOP_NVIM)")
+        }
+        nvimDefault = on
+        NotificationCenter.default.post(name: .tilesSourceBackendChanged, object: nil)
+        Shell.shared.flash(on ? "Source views use nvim (Esc in Normal mode, or Mod-Esc, goes back)" : "Source views use CodeMirror")
+    }
+
+    /// `name` is nvim's buffer name (`luca://<name>`); `folder` its working
+    /// directory, for `:e`, LSP roots and the like.
+    init(buffer: SourceEditorText, language: String, name: String? = nil, folder: String? = nil) {
         self.buffer = buffer
         self.language = language
+        self.name = name ?? "source"
+        self.folder = folder
         let config = WKWebViewConfiguration()
         let controller = WKUserContentController()
         config.userContentController = controller
@@ -62,6 +91,62 @@ final class SourceEditorController: NSObject, WKScriptMessageHandler {
         watch = buffer.editorTextChanges
             .receive(on: DispatchQueue.main)
             .sink { [weak self] text in self?.push(text) }
+        host.show(webView)
+        backendObserver = NotificationCenter.default.addObserver(forName: .tilesSourceBackendChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.useNvim(Self.nvimDefault) }
+        }
+        schemeObserver = NotificationCenter.default.addObserver(forName: .tilesSchemeChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.nvim?.applyColors() }
+        }
+        if Self.nvimDefault { useNvim(true) }
+    }
+
+    deinit {
+        if let backendObserver { NotificationCenter.default.removeObserver(backendObserver) }
+        if let schemeObserver { NotificationCenter.default.removeObserver(schemeObserver) }
+    }
+
+    /// Shows nvim (started on first use) or the CodeMirror page. Keyboard
+    /// focus moves along when the old editor had it.
+    func useNvim(_ on: Bool) {
+        guard on != usingNvim else { return }
+        let hadFocus = hasFocus
+        if on {
+            let editor = nvim ?? makeNvim()
+            guard let editor else { return }
+            usingNvim = true
+            host.show(editor.terminal)
+        } else {
+            usingNvim = false
+            host.show(webView)
+        }
+        if hadFocus { focus() }
+    }
+
+    private func makeNvim() -> NvimEditor? {
+        let editor = NvimEditor(text: buffer.editorText, language: language, name: "luca://" + name)
+        editor.onText = { [weak self] text in self?.buffer.editorSetText(text) }
+        editor.onSave = { [weak self] in self?.onSave() }
+        editor.onEscape = { [weak self] in self?.onEscape() }
+        editor.onExit = { [weak self] code in
+            guard let self else { return }
+            self.nvim = nil
+            let hadFocus = self.hasFocus
+            self.usingNvim = false
+            self.host.show(self.webView)
+            if code == 0 {
+                self.onClose()
+            } else {
+                Shell.shared.flash("nvim exited \(code): showing CodeMirror (:set nvim starts it again)")
+                if hadFocus { self.focus() }
+            }
+        }
+        guard editor.start(folder: folder) else {
+            Shell.shared.flash("No nvim found on PATH (or set LUCA_DESKTOP_NVIM)")
+            return nil
+        }
+        nvim = editor
+        return editor
     }
 
     /// The built page: in the app bundle, else next to the sources (a
@@ -92,11 +177,13 @@ final class SourceEditorController: NSObject, WKScriptMessageHandler {
 
     /// True when the page has the keyboard.
     var hasFocus: Bool {
+        if usingNvim, let nvim { return nvim.hasFocus }
         guard let responder = webView.window?.firstResponder as? NSView else { return false }
         return responder === webView || responder.isDescendant(of: webView)
     }
 
     func focus() {
+        if usingNvim, let nvim { return nvim.focus() }
         webView.window?.makeFirstResponder(webView)
         run("tilesEditor.focus()")
     }
@@ -108,6 +195,7 @@ final class SourceEditorController: NSObject, WKScriptMessageHandler {
     }
 
     private func push(_ text: String) {
+        nvim?.setText(text)
         guard ready, text != pageText else { return }
         pageText = text
         run("tilesEditor.setText(\(Self.json(text)))")
@@ -198,6 +286,22 @@ final class EditorWebView: WKWebView {
 struct SourceEditorView: NSViewRepresentable {
     let controller: SourceEditorController
 
-    func makeNSView(context: Context) -> WKWebView { controller.webView }
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+    func makeNSView(context: Context) -> SourceEditorHostView { controller.host }
+    func updateNSView(_ nsView: SourceEditorHostView, context: Context) {}
+}
+
+/// Holds whichever editor a source view shows, filling its bounds.
+final class SourceEditorHostView: NSView {
+    func show(_ view: NSView) {
+        guard view.superview !== self else { return }
+        subviews.forEach { $0.removeFromSuperview() }
+        view.frame = bounds
+        view.autoresizingMask = [.width, .height]
+        addSubview(view)
+    }
+}
+
+extension Notification.Name {
+    /// `:set nvim` / `:set nonvim` changed `SourceEditorController.nvimDefault`.
+    static let tilesSourceBackendChanged = Notification.Name("TilesSourceBackendChanged")
 }

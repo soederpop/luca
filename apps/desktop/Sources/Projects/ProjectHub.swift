@@ -74,6 +74,12 @@ final class ProjectHub: ObservableObject {
     var recent: [KnownProject] { list.recent }
 
     /// A known project, or the portfolio (`PortfolioProject`), which is never in the list.
+    /// The project's folder on this Mac; nil for one on another machine.
+    func localFolder(_ id: String) -> String? {
+        guard let project = project(id), project.host == nil else { return nil }
+        return project.path
+    }
+
     func project(_ id: String) -> KnownProject? {
         id == PortfolioProject.id ? PortfolioProject.entry : list.project(id)
     }

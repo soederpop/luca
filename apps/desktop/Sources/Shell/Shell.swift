@@ -1081,7 +1081,8 @@ final class Shell: ObservableObject {
             if target == nil || target != workspace.mode { toggleMode() }
         case "keys": toggleKeysView()
         case "set":
-            guard let scheme = ThemeSettings.Scheme(rawValue: rest) else { return flash("Usage: set dark | light | system (or vim | novim in a doc)") }
+            if rest == "nvim" || rest == "nonvim" { return SourceEditorController.setNvimDefault(rest == "nvim") }
+            guard let scheme = ThemeSettings.Scheme(rawValue: rest) else { return flash("Usage: set dark | light | system (or vim | novim in a doc, nvim | nonvim)") }
             ThemeSettings.shared.set(scheme)
             flash("Scheme: \(scheme.rawValue)")
         case "theme":

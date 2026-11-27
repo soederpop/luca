@@ -886,6 +886,17 @@ desktop sdk` writes the files; `luca/web/desktop` exports them.
 - The source editor page is `Resources/source-editor.html`, a prebuilt
   single file kept here. `build-app.sh` copies it and highlight.js into `Contents/Resources`.
   `:set vim` / `:set novim` is kept in the app's defaults.
+- **`:set nvim`** (`:set nonvim` back; kept in the app's defaults) puts the
+  user's own Neovim in every source view's place (`Tiles/Doc/Nvim/`):
+  `NvimEditor` runs `nvim -n --listen <sock>` in a SwiftTerm view and
+  talks msgpack-RPC to the same process (`NvimRPC`, `MsgPack`). The app's
+  buffer stays the truth: `setupLua` makes an `acwrite` scratch buffer
+  (`luca://<project>/<path>`), fills it, and sends every change
+  (`luca_text`), `:w` (`luca_save`, the app's save and conflict flow) and
+  Normal-mode `Esc` (`luca_escape`, back to the app) on the channel. `:q`
+  closes the tile like CodeMirror's; any other exit falls back to
+  CodeMirror. `LUCA_DESKTOP_NVIM` names the binary, else the PATH.
+  `NvimTests` drives a real headless nvim (skipped without one).
 - `DocText` cuts a file into frontmatter and body byte for byte;
   `WorkbenchDocBuffer` holds it with the digest it came from.
 - The rich editor's engine is vendored in `Vendor/swift-markdown-engine`.
