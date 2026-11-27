@@ -28,6 +28,7 @@ import { Canvases } from './canvas.js'
 import { AssistantEditor } from './assistant-editor.js'
 import { helperSourceView, saveHelperSource } from './helper-source.js'
 import { helperBrief } from './helper-brief.js'
+import { serveDesktopKit } from '../web/desktop/index.js'
 
 export type WorkbenchHostOptions = {
 	lucaVersion?: string
@@ -797,6 +798,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			})
 			return
 		}
+		// The Luca Desktop kit is public: a canvas or guide page loads it from its own origin.
+		if (loopbackHost(req) && serveDesktopKit(req, res)) return
 		// Canvas pages carry their own key, never the host's token.
 		if (url.pathname.startsWith('/canvas/')) {
 			if (!loopbackHost(req)) return sendJson(res, 401, { error: 'unauthorized' })

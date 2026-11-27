@@ -155,6 +155,17 @@ describe('workbench canvases', () => {
 		expect([200, 302]).toContain(runtime.status)
 	})
 
+	it('serves the Luca Desktop kit to anyone on loopback, with no token or key', async () => {
+		const css = await fetch(`${wb.base}/_luca/desktop/kit.css`)
+		expect(css.status).toBe(200)
+		expect(css.headers.get('content-type')).toContain('text/css')
+		expect(await css.text()).toContain('--al-ground')
+		const js = await fetch(`${wb.base}/_luca/desktop/kit.js`)
+		expect(await js.text()).toContain('window.lucaDesktop')
+		// A canvas page may load it under its own CSP: same origin, no inline script.
+		expect(canvasCsp()).toContain("script-src 'self'")
+	})
+
 	it('lets a canvas key read, and nothing more', async () => {
 		const h = { 'x-canvas-key': key }
 		expect((await fetch(`${wb.base}/registries`, { headers: h })).status).toBe(200)

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
 import { type StartOptions, Server, type ServerState } from '../server.js'
 import { Endpoint, type EndpointModule, warnUnknownExports } from '../endpoint.js'
+import { desktopKitMiddleware } from '../web/desktop/index.js'
 
 declare module '../server' {
   interface AvailableServers {
@@ -72,6 +73,9 @@ export interface OpenAPISpecOptions {
  *   variants like `getRateLimit` — no need to hand-roll one. Over-limit requests get 429.
  * - `historyFallback: true` (requires `static`) serves `index.html` for unmatched
  *   GET routes, wired up during `start()`.
+ * - Every express server also serves the Luca Desktop kit at `/_luca/desktop/kit.css`
+ *   and `kit.js` (see `luca/web/desktop`), so a page it serves can open as a tile of
+ *   Luca Desktop with the app's look, keys and palette.
  *
  * For raw custom routes there are three doors: the `create: (app, server) => app`
  * option hook (runs after cors, body parsing and static, before endpoints mount;
@@ -205,6 +209,9 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       
       app.use(express.json({ limit: "500mb" }))
       app.use(express.urlencoded({ extended: true, limit: "500mb", parameterLimit: 50000 }))
+
+      // The Luca Desktop kit (/_luca/desktop/kit.css, kit.js): a page on any Luca server can be a tile.
+      app.use(desktopKitMiddleware())
       
       if (this.options.static) {
         app.use(express.static(this.options.static))

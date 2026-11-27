@@ -41,6 +41,10 @@
       "types": "./dist/browser.d.ts",
       "default": "./dist/browser.mjs"
     },
+    "./web/desktop": {
+      "types": "./dist/web/desktop/index.d.ts",
+      "default": "./src/web/desktop/index.ts"
+    },
     "./web/*": {
       "types": "./dist/web/*.d.ts",
       "default": "./src/web/*"

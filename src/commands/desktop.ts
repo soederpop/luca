@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
+import { desktopKitFiles, DESKTOP_KIT_ROUTE } from '../web/desktop/index.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -19,10 +20,12 @@ const APP_NAME = 'Luca Desktop.app'
 export const positionals = ['action']
 
 export const argsSchema = CommandOptionsSchema.extend({
-	action: z.enum(['install', 'check']).default('install').describe('install: download the newest build into /Applications. check: only compare versions'),
+	action: z.enum(['install', 'check', 'sdk']).default('install').describe('install: download the newest build into /Applications. check: only compare versions. sdk: write the page kit (kit.css, kit.js, kit.mjs, tokens.json) into a folder, for a page served by something other than Luca'),
 	force: z.boolean().default(false).describe('Install even when the installed build is the newest'),
 	open: z.boolean().default(false).describe('Open the app after it is installed'),
 	dir: z.string().default('/Applications').describe('The folder to install the app into'),
+	out: z.string().default('public/_luca/desktop').describe('sdk: the folder to write the kit files into'),
+	print: z.string().optional().describe('sdk: print one file to stdout instead (kit.css, kit.js, kit.mjs or tokens.json)'),
 })
 
 export const examples = [
@@ -30,6 +33,8 @@ export const examples = [
 	{ command: 'luca desktop check', description: 'See if a newer Luca Desktop build exists' },
 	{ command: 'luca desktop install --open', description: 'Install or update, then open it' },
 	{ command: 'luca desktop install --dir ~/Applications', description: 'Install for this user only' },
+	{ command: 'luca desktop sdk', description: 'Write kit.css, kit.js, kit.mjs and tokens.json into public/_luca/desktop' },
+	{ command: 'luca desktop sdk --print kit.css', description: 'Print the stylesheet (pipe it anywhere)' },
 ]
 
 type Release = {
@@ -51,6 +56,8 @@ export default async function desktop(options: z.infer<typeof argsSchema>, conte
 	const fs = container.feature('fs')
 	const proc = container.feature('proc')
 	const downloader = container.feature('downloader')
+
+	if (options.action === 'sdk') return writeSdk(options, container)
 
 	if (process.platform !== 'darwin') {
 		ui.print.red('Luca Desktop is a macOS app.')
@@ -137,9 +144,34 @@ export default async function desktop(options: z.infer<typeof argsSchema>, conte
 }
 
 commands.registerHandler('desktop', {
-	description: 'Download the newest Luca Desktop build from GitHub releases into /Applications, or check whether one exists',
+	description: 'Install or check Luca Desktop from GitHub releases, or write its page kit (kit.css, kit.js) for web pages that open as tiles',
 	argsSchema,
 	positionals,
 	examples,
 	handler: desktop,
 })
+
+/**
+ * `luca desktop sdk`: the page kit as files. A page served by `luca serve`
+ * or any Luca express server never needs this: they answer
+ * `/_luca/desktop/kit.css` themselves. This is for every other server.
+ */
+async function writeSdk(options: z.infer<typeof argsSchema>, container: any) {
+	const ui = container.feature('ui')
+	const fs = container.feature('fs')
+	const files = desktopKitFiles()
+	if (options.print) {
+		const file = files.find((f) => f.name === options.print)
+		if (!file) {
+			ui.print.red(`No kit file named ${options.print}. One of: ${files.map((f) => f.name).join(', ')}`)
+			process.exit(1)
+		}
+		process.stdout.write(file.body)
+		return
+	}
+	const out = container.paths.resolve(options.out.replace(/^~(?=\/|$)/, container.os.homedir))
+	await fs.ensureFolder(out)
+	for (const file of files) fs.writeFile(container.paths.resolve(out, file.name), file.body)
+	ui.print.green(`Wrote ${files.map((f) => f.name).join(', ')} to ${out}`)
+	ui.print.dim(`Load them as <link rel="stylesheet" href="${DESKTOP_KIT_ROUTE}/kit.css"> and <script src="${DESKTOP_KIT_ROUTE}/kit.js"></script>, or from wherever that folder is served.`)
+}

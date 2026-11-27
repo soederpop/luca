@@ -82,6 +82,7 @@
 - [Process lifetime and durable worker records](./tutorials/28-process-lifecycle.md)
 - [Cached queries with selectors](./tutorials/29-selectors.md)
 - [Ship and verify a standalone binary](./tutorials/30-shipping-a-binary.md)
+- [Web pages that open as tiles in Luca Desktop](./tutorials/31-luca-desktop-pages.md)
 
 ## Bases
 

@@ -27,6 +27,7 @@
       "luca/agi": ["src/agi/index.ts"],
       "luca/agi/*": ["src/agi/*"],
       "luca/web": ["src/browser.ts"],
+      "luca/web/desktop": ["src/web/desktop/index.ts"],
       "luca/web/*": ["src/web/*"],
       "luca/schemas": ["src/schemas/base.ts"],
       "luca/schemas/*": ["src/schemas/*"],

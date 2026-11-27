@@ -788,6 +788,29 @@ the tile only shows the page and takes screenshots. lucaArchitect's guide is
   loads fresh; a page that only reconnects keeps its drawing.
 - Keys: `i` every key to the page, `r` reload (replays), `R` restart host.
 
+## The page kit (what a web page loads to be a tile)
+
+The page side of the web bridge lives in the luca package, not here:
+`src/web/desktop/` (`tokens.ts`, `css.ts`, `sdk.ts`, `index.ts`; tests in
+`test/desktop-kit.test.ts`; guide `docs/tutorials/31-luca-desktop-pages.md`).
+Every Luca express server, `luca serve` and the workbench host serve it at
+`/_luca/desktop/kit.css`, `kit.js`, `kit.mjs` and `tokens.json`; `luca
+desktop sdk` writes the files; `luca/web/desktop` exports them.
+
+- `kit.css` holds the `--al-*` tokens (default dark and light only) and the
+  `al-*` classes. `kit.js` defines `window.lucaDesktop`: it reads
+  `__AL_HOST__` and `al:host`, posts `open`, `keys` and the `ShellRequest`
+  kinds to `alHost`, wires `data-key`, and names the project color
+  `--al-project` (the hues are `--al-hue-N`, as `hostTheme()` sends them).
+- **The Swift side is the contract.** `WebTileHost` (values and messages),
+  `ShellRequest.names`, `PageKey` (key specs) and `ThemeSettings.hostTheme()`
+  (variable names) are what `kit.js` speaks. A change to any of them is a
+  change to `sdk.ts` too, and to the tests that read these files.
+- **Tokens are kept twice**, in `Tokens.swift` (`dark`, `light`, `TypeScale`,
+  `Space`, `Radius`, `Layout`, `Motion`) and `tokens.ts`. `bun test
+  test/desktop-kit.test.ts` fails when they differ. Named themes stay in
+  Swift only: the app pushes the live palette into the page.
+
 ## Adding a workbench tool
 
 1. Subclass `WorkbenchContent` (`Tiles/Workbench/WorkbenchContent.swift`).
