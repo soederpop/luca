@@ -19,12 +19,29 @@ BUILD="$(git -C "$REPO_ROOT" rev-list --count HEAD 2>/dev/null || echo "0")"
 
 cd "$ROOT_DIR"
 
-swift build -c "$BUILD_CONFIG" --product "$EXECUTABLE_NAME"
+# swift build can print "input file … was modified during the build" (an
+# editor or another agent touched a source mid-build), exit 0, and leave the
+# previous binary in place. Fail loudly instead of packaging a stale app.
+BUILD_LOG="$(mktemp)"
+swift build -c "$BUILD_CONFIG" --product "$EXECUTABLE_NAME" 2>&1 | tee "$BUILD_LOG"
+if grep -q "^error:\|: error:" "$BUILD_LOG"; then
+  echo "build-app: swift build reported errors (see above); not packaging" >&2
+  rm -f "$BUILD_LOG"
+  exit 1
+fi
+rm -f "$BUILD_LOG"
+BINARY="$ROOT_DIR/.build/arm64-apple-macosx/$BUILD_CONFIG/$EXECUTABLE_NAME"
+NEWER="$(find "$ROOT_DIR/Sources" -name '*.swift' -newer "$BINARY" | head -3)"
+if [ -n "$NEWER" ]; then
+  echo "build-app: sources changed after the binary was built; run again:" >&2
+  echo "$NEWER" >&2
+  exit 1
+fi
 
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-cp "$ROOT_DIR/.build/arm64-apple-macosx/$BUILD_CONFIG/$EXECUTABLE_NAME" "$APP_DIR/Contents/MacOS/$EXECUTABLE_NAME"
+cp "$BINARY" "$APP_DIR/Contents/MacOS/$EXECUTABLE_NAME"
 cp "$ROOT_DIR/packaging/Info.plist" "$APP_DIR/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$APP_DIR/Contents/Info.plist"
 echo "Version: $VERSION (build $BUILD)"
