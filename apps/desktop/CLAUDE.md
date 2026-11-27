@@ -255,7 +255,7 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `POST /contentbase/save` | `{spec, original?, digest?}`: writes `docs/models/<kebab name>.md`. 400 with `problems`; 409 when the file changed since `digest`, the target exists, or `original` is not a tile model. A rename moves the file and the template. Answers `{ok, view, loadError, text}` |
 | `POST /contentbase/delete` | `{name}`: deletes a tile model's file (409 for any other); its documents and template stay |
 | `POST /contentbase/query` | `{model, filters [{path, op, value text}], sort [{path, direction}], columns, limit, offset}` or `{model, where: <DSL JSON text>}`. Values are typed by the field's kind on the host. Answers `{ok, total, count, columns [{key, title, kind}], rows [{id, title, address, cells [{text, kind, items}]}], paths [{key, kind, options}], ops, whereText, sortText, code, ms}`, or `{ok: false, error}` (a 200) |
-| `GET /files` | `{files, truncated}`: the project's files, relative and sorted, skipping `.git`, `node_modules`, `.build`, `dist` and other build folders; at most 5000 |
+| `GET /files` | `{files, quiet, quietWhen, truncated}`: the project's files, relative and sorted, skipping `.git`, `node_modules`, `.build`, `dist`, `.luca` and other build folders; at most 5000. Files under `.claude/skills/` are in `quiet`: the picker lists them only when the query has one of `quietWhen` (`.claude`, `skills`) |
 | `GET /file?path=` | the file in a doc's shape (`id` = `pathDisplay` = the relative path, `model` empty, `fields` empty) plus `missing` (no file yet: empty text, the digest of no bytes). 400 for a path outside the folder (`..`, absolute, or a link that leads out) or a folder, 413 over 2 MB, 415 for a binary file |
 | `POST /file/save` | `{path, text, digest}`: as `/docs/save`, for any file in the folder; a missing file is made (with its folders) when `digest` is the sha1 of no bytes |
 | `GET /assistants` | `notice`, `historyDir`, `assistants` (`name`, `description`, `model`, `provider`, `modelText`, `toolCount`, `tools`, `folderDisplay`, `conversationCount`, `lastText`, `slot`, `error`), `recent` (newest 30 conversations of any assistant) |
@@ -562,13 +562,13 @@ Registered in `TileKinds.registerBuiltIns()`. `*` marks a card-stack index
 | `luca-chat` | `luca://<project>/chat/<conversationId>?assistant=<name>` (`Space n`) | `Tiles/Workbench/WorkbenchChatContent.swift` |
 | `luca-assistant` | `luca://<project>/assistant/<name>?file=<path>&view=preview\|rich\|source` (`e` in the assistants tile, `:edit-assistant [name]`) | `Tiles/Workbench/AssistantEditorContent.swift` |
 | `luca-terminal` | `luca://<project>/terminal` (`Space t`, `:terminal`) | `Tiles/Terminal/TerminalContent.swift` |
-| `luca-file` | `luca://<project>/file/<path>` (`Space f`, `:file [path]`) | `Tiles/File/FileContent.swift` |
+| `luca-file` | `luca://<project>/file/<path>` (`Space f`, `:file [path]`, `:edit [path]`) | `Tiles/File/FileContent.swift` |
 | `luca-page` | `luca://<project>/page/<path>?<query>` or `…/page/https://…` (`Space g`, `:page`) | `Tiles/Web/PageContent.swift` |
 | `luca-tool`* | `luca://<project>/tool/<id>?<params>` (`Space w`) | `Tiles/Workbench/ToolContent.swift` |
 | `luca-canvas` | `luca://<project>/canvas/<id>` (`:canvas <name>`, or an assistant's `createCanvas`) | `Tiles/Web/CanvasContent.swift`, `CanvasLockdown.swift` |
 | (guide) | `luca://<project>/chat/new?assistant=guide:<id>` (`:guide [id]`): a scripted chat, see Guides | a `luca-chat` tile |
 | `app-projects` | `app://desktop/projects` (`Space P`, `:projects`) | `Tiles/App/ProjectsContent.swift` |
-| `app-file` | `app://desktop/file/<path>` (`:keymap edit`, `:layout edit`) | `Tiles/File/FileContent.swift` |
+| `app-file` | `app://desktop/file/<path>` (`:keymap edit`, `:layout edit`, `:edit keymap|settings|layouts/<name>.yml`) | `Tiles/File/FileContent.swift` |
 
 Notes on the kinds:
 

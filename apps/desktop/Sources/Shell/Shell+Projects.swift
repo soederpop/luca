@@ -95,12 +95,15 @@ extension Shell {
         Task { [weak self] in
             do {
                 let list = try await host.files()
-                guard !list.files.isEmpty else { self?.flash("No files in this project"); return }
-                PaletteController.shared.choose("open a file" + (list.truncated ? " (first \(list.files.count))" : ""), list.files.map { path in
-                    PaletteChoice(title: (path as NSString).lastPathComponent, detail: path) { [weak self] in
+                guard !list.files.isEmpty || !list.quiet.isEmpty else { self?.flash("No files in this project"); return }
+                let choice = { (path: String, when: [String]) in
+                    PaletteChoice(title: (path as NSString).lastPathComponent, detail: path, onlyWhenTyped: when) { [weak self] in
                         self?.openOrFocus(FileContent.address(project: project, path: path))
                     }
-                })
+                }
+                let count = list.files.count + list.quiet.count
+                PaletteController.shared.choose("open a file" + (list.truncated ? " (first \(count))" : ""),
+                                                list.files.map { choice($0, []) } + list.quiet.map { choice($0, list.quietWhen) })
             } catch {
                 self?.flash(ErrorText.message(error))
             }

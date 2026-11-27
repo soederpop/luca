@@ -71,4 +71,17 @@ describe('workbench files', () => {
 		expect(truncated).toBe(false)
 		expect(listFiles(root, 1).truncated).toBe(true)
 	})
+
+	it('drops .luca and keeps installed skills quiet', () => {
+		mkdirSync(join(root, '.luca/store'), { recursive: true })
+		writeFileSync(join(root, '.luca/store/x.json'), '{}')
+		mkdirSync(join(root, '.claude/skills/demo'), { recursive: true })
+		writeFileSync(join(root, '.claude/skills/demo/SKILL.md'), '# demo')
+		writeFileSync(join(root, '.claude/settings.json'), '{}')
+		const list = listFiles(root)
+		expect(list.files.some((f) => f.startsWith('.luca'))).toBe(false)
+		expect(list.quiet).toEqual(['.claude/skills/demo/SKILL.md'])
+		expect(list.files).toContain('.claude/settings.json')
+		expect(list.quietWhen).toContain('.claude')
+	})
 })

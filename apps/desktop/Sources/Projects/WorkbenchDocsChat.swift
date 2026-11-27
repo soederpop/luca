@@ -493,7 +493,22 @@ struct WorkbenchDocConflict: Error {
 /// `GET /files`: the project's files, relative, for the picker.
 struct WorkbenchFiles: Decodable, Equatable {
     let files: [String]
+    /// Listed only when the query has one of `quietWhen` in it (installed skills). An older host sends neither.
+    var quiet: [String] = []
+    var quietWhen: [String] = []
     let truncated: Bool
+
+    private enum CodingKeys: String, CodingKey { case files, quiet, quietWhen, truncated }
+    init(files: [String], quiet: [String] = [], quietWhen: [String] = [], truncated: Bool) {
+        self.files = files; self.quiet = quiet; self.quietWhen = quietWhen; self.truncated = truncated
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        files = try c.decode([String].self, forKey: .files)
+        quiet = try c.decodeIfPresent([String].self, forKey: .quiet) ?? []
+        quietWhen = try c.decodeIfPresent([String].self, forKey: .quietWhen) ?? []
+        truncated = try c.decode(Bool.self, forKey: .truncated)
+    }
 }
 
 extension WorkbenchClient {

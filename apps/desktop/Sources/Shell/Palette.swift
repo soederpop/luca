@@ -47,7 +47,16 @@ struct PaletteItem: Identifiable {
 struct PaletteChoice {
     let title: String
     var detail: String = ""
+    /// When set, the choice is listed only while the query has one of these in it.
+    var onlyWhenTyped: [String] = []
     let run: @MainActor () -> Void
+
+    /// Whether `query` lets this choice show.
+    func shows(for query: String) -> Bool {
+        guard !onlyWhenTyped.isEmpty else { return true }
+        let q = query.lowercased()
+        return onlyWhenTyped.contains { q.contains($0.lowercased()) }
+    }
 }
 
 /// The palette (`Space Space`), the project list (`Space p`) and the command
@@ -286,7 +295,7 @@ final class PaletteModel: ObservableObject {
             }
         }
         if mode == .choose {
-            all = choices.enumerated().map { index, choice in
+            all = choices.enumerated().filter { $0.element.shows(for: query) }.map { index, choice in
                 PaletteItem(id: "choice:\(index)", group: .choice, title: choice.title, detail: choice.detail, run: choice.run)
             }
         }

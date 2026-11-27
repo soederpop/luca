@@ -1122,13 +1122,28 @@ final class Shell: ObservableObject {
             keymap.reload(force: true)
             flash("Keymap reloaded from \(TilesPaths.keymap.path)")
         case "edit", "e":
-            guard !rest.isEmpty else { return flash("Usage: edit keymap | <file under \(TilesPaths.root.path)>") }
-            openFile(rest == "keymap" ? "keymap.yml" : rest)
+            // The app's own files by name (keymap, settings, layouts/...); any other path is a project file.
+            if let appFile = Self.appFile(rest) { return openFile(appFile) }
+            withProject("edit a file of which project") { [weak self] project in
+                if rest.isEmpty { self?.pickFile(in: project) } else { self?.openOrFocus(FileContent.address(project: project, path: rest)) }
+            }
         case "layout":
             runLayoutCommand(rest)
         default:
             if keymap.map.binding(for: verb) != nil { perform(verb, count: nil) }
             else { flash("Unknown command: \(verb)") }
+        }
+    }
+
+    /// The path under `TilesPaths.root` when `typed` names one of the app's own
+    /// files, else nil. Only these names count, so `:e settings.yml` in a
+    /// project that has its own `settings.yml` still opens the app's; use
+    /// `:file settings.yml` for the project's.
+    nonisolated static func appFile(_ typed: String) -> String? {
+        switch typed {
+        case "keymap", "keymap.yml": return "keymap.yml"
+        case "settings", "settings.yml": return "settings.yml"
+        default: return typed.hasPrefix("layouts/") ? typed : nil
         }
     }
 

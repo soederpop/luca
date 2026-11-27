@@ -13,7 +13,14 @@ export const MAX_FILE_BYTES = 2 * 1024 * 1024
 /** How many paths `GET /files` lists at most. */
 export const MAX_LISTED = 5000
 /** Folders the list never walks into. */
-export const SKIPPED_DIRS = new Set(['.git', 'node_modules', '.build', '.cache', '.next', 'dist', '.turbo', '.DS_Store'])
+export const SKIPPED_DIRS = new Set(['.git', 'node_modules', '.build', '.cache', '.next', 'dist', '.turbo', '.DS_Store', '.luca'])
+/**
+ * Folders whose files the picker shows only when the query asks for them
+ * (`quietWhen`): installed skills are many files nobody opens by accident.
+ */
+export const QUIET_DIRS = ['.claude/skills/']
+/** Text in the picker's query that brings the quiet files back. */
+export const QUIET_WHEN = ['.claude', 'skills']
 
 /** The shape of a doc view, so the app reads a file and a doc the same way. */
 export type FileView = {
@@ -102,10 +109,15 @@ export function saveFile(root: string, body: any): { status: number; body: any }
 	return { status: 200, body: { ok: true, unchanged: false, view: fileView(root, at.rel).body, text: `Saved ${at.rel}` } }
 }
 
-/** The project's files, relative, sorted, skipping build and package folders. */
-export function listFiles(root: string, limit = MAX_LISTED): { files: string[]; truncated: boolean } {
+/**
+ * The project's files, relative, sorted, skipping build and package folders
+ * and `.luca`. Files under `QUIET_DIRS` go in `quiet`: the picker lists them
+ * only when its query has one of `quietWhen` in it.
+ */
+export function listFiles(root: string, limit = MAX_LISTED): { files: string[]; quiet: string[]; quietWhen: string[]; truncated: boolean } {
 	const base = realpathSync(root)
 	const files: string[] = []
+	const quiet: string[] = []
 	let truncated = false
 	const walk = (dir: string) => {
 		if (truncated) return
@@ -117,11 +129,13 @@ export function listFiles(root: string, limit = MAX_LISTED): { files: string[]; 
 			const full = join(dir, entry.name)
 			if (entry.isDirectory()) walk(full)
 			else if (entry.isFile()) {
-				if (files.length >= limit) { truncated = true; return }
-				files.push(relative(base, full))
+				if (files.length + quiet.length >= limit) { truncated = true; return }
+				const rel = relative(base, full)
+				const bucket = QUIET_DIRS.some((dir) => rel.split(sep).join('/').startsWith(dir)) ? quiet : files
+				bucket.push(rel)
 			}
 		}
 	}
 	walk(base)
-	return { files, truncated }
+	return { files, quiet, quietWhen: QUIET_WHEN, truncated }
 }
