@@ -73,6 +73,57 @@ const DESKTOP_SNAPSHOT_WAIT_MS = 4_000
 
 export type CanvasEvent = { seq: number; name: string; data: unknown; at: number }
 
+/** The theme the page has: what Luca Desktop pushed, else the kit's defaults. */
+export type CanvasTheme = { scheme: 'light' | 'dark' | null; name: string; vars: Record<string, string> }
+
+/** What an assistant needs to lay a drawing out: the stage size and the theme's name. */
+export type CanvasStage = { width: number | null; height: number | null; scheme: string | null; theme: string | null }
+
+const MAX_THEME_VARS = 150
+
+/** A `theme` message from the page, checked. Only `--al-*` names and short string values. Pure. */
+export function parseCanvasTheme(msg: any): CanvasTheme | undefined {
+	if (!msg || typeof msg !== 'object' || !msg.vars || typeof msg.vars !== 'object') return undefined
+	const vars: Record<string, string> = {}
+	let n = 0
+	for (const [name, value] of Object.entries(msg.vars)) {
+		if (!/^--al-[a-z0-9-]{1,40}$/.test(name) || typeof value !== 'string') continue
+		const v = value.trim()
+		if (!v || v.length > 120) continue
+		vars[name] = v
+		if (++n >= MAX_THEME_VARS) break
+	}
+	if (!n) return undefined
+	const scheme = msg.scheme === 'dark' || msg.scheme === 'light' ? msg.scheme : null
+	const name = typeof msg.name === 'string' && msg.name.trim() ? msg.name.trim().slice(0, 60) : 'default'
+	return { scheme, name, vars }
+}
+
+/** Tokens as one sorted line, `--al-accent #5b8cff, --al-ground #0e1116`. Pure. */
+export function canvasTokensText(vars: Record<string, string>): string {
+	return Object.keys(vars).sort().map((k) => `${k} ${vars[k]}`).join(', ')
+}
+
+export const CANVAS_NOTE_OPEN = '<canvas-update>'
+export const CANVAS_NOTE_CLOSE = '</canvas-update>'
+
+/**
+ * The note put before a user's message when a canvas of that chat changed
+ * size or theme since the model last heard. Pure.
+ */
+export function canvasNote(lines: string[]): string | null {
+	if (!lines.length) return null
+	return [CANVAS_NOTE_OPEN, ...lines, CANVAS_NOTE_CLOSE].join('\n')
+}
+
+/** A user message without the canvas note the host put before it. Pure. */
+export function stripCanvasNote(text: string): string {
+	if (typeof text !== 'string' || !text.startsWith(CANVAS_NOTE_OPEN)) return text
+	const end = text.indexOf(CANVAS_NOTE_CLOSE)
+	if (end < 0) return text
+	return text.slice(end + CANVAS_NOTE_CLOSE.length).replace(/^\s+/, '')
+}
+
 type Pending = { resolve: (value: any) => void; timer: ReturnType<typeof setTimeout> }
 
 type Canvas = {
@@ -86,6 +137,9 @@ type Canvas = {
 	seq: number
 	ws?: WebSocket
 	size?: { width: number; height: number }
+	theme?: CanvasTheme
+	/** Conversations that used this canvas: they hear when its size or theme changes. In memory only. */
+	chats: Set<string>
 	/** Resolves the waiters for the page's next link. */
 	waiters: Array<() => void>
 	pending: Map<string, Pending>
@@ -100,6 +154,10 @@ export type CanvasView = {
 	open: boolean
 	width: number | null
 	height: number | null
+	/** `light` or `dark`, once the page said. */
+	scheme: string | null
+	/** The theme's name (`default`, `new-moon`), once the page said. */
+	theme: string | null
 	evals: number
 	createdAt: string
 	/** The page, with its key. Open it in Luca Desktop or a browser. */
@@ -120,9 +178,11 @@ export function canvasHtml(id: string, title: string, key: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
+<link rel="stylesheet" href="/_luca/desktop/kit.css">
 <link rel="stylesheet" href="/canvas/${id}/canvas.css?key=${key}">
+<script src="/_luca/desktop/kit.js"></script>
 </head>
-<body>
+<body class="al-page">
 <div id="stage"><canvas id="canvas"></canvas></div>
 <script type="module" src="/canvas/${id}/boot.js?key=${key}"></script>
 </body>
@@ -130,10 +190,11 @@ export function canvasHtml(id: string, title: string, key: string): string {
 `
 }
 
-export const CANVAS_CSS = `html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; color: #111; font: 14px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+// The kit's tokens color the page, so it follows the app's theme. The fallbacks are for a page whose kit did not load.
+export const CANVAS_CSS = `html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--al-ground, #fff); color: var(--al-text, #111); font: var(--al-text-base, 14px)/1.45 var(--al-font-sans, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); }
 #stage { position: absolute; inset: 0; overflow: hidden; }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-#canvas-status { position: fixed; right: 8px; bottom: 6px; font: 11px ui-monospace, Menlo, monospace; color: #888; pointer-events: none; }
+#canvas-status { position: fixed; right: 8px; bottom: 6px; font: 11px var(--al-font-mono, ui-monospace, Menlo, monospace); color: var(--al-text-faint, #888); pointer-events: none; }
 `
 
 /**
@@ -161,6 +222,29 @@ Object.defineProperty(window, 'ctx', { configurable: true, get() {
   return c
 } })
 window.dpr = window.devicePixelRatio || 1
+
+// The theme. kit.js reads what Luca Desktop pushes (the named theme the person picked);
+// in a plain browser, or if the kit did not load, it is the kit's default tokens or nothing.
+const kit = window.lucaDesktop || null
+const rootStyle = (name) => getComputedStyle(document.documentElement).getPropertyValue(name.indexOf('--') === 0 ? name : '--al-' + name).trim()
+window.theme = kit ? kit.theme : { scheme: null, names: [], get: rootStyle, values: () => ({}), onChange: () => () => {} }
+/** Colors for chart series, in order: the theme's hues, else its accent and status colors. palette(5) repeats to give five. */
+window.palette = (n) => {
+  const t = window.theme
+  let list = []
+  for (let i = 1; i <= 12; i++) { const v = t.get('hue-' + i); if (v) list.push(v) }
+  if (!list.length) list = ['accent', 'info', 'good', 'warn', 'bad', 'syntax-function', 'syntax-type', 'syntax-string'].map((k) => t.get(k)).filter(Boolean)
+  if (!n || !list.length) return list
+  return Array.from({ length: n }, (_, i) => list[i % list.length])
+}
+function themeMessage() {
+  const t = window.theme
+  const vars = {}
+  for (const name of t.names || []) { const v = t.get(name); if (v) vars[name] = v }
+  return { scheme: t.scheme || null, name: (kit && kit.host && kit.host.theme) || 'default', vars }
+}
+// The host tells the assistant on its next turn.
+if (kit) kit.theme.onChange(() => send({ type: 'theme', ...themeMessage() }))
 
 const status = document.createElement('div')
 status.id = 'canvas-status'
@@ -311,7 +395,7 @@ function connect() {
   ws.onopen = () => {
     attempts = 0
     setStatus('')
-    ws.send(JSON.stringify({ type: 'hello', width: stage.clientWidth, height: stage.clientHeight, fresh: !window.__linked }))
+    ws.send(JSON.stringify({ type: 'hello', width: stage.clientWidth, height: stage.clientHeight, theme: themeMessage(), fresh: !window.__linked }))
     window.__linked = true
     while (outbox.length) ws.send(outbox.shift())
   }
@@ -486,6 +570,7 @@ export class Canvases {
 			log,
 			events: [],
 			seq: 0,
+			chats: new Set(),
 			waiters: [],
 			pending: new Map(),
 			replaying: false,
@@ -502,6 +587,8 @@ export class Canvases {
 			open: !!c.ws && c.ws.readyState === 1,
 			width: c.size?.width ?? null,
 			height: c.size?.height ?? null,
+			scheme: c.theme?.scheme ?? null,
+			theme: c.theme?.name ?? null,
 			evals: c.log.length,
 			createdAt: c.createdAt,
 			url: `http://127.0.0.1:${this.opts.port()}/canvas/${c.id}/?key=${c.key}`,
@@ -693,6 +780,7 @@ export class Canvases {
 		switch (msg.type) {
 			case 'hello': {
 				c.size = { width: Number(msg.width) || 0, height: Number(msg.height) || 0 }
+				c.theme = parseCanvasTheme(msg.theme) ?? c.theme
 				this.broadcast({ type: 'canvas-state', id: c.id, text: 'open', at: Date.now() })
 				// A page that just loaded is blank: draw the saved code again, then let waiters in.
 				// A page that only lost the host (it restarted) still has its drawing.
@@ -709,6 +797,11 @@ export class Canvases {
 			case 'size':
 				c.size = { width: Number(msg.width) || 0, height: Number(msg.height) || 0 }
 				return
+			case 'theme': {
+				const theme = parseCanvasTheme(msg)
+				if (theme) c.theme = theme
+				return
+			}
 			case 'result':
 			case 'snapshot': {
 				const map = msg.type === 'result' ? c.pending : this.snapshots
@@ -857,6 +950,63 @@ export class Canvases {
 		this.snapshots.clear()
 	}
 
+	// --- What the model knows of each canvas ---
+
+	/** Per chat and canvas, the size and theme the model last heard. Key `<chat>\n<id>`. */
+	private seen = new Map<string, { size: string; theme: string }>()
+
+	private stageOf(c: Canvas): CanvasStage {
+		return { width: c.size?.width ?? null, height: c.size?.height ?? null, scheme: c.theme?.scheme ?? null, theme: c.theme?.name ?? null }
+	}
+
+	private signature(c: Canvas): { size: string; theme: string } {
+		return {
+			size: c.size ? `${c.size.width}x${c.size.height}` : '',
+			theme: c.theme ? `${c.theme.name}|${c.theme.scheme}|${canvasTokensText(c.theme.vars)}` : '',
+		}
+	}
+
+	/**
+	 * What a tool result tells the model about a canvas: `stage` always, and
+	 * `tokens` (every `--al-*` value) when this chat has not had this theme
+	 * yet. Remembers what it told, so the turn note only says what is new.
+	 */
+	report(id: string, chat?: string): { stage: CanvasStage; tokens?: Record<string, string> } | undefined {
+		const c = this.canvases.get(id)
+		if (!c) return undefined
+		const now = this.signature(c)
+		const key = `${chat ?? ''}\n${id}`
+		const before = this.seen.get(key)
+		const tokens = c.theme && (!before || before.theme !== now.theme) ? c.theme.vars : undefined
+		if (chat) { c.chats.add(chat); this.seen.set(key, now) }
+		return { stage: this.stageOf(c), ...(tokens ? { tokens } : {}) }
+	}
+
+	/**
+	 * A note for the start of a chat's next turn: one line per canvas the chat
+	 * used whose size or theme changed since the model last heard, with the
+	 * new tokens when the theme changed. Null when nothing changed.
+	 */
+	turnNote(chat: string): string | null {
+		if (!chat) return null
+		const lines: string[] = []
+		for (const c of this.canvases.values()) {
+			if (!c.chats.has(chat)) continue
+			const key = `${chat}\n${c.id}`
+			const before = this.seen.get(key)
+			const now = this.signature(c)
+			if (!before || (before.size === now.size && before.theme === now.theme)) continue
+			this.seen.set(key, now)
+			const parts: string[] = []
+			if (before.size !== now.size && c.size) parts.push(`is now ${c.size.width}×${c.size.height} CSS px${before.size ? ` (was ${before.size.replace('x', '×')})` : ''}`)
+			if (before.theme !== now.theme && c.theme) parts.push(`has the theme ${c.theme.name}${c.theme.scheme ? ` (${c.theme.scheme})` : ''}`)
+			if (!parts.length) continue
+			lines.push(`Canvas "${c.title}" (id ${c.id}) ${parts.join(' and ')}. Redraw what depends on it.`)
+			if (before.theme !== now.theme && c.theme) lines.push(`Tokens: ${canvasTokensText(c.theme.vars)}`)
+		}
+		return canvasNote(lines)
+	}
+
 	// --- Assistant tools ---
 
 	/**
@@ -869,13 +1019,13 @@ export class Canvases {
 			createCanvas: z.object({
 				title: z.string().optional().describe('A short title for the canvas tile, like "Sales chart"'),
 				id: z.string().optional().describe('Reopen the canvas with this id instead of making a new one'),
-			}).describe('Make a canvas: a blank web page in a Luca Desktop tile that you draw on with canvasEval. It opens beside the chat. The page has the Luca web runtime (`container`), a full-size <canvas> (`canvas`, `ctx`), and can load packages from unpkg. Returns its id.'),
+			}).describe('Make a canvas: a blank web page in a Luca Desktop tile that you draw on with canvasEval. It opens beside the chat. The page has the Luca web runtime (`container`), a full-size <canvas> (`canvas`, `ctx`), and can load packages from unpkg. Its ground and text follow the app theme. Returns its id, `stage` (width and height in CSS px, scheme, theme name) and `tokens` (every --al-* theme value). Use var(--al-*) in CSS so a theme change restyles the page; use the hex values only where a library needs a real color.'),
 			canvasEval: z.object({
 				id: z.string().describe('The canvas id from createCanvas'),
-				code: z.string().describe('JavaScript or TypeScript to run in the page. A single expression gives back its value; otherwise use `return`. Top-level await works. Globals: container (Luca web container), stage (the full-page div), canvas and ctx (the default 2d context, made on first use), unpkg(pkg) to import an ES module from unpkg, unpkg(pkg, globalName) for a UMD script, loadStylesheet(href), workbench.get(path) to read the host, emit(name, data) to send events back. Local variables do not live past one call: keep what you need on window.'),
+				code: z.string().describe('JavaScript or TypeScript to run in the page. A single expression gives back its value; otherwise use `return`. Top-level await works. Globals: container (Luca web container), stage (the full-page div), canvas and ctx (the default 2d context, made on first use), unpkg(pkg) to import an ES module from unpkg, unpkg(pkg, globalName) for a UMD script, loadStylesheet(href), workbench.get(path) to read the host, emit(name, data) to send events back, theme.get("accent") for one token value, palette(n) for n chart colors from the theme. Local variables do not live past one call: keep what you need on window.'),
 				timeoutMs: z.number().optional().describe('How long to wait for the result. Default 30000'),
 				keep: z.boolean().optional().describe('Save this code so it runs again when the page reloads. Default true. Pass false for questions that draw nothing'),
-			}).describe('Run code in a canvas page and get the result, console output, or the error.'),
+			}).describe('Run code in a canvas page and get the result, console output, or the error. The answer has the current `stage`, and `tokens` when the theme is new to you.'),
 			canvasSnapshot: z.object({
 				id: z.string().describe('The canvas id'),
 			}).describe('See the canvas: returns a PNG of the page. Use it after you draw, to check the result.'),
@@ -894,14 +1044,19 @@ export class Canvases {
 				if (answer.status !== 200) return answer.body
 				const c = this.canvases.get(answer.body.canvas.id)!
 				const open = await this.waitForPage(c, CONNECT_WAIT_MS)
-				return { ...answer.body, canvas: this.view(c), ready: open, note: open ? undefined : 'The page has not linked yet. canvasEval waits for it.' }
+				return { ...answer.body, canvas: this.view(c), ready: open, ...this.report(c.id, chat), note: open ? undefined : 'The page has not linked yet. canvasEval waits for it.' }
 			},
-			canvasEval: async (args: { id: string; code: string; timeoutMs?: number; keep?: boolean }) => this.eval(String(args?.id || ''), String(args?.code || ''), { timeoutMs: args?.timeoutMs, keep: args?.keep, chat }),
+			canvasEval: async (args: { id: string; code: string; timeoutMs?: number; keep?: boolean }) => {
+				const id = String(args?.id || '')
+				const answer = await this.eval(id, String(args?.code || ''), { timeoutMs: args?.timeoutMs, keep: args?.keep, chat })
+				return { ...answer, ...this.report(id, chat) }
+			},
 			canvasSnapshot: async (args: { id: string }) => {
-				const shot = await this.snapshot(String(args?.id || ''))
+				const id = String(args?.id || '')
+				const shot = await this.snapshot(id)
 				if (!shot.ok) return shot
 				const { dataUrl, ...rest } = shot
-				return { ...rest, images: [dataUrl] }
+				return { ...rest, ...this.report(id, chat), images: [dataUrl] }
 			},
 			canvasEvents: async (args: { id: string; since?: number }) => this.events(String(args?.id || ''), Number(args?.since) || 0).body,
 			listCanvases: async () => ({ canvases: this.list() }),

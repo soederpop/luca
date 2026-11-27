@@ -181,6 +181,7 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	const tools = new ToolIndex(container)
 	const canvases = new Canvases(container, (frame) => broadcast(frame), { lucaVersion, port: () => boundPort })
 	chats.extraTools = (conversationId) => canvases.toTools({ chat: conversationId })
+	chats.turnNote = (conversationId) => canvases.turnNote(conversationId)
 	chats.agentMcpServers = (conversationId) => canvases.agentMcpServers(conversationId)
 	chats.chatMcpUrl = (key) => `http://127.0.0.1:${boundPort}/mcp/chat/${key}`
 	// Guides: scripted chats with no model. They look like assistants named `guide:<id>`.

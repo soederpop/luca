@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { canvasCsp, canvasSlug, CANVAS_READ_ROUTES } from '../src/workbench/canvas'
+import { canvasCsp, canvasSlug, canvasHtml, canvasNote, stripCanvasNote, parseCanvasTheme, Canvases, CANVAS_READ_ROUTES } from '../src/workbench/canvas'
+import { messagesView } from '../src/workbench/chat'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
@@ -100,6 +101,74 @@ describe('canvas helpers', () => {
 			expect(CANVAS_READ_ROUTES.some((r) => r.test(path))).toBe(false)
 		}
 		expect(CANVAS_READ_ROUTES.some((r) => r.test('/registries'))).toBe(true)
+	})
+})
+
+describe('canvas theme and stage', () => {
+	it('loads the desktop kit, so the page follows the app theme', () => {
+		const html = canvasHtml('c', 'C', 'k')
+		expect(html).toContain('/_luca/desktop/kit.css')
+		expect(html).toContain('/_luca/desktop/kit.js')
+		expect(html).toContain('class="al-page"')
+	})
+
+	it('takes only --al-* tokens with short string values', () => {
+		const t = parseCanvasTheme({ scheme: 'dark', name: 'new-moon', vars: { '--al-accent': '#5b8cff', color: 'red', '--al-x': 3, '--al-long': 'x'.repeat(500) } })
+		expect(t).toEqual({ scheme: 'dark', name: 'new-moon', vars: { '--al-accent': '#5b8cff' } })
+		expect(parseCanvasTheme({ vars: {} })).toBeUndefined()
+		expect(parseCanvasTheme({ scheme: 'sepia', vars: { '--al-text': '#111' } })!.scheme).toBeNull()
+	})
+
+	it('hides the canvas note from the transcript, not from the model', () => {
+		const note = canvasNote(['Canvas "a" (id a) is now 10×10 CSS px.'])!
+		expect(canvasNote([])).toBeNull()
+		expect(stripCanvasNote(`${note}\n\nhello`)).toBe('hello')
+		expect(stripCanvasNote('hello')).toBe('hello')
+		expect(messagesView([{ role: 'user', content: `${note}\n\nmake it blue` }])[0]!.text).toBe('make it blue')
+	})
+
+	it('tells a chat what changed since it last heard, once', async () => {
+		const files = new Map<string, any>()
+		const fake: any = {
+			cwd: '/x',
+			utils: { uuid: () => crypto.randomUUID(), hashObject: () => 'h' },
+			paths: { resolve: (...p: string[]) => p.join('/') },
+			feature: (name: string) => name === 'os'
+				? { cacheDir: '/cache' }
+				: { exists: (f: string) => files.has(f), readdirSync: () => [], ensureFolder: () => {}, writeJson: (f: string, v: any) => files.set(f, v), readJson: (f: string) => files.get(f) },
+		}
+		const canvases = new Canvases(fake, () => {}, { lucaVersion: '0', port: () => 1 })
+		const { handlers } = canvases.toTools({ chat: 'conv1' })
+		// A stand-in page link: it answers evals and says hello with a size and a theme.
+		let onMessage: (raw: string) => void = () => {}
+		const ws: any = {
+			readyState: 1,
+			on: (ev: string, fn: any) => { if (ev === 'message') onMessage = fn },
+			send: (raw: string) => { const m = JSON.parse(raw); if (m.type === 'eval') onMessage(JSON.stringify({ type: 'result', requestId: m.requestId, ok: true, value: 1 })) },
+			close: () => {},
+		}
+		canvases.create({ id: 'sales', title: 'Sales', open: false })
+		canvases.attachLink('sales', ws)
+		onMessage(JSON.stringify({ type: 'hello', width: 640, height: 480, fresh: false, theme: { scheme: 'light', name: 'default', vars: { '--al-accent': '#3a7bd5' } } }))
+		await Bun.sleep(10)
+
+		const first: any = await handlers.canvasEval({ id: 'sales', code: '1' })
+		expect(first.stage).toEqual({ width: 640, height: 480, scheme: 'light', theme: 'default' })
+		expect(first.tokens).toEqual({ '--al-accent': '#3a7bd5' })
+		const second: any = await handlers.canvasEval({ id: 'sales', code: '2' })
+		expect(second.tokens).toBeUndefined()
+		expect(canvases.turnNote('conv1')).toBeNull()
+
+		onMessage(JSON.stringify({ type: 'size', width: 820, height: 540 }))
+		onMessage(JSON.stringify({ type: 'theme', scheme: 'dark', name: 'new-moon', vars: { '--al-accent': '#9b7bff' } }))
+		const note = canvases.turnNote('conv1')!
+		expect(note).toContain('is now 820×540 CSS px (was 640×480)')
+		expect(note).toContain('has the theme new-moon (dark)')
+		expect(note).toContain('Tokens: --al-accent #9b7bff')
+		expect(canvases.turnNote('conv1')).toBeNull()
+		// Another chat never used the canvas: it hears nothing.
+		expect(canvases.turnNote('conv2')).toBeNull()
+		expect(canvases.get('sales')!.theme).toBe('new-moon')
 	})
 })
 

@@ -49,8 +49,25 @@ The workbench host serves the page, so canvas tools exist only in a chat the wor
 | `workbench.get(path, query?)` | Reads the workbench host (routes below). |
 | `emit(name, data)` | Sends an event you read with `canvasEvents`. Use it for clicks and picks. |
 | `clear()` | Wipes the stage now. The saved code still runs on reload: use `resetCanvas` to start over for real. |
+| `theme` | The app's theme: `theme.get('accent')` gives one token's value, `theme.scheme` is `light` or `dark`, `theme.onChange(fn)` hears a switch. |
+| `palette(n)` | `n` colors for chart series, from the theme's hues. |
 
 Pin versions (`d3@7`, `three@0.170.0`). An unpinned package can change under a saved canvas.
+
+## Size and theme: you are told, so use them
+
+The page loads the Luca Desktop kit. Its ground, text and font already follow the theme the person picked (`Space T`), light or dark. Draw to match it.
+
+- **Every tool answer has `stage`**: `{ width, height, scheme, theme }`, the stage in CSS px and the theme's name. Lay out from it.
+- **`tokens` comes with the first answer after you get a new theme**: every `--al-*` value (`--al-ground`, `--al-surface`, `--al-text`, `--al-text-muted`, `--al-accent`, `--al-good`, `--al-warn`, `--al-bad`, `--al-hue-1` to `--al-hue-8`, the type scale `--al-text-xs` to `--al-text-3xl`, `--al-font-sans`, `--al-font-mono`).
+- **A user message can start with `<canvas-update>`.** The host puts it there when your canvas changed size or theme since your last turn. It is not the person's words. Redraw what depends on it before you answer, and do not mention the note.
+
+Two rules:
+
+1. **In CSS and SVG attributes, use `var(--al-*)`**, never a hex value. A theme switch then restyles the page with no redraw: `svg.attr('fill', 'var(--al-accent)')`, `el.style.color = 'var(--al-text-muted)'`.
+2. **Use the values (`theme.get(...)`, `palette(n)`) only where a library needs a real color**: canvas 2D `ctx.fillStyle`, WebGL, Chart.js. Those do not follow a switch: redraw in `theme.onChange`.
+
+**How it should look.** One accent color for the thing that matters, muted colors for the rest. Text in `--al-text`, labels and axes in `--al-text-muted`, lines in `--al-border`. Cards and panels on `--al-surface`. Leave space around things; a crowded drawing is hard to read. Label data in place instead of with a legend when you can. Remove what carries no information: heavy grid lines, borders on everything, 3D.
 
 ## What the page can reach
 
@@ -113,22 +130,40 @@ Everything else (eval, files, saving, chat) is refused with the canvas key. When
 
 ## Patterns
 
-**A chart with d3:**
+**A chart with d3, in the theme:**
 
 ```js
 const d3 = await unpkg('d3@7')
 const rows = await container.client('rest', { baseURL: 'http://127.0.0.1:43917' }).get('/sales')
-const w = stage.clientWidth, h = stage.clientHeight, m = 40
-const x = d3.scaleBand(rows.map((r) => r.month), [m, w - m]).padding(0.2)
-const y = d3.scaleLinear([0, d3.max(rows, (r) => r.total)], [h - m, m])
-const svg = d3.select(stage).append('svg').attr('width', w).attr('height', h).style('position', 'absolute').style('inset', 0)
-svg.selectAll('rect').data(rows).join('rect')
-  .attr('x', (r) => x(r.month)).attr('y', (r) => y(r.total))
-  .attr('width', x.bandwidth()).attr('height', (r) => y(0) - y(r.total)).attr('fill', '#3a7bd5')
-svg.append('g').attr('transform', `translate(0,${h - m})`).call(d3.axisBottom(x))
-svg.append('g').attr('transform', `translate(${m},0)`).call(d3.axisLeft(y))
+window.drawSales = () => {
+  stage.querySelector('svg')?.remove()
+  const w = stage.clientWidth, h = stage.clientHeight, m = { t: 48, r: 24, b: 36, l: 48 }
+  const x = d3.scaleBand(rows.map((r) => r.month), [m.l, w - m.r]).padding(0.25)
+  const y = d3.scaleLinear([0, d3.max(rows, (r) => r.total)], [h - m.b, m.t]).nice()
+  const top = d3.max(rows, (r) => r.total)
+  const svg = d3.select(stage).append('svg').attr('width', w).attr('height', h).style('position', 'absolute').style('inset', 0)
+    .style('font', 'var(--al-text-sm) var(--al-font-sans)')
+  svg.append('text').attr('x', m.l).attr('y', 28).text('Sales by month')
+    .style('font-size', 'var(--al-text-lg)').style('font-weight', 600).attr('fill', 'var(--al-text)')
+  svg.append('g').attr('transform', `translate(${m.l},0)`)
+    .call(d3.axisLeft(y).ticks(4).tickSize(-(w - m.l - m.r)))
+    .call((g) => g.select('.domain').remove())
+    .call((g) => g.selectAll('line').attr('stroke', 'var(--al-border)'))
+    .call((g) => g.selectAll('text').attr('fill', 'var(--al-text-muted)'))
+  svg.selectAll('rect').data(rows).join('rect')
+    .attr('x', (r) => x(r.month)).attr('y', (r) => y(r.total)).attr('rx', 3)
+    .attr('width', x.bandwidth()).attr('height', (r) => y(0) - y(r.total))
+    .attr('fill', (r) => r.total === top ? 'var(--al-accent)' : 'var(--al-text-faint)')
+  svg.append('g').attr('transform', `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSize(0))
+    .call((g) => g.select('.domain').attr('stroke', 'var(--al-border)'))
+    .call((g) => g.selectAll('text').attr('fill', 'var(--al-text-muted)').attr('dy', '1em'))
+}
+drawSales()
+window.addEventListener('resize', drawSales)
 return rows.length
 ```
+
+The colors are all `var(--al-*)`, so a theme switch needs nothing. The size is not: the `resize` handler draws again.
 
 **Ask the user to pick:**
 
@@ -141,6 +176,6 @@ Then `canvasEvents({ id })` after they say they clicked.
 ## Gotchas
 
 - **A snapshot from Luca Desktop is the whole page.** Without the app (a browser), the page can copy only its `<canvas>` elements: SVG and HTML are left out, and the answer says `partial: true`.
-- **The tile can be resized.** The default canvas keeps its drawing, but layout you computed from `stage.clientWidth` does not follow. Redraw in a `window.addEventListener('resize', ...)` handler when it matters.
+- **The tile can be resized.** The default canvas keeps its drawing, but layout you computed from `stage.clientWidth` does not follow. Put the drawing in a function on `window` and call it again in a `window.addEventListener('resize', ...)` handler. A `<canvas-update>` note tells you when the size changed.
 - **A saved step that fails on replay** is logged on the host and skipped. If a canvas comes back wrong, `resetCanvas` and draw again.
 - **Big results are cut.** Return a summary (`rows.length`), not the whole data set.

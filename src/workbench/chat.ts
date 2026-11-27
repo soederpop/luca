@@ -14,6 +14,7 @@
  * `chat-error` (`error`). Each carries `assistant`, `conversationId` and `turnId`.
  */
 
+import { stripCanvasNote } from './canvas.js'
 import { ChatExtensions, parseExtensions, summary, PROMPT_KEY, type ChatExtension, type ChatTarget, type ToolBundle } from './extensions.js'
 
 const MAX_TOOL_TEXT = 4000
@@ -139,7 +140,8 @@ export function messagesView(messages: any[]): ChatMessageView[] {
 	for (const m of messages || []) {
 		if (!m || m.role === 'system' || m.role === 'developer') continue
 		if (m.role === 'user') {
-			out.push({ id: `m${n++}`, role: 'user', text: contentText(m.content), tools: [] })
+			// The host's canvas note rides before the user's words for the model only.
+			out.push({ id: `m${n++}`, role: 'user', text: stripCanvasNote(contentText(m.content)), tools: [] })
 			continue
 		}
 		if (m.role === 'assistant') {
@@ -362,6 +364,13 @@ export class ChatSessions {
 	private discovered: Promise<any> | null = null
 	/** Tools the host gives every chat assistant (the canvas tools). */
 	extraTools?: (conversationId: string) => { schemas: Record<string, any>; handlers: Record<string, (...args: any[]) => any> }
+	/**
+	 * Context for the start of a turn the user sent, such as a canvas that
+	 * changed size or theme. It goes before the user's message, not into the
+	 * system prompt: a changed system prompt would miss the prompt cache for
+	 * the whole conversation.
+	 */
+	turnNote?: (conversationId: string) => string | null
 	/** The same tools as MCP servers, for an assistant that runs on a coding agent (Claude Code, Codex). */
 	agentMcpServers?: (conversationId: string) => Record<string, any>
 	/** The URL of a session's own MCP route, `/mcp/chat/<token>` on the host. */
@@ -874,7 +883,10 @@ export class ChatSessions {
 		if (opened.status !== 200 || opened.body.ok === false) return opened
 		const s = this.sessions.get(this.key(name, conversationId))!
 		if (s.turn) return { status: 409, body: { error: 'A reply is still coming. Stop it first.' } }
-		return this.runTurn(s, text, () => s.instance.ask(text))
+		let note: string | null = null
+		try { note = this.turnNote?.(conversationId) ?? null } catch {}
+		const asked = note ? `${note}\n\n${text}` : text
+		return this.runTurn(s, text, () => s.instance.ask(asked))
 	}
 
 	/**
