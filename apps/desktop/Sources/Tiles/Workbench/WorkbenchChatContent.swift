@@ -126,6 +126,9 @@ final class WorkbenchChatContent: WorkbenchContent {
     @Published private(set) var opened: WorkbenchChatView?
     @Published private(set) var loadError: String?
     @Published var draft = ""
+    /// Messages sent while a reply was still coming. The next one goes out
+    /// when the reply ends; "send now" stops the reply so it goes out at once.
+    @Published private(set) var queued: [String] = []
     /// The tools added to this conversation only, as the host last said.
     @Published private(set) var extensions: [WorkbenchChatExtension] = []
     /// Set on a tech support chat: the chat it changes.
@@ -209,8 +212,15 @@ final class WorkbenchChatContent: WorkbenchContent {
         default:
             break
         }
+        let wasBusy = transcript.busy
         transcript.apply(frame)
         refreshLabel()
+        // The reply ended cleanly: the next queued message goes out. After a
+        // failure the queue waits, so a broken host does not eat every message.
+        if wasBusy, !transcript.busy, frame.type == "chat-done", !queued.isEmpty {
+            let next = queued.removeFirst()
+            if !send(next) { queued.insert(next, at: 0) }
+        }
     }
 
     private func open(_ client: WorkbenchClient) {
@@ -271,7 +281,28 @@ final class WorkbenchChatContent: WorkbenchContent {
     func submit() {
         let text = draft
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if transcript.busy {
+            queued.append(text)
+            draft = ""
+            return
+        }
         if send(text) { draft = "" }
+    }
+
+    /// Send queued message `index` ahead of the rest. With a reply still
+    /// coming it stops that reply first; the message goes out when the host
+    /// confirms the stop (`chat-done`, via the queue).
+    func sendNow(_ index: Int) {
+        guard queued.indices.contains(index) else { return }
+        let text = queued.remove(at: index)
+        queued.insert(text, at: 0)
+        if transcript.busy { stopReply() } else if send(text) { queued.removeFirst() }
+    }
+
+    func unqueue(_ index: Int) {
+        guard queued.indices.contains(index) else { return }
+        let text = queued.remove(at: index)
+        if draft.isEmpty { draft = text }
     }
 
     @discardableResult
@@ -476,7 +507,22 @@ struct LucaChatView: View {
             }
             Spacer(minLength: KitTokens.Space.s4)
             if model.transcript.busy {
-                WorkbenchTag(text: "streaming", color: WorkbenchStyle.toolStateColor("running"))
+                Button { model.stopReply() } label: {
+                    HStack(spacing: KitTokens.Space.s2) {
+                        ProgressView().controlSize(.mini)
+                        Text("streaming").foregroundStyle(WorkbenchStyle.toolStateColor("running"))
+                        Image(systemName: "stop.circle.fill").foregroundStyle(p.bad.color)
+                        BoundKey(action: "lucaChat.stop", tint: p.bad.color, withKeysView: true)
+                    }
+                    .font(WorkbenchStyle.caption())
+                    .padding(.horizontal, KitTokens.Space.s4)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(p.bad.color.opacity(0.08)))
+                    .overlay(Capsule().stroke(p.bad.color.opacity(0.25), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Stop the reply (Ctrl-c)")
+                .keyBadge("lucaChat.stop")
             }
             Text(model.conversationId)
                 .font(WorkbenchStyle.code(KitTokens.TypeScale.xs))
@@ -488,35 +534,70 @@ struct LucaChatView: View {
     }
 
     private var input: some View {
-        HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s4) {
-            TextField(model.transcript.busy ? "a reply is coming; Ctrl-c stops it" : "message \(model.assistant); Enter sends, Shift-Return adds a line",
-                      text: $model.draft, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(WorkbenchStyle.ui(KitTokens.TypeScale.md))
-                .foregroundStyle(p.text.color)
-                .lineLimit(1...10)
-                .focused($inputFocused)
-                .onSubmit { model.submit() }
-                .keyBadge("lucaChat.input")
-                .hintTarget("lucaChat.input", in: model.hints) { _ = model.perform("lucaChat.input") }
-            if model.transcript.busy {
-                Button { model.stopReply() } label: {
-                    Label("stop", systemImage: "stop.circle.fill")
-                        .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm, weight: .semibold))
-                        .foregroundStyle(p.bad.color)
-                }
-                .buttonStyle(.plain)
-                .keyBadge("lucaChat.stop")
+        VStack(spacing: KitTokens.Space.s3) {
+            ForEach(Array(model.queued.enumerated()), id: \.offset) { index, text in
+                queuedRow(index, text)
             }
+            composer
         }
-        .padding(.horizontal, KitTokens.Space.s6)
-        .padding(.vertical, KitTokens.Space.s5)
-        .background(RoundedRectangle(cornerRadius: KitTokens.Radius.lg).fill(p.inset.color))
-        .overlay(RoundedRectangle(cornerRadius: KitTokens.Radius.lg)
-            .stroke(inputFocused ? p.accent.color.opacity(0.7) : p.border.color, lineWidth: inputFocused ? 1.5 : 1))
         .padding(.horizontal, KitTokens.Space.s7)
         .padding(.vertical, KitTokens.Space.s6)
         .overlay(alignment: .top) { Rectangle().fill(p.border.color).frame(height: 1) }
+    }
+
+    /// A message waiting for the reply to end. "send now" stops the reply so
+    /// this one goes out first; the x takes it back into the draft.
+    private func queuedRow(_ index: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: KitTokens.Space.s4) {
+            Image(systemName: "clock").foregroundStyle(p.textFaint.color).font(WorkbenchStyle.caption())
+            Text(text)
+                .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
+                .foregroundStyle(p.textBody.color)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button { model.sendNow(index) } label: {
+                Text(model.transcript.busy ? "send now" : "send")
+                    .font(WorkbenchStyle.ui(KitTokens.TypeScale.xs, weight: .semibold))
+                    .foregroundStyle(p.accent.color)
+            }
+            .buttonStyle(.plain)
+            .help(model.transcript.busy ? "Stop the reply and send this message" : "Send this message")
+            Button { model.unqueue(index) } label: {
+                Image(systemName: "xmark").font(WorkbenchStyle.caption()).foregroundStyle(p.textFaint.color)
+            }
+            .buttonStyle(.plain)
+            .help("Take it back into the draft")
+        }
+        .padding(.horizontal, KitTokens.Space.s6)
+        .padding(.vertical, KitTokens.Space.s3)
+        .background(RoundedRectangle(cornerRadius: KitTokens.Radius.md).fill(p.raised.color.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: KitTokens.Radius.md).stroke(p.border.color, lineWidth: 1))
+    }
+
+    private var placeholder: String {
+        if model.transcript.busy { return "a reply is coming; Enter queues the message" }
+        return "message \(model.assistant); Enter sends, Shift-Return adds a line"
+    }
+
+    private var composer: some View {
+        TextField(placeholder, text: $model.draft, axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(WorkbenchStyle.ui(KitTokens.TypeScale.md))
+            .foregroundStyle(p.text.color)
+            .lineLimit(1...10)
+            // A vertical TextField only wraps when its width is pinned; without
+            // this it grows sideways when the tile is narrow (a canvas beside it).
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .focused($inputFocused)
+            .onSubmit { model.submit() }
+            .keyBadge("lucaChat.input")
+            .hintTarget("lucaChat.input", in: model.hints) { _ = model.perform("lucaChat.input") }
+            .padding(.horizontal, KitTokens.Space.s6)
+            .padding(.vertical, KitTokens.Space.s5)
+            .background(RoundedRectangle(cornerRadius: KitTokens.Radius.lg).fill(p.inset.color))
+            .overlay(RoundedRectangle(cornerRadius: KitTokens.Radius.lg)
+                .stroke(inputFocused ? p.accent.color.opacity(0.7) : p.border.color, lineWidth: inputFocused ? 1.5 : 1))
     }
 }
 
