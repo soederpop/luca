@@ -106,7 +106,8 @@ bindings:
   index.up:             { key: "k", label: "previous card", scope: index }
   index.left:           { key: "h", label: "stack to the left", scope: index }
   index.right:          { key: "l", label: "stack to the right", scope: index }
-  index.open:           { key: "Enter", label: "open in a new tile", scope: index }
+  index.open:           { key: "Enter", label: "open (organized: in this tile, free: in a new tile)", scope: index }
+  index.openOther:      { key: "Shift-Enter", label: "open the other way (organized: new tile, free: this tile)", scope: index }
   index.peek:           { key: "p", label: "peek", scope: index }
   index.filter:         { key: "/", label: "filter", scope: index }
   index.reload:         { key: "r", label: "reload", scope: index }

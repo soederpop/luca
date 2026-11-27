@@ -113,6 +113,24 @@ struct Workspace: Codable, Equatable {
         focused = id
     }
 
+    /// `new` takes `old`'s place: its frame, its slot in the tree, its
+    /// group, focus and zoom. `old` is gone from the workspace.
+    mutating func replace(_ old: UUID, with new: UUID) {
+        guard let index = tiles.firstIndex(of: old) else { return }
+        tiles[index] = new
+        if let frame = frames.removeValue(forKey: old) { frames[new] = frame }
+        tree = tree?.swapping(old, new)
+        if floating.remove(old) != nil { floating.insert(new) }
+        if focused == old { focused = new }
+        if zoomed == old { zoomed = new }
+        if let frame = zoomRestore.removeValue(forKey: old) { zoomRestore[new] = frame }
+        groups = groups.map { $0.map { $0 == old ? new : $0 } }
+        if var loaded = layout {
+            loaded.slots = loaded.slots.mapValues { $0 == old ? new : $0 }
+            layout = loaded
+        }
+    }
+
     mutating func remove(_ id: UUID) {
         if var loaded = layout {
             loaded.slots = loaded.slots.filter { $0.value != id }

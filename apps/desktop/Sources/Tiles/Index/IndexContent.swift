@@ -85,6 +85,7 @@ class IndexContent: TileContent {
         case "index.left": moveFocus(.left)
         case "index.right": moveFocus(.right)
         case "index.open": openFocused()
+        case "index.openOther": openFocused(other: true)
         case "index.peek": peek()
         case "index.filter":
             filtering = true
@@ -104,7 +105,10 @@ class IndexContent: TileContent {
         if state.focus(cardId: cardId), peekCard != cardId { closePeek() }
     }
 
-    func openFocused() {
+    /// `Enter` in an organized workspace opens the card in this tile; in a
+    /// free one it opens a new tile. `Shift-Enter` (`other`) does the
+    /// opposite.
+    func openFocused(other: Bool = false) {
         guard let card = state.focusedCard else { return }
         // Opening the card that is peeking keeps that tile.
         if let peek = peekTile, peekCard == card.id, Shell.shared.tiles[peek] != nil {
@@ -114,7 +118,10 @@ class IndexContent: TileContent {
             return
         }
         closePeek()
-        Shell.shared.open(card.uri)
+        let shell = Shell.shared
+        let organized = shell.workspaceIndex(of: tileId).map { shell.workspaces[$0].mode == .organized } ?? false
+        if organized != other { shell.replace(tileId, with: card.uri) }
+        else { shell.open(card.uri) }
     }
 
     /// `p`: a temporary tile beside the index. `p` again closes it.

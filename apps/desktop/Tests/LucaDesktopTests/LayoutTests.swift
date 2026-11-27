@@ -252,4 +252,23 @@ final class LayoutTests: XCTestCase {
         let data = try JSONEncoder().encode(ws)
         XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: data), ws)
     }
+
+    /// Enter on a card in an organized workspace opens it in the index's
+    /// place: same slot in the tree, same group, same focus.
+    func testReplaceTakesTheSlot() {
+        var (ws, ids) = workspace([CGRect(x: 0, y: 0, width: 800, height: 600), CGRect(x: 900, y: 0, width: 800, height: 600)])
+        ws.toggleMode(in: screen, gap: gap)
+        ws.groups = [ids]
+        ws.focused = ids[0]
+        let before = ws.tree!.frames(in: screen, gap: gap)[ids[0]]
+        let new = UUID()
+        ws.replace(ids[0], with: new)
+        XCTAssertEqual(ws.tiles, [new, ids[1]])
+        XCTAssertEqual(ws.focused, new)
+        XCTAssertEqual(ws.groups, [[new, ids[1]]])
+        XCTAssertFalse(ws.tree!.contains(ids[0]))
+        XCTAssertEqual(ws.tree!.frames(in: screen, gap: gap)[new], before)
+        XCTAssertNil(ws.frames[ids[0]])
+        XCTAssertNotNil(ws.frames[new])
+    }
 }

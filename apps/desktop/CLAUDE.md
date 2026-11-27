@@ -435,6 +435,10 @@ path outside the receiving project (or the plugins folder, for a link).
 - **Assistants** `Space c`: an Assistants stack (model, tools, conversation
   count; `Enter` or `n` new chat, `c` past conversations in the palette) and
   Recent conversations (`Enter` reopens). It reloads on `chat-done`.
+- **Enter on any card-stack index** (`index.open`): in an organized
+  workspace the card opens in the index's own tile (`Shell.replace`: same
+  slot, group and focus; the index closes); in a free one it opens a new
+  tile. `Shift-Enter` (`index.openOther`) does the other one.
 - **Doc → chat**: `c` in a doc tile picks an assistant (the last one picked
   first, kept in the app's defaults, so `Enter` takes it again) and opens a
   chat beside the tile with the document as its first message

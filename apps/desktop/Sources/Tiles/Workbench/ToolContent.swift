@@ -131,11 +131,11 @@ final class ToolContent: IndexContent {
         return true
     }
 
-    override func openFocused() {
+    override func openFocused(other: Bool = false) {
         if let card = state.focusedCard, inert.contains(card.id) {
             return Shell.shared.flash(keys.keys.isEmpty ? "This card opens nothing" : "This card opens nothing. Its actions: \(keys.keys.map { "\($0.spec) \($0.label)" }.joined(separator: " · "))")
         }
-        super.openFocused()
+        super.openFocused(other: other)
     }
 
     /// The declaration file in a file tile.

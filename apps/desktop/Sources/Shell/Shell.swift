@@ -156,6 +156,33 @@ final class Shell: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// Open `uri` in `id`'s place (its frame, slot and group) and close
+    /// `id`. Returns the new tile's id, or nil for an unknown kind.
+    @discardableResult
+    func replace(_ id: UUID, with uri: TileURI) -> UUID? {
+        guard let old = tiles[id], let ws = workspaceIndex(of: id) else { return open(uri) }
+        guard let content = makeContent(uri) else {
+            flash("No tile '\(uri.kind)' in Luca Desktop")
+            return nil
+        }
+        let tile = Tile(id: UUID(), content: content)
+        let frame = workspaces[ws].frames[id] ?? old.controller?.window.frame ?? newTileFrame(in: ws)
+        detachGroupWindows()
+        attach(tile, frame: frame)
+        workspaces[ws].replace(id, with: tile.id)
+        old.content.stop()
+        old.controller?.close()
+        old.controller = nil
+        tiles[id] = nil
+        letGo(old.owner)
+        if ws == current {
+            applyLayout(animated: false)
+            focusTile(tile.id)
+        }
+        scheduleSave()
+        return tile.id
+    }
+
     func close(_ id: UUID) {
         guard let tile = tiles[id], let ws = workspaceIndex(of: id) else { return }
         detachGroupWindows()
