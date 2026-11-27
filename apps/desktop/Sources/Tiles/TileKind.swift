@@ -115,6 +115,7 @@ enum TileKinds {
         register(ContentbaseContent.kind)
         register(WorkbenchDocContent.kind)
         register(AssistantsContent.kind)
+        register(AssistantEditorContent.kind)
         register(WorkbenchChatContent.kind)
         register(TerminalContent.kind)
         register(FileContent.kind)

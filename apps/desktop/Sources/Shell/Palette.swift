@@ -79,7 +79,7 @@ final class PaletteModel: ObservableObject {
         switch mode {
         case .all: return "tiles, project tools, commands"
         case .projects: return "open a project"
-        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · chat [assistant] · new-doc [Model] [title] · scaffold [type] [name] · bootstrap [path] · terminal · layout · mode · ws <n> · keys · q"
+        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · chat [assistant] · edit-assistant [name] · new-doc [Model] [title] · scaffold [type] [name] · bootstrap [path] · terminal · layout · mode · ws <n> · keys · q"
         case .choose, .ask: return customTitle
         }
     }
@@ -139,7 +139,7 @@ final class PaletteModel: ObservableObject {
     // MARK: Command-line completion
 
     /// Verbs whose argument is an assistant name.
-    static let chatVerbs: Set<String> = ["chat", "assistant"]
+    static let chatVerbs: Set<String> = ["chat", "assistant", "edit-assistant"]
     /// Assistant names by project, fetched once the verb is typed.
     private var assistantNames: [String: [String]] = [:]
     private var loadingAssistants: Set<String> = []
@@ -268,6 +268,10 @@ final class PaletteModel: ObservableObject {
                 all.append(PaletteItem(id: "file:\(project.id)", group: .tool, title: "\(project.label) open a file…",
                                        detail: "a file in its folder", kind: "luca-file") {
                     shell.pickFile(in: project.id)
+                })
+                all.append(PaletteItem(id: "edit-assistant:\(project.id)", group: .tool, title: "\(project.label) edit an assistant…",
+                                       detail: "its CORE.md, tools.ts, hooks.ts and files", kind: "luca-assistant") {
+                    WorkbenchChat.pickAssistant(project: project.id, toEdit: true)
                 })
             }
             if mode == .projects, all.isEmpty { note = "No projects yet. Open one with :open-project <path>" }

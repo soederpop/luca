@@ -258,7 +258,26 @@ bindings:
   lucaDoc.restart:      { key: "R", label: "restart the workbench host", scope: kind.luca-doc }
   lucaAssistants.new:   { key: "n", label: "new chat with this assistant", scope: kind.luca-assistants }
   lucaAssistants.history: { key: "c", label: "this assistant's past conversations", scope: kind.luca-assistants }
+  lucaAssistants.edit:  { key: "e", label: "edit this assistant (its CORE.md, tools.ts, hooks.ts, files)", scope: kind.luca-assistants }
+  lucaAssistants.create: { key: "a", label: "add an assistant (luca scaffold assistant)", scope: kind.luca-assistants }
   lucaAssistants.restart: { key: "R", label: "restart the workbench host", scope: kind.luca-assistants }
+  lucaAssistant.edit:   { key: "i", label: "edit the file (rich or source)", scope: kind.luca-assistant }
+  lucaAssistant.rich:   { key: "e", label: "rich view (markdown)", scope: kind.luca-assistant }
+  lucaAssistant.source: { key: "E", label: "source view", scope: kind.luca-assistant }
+  lucaAssistant.preview: { key: "P", label: "preview view (markdown)", scope: kind.luca-assistant }
+  lucaAssistant.sidebar: { key: "b", label: "show or hide the files, hooks and tool providers", scope: kind.luca-assistant }
+  lucaAssistant.file:   { key: "f", label: "open a file of the assistant's folder", scope: kind.luca-assistant }
+  lucaAssistant.newFile: { key: "a", label: "new file in the assistant's folder", scope: kind.luca-assistant }
+  lucaAssistant.hook:   { key: "h", label: "add a hook to hooks.ts (pick one the runtime fires)", scope: kind.luca-assistant }
+  lucaAssistant.tools:  { key: "t", label: "tool providers: add a feature's tools to tools.ts, or take one out", scope: kind.luca-assistant }
+  lucaAssistant.chat:   { key: "c", label: "build it with lucaExpert: a chat that has read its files", scope: kind.luca-assistant }
+  lucaAssistant.talk:   { key: "n", label: "new chat with this assistant", scope: kind.luca-assistant }
+  lucaAssistant.copy:   { key: "C", label: "plugin assistant: copy it into this project to edit it", scope: kind.luca-assistant }
+  lucaAssistant.reload: { key: "r", label: "reload from disk", scope: kind.luca-assistant }
+  lucaAssistant.keepMine: { key: "d p", label: "conflict: keep mine", scope: kind.luca-assistant }
+  lucaAssistant.takeTheirs: { key: "d o", label: "conflict: take the file on disk", scope: kind.luca-assistant }
+  lucaAssistant.assistants: { key: "u", label: "the assistants", scope: kind.luca-assistant }
+  lucaAssistant.restart: { key: "R", label: "restart the workbench host", scope: kind.luca-assistant }
   lucaChat.input:       { key: "i", label: "write a message", scope: kind.luca-chat }
   lucaChat.stop:        { key: "Ctrl-c", label: "stop the reply", scope: kind.luca-chat }
   lucaChat.history:     { key: "h", label: "past conversations", scope: kind.luca-chat }

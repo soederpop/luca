@@ -1048,6 +1048,12 @@ final class Shell: ObservableObject {
                 if rest.isEmpty { WorkbenchChat.pickAssistant(project: project) }
                 else { _ = self?.open(WorkbenchChat.newChat(project: project, assistant: rest), near: self?.focusedId) }
             }
+        case "edit-assistant":
+            // `:edit-assistant <name>` opens the assistant editor; with no name the palette picks one. Tab completes the name.
+            withProject("edit an assistant of which project") { [weak self] project in
+                if rest.isEmpty { WorkbenchChat.pickAssistant(project: project, toEdit: true) }
+                else { _ = self?.open(AssistantEditorContent.address(project: project, assistant: rest), near: self?.focusedId) }
+            }
         case "terminal", "term":
             openProjectTool("terminal", prompt: "terminal in which project")
         case "setup":

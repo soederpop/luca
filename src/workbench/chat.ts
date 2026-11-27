@@ -253,9 +253,24 @@ export function modelChoices(ai: { providers: any[]; servers: any[]; agents: any
 	return rows.sort((a, b) => a.rank - b.rank).map(({ rank, ...row }) => row)
 }
 
-type Stored = { extensions: ChatExtension[]; target?: ChatTarget; settings?: ChatSettings }
+type Stored = { extensions: ChatExtension[]; target?: ChatTarget; about?: ChatAbout; settings?: ChatSettings }
+
+/** The assistant a chat is about: it gets the editor's brief and tools for that one. */
+export type ChatAbout = { assistant: string }
 
 type Turn = { turnId: string; text: string; reasoning: string; tools: ChatToolView[]; startedAt: number; user: string }
+
+/** Two host tool bundles as one, or null when there is nothing. The later one's names win. */
+export function mergeBundles(...bundles: Array<ToolBundle | null>): ToolBundle | null {
+	const present = bundles.filter((b): b is ToolBundle => !!b)
+	if (!present.length) return null
+	if (present.length === 1) return present[0]!
+	return {
+		schemas: Object.assign({}, ...present.map((b) => b.schemas)),
+		handlers: Object.assign({}, ...present.map((b) => b.handlers)),
+		provider: { name: 'workbench.host' },
+	}
+}
 
 type Session = {
 	assistant: string
@@ -266,7 +281,9 @@ type Session = {
 	starting: Promise<void>
 	/** The chat this one is tech support for, when it was opened as that. */
 	target: ChatTarget | null
-	/** Host tools that are not the canvas: the support tools of a tech support chat. */
+	/** The assistant this chat builds, when it was opened about one. */
+	about: ChatAbout | null
+	/** Host tools that are not the canvas: the support tools of a tech support chat, the editor tools of a chat about an assistant. */
 	support: ToolBundle | null
 	/** The extensions the last mount put on. */
 	extensions: ChatExtension[]
@@ -293,6 +310,8 @@ export class ChatSessions {
 	agentMcpServers?: () => Record<string, any>
 	/** The URL of a session's own MCP route, `/mcp/chat/<token>` on the host. */
 	chatMcpUrl?: (token: string) => string
+	/** The assistant editor: a chat about an assistant gets its brief and tools. */
+	editor?: { brief(name: string, self: boolean): Promise<string>; tools(name: string): ToolBundle }
 	readonly extensionsIndex: ChatExtensions
 
 	constructor(private container: any, private broadcast: Broadcast) {
@@ -330,6 +349,22 @@ export class ChatSessions {
 			this.infos.set(name, a)
 		}
 		return a
+	}
+
+	/** The fact-reading instance for the editor, or null when the assistant does not load. The manager must have discovered already. */
+	infoInstance(name: string): any | null {
+		const manager = this.container.feature('assistantsManager')
+		if (!manager.list().some((e: any) => e.name === name)) return null
+		try { return this.info(manager, name) } catch { return null }
+	}
+
+	/** The assistant's files changed: every live instance loads them again, and the facts are read anew. */
+	reloadAssistant(name: string) {
+		this.infos.delete(name)
+		for (const s of this.sessions.values()) {
+			if (s.assistant !== name) continue
+			try { s.instance.reload() } catch (err: any) { console.error(`[workbench] could not reload ${name} in ${s.conversationId}: ${err?.message}`) }
+		}
 	}
 
 	async conversations(name: string, limit = 50): Promise<ConversationView[]> {
@@ -412,17 +447,23 @@ export class ChatSessions {
 	 * use. `target` makes it the tech support chat of another conversation;
 	 * the link is saved, so a reopen after a restart keeps it.
 	 */
-	private async session(name: string, conversationId: string, target?: ChatTarget | null): Promise<Session> {
+	private async session(name: string, conversationId: string, target?: ChatTarget | null, about?: ChatAbout | null): Promise<Session> {
 		const key = this.key(name, conversationId)
 		let s = this.sessions.get(key)
 		if (!s) {
 			const manager = await this.manager()
 			const thread = manager.threadPrefixFor(name) + conversationId
-			const store = await this.stored(thread)
+			let store = await this.stored(thread)
 			if (target && (target.assistant !== store.target?.assistant || target.conversationId !== store.target?.conversationId)) {
-				await this.store(thread, { ...store, target })
+				store = { ...store, target }
+				await this.store(thread, store)
+			}
+			if (about && about.assistant !== store.about?.assistant) {
+				store = { ...store, about }
+				await this.store(thread, store)
 			}
 			const linked = target ?? store.target ?? null
+			const building = this.editor ? (about ?? store.about ?? null) : null
 			const settings = store.settings ?? {}
 			const instance = manager.create(name, {
 				cached: false,
@@ -433,22 +474,30 @@ export class ChatSessions {
 			if (this.extraTools) {
 				try { instance.use(this.extraTools()) } catch (err: any) { console.error(`[workbench] could not give ${name} the host's tools: ${err?.message}`) }
 			}
-			const support = linked ? this.extensionsIndex.supportTools(linked, this.supportHost()) : null
+			const support = mergeBundles(
+				linked ? this.extensionsIndex.supportTools(linked, this.supportHost()) : null,
+				building ? this.editor!.tools(building.assistant) : null,
+			)
 			const agent = this.isAgent(instance)
 			const token = String(this.container.utils.uuid()).replace(/-/g, '')
 			this.giveAgentServers(instance, agent ? token : null)
 			if (support && !agent) instance.use(support)
 			if (linked) instance.addSystemPromptExtension('workbenchTechSupport', ChatExtensions.brief(linked))
+			if (building) {
+				try { instance.addSystemPromptExtension('workbenchAssistantEditor', await this.editor!.brief(building.assistant, building.assistant === name)) }
+				catch (err: any) { console.error(`[workbench] could not brief ${name} about ${building.assistant}: ${err?.message}`) }
+			}
 			instance.resumeThread(thread)
 			const session: Session = {
 				assistant: name, conversationId, thread, instance, turn: null, starting: Promise.resolve(),
-				target: linked, support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
+				target: linked, about: building, support, extensions: [], mounted: [], agent, token, served: { schemas: {}, handlers: {} },
 				settings, title: null,
 			}
 			session.starting = instance.start().then(async () => {
 				this.applyEffort(session)
 				session.title = await this.savedTitle(thread)
 				await this.mount(session)
+				if (building) await this.ensureSkill(session, 'luca-framework')
 			})
 			this.wire(session)
 			this.sessions.set(key, session)
@@ -456,6 +505,26 @@ export class ChatSessions {
 		}
 		await s.starting
 		return s
+	}
+
+	/**
+	 * A chat about an assistant works with the framework: make sure the
+	 * `luca-framework` skill is in the prompt. An assistant that preloads it
+	 * (lucaExpert) has it already; one with a skills library loads it here;
+	 * one with neither goes without.
+	 */
+	private async ensureSkill(s: Session, skill: string) {
+		const a = s.instance
+		try {
+			if (a.systemPromptExtensions?.[`skill:${skill}`]) return
+			const load = a.tools?.loadSkill?.handler
+			if (typeof load !== 'function') return
+			const content = await load({ skillName: skill })
+			if (typeof content !== 'string' || !content.trim() || /^(error|no skill|unknown skill)/i.test(content.trim())) return
+			a.addSystemPromptExtension(`skill:${skill}`, [`## Skill: ${skill}`, 'This skill is already loaded. Treat it as active context; do not call `loadSkill` for it.', '', content].join('\n'))
+		} catch (err: any) {
+			console.error(`[workbench] could not load the ${skill} skill for ${s.assistant}: ${err?.message}`)
+		}
 	}
 
 	/**
@@ -501,8 +570,9 @@ export class ChatSessions {
 			let extensions: ChatExtension[] = []
 			try { extensions = parseExtensions(value?.extensions) } catch {}
 			const target = value?.target?.assistant && value?.target?.conversationId ? { assistant: String(value.target.assistant), conversationId: String(value.target.conversationId) } : undefined
+			const about = typeof value?.about?.assistant === 'string' && value.about.assistant ? { assistant: String(value.about.assistant) } : undefined
 			const settings = parseSettings(value?.settings)
-			return { extensions, ...(target ? { target } : {}), ...(Object.keys(settings).length ? { settings } : {}) }
+			return { extensions, ...(target ? { target } : {}), ...(about ? { about } : {}), ...(Object.keys(settings).length ? { settings } : {}) }
 		} catch {
 			return { extensions: [] }
 		}
@@ -678,13 +748,14 @@ export class ChatSessions {
 	 * Open (or reopen) a conversation. `conversationId` empty or `new` starts
 	 * a fresh one. `target` opens it as the tech support chat of another.
 	 */
-	async open(name: string, conversationId?: string, target?: ChatTarget | null): Promise<{ status: number; body: any }> {
+	async open(name: string, conversationId?: string, target?: ChatTarget | null, about?: ChatAbout | null): Promise<{ status: number; body: any }> {
 		const manager = await this.manager()
 		if (!manager.list().some((e: any) => e.name === name)) return { status: 404, body: { error: `no assistant ${name}` } }
+		if (about && !manager.list().some((e: any) => e.name === about.assistant)) return { status: 404, body: { error: `no assistant ${about.assistant} to talk about` } }
 		const id = conversationId && conversationId !== 'new' ? conversationId : this.freshId()
 		if (!/^[\w.-]+$/.test(id)) return { status: 400, body: { error: 'a conversation id is letters, digits, dot, dash and underscore' } }
 		let s: Session
-		try { s = await this.session(name, id, target) } catch (err: any) {
+		try { s = await this.session(name, id, target, about) } catch (err: any) {
 			return { status: 200, body: { ok: false, error: `could not start ${name}: ${err?.message ?? err}` } }
 		}
 		return { status: 200, body: this.view(s) }
@@ -715,6 +786,7 @@ export class ChatSessions {
 			tools: Object.keys(s.instance.tools || {}).filter((name) => !s.mounted.includes(name)),
 			extensions: s.extensions.map(summary),
 			target: s.target,
+			about: s.about,
 			messages,
 			busy: !!s.turn,
 			live: s.turn ? { turnId: s.turn.turnId, user: s.turn.user, text: s.turn.text, reasoning: s.turn.reasoning, tools: s.turn.tools.map((t) => this.publicTool(t)) } : null,

@@ -232,6 +232,8 @@ struct WorkbenchChatView: Decodable, Equatable {
     var extensions: [WorkbenchChatExtension]? = nil
     /// Set on a tech support chat: the chat it may change.
     var target: WorkbenchChatTarget? = nil
+    /// Set on a chat about an assistant: the one it builds.
+    var about: WorkbenchChatAbout? = nil
     var settings: WorkbenchChatSettings? = nil
     var routing: WorkbenchChatRouting? = nil
 }
@@ -239,6 +241,11 @@ struct WorkbenchChatView: Decodable, Equatable {
 struct WorkbenchChatTarget: Codable, Equatable {
     let assistant: String
     let conversationId: String
+}
+
+/// The assistant a chat builds, when it was opened about one (`?about=`).
+struct WorkbenchChatAbout: Codable, Equatable {
+    let assistant: String
 }
 
 /// One set of tools added to a single conversation: a container feature
@@ -390,9 +397,9 @@ extension WorkbenchClient {
 
     /// Open a conversation; `new` (or empty) starts a fresh one and the answer names it.
     /// `target` opens it as the tech support chat of another conversation.
-    func openChat(assistant: String, conversationId: String, target: WorkbenchChatTarget? = nil) async throws -> WorkbenchChatView {
-        struct Body: Encodable { let assistant: String; let conversationId: String; let target: WorkbenchChatTarget? }
-        return try await post("/chat/open", Body(assistant: assistant, conversationId: conversationId, target: target))
+    func openChat(assistant: String, conversationId: String, target: WorkbenchChatTarget? = nil, about: WorkbenchChatAbout? = nil) async throws -> WorkbenchChatView {
+        struct Body: Encodable { let assistant: String; let conversationId: String; let target: WorkbenchChatTarget?; let about: WorkbenchChatAbout? }
+        return try await post("/chat/open", Body(assistant: assistant, conversationId: conversationId, target: target, about: about))
     }
 
     func chatExtensions(assistant: String, conversationId: String) async throws -> WorkbenchChatExtensions {
@@ -498,5 +505,135 @@ extension WorkbenchClient {
         } catch WorkbenchError.http(409, _) {
             throw WorkbenchDocConflict(current: try? await file(path))
         }
+    }
+}
+
+// MARK: - The assistant editor (`luca://<project>/assistant/<name>`)
+
+/// `GET /assistant/<name>`: one assistant's folder as the editor draws it.
+struct WorkbenchAssistantEditor: Decodable, Equatable {
+    struct File: Decodable, Equatable, Identifiable {
+        let path: String
+        /// `definition` (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml), `skill`, `guide` or `other`.
+        let kind: String
+        let language: String
+        let present: Bool
+        let size: Int
+        let sizeText: String
+        var id: String { path }
+        var isMarkdown: Bool { language == "markdown" }
+    }
+    struct Hook: Decodable, Equatable, Identifiable {
+        let name: String
+        /// `lifecycle` or `event`.
+        let kind: String
+        let params: String
+        let description: String
+        var returns: String? = nil
+        let present: Bool
+        var line: Int? = nil
+        var id: String { name }
+    }
+    struct Provider: Decodable, Equatable, Identifiable {
+        struct Tool: Decodable, Equatable { let name: String; let description: String }
+        let name: String
+        let description: String
+        let tools: [Tool]
+        let used: Bool
+        var only: [String]? = nil
+        var id: String { name }
+    }
+    struct Use: Decodable, Equatable {
+        let feature: String?
+        var only: [String]? = nil
+        let text: String
+        let line: Int
+    }
+    let name: String
+    let folder: String
+    let folderDisplay: String
+    /// `project`, `home`, `extra` (a plugin) or `registered`.
+    let source: String
+    let editable: Bool
+    let readOnly: String?
+    let description: String
+    let modelText: String
+    let tools: [String]
+    let ownTools: [String]
+    let use: [Use]
+    let files: [File]
+    let hooks: [Hook]
+    let providers: [Provider]
+    let history: [String]
+    let shadows: [String]
+    let error: String?
+}
+
+/// `POST /assistant/<name>/edit`: the text with a hook stub or a `use` entry added.
+struct WorkbenchAssistantEdit: Decodable, Equatable {
+    let ok: Bool?
+    let text: String?
+    let line: Int?
+    let error: String?
+}
+
+/// `POST /assistant/<name>/copy`.
+struct WorkbenchAssistantCopied: Decodable, Equatable {
+    let ok: Bool?
+    let folder: String?
+    let folderDisplay: String?
+    let text: String?
+    let error: String?
+}
+
+/// A save the host refused because the file does not load (422): the text stays in the editor.
+struct WorkbenchAssistantParseError: Error {
+    let message: String
+}
+
+/// A save the host refused because the assistant is read only (403).
+struct WorkbenchAssistantReadOnly: Error {
+    let message: String
+}
+
+extension WorkbenchClient {
+    func assistantEditor(_ name: String) async throws -> WorkbenchAssistantEditor {
+        try await get(Self.path("assistant", name))
+    }
+
+    /// `GET /assistant/<name>/file?path=`: one file of the folder, in a doc's shape.
+    func assistantFile(_ name: String, path: String) async throws -> WorkbenchDoc {
+        var c = URLComponents()
+        c.path = Self.path("assistant", name, "file")
+        c.queryItems = [URLQueryItem(name: "path", value: path)]
+        return try await get(c.string ?? c.path)
+    }
+
+    /// Save the whole file. Throws `WorkbenchDocConflict` (409), `WorkbenchAssistantParseError` (422) or `WorkbenchAssistantReadOnly` (403).
+    func saveAssistantFile(_ name: String, path: String, text: String, digest: String) async throws -> WorkbenchDocSaved {
+        struct Body: Encodable { let path: String; let text: String; let digest: String }
+        do {
+            return try await post(Self.path("assistant", name, "file", "save"), Body(path: path, text: text, digest: digest))
+        } catch WorkbenchError.http(409, _) {
+            throw WorkbenchDocConflict(current: try? await assistantFile(name, path: path))
+        } catch WorkbenchError.http(422, let message) {
+            throw WorkbenchAssistantParseError(message: message)
+        } catch WorkbenchError.http(403, let message) {
+            throw WorkbenchAssistantReadOnly(message: message)
+        }
+    }
+
+    /// A pure edit of `text`: `op` `hook` with `hook`, or `use` with `feature`, `only`, `remove`.
+    func editAssistantText(_ name: String, op: String, text: String, hook: String? = nil, feature: String? = nil, only: [String]? = nil, remove: Bool = false) async throws -> WorkbenchAssistantEdit {
+        struct Body: Encodable { let op: String; let text: String; let hook: String?; let feature: String?; let only: [String]?; let remove: Bool }
+        return try await post(Self.path("assistant", name, "edit"), Body(op: op, text: text, hook: hook, feature: feature, only: only, remove: remove))
+    }
+
+    func copyAssistant(_ name: String) async throws -> WorkbenchAssistantCopied {
+        try await post(Self.path("assistant", name, "copy"), [String: String]())
+    }
+
+    func rollbackAssistantFile(_ name: String, path: String) async throws -> WorkbenchDocSaved {
+        try await post(Self.path("assistant", name, "rollback"), ["path": path])
     }
 }

@@ -242,7 +242,13 @@ sent: the host does the display work (signatures, pretty JSON, notes).
 | `POST /file/save` | `{path, text, digest}`: as `/docs/save`, for any file in the folder; a missing file is made (with its folders) when `digest` is the sha1 of no bytes |
 | `GET /assistants` | `notice`, `historyDir`, `assistants` (`name`, `description`, `model`, `provider`, `modelText`, `toolCount`, `tools`, `folderDisplay`, `conversationCount`, `lastText`, `slot`, `error`), `recent` (newest 30 conversations of any assistant) |
 | `GET /assistants/<name>/conversations` | `{assistant, conversations}`: `conversationId`, `thread`, `title`, `messageCount`, `updatedAt`, `updatedText` |
-| `POST /chat/open` | `{assistant, conversationId?}` (empty or `new` makes `desk-<date>-<6>`). Answers `{ok, assistant, conversationId, thread, title, modelText, tools, messages, busy, live}`; `messages` are `{id, role user/assistant, text, tools}` (one assistant message per turn, tool results matched by call id); `live` is the reply in flight |
+| `GET /assistant/<name>` | the assistant editor's view (`src/workbench/assistant-editor.ts`): `folder`, `folderDisplay`, `source` (`project`, `home`, `extra` = a plugin, `registered`), `editable`, `readOnly` (why not), `modelText`, `tools`, `ownTools` (the `schemas` keys of tools.ts), `use` (the `use` array's entries: `feature`, `only`, `text`, `line`), `files` (the five definition files first, present or not, then the rest; `kind`, `language`, `present`, `sizeText`), `hooks` (every hook `assistant.ts` fires: `name`, `kind`, `params`, `description`, `returns`, `present`, `line`), `providers` (container features with tools, `used`, `only`), `history` (`.history/` backups), `shadows`, `error` |
+| `GET /assistant/<name>/file?path=` | one file of the folder as `GET /file` draws it (`pathDisplay` is `<name>/<path>`); a plugin's file reads fine |
+| `POST /assistant/<name>/file/save` | `{path, text, digest}` as `/file/save`. 403 for a plugin or registered assistant (`readOnly: true`); a `.ts`/`.js` file is loaded in the vm from a `.staged-` copy first and answers 422 (`parse: true`) when it does not load, the file on disk untouched; the old file goes to `.history/<stamp>-<path>` (`backedUp`); then `manager.discover()`, every live instance reloads and an `assistant-changed` frame (`name`) follows |
+| `POST /assistant/<name>/edit` | a pure edit of the text sent: `{op: "hook", hook, text}` appends a hook stub (and the `Assistant` type import) to a hooks.ts text; `{op: "use", feature, only?, options?, remove?, text}` adds, replaces or removes a `container.feature('x').toTools(...)` entry of the `use` array in a tools.ts text (a text with no `use` gets one). Answers `{ok, text, line}`; the tile puts it in the buffer and the human saves |
+| `POST /assistant/<name>/copy` | copy a plugin's or the home folder's assistant into `<project>/assistants/<name>` (without `.history`, `node_modules`, the desktop's stamp), where it wins the name. 400 for the project's own, 409 when the folder exists |
+| `POST /assistant/<name>/rollback` | `{path}`: the newest `.history/` backup of the file back in place |
+| `POST /chat/open` | `{assistant, conversationId?, target?, about?}` (empty or `new` makes `desk-<date>-<6>`). `about: {assistant}` opens the chat about an assistant (below). Answers `{ok, assistant, conversationId, thread, title, modelText, tools, messages, busy, live}`; `messages` are `{id, role user/assistant, text, tools}` (one assistant message per turn, tool results matched by call id); `live` is the reply in flight |
 | `POST /chat/send` | `{assistant, conversationId, text}` starts a reply and answers `{ok, turnId}` at once; 409 while a reply runs |
 | `GET /chat/extensions?assistant=&conversationId=` | `{features, extensions}`: container features that have tools (`name`, `description`, `builtIn` all/some, `tools` with `builtIn`, `options` that are one plain value), and the conversation's list (`src/workbench/extensions.ts`) |
 | `POST /chat/extensions` | `{assistant, conversationId, extensions}`: replace the list. Each entry (`feature`, `only?`, `options?`, `folder?`, `source?`) must build. Answers `{ok, extensions}` or `{ok: false, error}`; a `chat-extensions` frame follows. Kept per thread in the history diskCache |
@@ -528,6 +534,7 @@ Registered in `TileKinds.registerBuiltIns()`. `*` marks a card-stack index
 | `luca-doc` | `luca://<project>/doc/<id>?view=preview\|rich\|source` | `Tiles/Workbench/WorkbenchDocContent.swift` |
 | `luca-assistants`* | `luca://<project>/assistants` (`Space c`) | `Tiles/Workbench/AssistantsContent.swift` |
 | `luca-chat` | `luca://<project>/chat/<conversationId>?assistant=<name>` (`Space n`) | `Tiles/Workbench/WorkbenchChatContent.swift` |
+| `luca-assistant` | `luca://<project>/assistant/<name>?file=<path>&view=preview\|rich\|source` (`e` in the assistants tile, `:edit-assistant [name]`) | `Tiles/Workbench/AssistantEditorContent.swift` |
 | `luca-terminal` | `luca://<project>/terminal` (`Space t`, `:terminal`) | `Tiles/Terminal/TerminalContent.swift` |
 | `luca-file` | `luca://<project>/file/<path>` (`Space f`, `:file [path]`) | `Tiles/File/FileContent.swift` |
 | `luca-page` | `luca://<project>/page/<path>?<query>` or `…/page/https://…` (`Space g`, `:page`) | `Tiles/Web/PageContent.swift` |
@@ -645,6 +652,67 @@ Define models and query documents. The host does all of it
   `Cmd-s`/`:w` save. `:new <Name>`, `:model <Name>`, `:where <path> <op>
   <value>`, `:query <json>` (the DSL as is).
 - Tests: `Tests/LucaDesktopTests/ContentbaseTests.swift`.
+
+## The assistant editor
+
+One assistant's folder in a tile (`AssistantEditorContent`, kind
+`luca-assistant`), the host doing the reading (`src/workbench/assistant-editor.ts`,
+tests `test/workbench-assistant-editor.test.ts`; Swift
+`Tests/LucaDesktopTests/AssistantEditorTests.swift`).
+
+- **What it edits**: any file in the folder. The sidebar lists the five
+  definition files first (CORE.md, ABOUT.md, tools.ts, hooks.ts, voice.yml;
+  a missing one is faint and `+` makes it on the first save), then the rest
+  (`skills/`, `guides/`, anything), then the hooks and the tool providers.
+  A markdown file has preview, rich and source views (the frontmatter shows
+  as a card; edit it in source); any other file is source. The buffer, save
+  and conflict flow is the doc tile's (`WorkbenchDocBuffer`, digest, `d p`
+  / `d o`).
+- **Hooks**: the host lists every hook `assistant.ts` fires
+  (`HOOKS` in `assistant-editor.ts`, checked against the source by a test),
+  ticked when hooks.ts exports it. `h` (or a row) picks one; the host
+  appends the stub (`POST /assistant/<name>/edit`) to the text in the
+  buffer and the human saves. A hook that is there opens hooks.ts.
+- **Tool providers**: the container features that have tools (the chat
+  extensions catalog), ticked when the `use` array names them. `t` adds one
+  (`container.feature('x').toTools()`) or takes a used one out; the same
+  pure edit of the buffer's text. `:use <feature> [tool,tool]`, `:unuse
+  <feature>`. Tools of its own (`schemas`) show as `own:`.
+- **Saves are checked**: a `.ts` save is refused (422) when the file does not
+  load; the message shows in a bar and the text stays. The old file goes
+  to `.history/`, and every live instance of the assistant reloads
+  (`chats.reloadAssistant`), so a chat with that assistant has the change
+  from its next message. `assistant-changed` frames reload the tile.
+- **A plugin's assistant is read only** (`source: extra`): the files read,
+  saves answer 403, the tile says why, and `C` copies the folder into the
+  project's `assistants/` (`POST /assistant/<name>/copy`), where the copy
+  wins the name and is editable. A `home` assistant (`~/.luca/assistants`,
+  where the app installs lucaExpert) is editable in place: it is the
+  user's.
+- **Build it with lucaExpert**: `c` opens a chat beside the tile at
+  `luca://<project>/chat/new?assistant=lucaExpert&about=<name>` (one per
+  assistant; a second `c` focuses it; without lucaExpert the palette asks
+  who). `POST /chat/open` with `about` keeps the link with the conversation
+  (like `target`) and, on each session start, adds the system prompt
+  extension `workbenchAssistantEditor` (`AssistantEditor.brief`): the
+  folder, every definition file in full (24 000 characters each at most)
+  and the small other files, the hooks list, the tool providers, and how
+  to work. It also gives the chat the editor's tools
+  (`listAssistantFiles`, `readAssistantFile`, `writeAssistantFile`,
+  `rollbackAssistantFile`, `testAssistant`, `reloadAssistant`), which go
+  through the same save path (parse check, backup, reload; refused for a
+  plugin's assistant), so lucaExpert's own write guard (project roots
+  only) never gets in the way for a home assistant. When the chat's
+  assistant is the one being edited, the brief says so: a save reloads it.
+  If the `luca-framework` skill is not in the prompt already and the
+  assistant has a skills library (`loadSkill`), the host loads it on start
+  (`ensureSkill`). A coding-agent assistant gets the tools over its MCP
+  route like the support tools. The chat header shows `building <name>`;
+  clicking it opens the editor.
+- `e` in the assistants tile opens the editor for the focused assistant,
+  `a` scaffolds a new one (`Shell.scaffold`, type `assistant`, which opens
+  the command tile), `:edit-assistant [name]` and the palette's "edit an
+  assistant…" too (Tab completes the name).
 
 ## Canvases
 

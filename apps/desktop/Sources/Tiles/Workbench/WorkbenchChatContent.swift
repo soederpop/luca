@@ -106,7 +106,8 @@ struct WorkbenchChatTranscript: Equatable {
 /// drops the option (a doc tile's `c` hands the document over that way).
 /// `?extends=<conversationId>&extendsAssistant=<name>` opens it as the tech
 /// support chat of that conversation: the host gives it tools to change that
-/// chat's added tools.
+/// chat's added tools. `?about=<name>` opens it about an assistant: the host
+/// briefs it on that assistant's files and gives it the editor's tools.
 ///
 /// `i` writes, `Enter` sends, `Ctrl-c` stops the reply, `h` past
 /// conversations, `n` a new chat, `t` tools for this chat, `s` tech support.
@@ -127,6 +128,9 @@ final class WorkbenchChatContent: WorkbenchContent {
     @Published private(set) var extensions: [WorkbenchChatExtension] = []
     /// Set on a tech support chat: the chat it changes.
     let target: WorkbenchChatTarget?
+    /// Set on a chat about an assistant (`?about=<name>`): the host briefs
+    /// the chat on that assistant's files and gives it the tools to change them.
+    let about: WorkbenchChatAbout?
     @Published private(set) var inputTick = 0
     /// This conversation's own provider, model and effort, and where the next turn goes.
     @Published private(set) var settings = WorkbenchChatSettings()
@@ -152,6 +156,7 @@ final class WorkbenchChatContent: WorkbenchContent {
         } else {
             target = nil
         }
+        about = uri.option("about").flatMap { $0.isEmpty ? nil : WorkbenchChatAbout(assistant: $0) }
         super.init(kindId: Self.kind.id, uri: uri, title: "\(uri.option("assistant") ?? "chat") · new chat")
     }
 
@@ -206,7 +211,7 @@ final class WorkbenchChatContent: WorkbenchContent {
         openTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let view = try await client.openChat(assistant: self.assistant, conversationId: self.conversationId, target: self.target)
+                let view = try await client.openChat(assistant: self.assistant, conversationId: self.conversationId, target: self.target, about: self.about)
                 guard !Task.isCancelled else { return }
                 if view.ok == false {
                     self.loadError = view.error ?? "Could not open the chat"
@@ -444,6 +449,13 @@ struct LucaChatView: View {
             }
             if let target = model.target {
                 WorkbenchTag(text: "support for \(target.assistant)", color: p.info.color)
+            }
+            if let about = model.about ?? model.opened?.about {
+                Button { _ = Shell.shared.open(AssistantEditorContent.address(project: model.projectId, assistant: about.assistant), near: model.tileId) } label: {
+                    WorkbenchTag(text: "building \(about.assistant)", color: WorkbenchStyle.thingColor("assistants"))
+                }
+                .buttonStyle(.plain)
+                .help("The assistant this chat builds. Click for its editor.")
             }
             Spacer(minLength: KitTokens.Space.s4)
             if model.transcript.busy {

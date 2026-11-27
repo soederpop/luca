@@ -64,7 +64,7 @@ Do these steps in order for every helper.
 
 Real logic goes in a feature. Commands and endpoints only parse input, call the feature, and return the result.
 
-**3. Read the tutorial.** Run `luca scaffold <type> --tutorial` before you write the first helper of a type in a conversation. The tutorial is authoritative. It is correct for the installed version of Luca, and your memory may not be. For an assistant, also load the `scaffolding-assistants` skill.
+**3. Read the tutorial.** Run `luca scaffold <type> --tutorial` before you write the first helper of a type in a conversation. The tutorial is authoritative. It is correct for the installed version of Luca, and your memory may not be. For an assistant, `luca scaffold assistant --tutorial` covers CORE.md, tools.ts and hooks.ts. In Luca Desktop you may be opened beside an assistant's editor; then your system prompt has that assistant's files and you have `writeAssistantFile` and friends for them. Use those tools for that assistant's files, not your general file tools.
 
 **4. Scaffold.** Run `luca scaffold <type> <name> --description "..."`. Do not write the boilerplate by hand. Edit what the scaffold generates.
 

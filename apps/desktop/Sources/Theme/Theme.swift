@@ -45,7 +45,7 @@ enum Theme {
         case "luca-endpoints", "luca-request", "luca-page": return WorkbenchStyle.thingColor("endpoints")
         case "luca-servers": return WorkbenchStyle.thingColor("servers")
         case "luca-docs", "luca-models", "luca-doc", "luca-contentbase": return WorkbenchStyle.thingColor("docs")
-        case "luca-assistants", "luca-chat", "luca-ai": return WorkbenchStyle.thingColor("assistants")
+        case "luca-assistants", "luca-assistant", "luca-chat", "luca-ai": return WorkbenchStyle.thingColor("assistants")
         case "luca-file", "app-file": return s.property.color
         case "luca-project", "app-projects": return s.type.color
         case "luca-tool": return s.keyword.color

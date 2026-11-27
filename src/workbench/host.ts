@@ -25,6 +25,7 @@ import { ChatSessions } from './chat.js'
 import { fileView, saveFile, listFiles } from './files.js'
 import { ToolIndex, plainParams } from './tools.js'
 import { Canvases } from './canvas.js'
+import { AssistantEditor } from './assistant-editor.js'
 
 export type WorkbenchHostOptions = {
 	lucaVersion?: string
@@ -178,6 +179,14 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	chats.extraTools = () => canvases.toTools()
 	chats.agentMcpServers = () => canvases.agentMcpServers()
 	chats.chatMcpUrl = (key) => `http://127.0.0.1:${boundPort}/mcp/chat/${key}`
+	// The assistant editor: one assistant's folder for the editor tile, and the brief and tools of a chat about an assistant.
+	const editor = new AssistantEditor(container, {
+		manager: () => chats.manager(),
+		infoInstance: (name) => chats.infoInstance(name),
+		reloadAssistant: (name) => chats.reloadAssistant(name),
+		providers: () => chats.extensionsIndex.available().map(({ name, description, tools }) => ({ name, description, tools: tools.map(({ name, description }) => ({ name, description })) })),
+	}, (frame) => broadcast(frame))
+	chats.editor = editor
 
 	/** Refuses Host headers that are not loopback (DNS rebinding). */
 	const loopbackHost = (req: IncomingMessage): boolean => /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(String(req.headers.host || ''))
@@ -592,6 +601,27 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			return sendJson(res, 200, await chats.assistantsView())
 		}
 
+		// The assistant editor: `/assistant/<name>`, its files, pure edits, copy and rollback.
+		if (seg[0] === 'assistant' && seg.length >= 2) {
+			const name = seg[1]!
+			if (method === 'GET' && seg.length === 2) { const answer = await editor.view(name); return sendJson(res, answer.status, answer.body) }
+			if (method === 'GET' && seg.length === 3 && seg[2] === 'file') {
+				const answer = await editor.file(name, url.searchParams.get('path') || '')
+				return sendJson(res, answer.status, answer.body)
+			}
+			if (method === 'POST') {
+				let body: any
+				try { body = JSON.parse(await readBody(req) || '{}') } catch { return sendJson(res, 400, { error: 'invalid JSON body' }) }
+				const answer = seg.length === 4 && seg[2] === 'file' && seg[3] === 'save' ? await editor.save(name, body)
+					: seg.length === 3 && seg[2] === 'edit' ? editor.edit(body)
+					: seg.length === 3 && seg[2] === 'copy' ? await editor.copyIn(name)
+					: seg.length === 3 && seg[2] === 'rollback' ? await editor.rollback(name, String(body?.path || ''))
+					: null
+				if (answer) return sendJson(res, answer.status, answer.body)
+			}
+			return sendJson(res, 404, { error: 'not found' })
+		}
+
 		if (method === 'GET' && seg[0] === 'assistants' && seg.length === 3 && seg[2] === 'conversations') {
 			const manager = await chats.manager()
 			if (!manager.list().some((e: any) => e.name === seg[1])) return sendJson(res, 404, { error: `no assistant ${seg[1]}` })
@@ -607,7 +637,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 			if (seg[1] === 'open') {
 				const t = body?.target
 				const target = t && typeof t.assistant === 'string' && typeof t.conversationId === 'string' && t.assistant && t.conversationId ? { assistant: t.assistant, conversationId: t.conversationId } : null
-				const answer = await chats.open(assistant, conversationId, target)
+				const about = typeof body?.about?.assistant === 'string' && body.about.assistant ? { assistant: body.about.assistant } : null
+				const answer = await chats.open(assistant, conversationId, target, about)
 				return sendJson(res, answer.status, answer.body)
 			}
 			if (!conversationId || conversationId === 'new') return sendJson(res, 400, { error: 'conversationId is required (from POST /chat/open)' })
