@@ -201,6 +201,15 @@ extension Shell {
 
     /// The project a project key means (`ProjectPick`); with none, the
     /// palette asks which known project.
+    /// The project a command means without asking: the focused tile's, else
+    /// the one project of the workspace, else the only project known.
+    var impliedProject: String? {
+        let here = workspaces[current].tiles.compactMap { tiles[$0]?.uri }
+        if let project = ProjectPick.current(focused: focusedTile?.uri, workspace: here) { return project }
+        let known = ProjectHub.shared.recent
+        return known.count == 1 ? known[0].id : nil
+    }
+
     func withProject(_ prompt: String, _ run: @escaping (String) -> Void) {
         let here = workspaces[current].tiles.compactMap { tiles[$0]?.uri }
         if let project = ProjectPick.current(focused: focusedTile?.uri, workspace: here) { return run(project) }

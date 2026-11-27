@@ -1015,6 +1015,12 @@ final class Shell: ObservableObject {
                 let id = CanvasContent.slug(rest)
                 self?.openOrFocus(CanvasContent.address(project: project, id: id.isEmpty ? "canvas" : id))
             }
+        case "chat", "assistant":
+            // `:chat` picks an assistant; `:chat <name>` starts a chat with it. Tab completes the name.
+            withProject("new chat in which project") { [weak self] project in
+                if rest.isEmpty { WorkbenchChat.pickAssistant(project: project) }
+                else { _ = self?.open(WorkbenchChat.newChat(project: project, assistant: rest), near: self?.focusedId) }
+            }
         case "terminal", "term":
             openProjectTool("terminal", prompt: "terminal in which project")
         case "setup":

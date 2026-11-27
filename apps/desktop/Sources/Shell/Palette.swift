@@ -79,7 +79,7 @@ final class PaletteModel: ObservableObject {
         switch mode {
         case .all: return "tiles, project tools, commands"
         case .projects: return "open a project"
-        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · terminal · layout · mode · ws <n> · keys · q"
+        case .command: return "command: open-project <path or host:path> · file <path> · page <path or URL> · canvas <name> · chat [assistant] · terminal · layout · mode · ws <n> · keys · q"
         case .choose, .ask: return customTitle
         }
     }
@@ -95,6 +95,8 @@ final class PaletteModel: ObservableObject {
     func begin(_ mode: Mode) {
         finish()
         secret = false
+        // Fetched again each time: an assistant added since should complete.
+        assistantNames = [:]
         self.mode = mode
         query = ""
         selected = 0
@@ -129,7 +131,84 @@ final class PaletteModel: ObservableObject {
     }
 
     private func queryChanged() {
+        if !completing { completion = nil }
+        if mode == .command, Self.chatVerbs.contains(commandVerb) { loadAssistants() }
         rebuild()
+    }
+
+    // MARK: Command-line completion
+
+    /// Verbs whose argument is an assistant name.
+    static let chatVerbs: Set<String> = ["chat", "assistant"]
+    /// Assistant names by project, fetched once the verb is typed.
+    private var assistantNames: [String: [String]] = [:]
+    private var loadingAssistants: Set<String> = []
+    /// The Tab cycle in progress: what was typed and the matches for it.
+    private var completion: (stem: String, matches: [String], index: Int)?
+    /// True while a completion writes `query`, so it is not reset.
+    private var completing = false
+
+    private var commandVerb: String {
+        String(query.drop { $0 == " " }.prefix { $0 != " " })
+    }
+
+    /// The argument of the command line, when the verb takes an assistant.
+    private var chatArgument: String? {
+        let line = query.drop { $0 == " " }
+        guard Self.chatVerbs.contains(commandVerb), let space = line.firstIndex(of: " ") else { return nil }
+        return String(line[line.index(after: space)...]).trimmingCharacters(in: .whitespaces)
+    }
+
+    private func loadAssistants(then: (() -> Void)? = nil) {
+        guard let project = Shell.shared.impliedProject, assistantNames[project] == nil,
+              !loadingAssistants.contains(project), let host = ProjectHub.shared.client(project) else { return }
+        loadingAssistants.insert(project)
+        Task { @MainActor [weak self] in
+            defer { self?.loadingAssistants.remove(project) }
+            guard let reply = try? await host.assistants() else { return }
+            self?.assistantNames[project] = reply.assistants.map(\.name)
+            then?()
+        }
+    }
+
+    /// Tab on `:chat <name>`: completes the name from the project's
+    /// assistants, cycling through the matches. True when the line is one
+    /// that completes, whether or not a name was found.
+    func complete(reverse: Bool) -> Bool {
+        guard mode == .command else { return false }
+        guard Self.chatVerbs.contains(commandVerb) else { return false }
+        let verb = commandVerb
+        guard let project = Shell.shared.impliedProject else {
+            Shell.shared.flash("Open a project first, then Tab completes its assistants")
+            return true
+        }
+        guard let names = assistantNames[project] else {
+            if ProjectHub.shared.client(project) == nil { Shell.shared.flash("The project's host is starting; try Tab again") }
+            loadAssistants { [weak self] in _ = self?.complete(reverse: reverse) }
+            return true
+        }
+        let typed = chatArgument ?? ""
+        if var cycle = completion, cycle.matches.indices.contains(cycle.index), typed == cycle.matches[cycle.index] {
+            cycle.index = (cycle.index + (reverse ? -1 : 1) + cycle.matches.count) % cycle.matches.count
+            completion = cycle
+            setLine(verb: verb, argument: cycle.matches[cycle.index])
+            return true
+        }
+        let matches = names.filter { $0.lowercased().hasPrefix(typed.lowercased()) }
+        guard !matches.isEmpty else {
+            Shell.shared.flash(names.isEmpty ? "No assistants in this project" : "No assistant starts with '\(typed)'. Assistants: " + names.joined(separator: ", "))
+            return true
+        }
+        completion = (stem: typed, matches: matches, index: 0)
+        if matches.count > 1 { Shell.shared.flash("Tab cycles: " + matches.joined(separator: ", ")) }
+        setLine(verb: verb, argument: matches[0])
+        return true
+    }
+
+    private func setLine(verb: String, argument: String) {
+        completing = true
+        query = verb + " " + argument
+        completing = false
     }
 
     // MARK: Items
@@ -344,7 +423,9 @@ final class PaletteController {
             return true
         case ("Down", false, _), ("n", true, _), ("j", true, _): model.move(1); return true
         case ("Up", false, _), ("p", true, _), ("k", true, _): model.move(-1); return true
-        case ("Tab", false, true): model.move(stroke.shift ? -1 : 1); return true
+        case ("Tab", false, true):
+            if model.complete(reverse: stroke.shift) { return true }
+            model.move(stroke.shift ? -1 : 1); return true
         default: return false
         }
     }
