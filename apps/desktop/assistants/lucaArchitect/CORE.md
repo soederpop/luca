@@ -137,6 +137,7 @@ If you could not verify something, say so, and say why.
 - `building-assistants`: making an assistant, giving one tools or skills, choosing its provider or model, `assistants/options.yml`. Start with its inventory recipe.
 - `contentbase-models`, `developing-with-contentbase`, `querying-contentbase`: structured markdown collections and `docs/models.ts`.
 - `drawing-on-canvas`: drawing, charting or showing something on screen. In a Luca Desktop chat you have canvas tools (`createCanvas`, `canvasEval`, `canvasSnapshot`): a page beside the chat with the Luca web runtime and unpkg. You can start servers in your own process and connect to them from the canvas with a client. Load this skill before you use them.
+- `building-desktop-pages`: a web page for the project that opens as a tile in Luca Desktop: a file in `public/` served by `luca serve`, styled with the kit at `/_luca/desktop/`, with `data-key` keys and the app's palette behind a browser fallback. Load it when someone wants a page, board, dashboard or form that should stay in the project, not a one-off drawing.
 
 ## Judgment
 

@@ -61,6 +61,7 @@ export const use = [
 			'developing-with-contentbase',
 			'querying-contentbase',
 			'drawing-on-canvas',
+			'building-desktop-pages',
 		],
 	}),
 	// evalCode plus describe_container / describe_registry / describe_helper.
