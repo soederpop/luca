@@ -424,6 +424,14 @@ path outside the receiving project (or the plugins folder, for a link).
   chat beside the tile with the document as its first message
   (`chatOpener`, whole up to 24 000 characters), through the chat address's
   `?say=<text>`, which the chat tile sends once it is open and then drops.
+- **Companion tiles.** `Shell.open(uri, near:, group: true)` is how a tile
+  opens something that belongs to it (lucaArchitect about an assistant or a
+  helper, a chat's tech support, a helper's console). In a free workspace
+  the companion takes half of that tile's own space (`Shell.splitFrames`,
+  pure: right of a wide tile, below a tall one; the tile keeps the other
+  half) and the two are grouped; an organized slot splits the same way
+  (`Workspace.add`). Never place a companion by hand; a plain `near:`
+  without `group` still opens beside the tile at full size.
 - **Chat** `Space n` (one assistant opens straight away, else the palette
   asks): `luca://p/chat/new?assistant=x` asks the host for an id and the tile
   takes it (`uri.with(id:)`), so a restart reopens the same conversation.

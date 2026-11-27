@@ -76,13 +76,26 @@ final class Shell: ObservableObject {
         let nearWs = near.flatMap { workspaceIndex(of: $0) }
         let ws = nearWs ?? index ?? current
         var frame = newTileFrame(in: ws)
+        // A grouped companion (a chat about the tile, its console) takes half
+        // of the tile's own space in a free workspace: right of a wide tile,
+        // below a tall one. The tile keeps the other half.
+        var anchorFrame: CGRect?
         if let near, nearWs != nil {
-            if let beside = workspaces[ws].frames[near] { frame = Self.besideFrame(beside, size: frame.size) }
+            if let beside = workspaces[ws].frames[near] {
+                if group, workspaces[ws].mode == .free {
+                    let split = Self.splitFrames(beside)
+                    frame = split.next
+                    anchorFrame = split.anchor
+                } else {
+                    frame = Self.besideFrame(beside, size: frame.size)
+                }
+            }
             // Organized mode splits the slot of the tile in focus.
             workspaces[ws].focused = near
         }
         attach(tile, frame: frame)
         workspaces[ws].add(tile.id, frame: frame)
+        if let near, let anchorFrame { workspaces[ws].frames[near] = anchorFrame }
         if let near, nearWs != nil, group {
             workspaces[ws].join(near, with: tile.id, toward: .right)
         }
@@ -200,6 +213,24 @@ final class Shell: ObservableObject {
         for (id, frame) in zip(ids, placed.column) { workspaces[ws].frames[id] = frame }
         if ws == current { applyLayout(animated: true) }
         scheduleSave()
+    }
+
+    /// Split a free-mode frame in two for a grouped companion (`open` with
+    /// `group: true`): side by side when the frame is wider than tall (the
+    /// companion on the right), else stacked (the companion below). Pure.
+    nonisolated static func splitFrames(_ rect: CGRect) -> (anchor: CGRect, next: CGRect, axis: SplitAxis) {
+        let axis = Workspace.longerSide(rect)
+        if axis == .horizontal {
+            let half = ((rect.width - gap) / 2).rounded(.down)
+            let anchor = CGRect(x: rect.minX, y: rect.minY, width: half, height: rect.height)
+            let next = CGRect(x: rect.minX + half + gap, y: rect.minY, width: rect.width - half - gap, height: rect.height)
+            return (anchor.integral, next.integral, axis)
+        }
+        let half = ((rect.height - gap) / 2).rounded(.down)
+        // AppKit frames: the top half has the larger y.
+        let anchor = CGRect(x: rect.minX, y: rect.maxY - half, width: rect.width, height: half)
+        let next = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height - half - gap)
+        return (anchor.integral, next.integral, axis)
     }
 
     /// A free-mode frame to the right of `rect`, or to its left when the

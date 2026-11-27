@@ -169,4 +169,22 @@ final class WorkbenchToolsTests: XCTestCase {
         XCTAssertEqual(HelperContent.firstLine("a\nb\nc"), "a … (3 lines)")
         XCTAssertEqual(HelperContent.firstLine("one"), "one")
     }
+
+    func testSplitFramesHalvesWideTilesSideBySideAndTallTilesStacked() {
+        let gap = Shell.gap
+        let wide = Shell.splitFrames(CGRect(x: 100, y: 50, width: 1000, height: 600))
+        XCTAssertEqual(wide.axis, .horizontal)
+        XCTAssertEqual(wide.anchor.minX, 100)
+        XCTAssertEqual(wide.anchor.width + gap + wide.next.width, 1000)
+        XCTAssertEqual(wide.next.minX, wide.anchor.maxX + gap)
+        XCTAssertEqual(wide.next.height, 600)
+        XCTAssertEqual(wide.next.minY, 50)
+
+        let tall = Shell.splitFrames(CGRect(x: 0, y: 0, width: 600, height: 1000))
+        XCTAssertEqual(tall.axis, .vertical)
+        XCTAssertEqual(tall.anchor.maxY, 1000, "the tile keeps the top half")
+        XCTAssertEqual(tall.next.minY, 0, "the companion takes the bottom half")
+        XCTAssertEqual(tall.anchor.height + gap + tall.next.height, 1000)
+        XCTAssertEqual(tall.next.width, 600)
+    }
 }
