@@ -72,6 +72,12 @@ export const use = [
 	// reloadAssistant: building an assistant is three tool calls, with the
 	// parse check and .history/ backup the manager does on every write.
 	container.feature('assistantsManager'),
+	// remember / recall / forget / listCategories / consolidateMemory, plus
+	// auto-recall on each user message. Defaults are deliberate: the database
+	// is keyed to container.cwd, so each project keeps its own memory, and the
+	// namespace scopes itself to this assistant's name. Embeddings pick openai
+	// when a key is configured, else local, so a keyless machine still works.
+	container.feature('memory'),
 ]
 
 function isInside(root: string, target: string): boolean {
