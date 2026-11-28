@@ -430,8 +430,42 @@ struct LucaChatView: View {
     /// user turns it off unless it ends at the bottom; a new turn turns it on.
     @State private var followTail = true
     @State private var position = ScrollPosition(edge: .bottom)
+    /// A sent message stays at the top of the view while its reply grows
+    /// under it. The user's own scrolling ends that.
+    @State private var pinTurn = false
+    /// Where the newest user message and the end of its turn are, in the
+    /// scroll view's space. Only their difference counts: the turn's height.
+    @State private var anchorY: CGFloat?
+    @State private var turnEndY: CGFloat?
+    @State private var viewportHeight: CGFloat = 0
 
     private var p: KitPalette { Theme.palette }
+
+    private static let liveUserId = "live-user"
+
+    /// The newest user message: the one in flight, else the last saved one.
+    private var anchorId: String? {
+        if let live = model.transcript.live, !live.user.isEmpty { return Self.liveUserId }
+        return model.transcript.messages.last { $0.role == "user" }?.id
+    }
+
+    /// Empty room under the last turn, so its user message can scroll to the
+    /// top even while the reply is shorter than the view.
+    private var tailRoom: CGFloat {
+        // A marker the lazy stack let go of is far off screen: the turn is
+        // taller than the view, so it needs no room.
+        guard let anchorY, let turnEndY, anchorId != nil else { return 0 }
+        return max(0, viewportHeight - (turnEndY - anchorY) - KitTokens.Space.s7)
+    }
+
+    private func pinToAnchor(_ proxy: ScrollViewProxy) {
+        guard pinTurn, let id = anchorId else { return }
+        proxy.scrollTo(id, anchor: .top)
+    }
+
+    private func trackAnchor(_ id: String) -> some ViewModifier {
+        AnchorTracker(isAnchor: id == anchorId, report: { anchorY = $0 }, gone: { anchorY = nil })
+    }
 
     /// Within this many points of the end counts as "at the bottom".
     private static let tailSlack: CGFloat = 48
@@ -463,12 +497,15 @@ struct LucaChatView: View {
                                        showThinking: model.showThinking || model.expanded.contains(message.id),
                                        showToolOutput: model.showToolOutput || model.expanded.contains(message.id),
                                        selected: model.cursor == message.id)
+                                .modifier(trackAnchor(message.id))
                                 .id(message.id)
                         }
                         if let live = model.transcript.live {
                             if !live.user.isEmpty {
                                 ChatBubble(role: "user", who: "You", text: live.user, reasoning: "", tools: [], streaming: false, aborted: false,
                                            showThinking: false, showToolOutput: false, selected: false)
+                                    .modifier(trackAnchor(Self.liveUserId))
+                                    .id(Self.liveUserId)
                             }
                             ChatBubble(role: "assistant", who: model.assistant, text: live.text, reasoning: live.reasoning, tools: live.tools,
                                        streaming: true, aborted: false, showThinking: model.showThinking, showToolOutput: model.showToolOutput,
@@ -485,6 +522,10 @@ struct LucaChatView: View {
                                 BoundKey(action: "lucaChat.retry", tint: p.accent.color, withKeysView: true)
                             }
                         }
+                        Color.clear.frame(height: 1)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .scrollView).minY } action: { turnEndY = $0 }
+                            .onDisappear { turnEndY = nil }
+                        Color.clear.frame(height: tailRoom)
                         Color.clear.frame(height: 1).id("end")
                     }
                     .padding(.horizontal, KitTokens.Space.s7)
@@ -497,7 +538,10 @@ struct LucaChatView: View {
                 // changes before the new text is laid out, so a scroll then lands
                 // short of the real end while a reply streams.
                 .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, _ in
-                    if followTail { position.scrollTo(edge: .bottom) }
+                    if pinTurn { pinToAnchor(proxy) } else if followTail { position.scrollTo(edge: .bottom) }
+                }
+                .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.height } action: { _, height in
+                    viewportHeight = height
                 }
                 // Only the user's own scrolling takes control away; it gives it
                 // back when they scroll to the bottom again.
@@ -505,21 +549,30 @@ struct LucaChatView: View {
                     switch phase {
                     case .tracking, .interacting:
                         followTail = false
+                        pinTurn = false
                     case .idle, .decelerating:
-                        if !followTail { followTail = Self.atBottom(context.geometry) }
+                        if !followTail, !pinTurn { followTail = Self.atBottom(context.geometry) }
                     default:
                         break
                     }
                 }
+                // A sent message goes to the top; its reply fills in below it.
+                // The room under the turn is measured after layout, so pin
+                // again on the next turn of the run loop.
                 .onChange(of: model.transcript.busy) { _, busy in
                     if busy {
-                        followTail = true
-                        position.scrollTo(edge: .bottom)
+                        followTail = false
+                        pinTurn = true
+                        DispatchQueue.main.async { pinToAnchor(proxy) }
                     }
+                }
+                .onChange(of: tailRoom) { _, _ in
+                    if pinTurn { pinToAnchor(proxy) }
                 }
                 .onChange(of: model.cursor) { _, id in
                     if let id {
                         followTail = false
+                        pinTurn = false
                         withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
@@ -776,13 +829,7 @@ private struct ChatBubble: View {
             }
             VStack(alignment: .leading, spacing: KitTokens.Space.s5) {
                 if showThinking, !reasoning.isEmpty {
-                    Text(reasoning)
-                        .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
-                        .italic()
-                        .foregroundStyle(p.textMuted.color)
-                        .textSelection(.enabled)
-                        .padding(.leading, KitTokens.Space.s5)
-                        .overlay(alignment: .leading) { Rectangle().fill(p.info.color.opacity(0.5)).frame(width: 2) }
+                    ThinkingBox(reasoning: reasoning)
                 }
                 if showToolOutput {
                     ForEach(tools) { tool in ToolCallCard(tool: tool) }
@@ -812,6 +859,51 @@ private struct ChatBubble: View {
             .overlay(RoundedRectangle(cornerRadius: KitTokens.Radius.lg)
                 .stroke(selected ? p.accent.color.opacity(0.8) : p.border.color.opacity(role == "user" ? 0.4 : 1), lineWidth: selected ? 1.5 : 1))
         }
+    }
+}
+
+/// A message's thinking, at most `cap` points tall. Longer thinking scrolls
+/// inside the box and stays on its newest line while it streams, so a long
+/// think never pushes the reply out of the transcript.
+private struct ThinkingBox: View {
+    let reasoning: String
+    @State private var textHeight: CGFloat = 0
+
+    private static let cap: CGFloat = 220
+    private var p: KitPalette { Theme.palette }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            Text(reasoning)
+                .font(WorkbenchStyle.ui(KitTokens.TypeScale.sm))
+                .italic()
+                .foregroundStyle(p.textMuted.color)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { textHeight = $0 }
+        }
+        .defaultScrollAnchor(.bottom, for: .sizeChanges)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(height: min(max(textHeight, 1), Self.cap))
+        .padding(.leading, KitTokens.Space.s5)
+        .overlay(alignment: .leading) { Rectangle().fill(p.info.color.opacity(0.5)).frame(width: 2) }
+    }
+}
+
+/// Reports where the view's top is, in the scroll view's space, while it is
+/// the anchor of the chat's newest turn.
+private struct AnchorTracker: ViewModifier {
+    let isAnchor: Bool
+    let report: (CGFloat) -> Void
+    let gone: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .scrollView).minY } action: { y in
+                if isAnchor { report(y) }
+            }
+            .onDisappear { if isAnchor { gone() } }
     }
 }
 
