@@ -81,3 +81,4 @@ src/setup/generated-types.ts
 scripts/sync-apple-signing-secrets.sh
 scripts/lib/export-identity.swift
 design/marketing/local/luca.mjs
+.claude/launch.json
