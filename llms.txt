@@ -22,4 +22,8 @@ Key ideas:
 
 ## Optional
 
-- [Marketing site](https://luca-js.soederpop.com/): the narrative walkthrough that builds one signup app in six chapters (application, features, assistants, access, repair, binary).
+- [Story](https://luca-js.soederpop.com/): why Luca exists. Pre-built, tested components let a coding agent assemble professional software safely, with no npm or pip installs, and every project reuses the last one's parts.
+- [CLI](https://luca-js.soederpop.com/cli/): the luca binary. Coding agent, foreman for Claude Code, Codex and Hermes, and the bundler.
+- [SDK](https://luca-js.soederpop.com/sdk/): the parts catalog of 90 features, clients, and servers, grouped by category.
+- [Desktop](https://luca-js.soederpop.com/desktop/): Luca Desktop, an optional macOS workbench on top of the CLI.
+- [Browser AI](https://luca-js.soederpop.com/local/): six demos of models running in the browser on the web container.

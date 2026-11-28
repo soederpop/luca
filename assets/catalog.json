@@ -1,0 +1,632 @@
+[
+ {
+  "id": "assistant",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "core",
+  "summary": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM."
+ },
+ {
+  "id": "assistantDelegator",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Gives an assistant bounded tools for forks, named specialists, and parallel research."
+ },
+ {
+  "id": "assistantsManager",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "core",
+  "summary": "Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/."
+ },
+ {
+  "id": "browserUse",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "Browser automation feature wrapping the browser-use CLI."
+ },
+ {
+  "id": "cipherSocial",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network."
+ },
+ {
+  "id": "claudeCode",
+  "kind": "feature",
+  "category": "agent-wrappers",
+  "stability": "stable",
+  "summary": "Claude Code CLI wrapper feature."
+ },
+ {
+  "id": "claudeController",
+  "kind": "feature",
+  "category": "agent-wrappers",
+  "stability": "stable",
+  "summary": "Multi-session spawner for interactive Claude Code workers."
+ },
+ {
+  "id": "codingTools",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Shell primitives for AI coding assistants: rg, ls, cat, sed, awk."
+ },
+ {
+  "id": "containerLink",
+  "kind": "feature",
+  "category": "system",
+  "stability": "stable",
+  "summary": "ContainerLink (Node-side) — WebSocket host for remote web containers."
+ },
+ {
+  "id": "contentDb",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "core",
+  "summary": "Provides access to a Contentbase Collection for a folder of structured markdown files."
+ },
+ {
+  "id": "conversation",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management."
+ },
+ {
+  "id": "conversationHistory",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Persists conversations to disk using the diskCache feature (cacache)."
+ },
+ {
+  "id": "decisions",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Ask a local decision model (Ollama `nimble` / `tev1` over the Jev-style `/v1/systemone` endpoint) several typed questions about one piece of input in a single forward pass."
+ },
+ {
+  "id": "diskCache",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "core",
+  "summary": "File-backed key-value cache built on top of the cacache library (the same store that powers npm)."
+ },
+ {
+  "id": "dns",
+  "kind": "feature",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "The Dns feature provides structured DNS lookups by wrapping the `dig` CLI."
+ },
+ {
+  "id": "docker",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "stable",
+  "summary": "Docker CLI interface feature for managing containers, images, and executing Docker commands."
+ },
+ {
+  "id": "docsReader",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "stable",
+  "summary": "The DocsReader feature is an AI Assisted wrapper around a ContentDB feature."
+ },
+ {
+  "id": "downloader",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "stable",
+  "summary": "A feature that provides file downloading capabilities from URLs."
+ },
+ {
+  "id": "fileManager",
+  "kind": "feature",
+  "category": "filesystem",
+  "stability": "core",
+  "summary": "The FileManager feature creates a database-like, in-memory index of all of the files in the project, provides metadata about these files, and can watch for changes to them."
+ },
+ {
+  "id": "fileTools",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Curated file-system and code-search tools for AI assistants."
+ },
+ {
+  "id": "fs",
+  "kind": "feature",
+  "category": "filesystem",
+  "stability": "core",
+  "summary": "The FS feature provides methods for interacting with the file system, relative to the container's cwd."
+ },
+ {
+  "id": "git",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "core",
+  "summary": "The Git feature provides utilities for interacting with Git repositories."
+ },
+ {
+  "id": "googleAuth",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google authentication feature supporting OAuth2 browser flow and service account auth."
+ },
+ {
+  "id": "googleCalendar",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google Calendar feature for listing calendars and reading events."
+ },
+ {
+  "id": "googleDocs",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google Docs feature for reading documents and converting them to Markdown."
+ },
+ {
+  "id": "googleDrive",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google Drive feature for listing, searching, browsing, and downloading files."
+ },
+ {
+  "id": "googleMail",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google Mail feature for searching, reading, and watching Gmail messages."
+ },
+ {
+  "id": "googleSheets",
+  "kind": "feature",
+  "category": "google-workspace",
+  "stability": "stable",
+  "summary": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays."
+ },
+ {
+  "id": "grep",
+  "kind": "feature",
+  "category": "filesystem",
+  "stability": "core",
+  "summary": "The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep."
+ },
+ {
+  "id": "helpers",
+  "kind": "feature",
+  "category": "system",
+  "stability": "core",
+  "summary": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations."
+ },
+ {
+  "id": "hermesAgent",
+  "kind": "feature",
+  "category": "agent-wrappers",
+  "stability": "stable",
+  "summary": "Hermes Agent CLI wrapper feature."
+ },
+ {
+  "id": "ink",
+  "kind": "feature",
+  "category": "ui-output",
+  "stability": "stable",
+  "summary": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal."
+ },
+ {
+  "id": "internetMail",
+  "kind": "feature",
+  "category": "networking",
+  "stability": "experimental",
+  "summary": "Internet Mail Feature — standards-based email over IMAP and SMTP Any mailbox that speaks IMAP and SMTP, with host/port presets for iCloud, Gmail, Fastmail, Outlook, and Yahoo."
+ },
+ {
+  "id": "introspectionScanner",
+  "kind": "feature",
+  "category": "system",
+  "stability": "core",
+  "summary": "Scans TypeScript files for Helper classes and generates introspection data using AST analysis"
+ },
+ {
+  "id": "ipcSocket",
+  "kind": "feature",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets."
+ },
+ {
+  "id": "jsonTree",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "stable",
+  "summary": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation."
+ },
+ {
+  "id": "llamaServer",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Downloads, supervises, and health-checks local `llama-server` processes — luca's local inference substrate."
+ },
+ {
+  "id": "markdownModels",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "core",
+  "summary": "Workspace content models, next to the project's own `docs/models.ts`."
+ },
+ {
+  "id": "mcpBridge",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Bridges MCP servers (local stdio or remote Streamable HTTP) to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls."
+ },
+ {
+  "id": "memory",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Semantic memory storage and retrieval for AI agents."
+ },
+ {
+  "id": "modelProviders",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "core",
+  "summary": "Resolve model provider profiles and route requests to provider transports."
+ },
+ {
+  "id": "needle",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Downloads and supervises local `needle` servers — Cactus Compute's tiny (35MB weights, <1MB engine, ~75MB resident) foundation model for tool calling, structured extraction, and routing."
+ },
+ {
+  "id": "networking",
+  "kind": "feature",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "The Networking feature provides utilities for network-related operations."
+ },
+ {
+  "id": "nlp",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "stable",
+  "summary": "The NLP feature provides natural language processing utilities for parsing utterances into structured data."
+ },
+ {
+  "id": "openaiCodex",
+  "kind": "feature",
+  "category": "agent-wrappers",
+  "stability": "stable",
+  "summary": "OpenAI Codex CLI wrapper feature."
+ },
+ {
+  "id": "openapi",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "stable",
+  "summary": "Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions"
+ },
+ {
+  "id": "opener",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "stable",
+  "summary": "The Opener feature opens files, URLs, desktop applications, and code editors."
+ },
+ {
+  "id": "os",
+  "kind": "feature",
+  "category": "system",
+  "stability": "core",
+  "summary": "The OS feature provides access to operating system utilities and information."
+ },
+ {
+  "id": "packageFinder",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "stable",
+  "summary": "PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace."
+ },
+ {
+  "id": "postgres",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "stable",
+  "summary": "Postgres feature for safe SQL execution through Bun's native SQL client."
+ },
+ {
+  "id": "prettier",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "stable",
+  "summary": "The Prettier feature formats TypeScript, Markdown, and YAML source with prettier's standalone engine."
+ },
+ {
+  "id": "proc",
+  "kind": "feature",
+  "category": "process",
+  "stability": "core",
+  "summary": "The ChildProcess feature provides utilities for executing external processes and commands."
+ },
+ {
+  "id": "processManager",
+  "kind": "feature",
+  "category": "process",
+  "stability": "stable",
+  "summary": "Manages long-running child processes with tracking, events, and automatic cleanup."
+ },
+ {
+  "id": "python",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "stable",
+  "summary": "The Python VM feature provides Python virtual machine capabilities for executing Python code."
+ },
+ {
+  "id": "redis",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "stable",
+  "summary": "Redis feature for shared state and pub/sub communication between container instances."
+ },
+ {
+  "id": "repl",
+  "kind": "feature",
+  "category": "system",
+  "stability": "stable",
+  "summary": "REPL feature — provides an interactive read-eval-print loop with tab completion and history."
+ },
+ {
+  "id": "runpod",
+  "kind": "feature",
+  "category": "system",
+  "stability": "experimental",
+  "summary": "RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API."
+ },
+ {
+  "id": "scheduler",
+  "kind": "feature",
+  "category": "process",
+  "stability": "stable",
+  "summary": "In-process task scheduler: recurring intervals, cron expressions, and one-shot timers as named, observable, stoppable tasks — plus the daemon lifecycle (`run()`) that keeps a long-running command alive until SIGINT/SIGTERM."
+ },
+ {
+  "id": "screenCapture",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "The ScreenCapture feature takes screenshots and screen recordings on macOS."
+ },
+ {
+  "id": "secureShell",
+  "kind": "feature",
+  "category": "process",
+  "stability": "stable",
+  "summary": "SecureShell Feature -- SSH command execution and SCP file transfers."
+ },
+ {
+  "id": "semanticSearch",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "experimental",
+  "summary": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index."
+ },
+ {
+  "id": "skillsLibrary",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "stable",
+  "summary": "Manages a registry of skill locations — folders containing SKILL.md files."
+ },
+ {
+  "id": "socketRepl",
+  "kind": "feature",
+  "category": "system",
+  "stability": "stable",
+  "summary": "Socket REPL — a WebSocket-powered interactive read-eval-print loop."
+ },
+ {
+  "id": "sqlite",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "core",
+  "summary": "SQLite feature for safe SQL execution through Bun's native sqlite binding."
+ },
+ {
+  "id": "store",
+  "kind": "feature",
+  "category": "data-storage",
+  "stability": "stable",
+  "summary": "Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to \"two luca processes need to share state.\" Every `luca <command>` invocation is a separate process: a server and its `--stats` sibling, a fleet manager and its `stop` command, a watcher and a reporter — none of them share memory."
+ },
+ {
+  "id": "tailscale",
+  "kind": "feature",
+  "category": "networking",
+  "stability": "experimental",
+  "summary": "Wraps the `tailscale` CLI so the tailnet becomes typed, observable container state."
+ },
+ {
+  "id": "telegram",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "stable",
+  "summary": "Telegram bot feature powered by grammY."
+ },
+ {
+  "id": "telnyxConnector",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings."
+ },
+ {
+  "id": "tmux",
+  "kind": "feature",
+  "category": "process",
+  "stability": "stable",
+  "summary": "Tmux session manager for controlling coding assistants and long-running CLI tools."
+ },
+ {
+  "id": "transpiler",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "core",
+  "summary": "Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler."
+ },
+ {
+  "id": "tts",
+  "kind": "feature",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint."
+ },
+ {
+  "id": "typescript",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "stable",
+  "summary": "The typescript feature exposes the bundled TypeScript compiler for parsing source files and working with their ASTs — no install required, the compiler ships inside the luca binary."
+ },
+ {
+  "id": "ui",
+  "kind": "feature",
+  "category": "ui-output",
+  "stability": "core",
+  "summary": "UI Feature - Interactive Terminal User Interface Builder Unified interface for building professional CLI experiences using chalk (colors/styles), figlet (ASCII art), and inquirer (interactive prompts)."
+ },
+ {
+  "id": "vault",
+  "kind": "feature",
+  "category": "system",
+  "stability": "stable",
+  "summary": "AES-256-GCM encryption with a per-project key that persists between runs."
+ },
+ {
+  "id": "vm",
+  "kind": "feature",
+  "category": "dev-tools",
+  "stability": "core",
+  "summary": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code."
+ },
+ {
+  "id": "voiceMode",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "VoiceMode helper"
+ },
+ {
+  "id": "yaml",
+  "kind": "feature",
+  "category": "ui-output",
+  "stability": "core",
+  "summary": "The YAML feature provides utilities for parsing and stringifying YAML data."
+ },
+ {
+  "id": "yamlTree",
+  "kind": "feature",
+  "category": "content-nlp",
+  "stability": "stable",
+  "summary": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation."
+ },
+ {
+  "id": "zeroshotClassifier",
+  "kind": "feature",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Zero-shot text classifier backed by a local llama-server."
+ },
+ {
+  "id": "elevenlabs",
+  "kind": "client",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API."
+ },
+ {
+  "id": "graph",
+  "kind": "client",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "GraphQL client that wraps RestClient with convenience methods for executing queries and mutations."
+ },
+ {
+  "id": "openai",
+  "kind": "client",
+  "category": "ai-assistants",
+  "stability": "core",
+  "summary": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation."
+ },
+ {
+  "id": "rest",
+  "kind": "client",
+  "category": "networking",
+  "stability": "core",
+  "summary": "HTTP REST client built on top of axios."
+ },
+ {
+  "id": "socketio",
+  "kind": "client",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "Socket.IO client that bridges socket.io-client events to Luca's Helper event bus."
+ },
+ {
+  "id": "voicebox",
+  "kind": "client",
+  "category": "media-browser",
+  "stability": "experimental",
+  "summary": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS)."
+ },
+ {
+  "id": "websocket",
+  "kind": "client",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`)."
+ },
+ {
+  "id": "express",
+  "kind": "server",
+  "category": "networking",
+  "stability": "core",
+  "summary": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback."
+ },
+ {
+  "id": "llmProxy",
+  "kind": "server",
+  "category": "ai-assistants",
+  "stability": "experimental",
+  "summary": "Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a docker container, exposing every configured backend — local GPU boxes running OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic — behind a single OpenAI-compatible endpoint on `http://localhost:<port>/v1`."
+ },
+ {
+  "id": "mcp",
+  "kind": "server",
+  "category": "ai-assistants",
+  "stability": "core",
+  "summary": "MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code."
+ },
+ {
+  "id": "websocket",
+  "kind": "server",
+  "category": "networking",
+  "stability": "stable",
+  "summary": "WebSocket server built on the `ws` library with optional JSON message framing."
+ }
+]

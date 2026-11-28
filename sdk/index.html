@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Luca SDK: The parts catalog</title>
+<meta name="description" content="90 pre-built components for building software: servers, clients, databases, schedules, messaging, coding agents, and more. Each one carries its own instructions." />
+<link rel="canonical" href="https://luca-js.soederpop.com/sdk/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Luca" />
+<meta property="og:url" content="https://luca-js.soederpop.com/sdk/" />
+<meta property="og:title" content="Luca SDK: The parts catalog" />
+<meta property="og:description" content="90 pre-built components for building software: servers, clients, databases, schedules, messaging, coding agents, and more. Each one carries its own instructions." />
+<meta property="og:image" content="https://luca-js.soederpop.com/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Luca: Build with AI Safely." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Luca SDK: The parts catalog" />
+<meta name="twitter:description" content="90 pre-built components for building software: servers, clients, databases, schedules, messaging, coding agents, and more. Each one carries its own instructions." />
+<meta name="twitter:image" content="https://luca-js.soederpop.com/assets/og.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/site.css" />
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="logo" href="/"><i data-logo></i><span>luca</span></a>
+    <nav>
+      <a href="/">Story</a>
+      <a href="/cli/">CLI</a>
+      <a href="/sdk/" aria-current="page">SDK</a>
+      <a href="/desktop/">Desktop</a>
+      <a href="/local/">Browser AI</a>
+      <a href="https://github.com/soederpop/luca">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<section class="cover">
+  <div class="wrap">
+    <div>
+      <div class="set-tag"><span class="num">Part B</span><span>Inside the CLI</span></div>
+      <h1>The parts catalog.</h1>
+      <p class="lede">Everything in the box. Each component has a <strong>standard shape</strong>, its own <strong>instructions</strong>, and one place to find it: the container.</p>
+      <div class="box-facts">
+        <div><b>90</b>components</div>
+        <div><b>12</b>bins</div>
+        <div><b>1</b>way to reach them</div>
+      </div>
+    </div>
+    <div>
+      <span class="file-tab">glue three components together</span>
+      <pre class="code"><span class="k">const</span> db = container.feature(<span class="s">'sqlite'</span>, { path: <span class="s">'bookings.db'</span> })
+<span class="k">const</span> scheduler = container.feature(<span class="s">'scheduler'</span>)
+<span class="k">const</span> telegram = container.feature(<span class="s">'telegram'</span>)
+
+<span class="c">// every weekday at 8, text the owner today's bookings</span>
+scheduler.cron(<span class="s">'0 8 * * mon-fri'</span>, <span class="k">async</span> () => {
+  <span class="k">const</span> today = <span class="k">await</span> db.query(
+    <span class="s">'SELECT name, time FROM bookings WHERE day = date()'</span>
+  )
+  <span class="k">await</span> telegram.bot.api.sendMessage(
+    process.env.OWNER_CHAT, <span class="s">`${today.length} bookings today`</span>
+  )
+}, { name: <span class="s">'morning-digest'</span> })
+
+<span class="k">await</span> scheduler.run()</pre>
+    </div>
+  </div>
+</section>
+
+<section class="step alt">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">i</div><div><div class="step-kicker">How the parts work</div><h2>Same shape. Every time.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">Every component is made the same way. Learn one and you know how to hold all of them.</p>
+        <p>Each has options checked by a schema, observable state, and events other components can listen to. Each describes itself, so a person or an agent can ask what it does, what it needs, and how to use it.</p>
+        <p>Every one is tested, documented, security checked, and tuned before it goes in the box. Your agent builds on parts that already work, instead of code it wrote five minutes ago.</p>
+        <p>Need a part that is not in the box? Make one. Yours gets the same shape and the same standards, and goes back in the box for your next project.</p>
+      </div>
+      <div>
+        <pre class="code"><span class="c"># read the docs for any component</span>
+luca describe telegram
+luca describe sqlite.query
+
+<span class="c"># make your own component</span>
+luca scaffold feature billing --description <span class="s">"Talks to our billing system"</span></pre>
+        <div class="callout mt"><p>A few components are marked <b>experimental</b>. They work, and their shape may still change.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="filter">
+      <label for="q" class="mono">Find a component</label>
+      <input id="q" type="search" placeholder="email, websocket, cron..." autocomplete="off" />
+      <span id="shown" class="mono muted"></span>
+    </div>
+    <div id="catalog"><p class="muted mt">The catalog needs JavaScript. Run <code>luca describe features</code> for the same list.</p></div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <h2>All of it ships in one binary.</h2>
+    <p>Nothing to install from npm or pip. Get the CLI and the whole catalog comes with it.</p>
+    <div class="cmd"><code>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</code><button data-copy="curl -fsSL https://luca-js.soederpop.com/install.sh | bash">Copy</button></div>
+    <p class="mt"><a href="/local/">Some components also run in the browser &rarr;</a></p>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <span>Luca · Lightweight Universal Conversational Architecture</span>
+    <span><a href="/">Story</a> · <a href="/cli/">CLI</a> · <a href="/desktop/">Desktop</a> · <a href="/local/">Browser AI</a> · <a href="https://github.com/soederpop/luca">GitHub</a></span>
+  </div>
+</footer>
+
+<script type="module">
+import { boot, icon } from '/assets/bricks.js'
+boot()
+
+// Bin order and colours match the home page.
+const BINS = [
+  ['ai-assistants', 'Assistants & AI', 'red'],
+  ['networking', 'Networking', 'blue'],
+  ['media-browser', 'Media & messaging', 'purple'],
+  ['dev-tools', 'Dev tools', 'slate'],
+  ['system', 'System', 'grey'],
+  ['data-storage', 'Data & storage', 'yellow'],
+  ['google-workspace', 'Google Workspace', 'white'],
+  ['content-nlp', 'Markdown brains', 'pink'],
+  ['process', 'Processes & schedules', 'green'],
+  ['agent-wrappers', 'Coding agents', 'orange'],
+  ['filesystem', 'Files', 'teal'],
+  ['ui-output', 'Terminal UI', 'black'],
+]
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const SW = { red: 'var(--red)', blue: 'var(--blue)', purple: 'var(--purple)', slate: 'var(--slate)', grey: 'var(--grey)', yellow: 'var(--yellow)', white: 'var(--white-brick)', pink: 'var(--pink)', green: 'var(--green)', orange: 'var(--orange)', teal: 'var(--teal)', black: 'var(--black-brick)' }
+
+const all = await (await fetch('/assets/catalog.json')).json()
+const root = document.getElementById('catalog')
+const shown = document.getElementById('shown')
+
+function render(q = '') {
+  q = q.trim().toLowerCase()
+  let n = 0
+  root.innerHTML = BINS.map(([cat, name, color]) => {
+    const items = all.filter((b) => b.category === cat && (!q || (b.id + ' ' + b.summary + ' ' + b.kind).toLowerCase().includes(q)))
+    n += items.length
+    if (!items.length) return ''
+    return `<div class="cat-section" id="${cat}">
+      <div class="cat-head"><span class="sw" style="background:${SW[color]}"></span><h2 style="font-size:32px">${name}</h2><span class="n">${items.length} components</span></div>
+      <div class="bricks">${items.map((b) => `<div class="brick-card">${icon(color, 2, 1)}
+        <span class="id">${esc(b.id)}</span>
+        <span class="kind"><b>${esc(b.kind)}</b>${b.stability === 'experimental' ? ' · <span class="exp">experimental</span>' : ''}</span>
+        <p>${esc(b.summary)}</p></div>`).join('')}</div></div>`
+  }).join('')
+  shown.textContent = q ? `${n} of ${all.length}` : `${all.length} components`
+  if (!n) root.innerHTML = '<p class="mt muted">Nothing matches. Ask the agent: it may be a few components glued together.</p>'
+}
+render()
+document.getElementById('q').addEventListener('input', (e) => render(e.target.value))
+if (location.hash) document.querySelector(location.hash)?.scrollIntoView()
+</script>
+</body>
+</html>

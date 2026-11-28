@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Luca CLI: The only thing you need</title>
+<meta name="description" content="The luca CLI is a coding agent, a foreman for your other coding agents, and the tool that ships your project as one binary." />
+<link rel="canonical" href="https://luca-js.soederpop.com/cli/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Luca" />
+<meta property="og:url" content="https://luca-js.soederpop.com/cli/" />
+<meta property="og:title" content="Luca CLI: The only thing you need" />
+<meta property="og:description" content="The luca CLI is a coding agent, a foreman for your other coding agents, and the tool that ships your project as one binary." />
+<meta property="og:image" content="https://luca-js.soederpop.com/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Luca: Build with AI Safely." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Luca CLI: The only thing you need" />
+<meta name="twitter:description" content="The luca CLI is a coding agent, a foreman for your other coding agents, and the tool that ships your project as one binary." />
+<meta name="twitter:image" content="https://luca-js.soederpop.com/assets/og.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Archivo+Black&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/site.css" />
+<style>
+  .step { padding: 56px 0; }
+  .step-head { margin-bottom: 24px; }
+  .step-head h2 { font-size: clamp(28px, 3.6vw, 42px); }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="logo" href="/"><i data-logo></i><span>luca</span></a>
+    <nav>
+      <a href="/">Story</a>
+      <a href="/cli/" aria-current="page">CLI</a>
+      <a href="/sdk/">SDK</a>
+      <a href="/desktop/">Desktop</a>
+      <a href="/local/">Browser AI</a>
+      <a href="https://github.com/soederpop/luca">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<section class="cover">
+  <div class="wrap">
+    <div>
+      <div class="set-tag"><span class="num">Part A</span><span>You need this</span></div>
+      <h1>One binary. The whole kit.</h1>
+      <p class="lede">The <strong>luca</strong> CLI is your coding agent, the foreman for the agents you already have, and the tool that ships what you build. All 90 components live inside it.</p>
+      <div class="cmd"><code>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</code><button data-copy="curl -fsSL https://luca-js.soederpop.com/install.sh | bash">Copy</button></div>
+      <div class="box-facts">
+        <div><b>3</b>jobs: build, run, ship</div>
+        <div><b>macOS</b>and Linux</div>
+        <div><b>0</b>npm installs</div>
+      </div>
+    </div>
+    <div>
+      <span class="file-tab">luca</span>
+      <pre class="code"><span class="c"># the commands you will use most</span>
+bootstrap   <span class="c">start a new project</span>
+chat        <span class="c">talk to your project's agents</span>
+describe    <span class="c">read the docs for any component</span>
+eval        <span class="c">try code live, everything in scope</span>
+prompt      <span class="c">hand a task to Claude Code, Codex, Hermes</span>
+scaffold    <span class="c">make a new component or agent</span>
+serve       <span class="c">turn endpoints/ into an API</span>
+bundle      <span class="c">ship the project as its own binary</span></pre>
+    </div>
+  </div>
+</section>
+
+<section class="step">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">1</div><div><div class="step-kicker">Open the box</div><h2>Start a project.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">One command lays out a project the way every Luca project is laid out.</p>
+        <p>Folders for commands, API endpoints, your own components, your agents, and your docs. Your coding agent gets a guide to the whole kit, so it knows the rules before it writes a line.</p>
+      </div>
+      <div><pre class="code">luca bootstrap my-app
+cd my-app
+
+<span class="c"># what you get</span>
+commands/     <span class="c">luca &lt;name&gt; runs these</span>
+endpoints/    <span class="c">file-based API routes</span>
+features/     <span class="c">your own components</span>
+assistants/   <span class="c">your own agents</span>
+docs/         <span class="c">markdown your app can query</span></pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="step alt">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">2</div><div><div class="step-kicker">The builder</div><h2>Talk to it.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">Say what you want. The agent finds the right parts, reads their instructions, and snaps them together.</p>
+        <p>It checks its own work by running code against the real components, not by guessing. When it is unsure how a part works, it asks the part.</p>
+      </div>
+      <div><pre class="code"><span class="c"># chat with your project's agent</span>
+luca chat
+
+<span class="c"># the agent's reference, and yours</span>
+luca describe features
+luca describe scheduler
+luca describe scheduler.cron
+
+<span class="c"># try an idea before you commit to it</span>
+luca eval "container.feature('os').platform"</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="step">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">3</div><div><div class="step-kicker">The foreman</div><h2>Command your other agents.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">Already pay for Claude Code or Codex? Luca puts them to work.</p>
+        <p>Write a task as a markdown file. Send it to one agent, or send a folder of tasks to several at once and watch them side by side. Save every session to a file so you can read what happened.</p>
+      </div>
+      <div><pre class="code"><span class="c"># one task, one agent</span>
+luca prompt claude tasks/add-billing.md
+
+<span class="c"># a stack of tasks, run in parallel</span>
+luca prompt codex tasks/*.md --parallel
+
+<span class="c"># keep a record</span>
+luca prompt hermes tasks/audit.md --out-file logs/audit.md</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="step alt">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">4</div><div><div class="step-kicker">Your own agents</div><h2>Make a single-purpose agent.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">An agent is a folder with a markdown file. Scaffold one, then write who it is.</p>
+        <p>Give it tools in <code>tools.ts</code> when it needs to touch something. Give it hooks when it needs to react. Wake it with a schedule, an email, a text, or a socket message.</p>
+      </div>
+      <div><pre class="code">luca scaffold assistant front-desk
+
+assistants/front-desk/
+  CORE.md     <span class="c">who it is, what it does</span>
+  tools.ts    <span class="c">what it can touch</span>
+  hooks.ts    <span class="c">what it reacts to</span>
+
+luca chat front-desk</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="step">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">5</div><div><div class="step-kicker">Run it</div><h2>Serve it.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big">Every file in <code>endpoints/</code> becomes a route. One command serves them, with your static site beside them.</p>
+        <p>Add a WebSocket server, an MCP server, or an IPC socket from the same box when other programs or other agents need a way in.</p>
+      </div>
+      <div><pre class="code">luca serve --port 3000
+
+<span class="c"># expose this project to other AI agents</span>
+luca mcp</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="step alt">
+  <div class="wrap">
+    <div class="step-head"><div class="step-no">6</div><div><div class="step-kicker">Ship it</div><h2>One binary in. One binary out.</h2></div></div>
+    <div class="step-body">
+      <div>
+        <p class="big"><code>luca bundle</code> compiles your commands, endpoints, components, and agents into one file.</p>
+        <p>Build for macOS and Linux. The people who run it do not install Luca, Bun, or node_modules. They bring their own model provider and keys.</p>
+      </div>
+      <div><pre class="code">luca bundle my-app --targets darwin-arm64,linux-x64
+
+./dist/my-app-darwin-arm64 &lt;your command&gt;</pre></div>
+    </div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <h2>Install the kit.</h2>
+    <p>Want to see it all in one window? <a href="/desktop/">Luca Desktop</a> is a visual workbench on top of the CLI.</p>
+    <div class="cmd"><code>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</code><button data-copy="curl -fsSL https://luca-js.soederpop.com/install.sh | bash">Copy</button></div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap">
+    <span>Luca · Lightweight Universal Conversational Architecture</span>
+    <span><a href="/">Story</a> · <a href="/sdk/">SDK</a> · <a href="/desktop/">Desktop</a> · <a href="/local/">Browser AI</a> · <a href="https://github.com/soederpop/luca">GitHub</a></span>
+  </div>
+</footer>
+
+<script type="module">
+import { boot } from '/assets/bricks.js'
+boot()
+</script>
+</body>
+</html>

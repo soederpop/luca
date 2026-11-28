@@ -2,8 +2,17 @@
 // web container from here, mounts the header + download progress strip, and
 // gets a live "container inspector" that mirrors feature state and events.
 import container from './luca.mjs'
+import { logo } from '../assets/bricks.js'
 
 export { container }
+
+// The same top bar as every other page on the site, so the demos feel like part of it.
+export const SITE_BAR = `<div class="in">
+  <a class="logo" href="../">${logo}<span>luca</span></a>
+  <nav>
+    <a href="../">Story</a><a href="../cli/">CLI</a><a href="../sdk/">SDK</a><a href="../desktop/">Desktop</a>
+    <a href="./" aria-current="page">Browser AI</a><a href="https://github.com/soederpop/luca">GitHub</a>
+  </nav></div>`
 window.luca = container
 
 const PAGES = [
@@ -35,10 +44,13 @@ const fmtValue = (v) => {
  */
 export function mount({ features = [], inspectorNote } = {}) {
   const here = location.pathname.split('/').pop() || 'index.html'
-  const header = document.createElement('header')
+  const siteBar = document.createElement('header')
+  siteBar.className = 'sitebar'
+  siteBar.innerHTML = SITE_BAR
+  const header = document.createElement('div')
   header.className = 'top'
   header.innerHTML = `
-    <div class="brand"><a href="../">Luca</a><span class="slash">/</span><a href="./" class="section">local</a></div>
+    <div class="brand"><a href="./">Browser AI</a><span class="slash">/</span><span class="section">${(PAGES.find(([h]) => h === here) || PAGES[0])[1]}</span></div>
     <nav class="nav">${PAGES.map(([href, label]) => `<a href="${href}" ${href === here ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
     <span class="badge ${webgpu ? 'ok' : 'no'}" title="${webgpu ? 'navigator.gpu is present' : 'No navigator.gpu; models run on WASM'}"><span class="dot"></span>${webgpu ? 'WebGPU' : 'WASM only'}</span>`
   const progress = document.createElement('div')
@@ -46,7 +58,7 @@ export function mount({ features = [], inspectorNote } = {}) {
   progress.innerHTML = '<div class="fill"></div>'
   const progressLabel = document.createElement('div')
   progressLabel.className = 'progress-label'
-  document.body.prepend(header, progress, progressLabel)
+  document.body.prepend(siteBar, header, progress, progressLabel)
 
   // One transformers loader is shared by every feature; its state is the download strip.
   const transformers = container.feature('transformers')
