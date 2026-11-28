@@ -119,6 +119,12 @@ enum PortfolioProject {
     static var newChat: TileURI {
         TileURI.luca(project: id, tool: "chat", id: "new", options: [TileURI.Option(name: "assistant", value: assistant)])
     }
+
+    /// The first-time-user guide. It runs here so a new user needs no project:
+    /// it checks the Mac for a model and helps install and sign in to one.
+    static var firstTimeUser: TileURI {
+        TileURI.luca(project: id, tool: "chat", id: "new", options: [TileURI.Option(name: "assistant", value: "guide:first-time-user")])
+    }
 }
 
 /// lucaPortfolio's copies to review: the `review` event of the portfolio

@@ -1,0 +1,259 @@
+# The first-time-user guide: get a new user to a working model.
+#
+# Open it in Luca Desktop with `:first-time-user` (it runs in the portfolio
+# project, so it needs no project of its own). The `ai-check` and
+# `ai-use-best` tasks are host code in src/workbench/first-run.ts; installs and
+# sign-ins run in terminal tiles from TerminalContent.startCommands.
+# Format: apps/desktop/docs/writing-guides.md.
+
+id: first-time-user
+title: Set up Luca
+description: Checks this Mac for Claude Code, Codex, API keys and model servers, and helps you get one working. Scripted, no model.
+start: welcome
+
+nodes:
+  welcome:
+    say: |
+      Welcome to Luca. Assistants in Luca need a model to talk to. I'll check what this Mac already has.
+    card:
+      title: Welcome to Luca
+      body: |
+        Luca's assistants need a way to reach a model. The best ways, in order:
+
+        - **Claude Code**, signed in with your Claude account
+        - **Codex**, signed in with your ChatGPT account
+        - an **OpenAI** or **Anthropic** API key
+        - a model server you already run, like **LM Studio** or **Ollama**
+        - a small **local model** on this Mac (last resort)
+    next: looking
+
+  looking:
+    say: Looking at this Mac…
+    next: check
+
+  check:
+    task: ai-check
+    say: |
+      Here is what I found:
+
+      {{found}}
+    when:
+      - if: defaultProvider
+        next: has-default
+      - if: aiReady
+        next: pick
+    next: choose
+
+  has-default:
+    say: Luca is ready. Assistants use **{{defaultProvider}}** when they name no provider.
+    card:
+      kicker: Ready
+      title: You're set up
+      body: |
+        {{found}}
+
+        Luca uses **{{defaultProvider}}** by default. You can change it in the AI tile (`Space a`) of any project.
+    ask:
+      prompt: Anything else?
+      choices:
+        - label: I'm done
+          match: [done, finish, ok, good]
+          next: finish
+        - label: Set up Claude Code too
+          if: "!claudeLoggedIn"
+          match: [claude]
+          next: claude
+        - label: Set up Codex too
+          if: "!codexLoggedIn"
+          match: [codex, chatgpt]
+          next: codex
+        - label: Check again
+          match: [check, again, rescan]
+          next: looking
+
+  pick:
+    task: ai-use-best
+    when:
+      - if: "!chosen"
+        next: choose
+    say: Luca will use {{chosenText}}
+    next: finish
+
+  choose:
+    say: There's no way to reach a model on this Mac yet. Pick one and I'll walk you through it.
+    card:
+      kicker: Get a model
+      title: No AI found yet
+      body: |
+        {{found}}
+
+        **Claude Code** or **Codex** is the easiest: install it, sign in with the account you already have, and Luca uses it.
+
+        Have an API key instead? Add `export OPENAI_API_KEY=…` (or `ANTHROPIC_API_KEY`) to your `~/.zshrc`, quit and reopen Luca Desktop, then check again.
+    ask:
+      prompt: What would you like to do?
+      choices:
+        - label: Install Claude Code
+          if: "!claudeInstalled"
+          match: [claude, anthropic]
+          next: claude
+        - label: Sign in to Claude Code
+          if: claudeInstalled
+          match: [claude, anthropic]
+          next: claude
+        - label: Install Codex
+          if: "!codexInstalled"
+          match: [codex, chatgpt, openai]
+          next: codex
+        - label: Sign in to Codex
+          if: codexInstalled
+          match: [codex, chatgpt, openai]
+          next: codex
+        - label: Use LM Studio
+          if: lmstudioApp
+          match: [lm, studio, lmstudio]
+          next: lmstudio
+        - label: Download a local model (slow)
+          match: [local, download, offline]
+          next: local
+        - label: Check again
+          match: [check, again, rescan]
+          next: looking
+        - label: Skip for now
+          match: [skip, later, no]
+          next: skip
+
+  claude:
+    say: |
+      Press **Open the terminal**. It installs Claude Code if it isn't there, then signs you in: your browser opens, you approve, and the terminal says you're logged in.
+
+      Come back here when it's done.
+    card:
+      kicker: Claude Code
+      title: Install and sign in
+      body: |
+        The terminal runs the official installer, then the sign-in:
+
+        ```
+        curl -fsSL https://claude.ai/install.sh | bash
+        claude auth login
+        ```
+
+        Use a Claude Pro or Max account, or an Anthropic Console account.
+    actions:
+      - label: Open the terminal
+        open: terminal/claude?run=claude
+    ask:
+      prompt: Signed in?
+      choices:
+        - label: Done, check again
+          match: [done, check, again, yes, signed]
+          next: looking
+        - label: Pick something else
+          match: [else, other, different]
+          next: choose
+
+  codex:
+    say: |
+      Press **Open the terminal**. It installs Codex if it isn't there (with Homebrew or npm), then signs you in with your ChatGPT account in the browser.
+
+      Come back here when it's done.
+    card:
+      kicker: Codex
+      title: Install and sign in
+      body: |
+        The terminal installs Codex with Homebrew, or npm when there's no Homebrew, then signs in:
+
+        ```
+        brew install --cask codex
+        codex login
+        ```
+
+        Use a ChatGPT Plus or Pro account, or an OpenAI API key.
+    actions:
+      - label: Open the terminal
+        open: terminal/codex?run=codex
+    ask:
+      prompt: Signed in?
+      choices:
+        - label: Done, check again
+          match: [done, check, again, yes, signed]
+          next: looking
+        - label: Pick something else
+          match: [else, other, different]
+          next: choose
+
+  lmstudio:
+    say: LM Studio is installed but its server isn't running. Start it, then check again.
+    card:
+      kicker: LM Studio
+      title: Start the LM Studio server
+      body: |
+        - Open **LM Studio** and download a model if you have none.
+        - Load the model.
+        - In the **Developer** tab, turn on **Start server** (port 1234).
+
+        Then check again. Luca finds it and makes it the default.
+    ask:
+      prompt: Is the server running?
+      choices:
+        - label: Done, check again
+          match: [done, check, again, yes, running]
+          next: looking
+        - label: Pick something else
+          match: [else, other, different]
+          next: choose
+
+  local:
+    say: |
+      This downloads llama-server and a small chat model, a few GB. It runs on this Mac with no account, but it is slower and much less capable than the others, so tool use and long tasks may not work well.
+    card:
+      kicker: Local model
+      title: Download a local model
+      body: |
+        The terminal runs:
+
+        ```
+        luca setup --chat-model
+        ```
+
+        Good for trying Luca offline. For real work, Claude Code or Codex is a lot better.
+    actions:
+      - label: Open the terminal
+        open: terminal/local-model?run=chat-model
+    ask:
+      prompt: Downloaded?
+      choices:
+        - label: Done, check again
+          match: [done, check, again, yes]
+          next: looking
+        - label: Pick something else
+          match: [else, other, different]
+          next: choose
+
+  skip:
+    say: |
+      That's fine. You have the `luca` CLI already, and everything that needs no model works now. Come back with `:first-time-user` when you have Claude Code, Codex, a key or a model server.
+    next: finish
+
+  finish:
+    say: |
+      To learn Luca:
+
+      - the website: https://luca-js.soederpop.com
+      - the source and docs: https://github.com/soederpop/luca
+      - in a terminal, `luca describe features` lists what's built in
+    card:
+      kicker: Next
+      title: Learn Luca
+      body: |
+        - **luca-js.soederpop.com**, the website
+        - **github.com/soederpop/luca**, the source and docs
+        - `luca describe features` in a terminal lists what's built in
+        - `:guide` in Luca Desktop is a guided tour
+    actions:
+      - label: Open the website
+        open: page/https://luca-js.soederpop.com
+      - label: Open the repo
+        open: page/https://github.com/soederpop/luca
+    end: true

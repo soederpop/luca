@@ -13,6 +13,7 @@ import { project, registryNames, registryStacks, allRegistryStacks, helperView, 
 import { ConsoleSessions } from './console.js'
 import { ServerControl } from './servers.js'
 import { AiEnvironment } from './ai.js'
+import { FirstRun } from './first-run.js'
 import { CommandRuns, buildArgs } from './runs.js'
 import { OriginIndex } from './origins.js'
 import { planCopy, planBorrow, planUnborrow, applyPlan } from './borrow.js'
@@ -187,6 +188,8 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	// Guides: scripted chats with no model. They look like assistants named `guide:<id>`.
 	const guides = new Guides(container, (frame) => broadcast(frame))
 	guides.attach(canvases)
+	// The first-time-user guide checks this Mac for a way to reach a model and picks the default.
+	for (const [name, task] of Object.entries(new FirstRun(container, ai).tasks())) guides.tasks.set(name, task)
 	chats.extraAssistants = (firstSlot) => guides.entries(firstSlot)
 	// The assistant editor: one assistant's folder for the editor tile, and the brief and tools of a chat about an assistant.
 	const editor = new AssistantEditor(container, {

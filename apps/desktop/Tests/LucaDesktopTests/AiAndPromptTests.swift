@@ -91,4 +91,22 @@ final class SetupTerminalTests: XCTestCase {
     func testOnlyNamedCommandsRun() {
         XCTAssertNil(TerminalContent.startCommands["rm -rf ~"])
     }
+
+    func testFirstTimeUserTerminalsInstallThenSignIn() {
+        let claude = TerminalContent.startCommands["claude"] ?? ""
+        XCTAssertTrue(claude.contains("https://claude.ai/install.sh"))
+        XCTAssertTrue(claude.contains("claude auth login"))
+        let codex = TerminalContent.startCommands["codex"] ?? ""
+        XCTAssertTrue(codex.contains("brew install --cask codex"))
+        XCTAssertTrue(codex.contains("npm install -g @openai/codex"))
+        XCTAssertTrue(codex.contains("codex login"))
+        XCTAssertEqual(TerminalContent.startCommands["chat-model"], "luca setup --chat-model")
+    }
+
+    func testFirstTimeUserRunsTheGuideOnThePortfolioHost() {
+        let uri = PortfolioProject.firstTimeUser
+        XCTAssertEqual(uri.authority, PortfolioProject.id)
+        XCTAssertEqual(uri.kindKey, "luca-chat")
+        XCTAssertEqual(uri.option("assistant"), "guide:first-time-user")
+    }
 }

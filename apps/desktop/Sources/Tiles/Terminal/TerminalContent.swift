@@ -29,8 +29,14 @@ final class TerminalContent: TileContent, LocalProcessTerminalViewDelegate {
 
     let projectId: String
 
+    /// The first-time-user guide opens `claude`, `codex` and `chat-model`:
+    /// install if missing, then sign in. A CLI the installer just wrote may
+    /// not be on this shell's PATH yet, so they try its usual place too.
     static let startCommands: [String: String] = [
         "setup": "luca setup",
+        "claude": #"command -v claude >/dev/null || [ -x ~/.local/bin/claude ] || curl -fsSL https://claude.ai/install.sh | bash; export PATH="$HOME/.local/bin:$PATH"; claude auth login && claude auth status --text"#,
+        "codex": #"command -v codex >/dev/null || { if command -v brew >/dev/null; then brew install --cask codex; elif command -v npm >/dev/null; then npm install -g @openai/codex; else echo "Codex needs Homebrew (https://brew.sh) or Node (https://nodejs.org). Install one, then try again."; fi; }; command -v codex >/dev/null && codex login && codex login status"#,
+        "chat-model": "luca setup --chat-model",
     ]
 
     /// A terminal of its own (id `setup`) that runs `luca setup`.

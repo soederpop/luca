@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, realpathSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { validateGuide, matchChoice, command, fill, guideIdOf, guideFolders, askText, pieces, guideCanvasSetup } from '../src/workbench/guide'
+import { validateGuide, matchChoice, command, fill, guideIdOf, guideFolders, askText, pieces, guideCanvasSetup, holds, visibleChoices } from '../src/workbench/guide'
+import { findBinary, pickDefault } from '../src/workbench/first-run'
 
 const LUCA_ROOT = join(import.meta.dir, '..')
 const CLI = join(LUCA_ROOT, 'src/cli/cli.ts')
@@ -50,6 +51,45 @@ nodes:
     end: true
 `
 
+const BRANCHY = `id: branchy
+title: Branchy
+start: probe
+nodes:
+  probe:
+    task: no-such-task
+    say: Probing.
+    when:
+      - if: taskError
+        next: failed
+    next: never
+  never:
+    say: Should not get here.
+    end: true
+  failed:
+    say: "The task failed: {{taskError}}."
+    ask:
+      prompt: Pick
+      choices:
+        - label: Hidden one
+          if: "!taskError"
+          next: never
+        - label: Shown one
+          if: taskError
+          next: fork
+          set: { mode: fast }
+  fork:
+    when:
+      - if: mode=fast
+        next: fast
+    next: slow
+  fast:
+    say: Went fast.
+    end: true
+  slow:
+    say: Went slow.
+    end: true
+`
+
 const STUB_CLI = `export async function main(container: any) {
   const providers = container.feature('modelProviders')
   providers.registerLocal('stub', 'http://127.0.0.1:9/v1', 'stub-model')
@@ -64,6 +104,8 @@ function makeProject(): string {
 	writeFileSync(join(dir, 'assistants', 'helper', 'CORE.md'), '---\nprovider: stub\nmodel: stub-model\n---\n\nYou help.\n')
 	mkdirSync(join(dir, 'guides'), { recursive: true })
 	writeFileSync(join(dir, 'guides', 'tour.yml'), TOUR)
+	writeFileSync(join(dir, 'guides', 'branchy.yml'), BRANCHY)
+	writeFileSync(join(dir, 'guides', 'first-time-user.yml'), readFileSync(join(LUCA_ROOT, 'apps/desktop/assistants/lucaArchitect/guides/first-time-user.yml'), 'utf8'))
 	writeFileSync(join(dir, 'guides', 'broken.yml'), 'id: broken\ntitle: Broken\nstart: nowhere\nnodes: {}\n')
 	writeFileSync(join(dir, 'luca.cli.ts'), STUB_CLI)
 	return dir
@@ -88,7 +130,8 @@ async function readFirstLine(proc: Proc, timeoutMs = 60000): Promise<string> {
 }
 
 async function start(cwd: string): Promise<Running> {
-	const env = { ...process.env, XDG_CACHE_HOME: cacheHome, LUCA_GUIDE_DELAY_MS: '0', LUCA_WORKBENCH_GUIDES: '' }
+	// LUCA_HOME in scratch: the first-time-user guide may write ~/.luca/model-providers.yml.
+	const env = { ...process.env, XDG_CACHE_HOME: cacheHome, LUCA_HOME: join(cacheHome, 'luca-home'), LUCA_GUIDE_DELAY_MS: '0', LUCA_WORKBENCH_GUIDES: '' }
 	delete (env as any).LUCA_PLUGINS
 	const proc = Bun.spawn(['bun', 'run', CLI, 'workbench'], { cwd, stdin: 'pipe', stdout: 'pipe', stderr: 'inherit', env })
 	const info = JSON.parse(await readFirstLine(proc))
@@ -203,6 +246,76 @@ describe('guide helpers', () => {
 		}
 		walk(guide.start)
 		expect([...seen].sort()).toEqual(Object.keys(guide.nodes).sort())
+	})
+
+	it('checks conditions on variables', () => {
+		const vars = { a: true, b: false, n: 0, s: 'x', empty: '', f: 'false' }
+		expect(holds('a', vars)).toBe(true)
+		expect(holds('b', vars)).toBe(false)
+		expect(holds('!b', vars)).toBe(true)
+		expect(holds('n', vars)).toBe(false)
+		expect(holds('empty', vars)).toBe(false)
+		expect(holds('f', vars)).toBe(false)
+		expect(holds('missing', vars)).toBe(false)
+		expect(holds('!missing', vars)).toBe(true)
+		expect(holds('s=x', vars)).toBe(true)
+		expect(holds('s!=x', vars)).toBe(false)
+		expect(holds('missing=', vars)).toBe(true)
+		expect(holds(undefined, vars)).toBe(true)
+	})
+
+	it('hides choices whose condition fails, and numbers what is left', () => {
+		const guide = validateGuide(parseYaml(BRANCHY))
+		const ask = guide.nodes.failed!.ask!
+		expect(visibleChoices(ask, { taskError: 'boom' }).map((c) => c.label)).toEqual(['Shown one'])
+		expect(askText(ask, { taskError: 'boom' })).toBe('Pick\n1. Shown one')
+		expect(visibleChoices(ask, {}).map((c) => c.label)).toEqual(['Hidden one'])
+	})
+
+	it('checks that every when names a node', () => {
+		expect(() => validateGuide({ id: 'w', title: 'W', start: 'a', nodes: { a: { when: [{ if: 'x', next: 'gone' }], end: true } } })).toThrow('a.when[0].next names no node: gone')
+	})
+
+	it('ships a first-time-user guide that validates and reaches every node', () => {
+		const file = join(LUCA_ROOT, 'apps/desktop/assistants/lucaArchitect/guides/first-time-user.yml')
+		const guide = validateGuide(parseYaml(readFileSync(file, 'utf8')))
+		expect(guide.id).toBe('first-time-user')
+		expect(guide.nodes.check!.task).toBe('ai-check')
+		expect(guide.nodes.pick!.task).toBe('ai-use-best')
+		const seen = new Set<string>()
+		const walk = (id: string) => {
+			if (seen.has(id)) return
+			seen.add(id)
+			const n = guide.nodes[id]!
+			if (n.next) walk(n.next)
+			for (const w of n.when) walk(w.next)
+			for (const c of n.ask?.choices ?? []) walk(c.next)
+			if (n.ask?.free) walk(n.ask.free.next)
+		}
+		walk(guide.start)
+		expect([...seen].sort()).toEqual(Object.keys(guide.nodes).sort())
+		// Every terminal it opens is one the app's whitelist knows.
+		const runs = Object.values(guide.nodes).flatMap((n) => n.actions).map((a) => /[?&]run=([\w-]+)/.exec(a.open)?.[1]).filter(Boolean)
+		expect(runs.sort()).toEqual(['chat-model', 'claude', 'codex'])
+		const swift = readFileSync(join(LUCA_ROOT, 'apps/desktop/Sources/Tiles/Terminal/TerminalContent.swift'), 'utf8')
+		for (const r of runs) expect(swift).toContain(`"${r}":`)
+	})
+
+	it('finds a CLI on PATH, then where installers put it', () => {
+		const have = new Set(['/home/u/.local/bin/claude', '/usr/bin/codex'])
+		expect(findBinary('codex', '/usr/bin:/bin', '/home/u', (p) => have.has(p))).toBe('/usr/bin/codex')
+		expect(findBinary('claude', '/usr/bin:/bin', '/home/u', (p) => have.has(p))).toBe('/home/u/.local/bin/claude')
+		expect(findBinary('hermes', '/usr/bin', '/home/u', (p) => have.has(p))).toBeNull()
+	})
+
+	it('picks the default: coding agents, then keys, then a server, then local', () => {
+		expect(pickDefault({ claudeLoggedIn: true, codexLoggedIn: true, openaiKey: true })).toBe('claude-code')
+		expect(pickDefault({ codexLoggedIn: true, openaiKey: true })).toBe('codex')
+		expect(pickDefault({ openaiKey: true, anthropicKey: true })).toBe('openai')
+		expect(pickDefault({ anthropicKey: true, serverProvider: 'lmstudio-1234' })).toBe('anthropic')
+		expect(pickDefault({ serverProvider: 'lmstudio-1234', localReady: true })).toBe('lmstudio-1234')
+		expect(pickDefault({ localReady: true })).toBe('local')
+		expect(pickDefault({})).toBeNull()
 	})
 
 	it('builds a card renderer that is plain JavaScript', () => {
@@ -329,6 +442,36 @@ describe('workbench guides', () => {
 		expect(list.find((f) => f.type === 'chat-done').text).toContain('Farewell, Ada.')
 		ws.close()
 	})
+
+	it('runs tasks, branches on when, and hides choices by if', async () => {
+		const { ws, list } = await frames(wb)
+		const opened = await (await api(wb).post('/chat/open', { assistant: 'guide:branchy', conversationId: 'new' })).json()
+		await until(() => list.some((f) => f.type === 'chat-done' && f.conversationId === opened.conversationId))
+		const first = list.find((f) => f.type === 'chat-done' && f.conversationId === opened.conversationId)
+		expect(first.text).toContain('the host does not have: no-such-task')
+		expect(first.text).toContain('The task failed: no task no-such-task.')
+		expect(first.text).toContain('1. Shown one')
+		expect(first.text).not.toContain('Hidden one')
+		expect(first.text).not.toContain('Should not get here')
+		list.length = 0
+		await api(wb).post('/chat/send', { assistant: 'guide:branchy', conversationId: opened.conversationId, text: '1' })
+		await until(() => list.some((f) => f.type === 'chat-done'))
+		expect(list.find((f) => f.type === 'chat-done').text).toBe('Went fast.')
+		ws.close()
+	})
+
+	it('checks this machine for AI in the first-time-user guide', async () => {
+		const { ws, list } = await frames(wb)
+		const opened = await (await api(wb).post('/chat/open', { assistant: 'guide:first-time-user', conversationId: 'new' })).json()
+		expect(opened.ok).toBe(true)
+		await until(() => list.some((f) => f.type === 'chat-done' && f.conversationId === opened.conversationId), 40_000)
+		const done = list.find((f) => f.type === 'chat-done' && f.conversationId === opened.conversationId)
+		expect(done.text).toContain('Here is what I found')
+		expect(done.text).toContain('**Claude Code**')
+		expect(done.text).toContain('**Model server**')
+		expect(done.text).not.toContain('failed:')
+		ws.close()
+	}, 60_000)
 
 	it('has no model to change, exports, and deletes', async () => {
 		const settings = await (await api(wb).post('/chat/settings', { assistant: 'guide:tour', conversationId, provider: 'stub' })).json()

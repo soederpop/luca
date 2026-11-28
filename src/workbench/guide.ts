@@ -27,6 +27,7 @@ const choiceSchema = z.object({
 	label: z.string().min(1).describe('What the button says, and what the chat shows as the answer'),
 	match: z.array(z.string()).optional().describe('Words or /regexes/ that pick this choice when typed. The label and its number always do.'),
 	next: z.string().min(1).describe('The node to go to'),
+	if: z.string().optional().describe('Show this choice only when the condition holds: `name`, `!name`, `name=value` or `name!=value`'),
 	set: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional().describe('Variables to set, for {{name}} in later text'),
 })
 
@@ -43,9 +44,16 @@ const askSchema = z.object({
 const actionSchema = z.object({
 	label: z.string().min(1),
 	open: z.string().min(1).describe('A tile address, `luca://{{project}}/console` or a bare tool path like `console`, `chat/new?assistant=lucaArchitect`'),
+	if: z.string().optional().describe('Show this button only when the condition holds'),
+})
+
+const whenSchema = z.object({
+	if: z.string().min(1).describe('`name`, `!name`, `name=value` or `name!=value`, against the variables'),
+	next: z.string().min(1).describe('The node to go to when it holds'),
 })
 
 const nodeSchema = z.object({
+	task: z.string().optional().describe('A host task to run first. It sets variables (a check of the machine, a config write). Only tasks the host registers run.'),
 	say: z.string().default('').describe('Markdown, streamed into the chat'),
 	card: z.object({
 		title: z.string().optional(),
@@ -55,6 +63,7 @@ const nodeSchema = z.object({
 	canvas: z.string().optional().describe('JavaScript to run in the canvas page after the card is drawn (custom visuals)'),
 	actions: z.array(actionSchema).default([]).describe('Buttons on the card that open tiles'),
 	ask: askSchema.optional(),
+	when: z.array(whenSchema).default([]).describe('Checked after `say`: the first that holds goes to its node in the same turn. None holds: the node asks, goes on or ends as usual.'),
 	next: z.string().optional().describe('Go on to this node in the same turn'),
 	end: z.boolean().default(false),
 })
@@ -92,6 +101,7 @@ export function validateGuide(raw: unknown): Guide {
 	if (!has(guide.start)) problems.push(`start names no node: ${guide.start}`)
 	for (const [id, node] of Object.entries(guide.nodes)) {
 		if (node.next && !has(node.next)) problems.push(`${id}.next names no node: ${node.next}`)
+		for (const [i, w] of node.when.entries()) if (!has(w.next)) problems.push(`${id}.when[${i}].next names no node: ${w.next}`)
 		for (const [i, c] of (node.ask?.choices ?? []).entries()) if (!has(c.next)) problems.push(`${id}.ask.choices[${i}].next names no node: ${c.next}`)
 		if (node.ask?.free && !has(node.ask.free.next)) problems.push(`${id}.ask.free.next names no node: ${node.ask.free.next}`)
 		if (node.ask && node.next) problems.push(`${id} both asks and has next: pick one`)
@@ -101,6 +111,33 @@ export function validateGuide(raw: unknown): Guide {
 	if (problems.length) throw new Error(`guide ${guide.id}: ${problems.join('; ')}`)
 	return guide
 }
+
+/**
+ * Whether a condition holds: `name` (truthy), `!name` (falsy), `name=value`,
+ * `name!=value`. Values compare as strings; `false`, `0`, `''` and a missing
+ * name are falsy. Pure.
+ */
+export function holds(condition: string | undefined, vars: Record<string, unknown>): boolean {
+	const c = String(condition ?? '').trim()
+	if (!c) return true
+	const cmp = /^([\w.-]+)\s*(!?=)\s*(.*)$/.exec(c)
+	if (cmp) {
+		const same = String(vars[cmp[1]!] ?? '') === cmp[3]!.trim()
+		return cmp[2] === '=' ? same : !same
+	}
+	const neg = c.startsWith('!')
+	const v = vars[neg ? c.slice(1).trim() : c]
+	const truthy = !(v == null || v === false || v === 0 || v === '' || v === 'false' || v === '0')
+	return neg ? !truthy : truthy
+}
+
+/** The choices of an ask whose `if` holds, in order. Pure. */
+export function visibleChoices(ask: NonNullable<GuideNode['ask']>, vars: Record<string, unknown>): GuideChoice[] {
+	return ask.choices.filter((c) => holds(c.if, vars))
+}
+
+/** A host task: gets the guide's variables, returns variables to set. */
+export type GuideTask = (vars: Record<string, unknown>) => Promise<Record<string, unknown>> | Record<string, unknown>
 
 /** `{{name}}` → vars.name; unknown names stay as typed. Pure. */
 export function fill(text: string, vars: Record<string, unknown>): string {
@@ -157,8 +194,8 @@ export function command(text: string): 'restart' | 'back' | 'help' | null {
 export function askText(ask: NonNullable<GuideNode['ask']>, vars: Record<string, unknown>): string {
 	const lines: string[] = []
 	if (ask.prompt) lines.push(fill(ask.prompt, vars))
-	ask.choices.forEach((c, i) => lines.push(`${i + 1}. ${fill(c.label, vars)}`))
-	if (ask.free && !ask.choices.length && !ask.prompt) lines.push('_(type your answer)_')
+	visibleChoices(ask, vars).forEach((c, i) => lines.push(`${i + 1}. ${fill(c.label, vars)}`))
+	if (ask.free && !visibleChoices(ask, vars).length && !ask.prompt) lines.push('_(type your answer)_')
 	return lines.join('\n')
 }
 
@@ -349,6 +386,8 @@ return true
 export class Guides {
 	private sessions = new Map<string, Session>()
 	private delayMs: number
+	/** Host code a node's `task` names. Nothing else runs: a guide file cannot name a shell command. */
+	tasks = new Map<string, GuideTask>()
 	/** Draws on canvases; set by the host. */
 	canvases?: {
 		create(input: { id?: string; title?: string; open?: boolean }): { status: number; body: any }
@@ -567,7 +606,7 @@ export class Guides {
 		if (data && typeof data.open === 'string') return // Only the app opens tiles; a browser page cannot.
 		const node = guide.nodes[s.state.node]
 		const i = Number(data?.choice)
-		const choice = node?.ask?.choices[i]
+		const choice = node?.ask ? visibleChoices(node.ask, this.vars(s, guide))[i] : undefined
 		if (choice) this.answer(s, guide, fill(choice.label, this.vars(s, guide)))
 	}
 
@@ -590,9 +629,10 @@ export class Guides {
 			const lines = node.ask ? [`You can pick one of these, or type **back** or **start over**.`, '', askText(node.ask, vars)] : [`This is the end of the guide. Type **start over** to go through it again, or **back** for the last question.`]
 			return this.say(s, guide, text, lines.join('\n'), node)
 		}
-		const i = matchChoice(text, node.ask.choices)
+		const shown = visibleChoices(node.ask, vars)
+		const i = matchChoice(text, shown)
 		if (i !== null) {
-			const choice = node.ask.choices[i]!
+			const choice = shown[i]!
 			if (choice.set) s.state.vars = { ...s.state.vars, ...choice.set }
 			return this.play(s, guide, text, choice.next, { pushTrail: true })
 		}
@@ -627,20 +667,47 @@ export class Guides {
 				const node: GuideNode | undefined = guide.nodes[id]
 				if (!node) { await emit(`\n\n_(the guide names a node that does not exist: ${id})_`); break }
 				s.state.node = id
-				s.state.ended = !!node.end
+				if (node.task) await this.runTask(s, guide, node.task, emit)
 				const vars = this.vars(s, guide)
+				// A `when` that holds moves on at once: no ask, no card, the next node draws.
+				const branch: { next: string } | undefined = node.when.find((w) => holds(w.if, vars))
+				s.state.ended = !branch && !!node.end
 				let text = fill(node.say, vars)
-				if (node.ask) text += (text ? '\n\n' : '') + askText(node.ask, vars)
-				if (node.end && node.actions.length) text += (text ? '\n\n' : '') + node.actions.map((a) => `→ ${fill(a.label, vars)}`).join('\n')
+				if (!branch && node.ask) text += (text ? '\n\n' : '') + askText(node.ask, vars)
+				const shownActions = node.actions.filter((a) => holds(a.if, vars))
+				if (!branch && node.end && shownActions.length) text += (text ? '\n\n' : '') + shownActions.map((a) => `→ ${fill(a.label, vars)}`).join('\n')
 				if (!first && text) await emit('\n\n')
-				first = false
+				if (text) first = false
 				await emit(text)
+				if (branch) { id = branch.next; continue }
 				await this.drawCard(s, guide, node)
 				if (node.ask) { if (opts.pushTrail) s.state.trail = [...s.state.trail.filter((t) => t !== id), id].slice(-50); break }
 				if (node.end) break
 				id = node.next
 			}
 		})
+	}
+
+	/**
+	 * Run a node's host task and keep the variables it returns. A task that is
+	 * not registered, or throws, says so in the chat and sets `taskError`, so
+	 * the guide can branch on it instead of stopping.
+	 */
+	private async runTask(s: Session, guide: Guide, name: string, emit: (text: string) => Promise<void>) {
+		const task = this.tasks.get(name)
+		if (!task) {
+			s.state.vars = { ...s.state.vars, taskError: `no task ${name}` }
+			await emit(`_(this guide runs a task the host does not have: ${name})_\n\n`)
+			return
+		}
+		try {
+			const out = await task(this.vars(s, guide))
+			s.state.vars = { ...s.state.vars, ...(out && typeof out === 'object' ? out : {}), taskError: '' }
+		} catch (err: any) {
+			const why = String(err?.message ?? err).split('\n')[0]!.slice(0, 200)
+			s.state.vars = { ...s.state.vars, taskError: why }
+			await emit(`_(${name} failed: ${why})_\n\n`)
+		}
 	}
 
 	/** Stream a reply: `chat-start`, the words as `chat-delta`, `chat-done`. Saved after. */
@@ -712,8 +779,8 @@ export class Guides {
 			title: node.card?.title ? fill(node.card.title, vars) : undefined,
 			body: fill(node.card?.body ?? (node.card?.title ? '' : node.say), vars),
 			prompt: node.ask?.prompt ? fill(node.ask.prompt, vars) : undefined,
-			choices: (node.ask?.choices ?? []).map((c) => fill(c.label, vars)),
-			actions: node.actions.map((a) => ({ label: fill(a.label, vars), open: fill(a.open, vars) })),
+			choices: (node.ask ? visibleChoices(node.ask, vars) : []).map((c) => fill(c.label, vars)),
+			actions: node.actions.filter((a) => holds(a.if, vars)).map((a) => ({ label: fill(a.label, vars), open: fill(a.open, vars) })),
 			steps,
 		}
 		const setup = await this.canvases.eval(s.canvasId, guideCanvasSetup(), { keep: false, timeoutMs: 15_000 })

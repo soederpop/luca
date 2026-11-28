@@ -81,6 +81,57 @@ Rules the host checks when it loads the file:
 - A node asks (`ask`), goes on (`next`), or ends (`end: true`). Exactly one.
 - An `ask` has choices, free input, or both.
 
+## Checks and branches
+
+A guide can look at the machine and go different ways:
+
+```yaml
+  check:
+    task: ai-check            # host code; sets variables
+    say: "{{found}}"
+    when:                     # first that holds wins, in the same turn
+      - if: defaultProvider
+        next: ready
+      - if: "!aiReady"
+        next: choose
+    next: pick                # none held
+  choose:
+    ask:
+      choices:
+        - label: Install Claude Code
+          if: "!claudeInstalled"   # hidden when it fails; the rest are renumbered
+          next: claude
+```
+
+- `task` names code the host registers (`Guides.tasks`). A file cannot name
+  a shell command. It runs before `say`, and what it returns becomes
+  variables. A task that is missing or throws sets `taskError` and says so
+  in the chat, so the guide can branch on it.
+- `when` is checked after `say`. A node that branches shows no ask and no
+  card; the next node draws. With no match the node asks, goes on or ends.
+- `if` on a choice or an action shows it only when it holds.
+- A condition is `name` (truthy), `!name`, `name=value` or `name!=value`.
+  `false`, `0`, `''`, `"false"` and a missing name are falsy.
+
+The tasks the workbench host has (`src/workbench/first-run.ts`):
+
+- `ai-check`: `claudeInstalled`, `claudeLoggedIn`, `codexInstalled`,
+  `codexLoggedIn`, `openaiKey`, `anthropicKey`, `serverRunning`,
+  `serverTitle`, `lmstudioRunning`, `lmstudioApp`, `localReady`,
+  `defaultProvider` (what works today, or empty), `aiReady`, and `found`
+  (a markdown list of all of it). Scans this Mac and the tailnet for model
+  servers.
+- `ai-use-best`: `ai-check`, then writes the best way in as `default:` in
+  `~/.luca/model-providers.yml` (Claude Code, Codex, an OpenAI key, an
+  Anthropic key, a running server, the local model). A server is added as
+  a provider with a model it has. Sets `chosen` (empty when nothing works)
+  and `chosenText`.
+
+To run a command for the person, open a terminal tile with
+`open: terminal/<id>?run=<name>`. Only names in
+`TerminalContent.startCommands` run (`setup`, `claude`, `codex`,
+`chat-model`); add one there for a new command.
+
 ## How answers match
 
 A typed answer picks a choice by, in this order: its number (`1`, `2.`),

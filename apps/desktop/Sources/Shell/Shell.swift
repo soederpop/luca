@@ -1095,6 +1095,8 @@ final class Shell: ObservableObject {
         case "solo": perform("layout.solo", count: nil)
         case "projects": openOrFocus(TileURI.app("projects"))
         case "portfolio": openPortfolioChat()
+        case "first-time-user", "welcome":
+            _ = open(PortfolioProject.firstTimeUser, near: focusedId)
         case "file", "f":
             withProject("a file of which project") { [weak self] project in
                 if rest.isEmpty { self?.pickFile(in: project) } else { self?.openOrFocus(FileContent.address(project: project, path: rest)) }

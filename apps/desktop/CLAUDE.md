@@ -786,8 +786,21 @@ A scripted chat with no model (`src/workbench/guide.ts`, tests in
   into a turn with the label as the user text; action buttons post `open`
   to the web bridge. The card never blocks the chat: a page that is not open
   is skipped.
+- Nodes can run host code (`task`), branch on variables (`when`) and hide
+  choices or actions (`if`). Tasks are registered in `host.ts`; the
+  first-time-user ones are `src/workbench/first-run.ts`.
 - `:guide [id]` (`onboarding` by default) opens one beside the tile in
-  focus. lucaArchitect ships `assistants/lucaArchitect/guides/onboarding.yml`, the
+  focus.
+- **`:first-time-user`** (or `:welcome`) opens `guide:first-time-user` on
+  the portfolio host (`PortfolioProject.firstTimeUser`), so it needs no
+  project. It checks for Claude Code and Codex (installed, signed in with
+  `claude auth status` / `codex login status`), API keys, running model
+  servers (LM Studio, Ollama) and the local model, then writes the best as
+  `default:` in `~/.luca/model-providers.yml`. With none, it offers to
+  install and sign in to Claude Code or Codex in a terminal tile
+  (`?run=claude`, `?run=codex`), start LM Studio's server, download the
+  local model (`?run=chat-model`), or skip, and ends with the website and
+  repo. The guide file is `assistants/lucaArchitect/guides/first-time-user.yml`. lucaArchitect ships `assistants/lucaArchitect/guides/onboarding.yml`, the
   welcome tour (a developer track and a new-to-code track, ending in a
   handoff to lucaArchitect).
 - `LUCA_GUIDE_DELAY_MS` is the pause per streamed word (14; tests use 0).
