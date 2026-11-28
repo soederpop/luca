@@ -110,7 +110,16 @@ llm.on('token', (piece) => output.textContent += piece)
 await llm.chat('What is a container?')
 llm.state.get('tokensPerSecond')   <span class="c">// decoding speed on your GPU</span></code></pre>
       <p>Models download once from the Hugging Face hub and stay in your browser's cache. After that, every page here works offline. WebGPU works in Chrome and Edge 113+ and Safari 26+. Everything else falls back to WASM.</p>
-      <p>Use it yourself: <code>bun add luca</code>, then <code>import container from 'luca/web'</code>. Run <code>luca describe localLlm</code> for the full API.</p>
+      <h2 style="margin-top:2.5rem">Put it in any page.</h2>
+      <p>No install and no build step. One script tag loads the whole web container from esm.sh, and it is also on <code>window.luca</code>.</p>
+<pre><code>&lt;script type="module"&gt;
+  import container from 'https://esm.sh/luca/web'
+
+  const llm = container.feature('localLlm')
+  llm.on('token', (piece) =&gt; document.body.append(piece))
+  await llm.chat('Say hello in five words.')
+&lt;/script&gt;</code></pre>
+      <p>Pin a version when you need it to stay the same: <code>https://esm.sh/luca@3.27.5/web</code>. Using a bundler? <code>bun add luca</code>, then <code>import container from 'luca/web'</code>. Run <code>luca describe localLlm</code> for the full API.</p>
     </section>
     <footer>Luca · Lightweight Universal Conversational Architecture · <a href="https://github.com/soederpop/luca">github.com/soederpop/luca</a></footer>
     <script type="module">
