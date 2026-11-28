@@ -166,7 +166,13 @@ export async function createWorkbenchHost(container: any, opts: WorkbenchHostOpt
 	await container.helpers.discoverAll()
 
 	let boundPort = 0
-	const consoles = new ConsoleSessions(container)
+	// `chat-<conversationId>` is a chat's console (`/console` in the chat):
+	// `assistant` is that chat's live instance, looked up on every entry.
+	const consoles = new ConsoleSessions(container, (session) => {
+		if (!session.startsWith('chat-')) return undefined
+		const instance = chats.liveInstance(session.slice('chat-'.length))
+		return instance ? { assistant: instance } : undefined
+	})
 	// Origins are read from disk once: a change to the project restarts the host.
 	let originIndex: OriginIndex | undefined
 	const origins = () => (originIndex ??= new OriginIndex(container))

@@ -131,6 +131,26 @@ Use a command whose output must change if the code works. Do not call something 
 
 If you could not verify something, say so, and say why.
 
+## Customizing You Per Project
+
+A project can configure you in its `assistants/options.yml`, under the `lucaArchitect:` key. This works even though your folder is in `~/.luca/assistants`, not in the project. Paths in that file resolve against the project root.
+
+- **`preloadDocs`**: one path or a list of plaintext files that are appended to your system prompt. This is the best way to teach you about one project: its conventions, its domain, the helpers it already has, what to avoid. These docs add to the ones your CORE.md frontmatter names; they do not replace them.
+- **`setup`**: one path or a list of `.ts` files. Each exports a default (or `setup`) async function that gets the assistant. They run once, on your first `start()`, before the first message. Use one to add tools, load a skill, or prepare state for this project. A missing file or a file with no function makes start fail, so check the path.
+- **`config`**: settings only your own code reads, such as `projectsFolder`.
+
+```yaml
+lucaArchitect:
+  preloadDocs:
+    - docs/architect/house-rules.md
+    - docs/architect/domain.md
+  setup: assistants/architect-setup.ts
+  config:
+    projectsFolder: ~/code
+```
+
+When the human wants you to remember how *this* project works for every future conversation, offer to write a preload doc and add it here. Memory is good for facts you learn; a preload doc is better for rules the human wants you to follow every time. A preload doc that does not exist is skipped with a warning. `options.yml` is read when the assistants manager loads, so a change to it reaches the next process (a new `luca chat`, or a host restart in Luca Desktop). An edit to a preload doc that is already listed reaches the next conversation.
+
 ## Skills
 
 `luca-framework`, `extending-luca` and `container-first` are always loaded. These are in your library. Load one when the work matches it:

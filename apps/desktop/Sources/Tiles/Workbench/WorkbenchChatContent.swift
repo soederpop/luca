@@ -113,7 +113,8 @@ struct WorkbenchChatTranscript: Equatable {
 ///
 /// `i` writes, `Enter` sends, `Ctrl-c` stops the reply, `h` past
 /// conversations, `n` a new chat, `t` tools for this chat, `s` tech support.
-/// `:say <text>` sends from the command line.
+/// `:say <text>` sends from the command line. `/console` as a message opens
+/// a console beside the chat with `assistant` in scope.
 @MainActor
 final class WorkbenchChatContent: WorkbenchContent {
     static let kind = TileKind(id: "luca-chat", label: "Chat", glyph: "bubble.left.and.text.bubble.right") { uri, _ in
@@ -281,6 +282,7 @@ final class WorkbenchChatContent: WorkbenchContent {
     func submit() {
         let text = draft
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if magicCommand(text) { draft = ""; return }
         if transcript.busy {
             queued.append(text)
             draft = ""
@@ -305,8 +307,28 @@ final class WorkbenchChatContent: WorkbenchContent {
         if draft.isEmpty { draft = text }
     }
 
+    /// A chat line the tile answers itself, never sent to the assistant.
+    /// `/console` opens a console beside the chat whose scope has
+    /// `assistant` as this chat's live instance (host session
+    /// `chat-<conversationId>`). True when the line was one.
+    func magicCommand(_ text: String) -> Bool {
+        guard text.trimmingCharacters(in: .whitespacesAndNewlines) == "/console" else { return false }
+        guard opened != nil, conversationId != "new" else { Shell.shared.flash("Still opening the chat"); return true }
+        if assistant.hasPrefix("guide:") { Shell.shared.flash("A guide has no assistant to put in a console"); return true }
+        let session = "chat-\(conversationId)"
+        if let tile = Shell.shared.tiles.values.first(where: {
+            $0.content.kindId == ConsoleContent.kind.id && $0.uri.authority == projectId && ($0.uri.id ?? "default") == session
+        }) {
+            Shell.shared.focusTile(tile.id)
+            return true
+        }
+        _ = Shell.shared.open(ConsoleContent.address(project: projectId, session: session), focus: true, near: tileId, group: true)
+        return true
+    }
+
     @discardableResult
     func send(_ text: String) -> Bool {
+        if magicCommand(text) { return true }
         guard let host else { Shell.shared.flash("The workbench host is not running"); return false }
         guard opened != nil, conversationId != "new" else { Shell.shared.flash("Still opening the chat"); return false }
         guard !transcript.busy else { Shell.shared.flash("A reply is still coming. Ctrl-c stops it"); return false }

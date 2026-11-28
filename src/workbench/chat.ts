@@ -1085,6 +1085,12 @@ export class ChatSessions {
 		}
 	}
 
+	/** The live assistant of an open conversation, or null when no chat holds it. */
+	liveInstance(conversationId: string): any | null {
+		for (const s of this.sessions.values()) if (s.conversationId === conversationId) return s.instance
+		return null
+	}
+
 	stop(name: string, conversationId: string): boolean {
 		const s = this.sessions.get(this.key(name, conversationId))
 		if (!s?.turn) return false

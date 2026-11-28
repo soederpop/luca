@@ -259,7 +259,14 @@ export function helperNamesIn(code: string, has: (name: string) => boolean, regi
 	return [...found].map(([name, registry]) => ({ name, registry }))
 }
 
-type Session = { context: any; entries: number; queue: Promise<unknown>; logs: ConsoleLog[] | null; last?: any; seed: Set<string> }
+type Session = { context: any; entries: number; queue: Promise<unknown>; logs: ConsoleLog[] | null; last?: any; seed: Set<string>; bound: Map<string, any> }
+
+/**
+ * Names a session's scope gets from outside, asked on every entry so a value
+ * that changes (a chat's assistant, rebuilt on a model switch) stays current.
+ * Return nothing for a session that has none.
+ */
+export type ConsoleBindings = (session: string) => Record<string, any> | undefined
 
 /**
  * `?fs.readFile` or `fs.readFile?`: a question about a name, not code to
@@ -279,8 +286,25 @@ export class ConsoleSessions {
 	private sessions = new Map<string, Session>()
 	private docs: ConsoleDocs
 
-	constructor(private container: any) {
+	constructor(private container: any, private bindings?: ConsoleBindings) {
 		this.docs = new ConsoleDocs(container)
+	}
+
+	/**
+	 * Put the outside names in scope. A name the user assigned something else
+	 * to since the last bind is theirs: it is left alone.
+	 */
+	private bind(name: string, s: Session) {
+		let values: Record<string, any> | undefined
+		try { values = this.bindings?.(name) } catch { values = undefined }
+		if (!values) return
+		for (const [key, value] of Object.entries(values)) {
+			const taken = key in s.context && (!s.bound.has(key) || s.context[key] !== s.bound.get(key))
+			if (taken || value === undefined) continue
+			s.context[key] = value
+			s.bound.set(key, value)
+			s.seed.add(key)
+		}
 	}
 
 	/** Completions, the signature and the docs at the caret, from the session's live scope. */
@@ -301,12 +325,13 @@ export class ConsoleSessions {
 			for (const [id, instance] of Object.entries(this.container.enabledFeatures ?? {})) {
 				if (!(id in s.context)) s.context[id] = instance
 			}
+			this.bind(name, s)
 			return s
 		}
 		const container = this.container
 		const vm = container.feature('vm')
 		container.helpers.seedVirtualModules()
-		const holder: Session = { context: null, entries: 0, queue: Promise.resolve(), logs: null, seed: new Set() }
+		const holder: Session = { context: null, entries: 0, queue: Promise.resolve(), logs: null, seed: new Set(), bound: new Map() }
 		// Logs go to the entry that is running; later ones (a timer) go to stderr, never stdout.
 		const write = (level: string) => (...args: any[]) => {
 			const text = clip(format(...args), LOG_TEXT)
@@ -341,6 +366,7 @@ export class ConsoleSessions {
 		// What the context starts with, so the names the user sets can be told apart.
 		holder.seed = new Set(Object.keys(holder.context))
 		this.sessions.set(name, holder)
+		this.bind(name, holder)
 		return holder
 	}
 
