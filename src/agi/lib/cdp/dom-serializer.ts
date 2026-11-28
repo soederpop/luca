@@ -6,7 +6,7 @@
  * The output must match the Python byte for byte, because agents learn its
  * shape and `click <index>` depends on the same elements getting indices.
  */
-import { DomNode, NodeType, hasAttrs, type CompoundChild, type Rect } from './dom-tree.js'
+import { DomNode, NodeType, hasAttrs, pyRound, type CompoundChild, type Rect } from './dom-tree.js'
 
 export const DEFAULT_INCLUDE_ATTRIBUTES = [
   'title', 'type', 'checked', 'id', 'name', 'role', 'value', 'placeholder', 'data-date-format', 'alt',
@@ -167,7 +167,7 @@ export function countHiddenElementsInIframes(root: DomNode) {
       if (n.axNode?.name) text = [...n.axNode.name].slice(0, 40).join('')
       else if (hasAttrs(n)) text = [...(n.attributes['placeholder'] || n.attributes['title'] || n.attributes['aria-label'] || '')].slice(0, 40).join('')
       const y = n.snapshotNode?.bounds?.y ?? 0
-      out.push({ tag: n.tagName || '?', text: text || '(no label)', pages: vh > 0 ? Math.round((y / vh) * 10) / 10 : 0 })
+      out.push({ tag: n.tagName || '?', text: text || '(no label)', pages: vh > 0 ? pyRound(y / vh, 1) : 0 })
     }
     for (const c of n.childrenNodes || []) out.push(...collect(c, vh))
     for (const s of n.shadowRoots || []) out.push(...collect(s, vh))

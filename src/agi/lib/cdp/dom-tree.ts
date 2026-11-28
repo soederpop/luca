@@ -195,16 +195,29 @@ export class DomNode {
 
 export const hasAttrs = (n: DomNode) => Object.keys(n.attributes).length > 0
 
-/** Python's round(): half-to-even. Matters only at exact .x5 ties. */
+/**
+ * Python's round(): rounds the exact binary value, half-to-even on true ties.
+ * 0.35 is really 0.3499999… so Python gives 0.3, while 0.25 is an exact tie
+ * and gives 0.2. Naive n * 10 math gets both wrong, so this reads the exact
+ * decimal expansion that toFixed() provides.
+ */
 export function pyRound(n: number, digits: number): number {
-  const m = 10 ** digits
-  const v = n * m
-  const f = Math.floor(v)
-  const diff = v - f
-  let r: number
-  if (Math.abs(diff - 0.5) < 1e-9) r = f % 2 === 0 ? f : f + 1
-  else r = Math.round(v)
-  return r / m
+  if (!Number.isFinite(n)) return n
+  const neg = n < 0
+  const exact = Math.abs(n).toFixed(Math.min(100, digits + 60))
+  const [int = '0', frac = ''] = exact.split('.')
+  const kept = frac.slice(0, digits)
+  const rest = frac.slice(digits)
+  let up = false
+  if (rest[0]! > '5') up = true
+  else if (rest[0] === '5') {
+    const tie = /^0*$/.test(rest.slice(1))
+    const lastKept = Number((kept || int).slice(-1))
+    up = !tie || lastKept % 2 === 1
+  }
+  let v = Number(`${int}.${kept || '0'}`)
+  if (up) v = Number((v + 10 ** -digits).toFixed(digits))
+  return neg ? -v : v
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 /**
  * Finding a Chrome to talk to.
  *
- * Three sources, used by browserUseV2:
+ * Three sources, used by browserUse:
  *  - an explicit cdpUrl (http:// debug address or ws:// browser URL)
  *  - launch mode: a dedicated debug Chrome with its own profile
  *  - real-profile mode: the person's everyday Chrome, after they tick

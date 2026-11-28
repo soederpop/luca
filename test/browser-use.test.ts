@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import { parseDevToolsActivePort, profileDirs, resolveBrowserWsUrl, findRealProfileBrowser, chromeExecutableCandidates } from '../src/agi/lib/cdp/discovery'
 import { DomNode, NodeType, pyRound } from '../src/agi/lib/cdp/dom-tree'
+import { normalizeKeys, charModifiersAndVk, keyCodeForChar, getKeyInfo } from '../src/agi/lib/cdp/keys'
 import { buildAttributesString, isInteractive, DEFAULT_INCLUDE_ATTRIBUTES } from '../src/agi/lib/cdp/dom-serializer'
 
 const el = (tag: string, attributes: Record<string, string> = {}) => {
@@ -14,7 +15,7 @@ const el = (tag: string, attributes: Record<string, string> = {}) => {
   return n
 }
 
-describe('browserUseV2 discovery', () => {
+describe('browserUse discovery', () => {
   it('parses DevToolsActivePort as port + ws path', () => {
     expect(parseDevToolsActivePort('9222\n/devtools/browser/abc\n')).toEqual({ port: '9222', wsPath: '/devtools/browser/abc' })
     expect(parseDevToolsActivePort('garbage')).toBeNull()
@@ -42,10 +43,11 @@ describe('browserUseV2 discovery', () => {
   })
 })
 
-describe('browserUseV2 serializer', () => {
+describe('browserUse serializer', () => {
   it('rounds like Python (half to even)', () => {
-    expect(pyRound(0.25, 1)).toBe(0.2)
-    expect(pyRound(0.35, 1)).toBe(0.4)
+    expect(pyRound(0.25, 1)).toBe(0.2) // exact tie: to even
+    expect(pyRound(0.35, 1)).toBe(0.3) // really 0.3499999..., not a tie
+    expect(pyRound(2.675, 2)).toBe(2.67)
     expect(pyRound(1.26, 1)).toBe(1.3)
   })
 
@@ -66,5 +68,24 @@ describe('browserUseV2 serializer', () => {
 
   it('adds an ISO format hint to date inputs', () => {
     expect(buildAttributesString(el('input', { type: 'date' }), DEFAULT_INCLUDE_ATTRIBUTES, '')).toBe('type=date format=YYYY-MM-DD placeholder=YYYY-MM-DD')
+  })
+})
+
+describe('browserUse keys', () => {
+  it('normalizes key aliases', () => {
+    expect(normalizeKeys('ctrl+a')).toBe('Control+a')
+    expect(normalizeKeys('esc')).toBe('Escape')
+    expect(normalizeKeys('cmd+shift+k')).toBe('Meta+Shift+k')
+  })
+
+  it('maps characters to modifiers, key codes and base keys', () => {
+    expect(charModifiersAndVk('A')).toEqual([8, 65, 'a'])
+    expect(charModifiersAndVk('!')).toEqual([8, 49, '1'])
+    expect(charModifiersAndVk('a')).toEqual([0, 65, 'a'])
+    expect(keyCodeForChar('a')).toBe('KeyA')
+    expect(keyCodeForChar('7')).toBe('Digit7')
+    expect(keyCodeForChar(' ')).toBe('Space')
+    expect(getKeyInfo('Enter')).toEqual(['Enter', 13])
+    expect(getKeyInfo('Control')).toEqual(['ControlLeft', 17])
   })
 })
