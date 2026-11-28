@@ -191,8 +191,10 @@ export function canvasHtml(id: string, title: string, key: string): string {
 }
 
 // The kit's tokens color the page, so it follows the app's theme. The fallbacks are for a page whose kit did not load.
-export const CANVAS_CSS = `html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--al-ground, #fff); color: var(--al-text, #111); font: var(--al-text-base, 14px)/1.45 var(--al-font-sans, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); }
-#stage { position: absolute; inset: 0; overflow: hidden; }
+// #stage scrolls: content taller than the tile (a long table, stacked charts) must stay reachable by wheel and by the tile's top/bottom keys.
+// The canvas stays the stage's visible size; it scrolls away with the content, and a full-stage drawing never overflows.
+export const CANVAS_CSS = `html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: auto; background: var(--al-ground, #fff); color: var(--al-text, #111); font: var(--al-text-base, 14px)/1.45 var(--al-font-sans, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif); }
+#stage { position: absolute; inset: 0; overflow: auto; }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #canvas-status { position: fixed; right: 8px; bottom: 6px; font: 11px var(--al-font-mono, ui-monospace, Menlo, monospace); color: var(--al-text-faint, #888); pointer-events: none; }
 `

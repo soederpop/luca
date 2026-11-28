@@ -789,6 +789,11 @@ final class Shell: ObservableObject {
 
     /// Run an action by id. Layout and shell actions are here; anything else
     /// goes to the tile in focus.
+    /// A web tile (page, canvas) scrolls inside its page; a native tile moves its biggest scroll view.
+    private func scrollFocused(_ move: TileWindowController.ScrollMove) {
+        if let host = focusedTile?.content.webHost { host.scroll(move) } else { focusedTile?.controller?.scroll(move) }
+    }
+
     func perform(_ action: String, count: Int?) {
         let parts = action.split(separator: ".").map(String.init)
         let direction = parts.last.flatMap(Direction.init(rawValue:))
@@ -895,12 +900,12 @@ final class Shell: ObservableObject {
         case "theme.pick": pickTheme()
         case "layout.blank": confirmBlankSlate()
 
-        case "tile.scroll.down": focusedTile?.controller?.scroll(.lines(count ?? 1))
-        case "tile.scroll.up": focusedTile?.controller?.scroll(.lines(-(count ?? 1)))
-        case "tile.page.down": focusedTile?.controller?.scroll(.halfPages(count ?? 1))
-        case "tile.page.up": focusedTile?.controller?.scroll(.halfPages(-(count ?? 1)))
-        case "tile.top": focusedTile?.controller?.scroll(.top)
-        case "tile.bottom": focusedTile?.controller?.scroll(.bottom)
+        case "tile.scroll.down": scrollFocused(.lines(count ?? 1))
+        case "tile.scroll.up": scrollFocused(.lines(-(count ?? 1)))
+        case "tile.page.down": scrollFocused(.halfPages(count ?? 1))
+        case "tile.page.up": scrollFocused(.halfPages(-(count ?? 1)))
+        case "tile.top": scrollFocused(.top)
+        case "tile.bottom": scrollFocused(.bottom)
         case "tile.copyLink":
             guard let tile = focusedTile else { return }
             NSPasteboard.general.clearContents()

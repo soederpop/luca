@@ -250,6 +250,44 @@ final class WebTileHost: ObservableObject {
         for weak in webViews { weak.view?.evaluateJavaScript(key.pressScript, completionHandler: nil) }
     }
 
+    /// The tile's `j` `k` `Ctrl-d` `Ctrl-u` `gg` `G`. A web view has no
+    /// `NSScrollView` for the shell to move, so the page scrolls itself: the
+    /// document if it scrolls, else its biggest scrolling element (a canvas's
+    /// `#stage`, an app shell's main pane).
+    func scroll(_ move: TileWindowController.ScrollMove) {
+        let how: String
+        switch move {
+        case .lines(let n): how = "{by:\(n * 48)}"
+        case .halfPages(let n): how = "{pages:\(Double(n) / 2)}"
+        case .top: how = "{to:'top'}"
+        case .bottom: how = "{to:'bottom'}"
+        }
+        for weak in webViews { weak.view?.evaluateJavaScript(Self.scrollScript(how), completionHandler: nil) }
+    }
+
+    nonisolated static func scrollScript(_ how: String) -> String {
+        """
+        (function(m){
+          var room = function(el){ return el.scrollHeight - el.clientHeight > 1 };
+          var target = document.scrollingElement;
+          if (!target || !room(target)) {
+            target = null; var best = 0;
+            document.querySelectorAll('*').forEach(function(el){
+              var o = getComputedStyle(el).overflowY;
+              if ((o === 'auto' || o === 'scroll' || o === 'overlay') && room(el)) {
+                var area = el.clientWidth * el.clientHeight;
+                if (area > best) { best = area; target = el }
+              }
+            });
+          }
+          if (!target) return;
+          var top = m.to === 'top' ? 0 : m.to === 'bottom' ? target.scrollHeight
+            : target.scrollTop + (m.by || 0) + (m.pages || 0) * target.clientHeight;
+          target.scrollTo({ top: top });
+        })(\(how))
+        """
+    }
+
     /// `i`: every key goes to the page until `Mod-Esc`.
     func takeKeys() {
         pageHasKeys = true
