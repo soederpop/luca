@@ -13,6 +13,7 @@ import { Memory } from "./features/agent-memory";
 import { AssistantDelegator } from "./features/assistant-delegator";
 import { Assistant } from "./features/assistant";
 import { AssistantsManager } from "./features/assistants-manager";
+import { BrowserUseV2 } from "./features/browser-use-v2";
 import { BrowserUse } from "./features/browser-use";
 import { ClaudeCode } from "./features/claude-code";
 import { ClaudeController } from "./features/claude-controller";
@@ -37,6 +38,8 @@ export { Assistant } from "./features/assistant";
 export type { VisionSupportConfig, AssistantState, AssistantOptions, ToolFilterDecision, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
 export type { AssistantEntry, AssistantsManagerHooksModule, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
+export { BrowserUseV2 } from "./features/browser-use-v2";
+export type { BrowserUseV2State, BrowserUseV2Options, BrowserUseV2Result } from "./features/browser-use-v2";
 export { BrowserUse } from "./features/browser-use";
 export type { BrowserUseState, BrowserUseOptions } from "./features/browser-use";
 export { ClaudeCode } from "./features/claude-code";
@@ -71,6 +74,7 @@ export interface GeneratedAGIFeatures {
   assistantDelegator: typeof AssistantDelegator;
   assistantsManager: typeof AssistantsManager;
   browserUse: typeof BrowserUse;
+  browserUseV2: typeof BrowserUseV2;
   claudeCode: typeof ClaudeCode;
   claudeController: typeof ClaudeController;
   codingTools: typeof CodingTools;
@@ -94,6 +98,7 @@ export const generatedAgiFeatureExports = {
   AssistantDelegator,
   AssistantsManager,
   BrowserUse,
+  BrowserUseV2,
   ClaudeCode,
   ClaudeController,
   CodingTools,
