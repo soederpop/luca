@@ -23,7 +23,9 @@ describe('console bindings', () => {
 		const c = await consoles.run('assistant.name', 'chat-1')
 		expect(c.ok && c.text).toBe('mine')
 
-		const d = await consoles.run('typeof assistant', 'default')
-		expect(d.ok && d.text).toBe('undefined')
+		// Asked as a string: a bare `assistant` would become feature('assistant')
+		// whenever the AGI registry is loaded, which is not the binding leaking.
+		const d = await consoles.run("Object.hasOwn(globalThis, 'assistant')", 'default')
+		expect(d.ok && d.text).toBe('false')
 	})
 })
