@@ -199,4 +199,14 @@ final class WorkbenchToolsTests: XCTestCase {
         XCTAssertEqual(wide.anchor.minX, 100, "a wide chat stays on the left")
         XCTAssertEqual(wide.next.minX, wide.anchor.maxX + gap)
     }
+
+    func testOwnKeyCyclesProjectPluginsAll() {
+        let all = ["own", "borrowed", "plugin", "builtin"]
+        XCTAssertEqual(RegistryContent.nextOwnGroup(after: nil, available: all), "own")
+        XCTAssertEqual(RegistryContent.nextOwnGroup(after: "own", available: all), "plugin")
+        XCTAssertEqual(RegistryContent.nextOwnGroup(after: "plugin", available: all), nil)
+        XCTAssertEqual(RegistryContent.nextOwnGroup(after: "builtin", available: all), "own")
+        // No plugins here: o goes back to toggling this project and all.
+        XCTAssertEqual(RegistryContent.nextOwnGroup(after: "own", available: ["own", "builtin"]), nil)
+    }
 }

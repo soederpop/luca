@@ -157,7 +157,7 @@ bindings:
   lucaProject.registry: { key: "o", label: "open the registry", scope: kind.luca-project }
   lucaRegistry.restart: { key: "R", label: "restart the workbench host", scope: kind.luca-registry }
   lucaRegistry.take:    { key: "t", label: "take into… another project", scope: kind.luca-registry }
-  lucaRegistry.own:     { key: "o", label: "only this project's helpers, or all", scope: kind.luca-registry }
+  lucaRegistry.own:     { key: "o", label: "this project, plugins, or all", scope: kind.luca-registry }
   lucaRegistry.origin:  { key: "O", label: "next origin: own, borrowed, plugins, built in", scope: kind.luca-registry }
   lucaRegistry.servers: { key: "s", label: "the servers tile: start and stop them", scope: kind.luca-registry }
   lucaRegistry.plugins: { key: "b", label: "plugins and borrowed helpers", scope: kind.luca-registry }

@@ -79,7 +79,7 @@ struct IndexView: View {
                 ForEach(groups) { group in
                     GroupChip(label: group.label, count: group.count, color: WorkbenchStyle.originColor(group.id),
                               on: model.state.group == group.id) { model.setGroup(group.id) }
-                        .modifier(GroupKey(action: group.id == "own" ? "lucaRegistry.own" : nil))
+                        .modifier(GroupKey(action: group.id == "own" || group.id == "plugin" ? "lucaRegistry.own" : nil))
                 }
                 Color.clear.frame(width: 1, height: 1).keyBadge("lucaRegistry.origin")
             }

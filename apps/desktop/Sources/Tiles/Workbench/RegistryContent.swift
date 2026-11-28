@@ -88,7 +88,8 @@ final class RegistryContent: IndexContent {
             Shell.shared.takeInto(source)
             return true
         case "lucaRegistry.own":
-            setGroup(state.group == "own" ? nil : "own")
+            let here = state.groups(order: groupOrder).map(\.id)
+            setGroup(Self.nextOwnGroup(after: state.group, available: here))
             return true
         case "lucaRegistry.origin":
             cycleGroup()
@@ -115,6 +116,15 @@ final class RegistryContent: IndexContent {
     }
 
     /// The host's stacks as index stacks. A card opens the tile its
+    /// What `o` shows next: this project, then plugins, then every helper.
+    /// A group with no helpers here is skipped. From any other group
+    /// (`O` put it on built in, say) it goes back to this project.
+    nonisolated static func nextOwnGroup(after now: String?, available: [String]) -> String? {
+        let cycle: [String?] = ["own", "plugin", nil].filter { $0 == nil || available.contains($0!) }
+        guard let index = cycle.firstIndex(where: { $0 == now }) else { return cycle[0] }
+        return cycle[(index + 1) % cycle.count]
+    }
+
     /// `address` names under this project. Pure, so it is tested.
     nonisolated static func indexStacks(_ reply: WorkbenchStacks, project: String) -> [IndexStack] {
         reply.stacks.map { stack in
