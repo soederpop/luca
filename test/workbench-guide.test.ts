@@ -308,6 +308,13 @@ describe('guide helpers', () => {
 		expect(findBinary('hermes', '/usr/bin', '/home/u', (p) => have.has(p))).toBeNull()
 	})
 
+	it('does not count a shared install that is not on this user\'s PATH', () => {
+		// Another account's Homebrew cask: runnable, but not from this user's shell.
+		const have = new Set(['/opt/homebrew/bin/claude'])
+		expect(findBinary('claude', '/usr/bin:/bin', '/Users/luca', (p) => have.has(p))).toBeNull()
+		expect(findBinary('claude', '/opt/homebrew/bin:/usr/bin', '/Users/luca', (p) => have.has(p))).toBe('/opt/homebrew/bin/claude')
+	})
+
 	it('picks the default: coding agents, then keys, then a server, then local', () => {
 		expect(pickDefault({ claudeLoggedIn: true, codexLoggedIn: true, openaiKey: true })).toBe('claude-code')
 		expect(pickDefault({ codexLoggedIn: true, openaiKey: true })).toBe('codex')

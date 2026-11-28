@@ -21,13 +21,18 @@ const CHECK_MS = 8000
 /** Built-in profiles whose model is a stand-in, not one the server has. */
 const PLACEHOLDER_PROFILES = new Set(['lmstudio', 'ollama'])
 
-/** Where the installers put the CLIs. A host started before the install may not have these on PATH. */
+/**
+ * Where the guide's own installers put the CLIs, in this user's home. A host
+ * started before the install does not have these on PATH yet.
+ *
+ * Shared folders like /opt/homebrew/bin are left out on purpose: a CLI there
+ * that is not on this user's PATH cannot be run from their terminal, so the
+ * guide must not call it installed.
+ */
 export function binaryDirs(home: string): string[] {
 	return [
 		`${home}/.local/bin`,
 		`${home}/.claude/local`,
-		'/opt/homebrew/bin',
-		'/usr/local/bin',
 		`${home}/.bun/bin`,
 		`${home}/.npm-global/bin`,
 	]
