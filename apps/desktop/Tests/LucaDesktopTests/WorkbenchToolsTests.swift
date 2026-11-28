@@ -168,6 +168,11 @@ final class WorkbenchToolsTests: XCTestCase {
         XCTAssertNil(ConsoleContent.address(project: "notes", session: "default").id)
         XCTAssertEqual(HelperContent.firstLine("a\nb\nc"), "a … (3 lines)")
         XCTAssertEqual(HelperContent.firstLine("one"), "one")
+        // No examples: `e` makes the helper under its id with its default options.
+        XCTAssertEqual(HelperContent.instanceCode(registry: "features", id: "modelProviders"), "const modelProviders = feature('modelProviders')")
+        XCTAssertEqual(HelperContent.instanceCode(registry: "clients", id: "rest"), "const rest = client('rest')")
+        XCTAssertEqual(HelperContent.instanceCode(registry: "servers", id: "my-api"), "container.server('my-api')")
+        XCTAssertNil(HelperContent.instanceCode(registry: "commands", id: "greet"))
     }
 
     func testSplitFramesHalvesWideTilesSideBySideAndTallTilesStacked() {

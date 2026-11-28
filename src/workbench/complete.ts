@@ -69,6 +69,8 @@ const PREVIEW = 90
 const KEYWORDS = ['await', 'async', 'const', 'let', 'function', 'return', 'new', 'typeof', 'true', 'false', 'null', 'undefined', 'for', 'if', 'else', 'try', 'catch', 'throw', 'import']
 const GLOBALS = ['JSON', 'Math', 'Object', 'Array', 'Promise', 'Date', 'Map', 'Set', 'String', 'Number', 'Boolean', 'RegExp', 'Error', 'Buffer', 'process', 'fetch', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'URL', 'URLSearchParams', 'console', 'structuredClone', 'parseInt', 'parseFloat', 'encodeURIComponent', 'decodeURIComponent', 'globalThis']
 const FACTORIES: Record<string, string> = { feature: 'features', client: 'clients', server: 'servers' }
+/** The registries a bare name can come from in the console, in order. Keep in step with console.ts. */
+const AUTO_REGISTRIES = ['features', 'clients', 'servers']
 
 function clip(text: string, max: number): string {
 	return text.length > max ? text.slice(0, max - 1) + '…' : text
@@ -311,7 +313,18 @@ export class ConsoleDocs {
 	private root(scope: any, name: string): Ref | undefined {
 		if (name in scope) return { path: name, has: true, value: scope[name] }
 		if (GLOBALS.includes(name) && name in globalThis) return { path: name, has: true, value: (globalThis as any)[name] }
+		// A helper id the console will make on first use (`modelProviders.`): its class answers.
+		const registry = this.autoRegistryOf(name)
+		if (registry) {
+			const live = this.liveInstance(registry, name)
+			return { path: name, has: !!live, value: live, helper: { registry, id: name } }
+		}
 		return undefined
+	}
+
+	/** The registry a bare name comes from in the console, as `console.ts` picks it. */
+	private autoRegistryOf(name: string): string | undefined {
+		return AUTO_REGISTRIES.find((r) => { try { return !!this.container[r]?.has?.(name) } catch { return false } })
 	}
 
 	private member(ref: Ref, name: string): Ref | undefined {
@@ -353,9 +366,12 @@ export class ConsoleDocs {
 				ref = this.member(ref, key)
 				if (ref) ref.path = `${from.path}[${seg.raw.trim()}]`
 			} else {
-				const registry = ref.name ? FACTORIES[ref.name] : undefined
+				// `feature('fs')`: the console's own shortcut for `container.feature('fs')`.
+				const bare = !ref.parent && typeof ref.value === 'function' ? ref.value.lucaRegistry : undefined
+				const registry = bare ?? (ref.name ? FACTORIES[ref.name] : undefined)
 				const id = stringLiteral(seg.args.split(',')[0] ?? '')
-				if (!registry || id === undefined || !ref.parent || !isContainer(ref.parent.value)) return undefined
+				if (!registry || id === undefined) return undefined
+				if (!bare && (!ref.parent || !isContainer(ref.parent.value))) return undefined
 				if (!this.container[registry]?.has?.(id)) return undefined
 				const live = this.liveInstance(registry, id)
 				const path = `${ref.path}(${seg.args.trim()})`
@@ -551,7 +567,8 @@ export class ConsoleDocs {
 		return items
 	}
 
-	private scopeItems(scope: any, seed?: Set<string>): CompletionItem[] {
+	/** `catalog`: also the helper ids not in scope yet (only once a letter is typed, so an empty list stays the scope). */
+	private scopeItems(scope: any, seed?: Set<string>, catalog = false): CompletionItem[] {
 		const items: CompletionItem[] = []
 		const seen = new Set<string>()
 		const push = (item: CompletionItem) => { if (!seen.has(item.label)) { seen.add(item.label); items.push(item) } }
@@ -569,6 +586,14 @@ export class ConsoleDocs {
 			const value = name in scope ? scope[name] : (globalThis as any)[name]
 			if (value === undefined) continue
 			push({ label: name, kind: 'global', detail: typeof value === 'function' ? 'function' : typeOf(value), insert: name, doc: { title: name, kind: 'global', summary: '', type: typeOf(value), documented: false } })
+		}
+		// Helper ids not in scope yet: the console makes one on first use.
+		for (const registry of catalog ? AUTO_REGISTRIES : []) {
+			for (const id of this.container[registry]?.available ?? []) {
+				if (seen.has(id) || !/^[A-Za-z_$][\w$]*$/.test(id)) continue
+				const doc = this.helperDoc(registry, id, false)
+				push({ label: id, kind: 'helper', detail: firstSentence(doc.summary), insert: id, weight: 0.2, doc })
+			}
 		}
 		for (const word of KEYWORDS) push({ label: word, kind: 'keyword', detail: '', insert: word, doc: { title: word, kind: 'keyword', summary: '', documented: false } })
 		return items
@@ -602,7 +627,7 @@ export class ConsoleDocs {
 			while (start > 0 && mask[start - 1] && !/['"`]/.test(code[start - 1]!)) start--
 			const quote = code[start - 1]
 			const before = code.slice(0, Math.max(0, start - 1))
-			const factory = /(?:^|[^\w$])([\w$.]+)\.(feature|client|server)\(\s*$/.exec(before)
+			const factory = /(?:^|[^\w$.])(?:([\w$.]+)\.)?(feature|client|server)\(\s*$/.exec(before)
 			if (quote && /['"`]/.test(quote) && factory) {
 				let end = cursor
 				while (end < code.length && /[\w$-]/.test(code[end]!)) end++
@@ -640,7 +665,7 @@ export class ConsoleDocs {
 			}
 			if (receiver) answer.items = rank(this.membersOfValue(receiver), prefix)
 		} else if (code[before - 1] !== '.') {
-			answer.items = rank(asking ? this.docScopeItems(scope, seed) : this.scopeItems(scope, seed), prefix)
+			answer.items = rank(asking ? this.docScopeItems(scope, seed) : this.scopeItems(scope, seed, prefix.length > 0), prefix)
 		}
 
 		// The name the caret is on, whole: its docs follow the caret.

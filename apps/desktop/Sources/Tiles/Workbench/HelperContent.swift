@@ -236,11 +236,29 @@ final class HelperContent: WorkbenchContent {
     func pickExample() {
         guard let info else { return Shell.shared.flash("Still loading") }
         let examples = info.examples ?? []
-        guard !examples.isEmpty else { return Shell.shared.flash("\(info.title) has no @example blocks") }
+        guard !examples.isEmpty else { return openInstance() }
         if examples.count == 1 { return runExample(examples[0]) }
         PaletteController.shared.choose("run an example of \(info.title) in a console", examples.map { ex in
             PaletteChoice(title: ex.title, detail: Self.firstLine(ex.code)) { [weak self] in self?.runExample(ex) }
         })
+    }
+
+    /// With no examples, `e` makes the helper with its default options in its
+    /// console, under its id when that is a plain name (`const fs = feature('fs')`).
+    func openInstance() {
+        guard let address, let code = Self.instanceCode(registry: address.registry, id: address.id) else {
+            return Shell.shared.flash("\(info?.title ?? "This helper") has no @example blocks")
+        }
+        runInConsole(code)
+    }
+
+    /// The console line that makes a helper; nil for a registry with no factory (commands).
+    nonisolated static func instanceCode(registry: String, id: String) -> String? {
+        let factories = ["features": "feature", "clients": "client", "servers": "server"]
+        guard let factory = factories[registry] else { return nil }
+        let quoted = id.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
+        let isName = id.range(of: #"^[A-Za-z_$][\w$]*$"#, options: .regularExpression) != nil
+        return isName ? "const \(id) = \(factory)('\(quoted)')" : "container.\(factory)('\(quoted)')"
     }
 
     /// The console scope the helper's examples run in: one per helper, so names carry over.
@@ -636,11 +654,10 @@ struct HelperView: View {
         HStack(spacing: KitTokens.Space.s4) {
             let examples = info.examples ?? []
             Button { model.pickExample() } label: {
-                Label(examples.isEmpty ? "no examples" : "run an example", systemImage: "play.circle")
+                Label(examples.isEmpty ? "open in console" : "run an example", systemImage: examples.isEmpty ? "terminal" : "play.circle")
             }
-            .disabled(examples.isEmpty)
             .keyBadge("lucaHelper.example")
-            .help(examples.isEmpty ? "This helper has no @example blocks" : "Pick an @example block; it runs in a console beside this tile")
+            .help(examples.isEmpty ? "No @example blocks: make this helper with its default options in a console beside this tile" : "Pick an @example block; it runs in a console beside this tile")
             Button { model.chatAbout() } label: { Label("ask \(HelperContent.expertAssistant)", systemImage: "bubble.left.and.text.bubble.right") }
                 .keyBadge("lucaHelper.chat")
                 .help("A chat briefed on this helper, kept beside this tile")

@@ -136,8 +136,8 @@ describe('POST /console/complete', () => {
   })
 
   it('after ?, completes every helper id and registry path, not only the scope', async () => {
-    // rest is a client with no instance in the session: code mode cannot see it.
-    expect(labels(await at('rest.|'))).toEqual([])
+    // rest is a client with no instance in the session: the console makes it on first use, so its class answers.
+    expect(labels(await at('rest.|'))).toContain('get')
     const rest = await at('?rest.|')
     expect(labels(rest)).toContain('get')
     expect(rest.items.find((i: any) => i.label === 'get').doc.owner).toMatchObject({ registry: 'clients', id: 'rest' })
@@ -232,6 +232,43 @@ describe('docs in the console', () => {
     expect(a.doc.title).toBe('features.fs')
     await post('/console', { code: '40 + 2', session: 'd' })
     expect((await post('/console', { code: '_ + 1', session: 'd' })).body.text).toBe('43')
+  })
+})
+
+describe('helpers by name', () => {
+  it('offers helper ids not in scope once a letter is typed', async () => {
+    const a = await at('res|')
+    expect(a.items.find((i: any) => i.label === 'rest')?.kind).toBe('helper')
+  })
+
+  it('completes ids inside the bare feature/client/server shortcuts', async () => {
+    expect(labels(await at("client('re|')"))).toContain('rest')
+    expect(labels(await at("feature('fs').ex|"))).toContain('exists')
+  })
+
+  it('makes a helper the entry names but the scope lacks, and says so', async () => {
+    const a = (await post('/console', { code: 'typeof rest.get', session: 'auto' })).body
+    expect(a.ok).toBe(true)
+    expect(a.text).toBe('function')
+    expect(a.logs.map((l: any) => l.text)).toContain("rest = client('rest')")
+    // It stays: the next entry sees the same instance without a second log.
+    const b = (await post('/console', { code: 'rest === _ || typeof rest', session: 'auto' })).body
+    expect(b.logs).toEqual([])
+  })
+
+  it('leaves names the entry gives a value of its own', async () => {
+    const a = (await post('/console', { code: 'const rest = 5; rest', session: 'own' })).body
+    expect(a.text).toBe('5')
+    expect(a.logs).toEqual([])
+    const b = (await post('/console', { code: '({ rest: 1 }).rest', session: 'own2' })).body
+    expect(b.logs).toEqual([])
+  })
+
+  it('a shortcut call nobody assigned still puts the helper under its id', async () => {
+    await post('/console', { code: "client('rest', { baseURL: 'http://x.test' })", session: 'short' })
+    const a = (await post('/console', { code: 'rest.options.baseURL', session: 'short' })).body
+    expect(a.text).toBe('http://x.test')
+    expect(a.logs).toEqual([])
   })
 })
 

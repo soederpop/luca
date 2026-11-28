@@ -222,6 +222,43 @@ function stackOf(err: any): string {
 	return stack.split('\n').filter((line) => !(/^\s+at /.test(line) && ours.test(line))).slice(0, STACK_LINES).join('\n')
 }
 
+/** The helper factories in scope, by registry: `feature('fs')` is `container.feature('fs')`. */
+const FACTORY_OF: Record<string, string> = { features: 'feature', clients: 'client', servers: 'server' }
+/** The registries a bare name can come from, in the order they are tried. */
+const AUTO_REGISTRIES = ['features', 'clients', 'servers']
+const DECLARED = /\b(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g
+
+/**
+ * The free names of `code` that a helper registry knows and the scope does
+ * not have yet, with the registry for each. A name after `.`, an object key
+ * (`fs:`), a name the code declares itself, and anything in a string or
+ * comment do not count. This only reads the code; it runs nothing.
+ */
+export function helperNamesIn(code: string, has: (name: string) => boolean, registryOf: (name: string) => string | undefined): Array<{ name: string; registry: string }> {
+	const mask = computeNonCodeMask(code)
+	const declared = new Set<string>()
+	for (const m of code.matchAll(DECLARED)) if (!mask[m.index!]) declared.add(m[1]!)
+	const found = new Map<string, string>()
+	for (const m of code.matchAll(/[A-Za-z_$][\w$]*/g)) {
+		const i = m.index!
+		const name = m[0]
+		if (mask[i] || found.has(name) || declared.has(name)) continue
+		if (i > 0 && /[\w$]/.test(code[i - 1]!)) continue
+		let b = i - 1
+		while (b >= 0 && /\s/.test(code[b]!)) b--
+		if (b >= 0 && code[b] === '.' && code[b - 1] !== '.') continue
+		let a = i + name.length
+		while (a < code.length && /\s/.test(code[a]!)) a++
+		if (code[a] === ':' && code[a + 1] !== ':') continue
+		// `fs = …` gives the name a value of its own; `fs => …` is a parameter.
+		if (code[a] === '=' && code[a + 1] !== '=') continue
+		if (has(name)) continue
+		const registry = registryOf(name)
+		if (registry) found.set(name, registry)
+	}
+	return [...found].map(([name, registry]) => ({ name, registry }))
+}
+
 type Session = { context: any; entries: number; queue: Promise<unknown>; logs: ConsoleLog[] | null; last?: any; seed: Set<string> }
 
 /**
@@ -284,12 +321,50 @@ export class ConsoleSessions {
 			require: vm.createRequireFor(container.paths.resolve('__workbench_console__.ts')),
 			console: consoleProxy,
 		}
+		// `feature('x')`, `client('x')`, `server('x')`: the container's factories.
+		// The helper also takes its id as a name, when the name is free, so a
+		// call nobody assigned is still there in the next entry.
+		for (const [registry, factory] of Object.entries(FACTORY_OF)) {
+			const fn = (id: string, options?: any, ...rest: any[]) => {
+				const helper = container[factory](id, options, ...rest)
+				const ctx = holder.context
+				if (ctx && typeof id === 'string' && IDENT.test(id) && !(id in ctx)) ctx[id] = helper
+				return helper
+			}
+			Object.defineProperty(fn, 'name', { value: factory })
+			// complete.ts follows a call of this function to the helper's class.
+			;(fn as any).lucaRegistry = registry
+			scope[factory] = fn
+		}
 		for (const [id, instance] of Object.entries(container.enabledFeatures ?? {})) scope[id] = instance
 		holder.context = vm.createContext(scope)
 		// What the context starts with, so the names the user sets can be told apart.
 		holder.seed = new Set(Object.keys(holder.context))
 		this.sessions.set(name, holder)
 		return holder
+	}
+
+	/**
+	 * A name the entry uses that is not in scope but is a helper id
+	 * (`modelProviders`, `rest`) becomes that helper, made with its default
+	 * options, before the entry runs. Each one is said in the entry's logs.
+	 */
+	private defineHelpers(s: Session, code: string, logs: ConsoleLog[]) {
+		const container = this.container
+		const names = helperNamesIn(
+			code,
+			(name) => name in s.context || name in globalThis,
+			(name) => AUTO_REGISTRIES.find((r) => { try { return !!container[r]?.has?.(name) } catch { return false } }),
+		)
+		for (const { name, registry } of names) {
+			const factory = FACTORY_OF[registry]!
+			try {
+				s.context[name] = container[factory](name)
+				logs.push({ level: 'info', text: `${name} = ${factory}('${name}')` })
+			} catch (err: any) {
+				logs.push({ level: 'warn', text: `${name} is a ${registry.slice(0, -1)}, but ${factory}('${name}') threw: ${err?.message ?? err}` })
+			}
+		}
 	}
 
 	reset(name = 'default'): boolean {
@@ -320,8 +395,9 @@ export class ConsoleSessions {
 		} catch {
 			// vm.run reports the real syntax error against the user's own code.
 		}
-		code = persistDeclarations(code)
 		const logs: ConsoleLog[] = []
+		this.defineHelpers(s, code, logs)
+		code = persistDeclarations(code)
 		s.logs = logs
 		const started = Date.now()
 		let timer: any
