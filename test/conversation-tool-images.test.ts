@@ -16,7 +16,9 @@ writeFileSync(pngPath, Buffer.from(RED_PIXEL_B64, 'base64'))
 function makeContainerAndConversation(opts: Record<string, any> = {}) {
 	const container = new AGIContainer()
 	const providers = container.feature('modelProviders')
-	const conv = container.feature('conversation', { model: 'gpt-5', api: 'chat', ...opts }) as Conversation
+	// Pin the provider: with none, the machine's own default (~/.luca/model-providers.yml,
+	// an installed local model) decides, and the fake OpenAI transport below never runs.
+	const conv = container.feature('conversation', { provider: 'openai', model: 'gpt-5', api: 'chat', ...opts }) as Conversation
 	return { container, providers, conv }
 }
 

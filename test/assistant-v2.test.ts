@@ -6,8 +6,11 @@ import { AGIContainer } from '../src/agi/container.server'
 import { Conversation } from '../src/agi/features/conversation'
 
 describe('Assistant provider wiring', () => {
-  it('uses the OpenAI conversation loops by default (no provider)', async () => {
+  it('uses the OpenAI conversation loops when the default provider is openai (no provider option)', async () => {
     const c = new AGIContainer()
+    // Pin the container default. Left alone it comes from this machine
+    // (~/.luca/model-providers.yml, an installed local model), not the test.
+    c.feature('modelProviders').setDefault('openai')
     const assistant = c.feature('assistant', { systemPrompt: 'You are concise.' })
 
     await assistant.start()

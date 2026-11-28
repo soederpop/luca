@@ -5,7 +5,9 @@ import type { Conversation } from '../src/agi/features/conversation'
 function make() {
 	const container = new AGIContainer()
 	const providers = container.feature('modelProviders')
-	const conv = container.feature('conversation', { model: 'gpt-5', api: 'chat' }) as Conversation
+	// Pin the provider: with none, the machine's own default (~/.luca/model-providers.yml,
+	// an installed local model) decides, and the fake OpenAI transport below never runs.
+	const conv = container.feature('conversation', { provider: 'openai', model: 'gpt-5', api: 'chat' }) as Conversation
 	return { providers, conv }
 }
 
