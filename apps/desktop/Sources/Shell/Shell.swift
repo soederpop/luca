@@ -1207,10 +1207,14 @@ final class Shell: ObservableObject {
 
     func restore() {
         guard let saved = StateStore.load() else {
-            // First launch: keys view on, and the projects tile, which says
-            // how to open a project.
+            // First launch: keys view on, the projects tile, which says how
+            // to open a project, and beside it the first-time-user guide,
+            // which gets the new user to a working model.
             keysView = true
-            open(TileURI.app("projects"))
+            let projects = open(TileURI.app("projects"))
+            if PortfolioProject.welcomesOnFirstLaunch(environment: ProcessInfo.processInfo.environment) {
+                _ = open(PortfolioProject.firstTimeUser, near: projects)
+            }
             return
         }
         restoring = true

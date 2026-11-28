@@ -120,6 +120,13 @@ enum PortfolioProject {
         TileURI.luca(project: id, tool: "chat", id: "new", options: [TileURI.Option(name: "assistant", value: assistant)])
     }
 
+    /// Whether a first launch opens the first-time-user guide. Check runs start
+    /// with an empty app folder, which looks like a first launch:
+    /// `LUCA_DESKTOP_NO_WELCOME=1` keeps the guide (and its host) away.
+    nonisolated static func welcomesOnFirstLaunch(environment: [String: String]) -> Bool {
+        (environment["LUCA_DESKTOP_NO_WELCOME"] ?? "").isEmpty
+    }
+
     /// The first-time-user guide. It runs here so a new user needs no project:
     /// it checks the Mac for a model and helps install and sign in to one.
     static var firstTimeUser: TileURI {

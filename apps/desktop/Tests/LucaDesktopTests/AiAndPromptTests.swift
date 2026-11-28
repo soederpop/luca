@@ -103,6 +103,12 @@ final class SetupTerminalTests: XCTestCase {
         XCTAssertEqual(TerminalContent.startCommands["chat-model"], "luca setup --chat-model")
     }
 
+    func testFirstLaunchWelcomesUnlessACheckRunSaysNot() {
+        XCTAssertTrue(PortfolioProject.welcomesOnFirstLaunch(environment: [:]))
+        XCTAssertTrue(PortfolioProject.welcomesOnFirstLaunch(environment: ["LUCA_DESKTOP_NO_WELCOME": ""]))
+        XCTAssertFalse(PortfolioProject.welcomesOnFirstLaunch(environment: ["LUCA_DESKTOP_NO_WELCOME": "1"]))
+    }
+
     func testFirstTimeUserRunsTheGuideOnThePortfolioHost() {
         let uri = PortfolioProject.firstTimeUser
         XCTAssertEqual(uri.authority, PortfolioProject.id)

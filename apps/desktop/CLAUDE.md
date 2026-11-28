@@ -172,7 +172,9 @@ owner colors). Colors are kit tokens only, so every theme (`Space T`) and
   `[TileURI?]`: a slot that does not parse is nil and `Shell.apply` skips it
   with a log line; a layout of only unknown tiles changes nothing.
 - First launch (no `state.json`): the projects tile, which says how to open
-  a project.
+  a project, and beside it the first-time-user guide (`:first-time-user`).
+  `LUCA_DESKTOP_NO_WELCOME=1` leaves the guide out (check runs start with an
+  empty app folder, so they look like a first launch).
 
 ## Projects and the workbench host
 
@@ -1005,7 +1007,8 @@ run out of `~/.luca/desktop/`, which the installed app uses. Add
 takes the keyboard) and `LUCA_DESKTOP_NO_KEYCHAIN=1`. In a quiet run,
 `type:` after `:` fills the palette's line, so `:|type:open-project <path>|Enter`
 opens a project and `:|type:open luca://<p>/helper/features/fs|Enter` any tile.
-Check runs `unset LUCA_PLUGINS` and set `XDG_CACHE_HOME` to a scratch folder.
+Check runs `unset LUCA_PLUGINS`, set `XDG_CACHE_HOME` to a scratch folder,
+and set `LUCA_DESKTOP_NO_WELCOME=1` unless they check the first-launch guide.
 `perl -e 'alarm 120; exec @ARGV' .build/debug/LucaDesktop` bounds a run
 (there is no `timeout` on macOS). The icon is drawn by
 `swift scripts/make-icon.swift`; commit `packaging/AppIcon.*`.
