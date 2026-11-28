@@ -610,7 +610,8 @@ export function parseSystemctlShow(output: string): Pick<ServiceStatus, 'loaded'
     if (eq > 0) props[line.slice(0, eq)] = line.slice(eq + 1).trim()
   }
   const pid = Number(props.MainPID)
-  const exit = props.ExecMainStatus
+  // systemd reports ExecMainStatus=0 for units it has never seen, which would read as a clean exit.
+  const exit = props.LoadState === 'loaded' ? props.ExecMainStatus : undefined
   return {
     loaded: props.LoadState === 'loaded' && (props.UnitFileState === 'enabled' || props.ActiveState === 'active'),
     running: props.ActiveState === 'active',

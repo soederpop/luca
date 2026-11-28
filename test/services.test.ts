@@ -155,7 +155,7 @@ describe('status parsers', () => {
   it('parses systemctl show', () => {
     const out = 'ActiveState=active\nMainPID=99\nExecMainStatus=0\nUnitFileState=enabled\nLoadState=loaded\n'
     expect(parseSystemctlShow(out)).toEqual({ loaded: true, running: true, pid: 99, lastExitCode: 0 })
-    expect(parseSystemctlShow('ActiveState=inactive\nMainPID=0\nLoadState=not-found\nUnitFileState=\n').loaded).toBe(false)
+    expect(parseSystemctlShow('ActiveState=inactive\nMainPID=0\nExecMainStatus=0\nLoadState=not-found\nUnitFileState=\n')).toEqual({ loaded: false, running: false, pid: undefined, lastExitCode: undefined })
   })
 
   it('renders a description into the systemd unit', () => {
