@@ -174,6 +174,17 @@ indirect enum LayoutNode: Equatable {
         return .split(axis.other, ratio, a, b)
     }
 
+    /// `Mod-x`: the innermost split that holds `id` swaps its two sides
+    /// (left and right, or top and bottom). Each side keeps its size.
+    func flippingSplit(at id: UUID) -> LayoutNode {
+        guard case .split(let axis, let ratio, let a, let b) = self, contains(id) else { return self }
+        let inA = a.contains(id)
+        if case .split = inA ? a : b {
+            return inA ? .split(axis, ratio, a.flippingSplit(at: id), b) : .split(axis, ratio, a, b.flippingSplit(at: id))
+        }
+        return .split(axis, 1 - ratio, b, a)
+    }
+
     /// Evenly sized chain of tiles along one axis.
     static func row(_ ids: [UUID], axis: SplitAxis) -> LayoutNode {
         guard let first = ids.first else { return .stack([], active: 0) }

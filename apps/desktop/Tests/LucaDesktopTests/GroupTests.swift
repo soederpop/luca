@@ -55,6 +55,46 @@ final class GroupTests: XCTestCase {
         XCTAssertEqual(ws.frames[c], cBefore, "a tile outside the group stays")
     }
 
+    func testFlipInOrganizedModeSwapsThePairAndKeepsSizes() {
+        var (ws, a, b, c) = organizedRow()
+        ws.join(b, with: c, toward: .right)
+        ws.applyTree(in: screen, gap: gap)
+        let widthB = ws.frames[b]!.width, widthC = ws.frames[c]!.width
+        XCTAssertTrue(ws.flip(c))
+        ws.applyTree(in: screen, gap: gap)
+        XCTAssertEqual(leftToRight(ws), [a, c, b], "the canvas goes to the other side of its chat")
+        XCTAssertEqual(ws.frames[b]!.width, widthB, accuracy: 1)
+        XCTAssertEqual(ws.frames[c]!.width, widthC, accuracy: 1)
+        XCTAssertTrue(ws.flip(c))
+        ws.applyTree(in: screen, gap: gap)
+        XCTAssertEqual(leftToRight(ws), [a, b, c], "a second flip puts it back")
+    }
+
+    func testFlipInFreeModeMirrorsTheGroupInItsBox() {
+        var ws = Workspace()
+        let chat = UUID(), canvas = UUID(), other = UUID()
+        ws.add(chat, frame: CGRect(x: 100, y: 100, width: 300, height: 600))
+        ws.add(canvas, frame: CGRect(x: 406, y: 100, width: 500, height: 600))
+        ws.add(other, frame: CGRect(x: 1300, y: 600, width: 300, height: 300))
+        XCTAssertFalse(ws.flip(chat), "a loose tile has nothing to flip with")
+        ws.join(chat, with: canvas, toward: .right)
+        XCTAssertTrue(ws.flip(chat))
+        XCTAssertEqual(ws.frames[canvas], CGRect(x: 100, y: 100, width: 500, height: 600))
+        XCTAssertEqual(ws.frames[chat], CGRect(x: 606, y: 100, width: 300, height: 600))
+        XCTAssertEqual(ws.frames[other], CGRect(x: 1300, y: 600, width: 300, height: 300))
+    }
+
+    func testFlipInFreeModeSwapsAStackedPairTopAndBottom() {
+        var ws = Workspace()
+        let chat = UUID(), canvas = UUID()
+        ws.add(chat, frame: CGRect(x: 100, y: 100, width: 500, height: 300))
+        ws.add(canvas, frame: CGRect(x: 100, y: 406, width: 500, height: 400))
+        ws.join(chat, with: canvas, toward: .up)
+        XCTAssertTrue(ws.flip(canvas))
+        XCTAssertEqual(ws.frames[canvas], CGRect(x: 100, y: 100, width: 500, height: 400))
+        XCTAssertEqual(ws.frames[chat], CGRect(x: 100, y: 506, width: 500, height: 300))
+    }
+
     func testGroupZoomInOrganizedModeShowsOnlyTheGroupAndBack() {
         var (ws, a, b, c) = organizedRow()
         ws.join(b, with: c, toward: .right)

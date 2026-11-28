@@ -83,6 +83,9 @@ assistants get `canvases.toTools({ chat })`, coding agents get
 `/mcp/canvas?chat=<id>`. The chat's space is split in two: canvas right of
 a wide chat, above a tall one. A frame with no chat (a guide) groups with
 the project's chat in focus, else one on this workspace.
+`Mod-x` (`layout.flip`) swaps the sides of a tile's pair after it opens:
+organized mode flips the split that holds it (sizes kept), free mode
+mirrors the group inside its box (`Workspace.flip`, pure, `GroupTests`).
 
 ## Rules
 

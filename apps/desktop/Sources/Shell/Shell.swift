@@ -824,6 +824,14 @@ final class Shell: ObservableObject {
             workspaces[current].tree = rotated
             applyLayout(animated: true)
             scheduleSave()
+        case "layout.flip":
+            guard let id = focused else { return }
+            detachGroupWindows()
+            guard workspaces[current].flip(id) else {
+                return flash(workspace.mode == .organized ? "This tile is not in a split" : "Group it with a tile first (Mod-g)")
+            }
+            applyLayout(animated: true)
+            scheduleSave()
         case "layout.stack.prev", "layout.stack.next":
             guard let id = focused, workspace.mode == .organized, let tree = workspace.tree else { return flash("No tree in free mode") }
             let (next, front) = tree.cyclingStack(at: id, by: action.hasSuffix("next") ? 1 : -1)

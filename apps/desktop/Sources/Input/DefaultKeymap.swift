@@ -30,6 +30,7 @@ bindings:
   layout.split.right:   { key: "Mod-v", label: "next opens right", scope: layout }
   layout.split.below:   { key: "Mod-s", label: "next opens below", scope: layout }
   layout.split.rotate:  { key: "Mod-e", label: "side by side / stacked", scope: layout }
+  layout.flip:          { key: "Mod-x", label: "swap sides with its pair (canvas left / right of its chat)", scope: layout }
   layout.stack.toggle: { key: "Mod-t", label: "stack / split", scope: layout }
   layout.stack.prev:    { key: "Mod-[", label: "previous in stack", scope: layout }
   layout.stack.next:    { key: "Mod-]", label: "next in stack", scope: layout }

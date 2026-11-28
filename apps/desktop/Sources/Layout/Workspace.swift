@@ -241,6 +241,34 @@ struct Workspace: Codable, Equatable {
         }
     }
 
+    /// `Mod-x`: swap the sides of the tile's pair, so a canvas right of its
+    /// chat goes left of it (or one above goes below). Organized: the split
+    /// that holds the tile. Free: the group's frames mirror inside the
+    /// group's box, across the axis the group is spread along. Returns
+    /// false when there is nothing to flip.
+    @discardableResult
+    mutating func flip(_ id: UUID) -> Bool {
+        if mode == .organized, let tree, tree.contains(id) {
+            let flipped = tree.flippingSplit(at: id)
+            guard flipped != tree else { return false }
+            self.tree = flipped
+            return true
+        }
+        let members = self.members(of: id)
+        let rects = members.compactMap { m in frames[m].map { (m, $0) } }
+        guard rects.count >= 2, let box = Neighbors.bounds(rects.map(\.1)) else { return false }
+        let widest = rects.map(\.1.width).max() ?? 0
+        let tallest = rects.map(\.1.height).max() ?? 0
+        // Spread side by side when the box is wider than any one member.
+        let sideways = box.width - widest >= box.height - tallest
+        for (m, r) in rects {
+            var next = r
+            if sideways { next.origin.x = box.minX + box.maxX - r.maxX } else { next.origin.y = box.minY + box.maxY - r.maxY }
+            frames[m] = next.integral
+        }
+        return true
+    }
+
     /// `Mod-Shift-Space`: take a tile out of the tree, or put it back next to
     /// the tile nearest its center.
     mutating func toggleFloat(_ id: UUID) {
